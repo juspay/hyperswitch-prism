@@ -1195,6 +1195,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1270,6 +1271,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1325,6 +1327,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1380,6 +1383,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1464,6 +1468,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function

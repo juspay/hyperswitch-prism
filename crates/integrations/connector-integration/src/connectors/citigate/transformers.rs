@@ -825,6 +825,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CitigatePaymentsRespo
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: response.attempt_status(),
@@ -928,6 +929,7 @@ impl TryFrom<ResponseRouterData<CitigateSyncResponse, Self>> for SyncRouterData 
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: response.sync_attempt_status(),
@@ -1052,6 +1054,7 @@ impl TryFrom<ResponseRouterData<CitigateCaptureResponse, Self>> for CaptureRoute
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1159,6 +1162,7 @@ impl TryFrom<ResponseRouterData<CitigateVoidResponse, Self>> for VoidRouterData 
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

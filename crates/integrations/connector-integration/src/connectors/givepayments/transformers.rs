@@ -622,6 +622,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -745,6 +746,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             })
@@ -809,6 +811,7 @@ impl<F> TryFrom<ResponseRouterData<GivepaymentsPaymentResponseData, Self>>
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..router_data
             })

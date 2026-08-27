@@ -404,6 +404,7 @@ pub struct Connectors {
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub absa_sanlam: ConnectorParams,
+    pub gotyme_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
@@ -843,6 +844,7 @@ impl Connectors {
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
+            PayoutConnectorEnum::GotymeSanlam => patched.gotyme_sanlam.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -6855,6 +6857,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -6920,6 +6923,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
+                    payment_account_reference,
                 }
             }
             _ => {
@@ -6986,6 +6990,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }
         }
     };
@@ -7735,9 +7740,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentS
             }
             // For Refund/Dispute in payment context, this shouldn't happen
             // but we provide sensible defaults
-            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::Unspecified
-            }
+            router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::Unspecified,
         }
     }
 }
@@ -7750,9 +7755,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundSt
                 grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
             }
             // For Payment/Dispute in refund context, map to failure
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::RefundFailure
-            }
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::RefundFailure,
         }
     }
 }
@@ -7765,9 +7770,24 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeS
                 grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
             }
             // For Payment/Refund in dispute context, map to default/unspecified
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
-                Self::default()
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Payout(_) => Self::default(),
+        }
+    }
+}
+
+// Map FlowStatus to PayoutStatus (for payout flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payouts::payout_enums::PayoutStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Payout(payout_status) => {
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(payout_status)
             }
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_) => Self::default(),
         }
     }
 }
@@ -7807,6 +7827,9 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
                         ),
                     ),
                 }
+            }
+            router_data::FlowStatus::Payout(_) => {
+                grpc_api_types::payments::FlowStatus { status: None }
             }
         }
     }
@@ -7887,6 +7910,7 @@ pub fn generate_payment_void_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -7944,6 +7968,7 @@ pub fn generate_payment_void_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8007,6 +8032,7 @@ pub fn generate_payment_void_response(
                 incremental_authorization_allowed: None,
                 connector_feature_data: None,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -8074,6 +8100,7 @@ pub fn generate_payment_void_post_capture_response(
                 mandate_reference: _,
                 status_code,
                 splits: _,
+                payment_account_reference: _,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8354,6 +8381,7 @@ pub fn generate_payment_sync_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8468,6 +8496,7 @@ pub fn generate_payment_sync_response(
                             })
                             .ok()
                         }),
+                    payment_account_reference,
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -8581,6 +8610,7 @@ pub fn generate_payment_sync_response(
                     ),
                     connector_feature_data: None,
                     connector_returned_payment_method_details: None,
+                    payment_account_reference: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8680,6 +8710,7 @@ pub fn generate_payment_sync_response(
                 settlement_status: None,
                 connector_feature_data: None,
                 connector_returned_payment_method_details: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -9657,6 +9688,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             settlement_status: None,
             connector_feature_data: None,
             connector_returned_payment_method_details: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -11765,6 +11797,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -11819,6 +11852,7 @@ pub fn generate_payment_capture_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -11880,6 +11914,7 @@ pub fn generate_payment_capture_response(
                 connector_feature_data: None,
                 connector_response,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -12869,6 +12904,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -12993,6 +13029,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 }
             }
             _ => {
@@ -13056,6 +13093,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 connector_feature_data: None,
                 captured_amount: None,
                 splits: None,
+                payment_account_reference: None,
             }
         }
     };
@@ -15450,6 +15488,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 status_code,
                 incremental_authorization_allowed,
                 splits,
+                payment_account_reference,
                 ..
             } => {
                 let mandate_reference_details = mandate_reference
@@ -15509,6 +15548,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                                 split_response,
                             )
                         }),
+                        payment_account_reference,
                     },
                 )
             }
@@ -15572,6 +15612,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     captured_amount: None,
                     incremental_authorization_allowed: None,
                     splits: None,
+                    payment_account_reference: None,
                 },
             )
         }
