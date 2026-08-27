@@ -418,9 +418,9 @@ fn map_travelhub_status(result: &TravelhubResult) -> AttemptStatus {
 
 fn map_travelhub_refund_status(result: &TravelhubResult) -> RefundStatus {
     match result {
-        TravelhubResult::Approved
-        | TravelhubResult::Refunded
-        | TravelhubResult::Settled => RefundStatus::Success,
+        TravelhubResult::Approved | TravelhubResult::Refunded | TravelhubResult::Settled => {
+            RefundStatus::Success
+        }
         TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid => {
             RefundStatus::Failure
         }
