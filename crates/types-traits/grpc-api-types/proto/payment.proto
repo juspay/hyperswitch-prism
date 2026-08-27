@@ -2498,7 +2498,6 @@ message SecretInfoToInitiateSdk {
 
 // Request message for authorizing a payment
 message PaymentServiceAuthorizeRequest {
-  reserved 53;
   // Identification
   optional string merchant_transaction_id = 1;
 

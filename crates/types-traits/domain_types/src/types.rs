@@ -3448,6 +3448,7 @@ pub struct AuthorizationRequest {
     pub order_details: Option<Vec<grpc_payment_types::OrderDetailsWithAmount>>,
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
+    pub payment_method_token: Option<Secret<String>>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub merchant_request_id: Option<String>,
     /// Connector-side order identifier when a `CreateOrder` has already been
@@ -3561,6 +3562,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             statement_descriptor_suffix: req.statement_descriptor_suffix,
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
+            payment_method_token: None,
             mit_category,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
@@ -3631,6 +3633,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             order_details: None,
             tokenization_strategy: None,
             test_mode: req.test_mode,
+            payment_method_token: None,
             mit_category: None,
             merchant_request_id: None,
             connector_order_id: req.connector_order_id,
