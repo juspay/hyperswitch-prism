@@ -20,5 +20,21 @@
     "PaymentService/TokenSetupRecurring",
     "PaymentMethodService/Tokenize",
     "PaymentService/Void"
+  ],
+  "supported_payment_methods": [
+    "card",
+    "affirm",
+    "afterpay_clearpay",
+    "ali_pay_redirect",
+    "ach_bank_transfer",
+    "bacs_bank_transfer",
+    "bancontact_card",
+    "eps",
+    "giropay",
+    "google_pay_sdk",
+    "ideal",
+    "klarna",
+    "przelewy24",
+    "sepa_bank_transfer"
   ]
 }
