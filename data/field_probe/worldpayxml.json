@@ -777,7 +777,7 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "proxy_authorize": {
