@@ -25,6 +25,7 @@ set -uo pipefail
 
 ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
 SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
+ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 BASE_SHA="${BASE_SHA:-}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -37,6 +38,12 @@ SERVER_BINARY="target/debug/grpc-server"
 
 # shellcheck source=../../scripts/grpc-server.sh
 source "scripts/grpc-server.sh"
+
+# Listed in alpha_connectors.json: no credentials in CI, so nothing to certify.
+is_alpha() {
+  [[ -f "${ALPHA_FILE}" ]] || return 1
+  jq -e --arg n "$1" '.connectors | has($n)' "${ALPHA_FILE}" >/dev/null 2>&1
+}
 
 # Names are only ever read from the manifest, but they end up in `jq --arg`
 # lookups and file paths, so keep them to the shape a connector name can have.
@@ -228,8 +235,8 @@ else
       continue
     fi
 
-    if [[ "$(jq -r '.live_creds // false' "${specs}")" != "true" ]]; then
-      echo "  ${name}: live_creds is not true — not certified by this PR"
+    if is_alpha "${name}"; then
+      echo "  ${name}: listed in alpha_connectors.json — not certified by this PR"
       continue
     fi
 

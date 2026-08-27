@@ -1,6 +1,5 @@
 {
   "connector": "fiserv",
-  "live_creds": true,
   "live_in_production": true,
   "supported_suites": [
     "PaymentService/Authorize",

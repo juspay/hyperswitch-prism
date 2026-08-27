@@ -2,8 +2,9 @@
 #
 # Verifies a newly added connector against the suites it declares.
 #
-# live_creds true runs every scenario of every declared suite against the
-# sandbox. False is allowed but needs a reason, which is surfaced on the PR.
+# Every scenario of every declared suite runs against the sandbox. A connector
+# listed in alpha_connectors.json is exempt but needs a reason there, which is
+# surfaced on the PR.
 #
 # Inputs (environment):
 #   NEW_CONNECTORS            comma-separated connector names added in this PR
@@ -16,7 +17,8 @@
 
 set -uo pipefail
 
-SPECS_ROOT="crates/internal/integration-tests/src/connector_specs"
+SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
+ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 UNPROVEN_FILE="${UNPROVEN_FILE:-}"
 
@@ -66,19 +68,10 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
-  # Must be stated: silence here used to pass while certifying nothing.
-  if [[ "$(jq 'has("live_creds")' "${specs}")" != "true" ]]; then
-    echo "::error::New connector '${name}' does not declare \"live_creds\" in ${specs}. Set it to true when the connector has credentials in the CI file, or false with a \"no_creds_reason\" saying why it cannot be proven yet."
-    failures=$((failures + 1))
-    continue
-  fi
-
-  live_creds=$(jq -r '.live_creds' "${specs}")
-  no_creds_reason=$(jq -r '.no_creds_reason // empty' "${specs}")
-
-  if [[ "${live_creds}" != "true" ]]; then
+  if jq -e --arg n "${name}" '.connectors | has($n)' "${ALPHA_FILE}" >/dev/null 2>&1; then
+    no_creds_reason=$(jq -r --arg n "${name}" '.connectors[$n].reason // empty' "${ALPHA_FILE}")
     if [[ -z "${no_creds_reason}" ]]; then
-      echo "::error::New connector '${name}' sets live_creds: false with no no_creds_reason in ${specs}. State why, e.g. \"sandbox access requested, pending <team/ticket>\"."
+      echo "::error::New connector '${name}' is listed in ${ALPHA_FILE} with no \"reason\". State why it cannot be proven yet, e.g. \"sandbox access requested, pending <team/ticket>\"."
       failures=$((failures + 1))
       continue
     fi
@@ -87,8 +80,11 @@ for name in "${CONNECTORS[@]}"; do
     continue
   fi
 
+  # Not listed, so it is certified — which needs credentials to mean anything.
+  # Without an entry the sweep skips it, and a connector missing from the report
+  # reads as no regression.
   if ! jq -e --arg c "${name}" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" >/dev/null; then
-    echo "::error::New connector '${name}' sets live_creds: true but has no entry in the CI credentials file — add the credentials, or set live_creds: false with a reason. Without an entry the sweep would skip it, and a connector missing from the report reads as no regression."
+    echo "::error::New connector '${name}' has no entry in the CI credentials file — add the credentials, or list it in ${ALPHA_FILE} with a reason."
     failures=$((failures + 1))
     continue
   fi
@@ -109,7 +105,7 @@ if [[ ${#unproven[@]} -gt 0 ]]; then
     echo ""
     for u in "${unproven[@]}"; do echo "- ${u}"; done
     echo ""
-    echo "Each line above is a \`live_creds: false\` declaration in the connector's \`specs.json\`. Confirm the stated reason is real before approving."
+    echo "Each line above is an entry in \`alpha_connectors.json\`. Confirm the stated reason is real before approving."
   } >> "${SUMMARY}"
 
   if [[ -n "${UNPROVEN_FILE}" ]]; then
