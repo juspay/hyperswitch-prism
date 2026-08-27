@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.27.0
+
+### Features
+
+- **connector:**
+  - [WORLDPAYWPG] wallets, stored credentials and recurring flows ([#2122](https://github.com/juspay/connector-service/pull/2122)) ([`2614bd0`](https://github.com/juspay/connector-service/commit/2614bd0a1026285b88bb7599e6986839a931b3b7))
+  - [CHECKOUT] complete wallet decryption — mandates, token passthrough, and tokenization ([#2121](https://github.com/juspay/connector-service/pull/2121)) ([`ebaf50d`](https://github.com/juspay/connector-service/commit/ebaf50d2fa6ab3cb6513e35b1e8e5cb997619990))
+- Unified split settlement contract + Adyen dual-read ([#2157](https://github.com/juspay/connector-service/pull/2157)) ([`ef325b1`](https://github.com/juspay/connector-service/commit/ef325b19247cf1052f0a8f8d24f38cabbd7e7409))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] fix PSync/RSync response parsing ([#2130](https://github.com/juspay/connector-service/pull/2130)) ([`d79d982`](https://github.com/juspay/connector-service/commit/d79d982b9db4a72f720cf5041c807d39acb6a9e0))
+- **connectors:** [fiservcommercehub, celero] correct network_decline_code/network_advice_code mapping ([#2169](https://github.com/juspay/connector-service/pull/2169)) ([`24ba83c`](https://github.com/juspay/connector-service/commit/24ba83ca8d6a1d3d502026cd94ff2a8a704f02ae))
+
+**Full Changelog:** [`2026.08.25.1...2026.08.27.0`](https://github.com/juspay/connector-service/compare/2026.08.25.1...2026.08.27.0)
+
+- - -
+
 ## 2026.08.25.1
 
 ### Bug Fixes
