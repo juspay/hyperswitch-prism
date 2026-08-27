@@ -253,10 +253,7 @@ message GrabpayRedirectWallet {}
 message TokenPaymentMethodType {
   // The token string representing a payment method.
   SecretString token = 1;
-  // The payment method a token represents, e.g. the wallet a connector
-  // tokenization pre-step minted the token from. Connectors use it to decide
-  // how the token is submitted (Stripe: a wallet token goes on
-  // payment_method_data[card][token]; a bare stored token goes on payment_method).
+  // The payment method this token was created from.
   enum PaymentMethodType {
     PAYMENT_METHOD_TYPE_UNSPECIFIED = 0;
     APPLE_PAY = 1;

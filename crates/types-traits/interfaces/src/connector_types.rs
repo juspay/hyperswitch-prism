@@ -245,9 +245,6 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
-    /// Whether the wallet payload is a decrypted network token (PAN + cryptogram) rather
-    /// than the provider's encrypted token; connectors that tokenize the two differently
-    /// (e.g. Stripe) read it, others ignore it.
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,

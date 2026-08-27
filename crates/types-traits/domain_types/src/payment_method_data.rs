@@ -493,8 +493,6 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct PaymentMethodToken {
     pub token: Secret<String>,
-    /// The payment method this token represents, e.g. the wallet a Tokenize
-    /// pre-step minted the token from.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
 }
