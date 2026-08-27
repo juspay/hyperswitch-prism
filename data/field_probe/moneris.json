@@ -619,7 +619,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"amount\":1000},\"idempotencyKey\":\"capture_probe_capture_001\"}"
+          "body": "{\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"idempotencyKey\":\"capture_probe_capture_001\"}"
         }
       }
     },
@@ -860,7 +860,7 @@
             "via": "HyperSwitch",
             "x-merchant-id": "probe_merchant"
           },
-          "body": "{\"refundAmount\":{\"currency\":\"USD\",\"amount\":1000},\"idempotencyKey\":\"refund_probe_refund_001\",\"reason\":\"customer_request\",\"paymentId\":\"probe_connector_txn_001\"}"
+          "body": "{\"refundAmount\":{\"amount\":1000,\"currency\":\"USD\"},\"idempotencyKey\":\"refund_probe_refund_001\",\"reason\":\"customer_request\",\"paymentId\":\"probe_connector_txn_001\"}"
         }
       }
     },
