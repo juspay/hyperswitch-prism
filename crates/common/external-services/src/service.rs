@@ -415,7 +415,16 @@ where
                         }
                     }
 
-                    handle_response_result?
+                    let mut handled_router_data = handle_response_result?;
+                    // The headers exist for connector transformers (e.g. worldpayxml's 3DS
+                    // machine cookie); they are only surfaced to clients when raw connector
+                    // data was requested, preserving the response contract.
+                    if !(all_keys_required.unwrap_or(true) && return_raw) {
+                        handled_router_data
+                            .resource_common_data
+                            .set_connector_response_headers(None);
+                    }
+                    handled_router_data
                 }
                 Err(body) => {
                     // Record metrics only if event_params is provided
@@ -447,10 +456,10 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_raw_connector_response(raw_response_string.map(Into::into));
+                        updated_router_data
+                            .resource_common_data
+                            .set_connector_response_headers(body.headers.clone());
                     }
-                    updated_router_data
-                        .resource_common_data
-                        .set_connector_response_headers(body.headers.clone());
 
                     let mut error_response = match body.status_code {
                         500..=511 => connector.get_5xx_error_response(
