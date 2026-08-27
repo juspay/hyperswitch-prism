@@ -333,7 +333,7 @@ pub fn build_retry_trace(reference: &str) -> String {
 ///
 /// This is **not** serialized: `card.cardBrand` is documented optional for a clear
 /// PAN and is deliberately not sent, so Orbital derives the brand itself and a whole
-/// class of mis-mapping bugs disappears. The brand is still needed locally, because
+/// class of mismapping bugs disappears. The brand is still needed locally, because
 /// the CAVV goes into a *different* `cryptogram` field per brand and Mastercard uses
 /// an inverted ECI scale.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -513,7 +513,7 @@ fn trans_type_for(
 /// (In 3DS 2.x there is no XID at all; the nearest analogue is a UUID.)
 fn looks_base64(value: &str) -> bool {
     !value.is_empty()
-        && value.len() % 4 == 0
+        && value.len().is_multiple_of(4)
         && value
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
@@ -860,7 +860,7 @@ pub struct JpmorganOrbitalOrderResponse {
     pub auth_netwk_id: Option<String>,
     /// `0` = first response for this `retryTrace`; `>= 1` = an echoed duplicate.
     #[serde(rename = "retryAttempCount")]
-    pub retry_attemp_count: Option<String>,
+    pub retry_attempt_count: Option<String>,
     pub status: Option<JpmorganOrbitalStatus>,
 }
 
@@ -988,7 +988,7 @@ impl JpmorganOrbitalPaymentsResponse {
             "tx_ref_idx": order.tx_ref_idx,
             "order_id": order.order_id,
             "retry_trace": retry_trace,
-            "retry_attemp_count": order.retry_attemp_count,
+            "retry_attempt_count": order.retry_attempt_count,
             "auth_netwk_id": order.auth_netwk_id,
             "authorization_code": self.status().and_then(|s| s.authorization_code.clone()),
             "visa_vbv_resp_code": self.status().and_then(|s| s.visa_vbv_resp_code.clone()),
@@ -1128,6 +1128,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<JpmorganOrbitalPaymen
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: JpmorganOrbitalPaymentsResponse::success_status(sent_trans_type),
@@ -1188,6 +1189,7 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: JpmorganOrbitalPaymentsResponse::success_status(echoed_trans_type),
