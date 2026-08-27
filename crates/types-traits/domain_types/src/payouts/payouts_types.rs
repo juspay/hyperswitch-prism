@@ -1,5 +1,4 @@
 use super::payout_method_data::{Bank, PayoutMethodData};
-use std::sync::Arc;
 use crate::{
     connector_types::{
         ConnectorResponseHeaders, RawConnectorRequestResponse,
@@ -12,6 +11,7 @@ use crate::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
