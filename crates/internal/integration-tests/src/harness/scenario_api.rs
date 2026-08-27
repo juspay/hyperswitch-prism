@@ -3634,6 +3634,14 @@ pub fn run_all_connectors_with_options(
 }
 
 /// Runs one suite with explicit execution options.
+/// Names what was skipped and why, on the same stream as the rest of the run.
+/// A scoped helper rather than an allow on the caller, so the exemption cannot
+/// quietly cover a stray print added later.
+#[allow(clippy::print_stdout)]
+fn report_unsupported(suite: &str, scenario: &str, connector: &str, reason: &str) {
+    println!("[test_ucs] skipping {suite}/{scenario} for {connector}: unsupported — {reason}");
+}
+
 pub fn run_suite_test_with_options(
     suite: &str,
     connector: Option<&str>,
@@ -3661,7 +3669,7 @@ pub fn run_suite_test_with_options(
     let mut unsupported = Vec::new();
     for name in scenarios.keys().cloned().collect::<Vec<_>>() {
         if let Some(reason) = scenario_unsupported_reason(connector, suite, &name)? {
-            println!("[test_ucs] skipping {suite}/{name} for {connector}: unsupported — {reason}");
+            report_unsupported(suite, &name, connector, &reason);
             unsupported.push(name);
         }
     }
