@@ -688,3 +688,37 @@ pub struct WorldpayxmlVoidPCOrderModification {
 pub struct WorldpayxmlCancelOrRefund {
     // Empty struct - generates <cancelOrRefund/> element
 }
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlChallengeJwtPayload {
+    #[serde(rename = "ACSUrl")]
+    pub acs_url: String,
+    #[serde(rename = "Payload")]
+    pub payload: Secret<String>,
+    #[serde(rename = "TransactionId")]
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlChallengeJwt {
+    pub jti: String,
+    pub iat: u64,
+    pub iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    pub org_unit_id: Secret<String>,
+    #[serde(rename = "ReturnUrl")]
+    pub return_url: String,
+    #[serde(rename = "Payload")]
+    pub payload: WorldpayxmlChallengeJwtPayload,
+    #[serde(rename = "ObjectifyPayload")]
+    pub objectify_payload: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlDdcJwt {
+    pub jti: String,
+    pub iat: u64,
+    pub iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    pub org_unit_id: Secret<String>,
+}

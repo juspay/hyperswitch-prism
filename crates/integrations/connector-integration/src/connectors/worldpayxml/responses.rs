@@ -490,3 +490,20 @@ pub struct WorldpayxmlPayoutVoidReply {
 pub struct WorldpayxmlPayoutCancelOk {
     pub cancel_received: WorldpayxmlCancelReceived,
 }
+
+/// Payload the device-data-collection page posts back on the shopper's return.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlDdcRedirectResponse {
+    pub action_code: String,
+    pub session_id: Option<Secret<String>>,
+}
+
+/// Payload the ACS posts back after a 3DS challenge.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlRedirectionResponse {
+    pub m_d: Option<String>,
+    pub response: String,
+    pub transaction_id: Option<String>,
+}
