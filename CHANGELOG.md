@@ -19,6 +19,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.27.0
+
+### Features
+
+- **connector:**
+  - [WORLDPAYWPG] wallets, stored credentials and recurring flows ([#2122](https://github.com/juspay/connector-service/pull/2122)) ([`2614bd0`](https://github.com/juspay/connector-service/commit/2614bd0a1026285b88bb7599e6986839a931b3b7))
+  - [CHECKOUT] complete wallet decryption — mandates, token passthrough, and tokenization ([#2121](https://github.com/juspay/connector-service/pull/2121)) ([`ebaf50d`](https://github.com/juspay/connector-service/commit/ebaf50d2fa6ab3cb6513e35b1e8e5cb997619990))
+- Unified split settlement contract + Adyen dual-read ([#2157](https://github.com/juspay/connector-service/pull/2157)) ([`ef325b1`](https://github.com/juspay/connector-service/commit/ef325b19247cf1052f0a8f8d24f38cabbd7e7409))
+
+### Bug Fixes
+
+- **connector:** [WORLDPAYWPG] fix PSync/RSync response parsing ([#2130](https://github.com/juspay/connector-service/pull/2130)) ([`d79d982`](https://github.com/juspay/connector-service/commit/d79d982b9db4a72f720cf5041c807d39acb6a9e0))
+- **connectors:** [fiservcommercehub, celero] correct network_decline_code/network_advice_code mapping ([#2169](https://github.com/juspay/connector-service/pull/2169)) ([`24ba83c`](https://github.com/juspay/connector-service/commit/24ba83ca8d6a1d3d502026cd94ff2a8a704f02ae))
+
+**Full Changelog:** [`2026.08.25.1...2026.08.27.0`](https://github.com/juspay/connector-service/compare/2026.08.25.1...2026.08.27.0)
+
+- - -
+
+## 2026.08.25.1
+
+### Bug Fixes
+
+- **log:** Decode _DOT_ in target paths and add dev log field config ([#2176](https://github.com/juspay/connector-service/pull/2176)) ([`35f28b4`](https://github.com/juspay/connector-service/commit/35f28b4dc5cc539fcbe9bca9e767b4ac14eda0d8))
+
+**Full Changelog:** [`2026.08.25.0...2026.08.25.1`](https://github.com/juspay/connector-service/compare/2026.08.25.0...2026.08.25.1)
+
+- - -
+
+## 2026.08.25.0
+
+### Bug Fixes
+
+- **connectors:** [tsys_transit] fix setup mandate flow ([#2171](https://github.com/juspay/connector-service/pull/2171)) ([`9da948d`](https://github.com/juspay/connector-service/commit/9da948d50869c3c2ed7228a0d19d1fe289f0d786))
+- **framework:** Add Gcash to PaymentMethodType to PaymentMethod Mapping ([#2131](https://github.com/juspay/connector-service/pull/2131)) ([`e824992`](https://github.com/juspay/connector-service/commit/e824992783fe1e1f6f0475bd60e2dbfb94a9e5f9))
+
+**Full Changelog:** [`2026.08.24.0...2026.08.25.0`](https://github.com/juspay/connector-service/compare/2026.08.24.0...2026.08.25.0)
+
+- - -
+
+## 2026.08.24.0
+
+### Features
+
+- **truelayer:** Add bank name support for open banking payments ([#2166](https://github.com/juspay/connector-service/pull/2166)) ([`f829d1a`](https://github.com/juspay/connector-service/commit/f829d1aa230d41bf7803a909417124e59a9393d6))
+
+### Bug Fixes
+
+- **clippy:** Drop two useless format! calls failing CI ([#2167](https://github.com/juspay/connector-service/pull/2167)) ([`5c0befa`](https://github.com/juspay/connector-service/commit/5c0beface6fd3fb13d43264337727acebb164cf4))
+
+### Documentation
+
+- Remove php sdk references ([#2144](https://github.com/juspay/connector-service/pull/2144)) ([`c1ef97a`](https://github.com/juspay/connector-service/commit/c1ef97ae66ed8518198d826bdd1cd4cfa2188be5))
+
+**Full Changelog:** [`2026.08.20.3...2026.08.24.0`](https://github.com/juspay/connector-service/compare/2026.08.20.3...2026.08.24.0)
+
+- - -
+
 ## 2026.08.20.3
 
 ### Bug Fixes

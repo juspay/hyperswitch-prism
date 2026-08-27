@@ -37,8 +37,43 @@
         "error": "This feature is not implemented: Selected payment method through Datatrans. Datatrans Authorize supports Google Pay and Apple Pay only"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token. Datatrans Apple Pay Authorize requires tokenization_data.token to be a JSON string containing data, header, signature, and version"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_txn_001\",\"amount\":1000,\"autoSettle\":true,\"option\":null,\"APL\":{\"data\":\"probe\",\"header\":{\"publicKeyHash\":\"probe\",\"ephemeralPublicKey\":\"probe\",\"transactionId\":\"probe_txn_id\"},\"signature\":\"probe\",\"version\":\"EC_v1\"}}"
+        }
       },
       "ApplePayDecrypted": {
         "status": "error",
