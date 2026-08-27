@@ -129,11 +129,26 @@ jobs:
         if: steps.filter.outputs.connector == 'true'
         shell: bash
         run: |
-          names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
+          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
+          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
+
+          touched=$(echo '${{ steps.filter.outputs.connector_files }}' | \
             jq -r '.[]' | \
             grep -oE '(connectors|connector_specs)/[^/]+' | \
             sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
-            sort -u | paste -sd ',' -)
+            grep -v '^alpha_connectors.json$')
+
+          # Taking a connector off the alpha list is what starts certifying it,
+          # but the edit touches only that shared file. Names present at the
+          # merge base and gone now are the ones being promoted.
+          promoted=""
+          if [ -f "$alpha" ]; then
+            promoted=$(comm -23 \
+              <(git show "$base_ref:$alpha" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$alpha"))
+          fi
+
+          names=$(printf '%s\n%s\n' "$touched" "$promoted" | sed '/^$/d' | sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
 
