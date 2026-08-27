@@ -942,13 +942,13 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) is not supported by authorizedotnet"
+        "error": "Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None }) is not supported by authorizedotnet"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None })"
       }
     },
     "tokenize": {

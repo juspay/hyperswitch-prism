@@ -714,7 +714,7 @@
     "recurring_charge": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only mandate (stored-credential) payments are currently implemented for Moneris repeat_payment. Moneris repeat_payment received a non-mandate payment method variant: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })."
+        "error": "This feature is not implemented: Only mandate (stored-credential) payments are currently implemented for Moneris repeat_payment. Moneris repeat_payment received a non-mandate payment method variant: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None })."
       }
     },
     "recurring_revoke": {
@@ -806,7 +806,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })."
+        "error": "This feature is not implemented: Only card payments are currently implemented for Moneris. Moneris authorize received a non-card payment method: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None })."
       }
     },
     "token_setup_recurring": {

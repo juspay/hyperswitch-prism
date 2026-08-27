@@ -770,7 +770,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
+        "error": "This feature is not implemented: Glomopay Authorize does not support payment method variant: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None })"
       }
     },
     "token_setup_recurring": {

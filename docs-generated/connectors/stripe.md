@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L257) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L119) · [Rust](../../examples/stripe/stripe.rs#L329)
+**Examples:** [Python](../../examples/stripe/stripe.py#L257) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L119) · [Rust](../../examples/stripe/stripe.rs#L330)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L276) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L135) · [Rust](../../examples/stripe/stripe.rs#L345)
+**Examples:** [Python](../../examples/stripe/stripe.py#L276) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L135) · [Rust](../../examples/stripe/stripe.rs#L346)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L301) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L157) · [Rust](../../examples/stripe/stripe.rs#L368)
+**Examples:** [Python](../../examples/stripe/stripe.py#L301) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L157) · [Rust](../../examples/stripe/stripe.rs#L369)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L326) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L179) · [Rust](../../examples/stripe/stripe.rs#L391)
+**Examples:** [Python](../../examples/stripe/stripe.py#L326) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L179) · [Rust](../../examples/stripe/stripe.rs#L392)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L348) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L198) · [Rust](../../examples/stripe/stripe.rs#L410)
+**Examples:** [Python](../../examples/stripe/stripe.py#L348) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L198) · [Rust](../../examples/stripe/stripe.rs#L411)
 
 ## API Reference
 

@@ -173,7 +173,7 @@ def _build_recurring_charge_request():
         ),
         return_url="https://example.com/recurring-return",
         connector_customer_id="cust_probe_123",
-        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        payment_method_type=payment_methods_pb2.PaymentMethodType.Value("PAY_PAL"),
         off_session=True,  # Behavioral Flags and Preferences.
     )
 

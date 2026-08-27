@@ -141,7 +141,7 @@ def _build_recurring_charge_request():
             accept_language="en-US,en;q=0.9",
             ip_address="1.2.3.4",  # Device Information.
         ),
-        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        payment_method_type=payment_methods_pb2.PaymentMethodType.Value("PAY_PAL"),
         off_session=True,  # Behavioral Flags and Preferences.
     )
 

@@ -254,8 +254,8 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             // Optional payment Method Information (for network transaction flows).
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
-                    payment_method_type: None,
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()

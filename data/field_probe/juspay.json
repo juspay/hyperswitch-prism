@@ -1443,7 +1443,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, payment_method_type: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       }
     },
     "token_setup_recurring": {
