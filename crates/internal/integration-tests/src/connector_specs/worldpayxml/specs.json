@@ -1,6 +1,7 @@
 {
   "connector": "worldpayxml",
   "supported_suites": [
+    "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/Void",
