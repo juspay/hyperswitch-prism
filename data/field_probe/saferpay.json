@@ -702,7 +702,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Inquire",
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Capture",
           "method": "Post",
           "headers": {
             "accept": "application/json",
