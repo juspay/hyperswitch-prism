@@ -476,25 +476,17 @@ where
 
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
+                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
                         if let Some(error_data) = &evt.error {
-                            record_json_fields_on_span(vec![(
-                                "response.body",
-                                error_data.inner().clone(),
-                            )]);
+                            json_fields.push(("response.body", error_data.inner().clone()));
                         }
-                    }
-                    if let Some(response_headers) = &body.headers {
-                        let headers_json: serde_json::Value = response_headers
-                            .iter()
-                            .map(|(k, v)| {
-                                (
-                                    k.as_str().to_string(),
-                                    serde_json::Value::String(v.to_str().unwrap_or("").to_string()),
-                                )
-                            })
-                            .collect::<serde_json::Map<_, _>>()
-                            .into();
-                        record_json_fields_on_span(vec![("response.headers", headers_json)]);
+                        // Use event headers (already masked) — consistent with success path
+                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
+                            json_fields.push(("response.headers", headers_json));
+                        }
+                        if !json_fields.is_empty() {
+                            record_json_fields_on_span(json_fields);
+                        }
                     }
                     tracing::Span::current().record(
                         "response.error_message",
