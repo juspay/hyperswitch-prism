@@ -356,6 +356,10 @@ pub fn load_connector_spec(connector: &str) -> Option<ConnectorSuiteSpec> {
 }
 
 /// Discovers connector names by scanning `connector_specs/`.
+/// Sits in `connector_specs/` beside the per-connector directories but describes
+/// CI policy, not a connector. See `.github/scripts/certify-connectors.sh`.
+pub const ALPHA_CONNECTORS_FILE: &str = "alpha_connectors.json";
+
 pub fn discover_all_connectors() -> Result<Vec<String>, ScenarioError> {
     let specs_dir = connector_specs_root();
 
@@ -385,6 +389,13 @@ pub fn discover_all_connectors() -> Result<Vec<String>, ScenarioError> {
         }
 
         if !path.is_file() {
+            continue;
+        }
+
+        // Records which connectors CI does not certify — not a connector spec.
+        // The flat-layout branch below would otherwise read it as a connector
+        // named "alpha_connectors" and fail to parse it as one.
+        if path.file_name().and_then(|s| s.to_str()) == Some(ALPHA_CONNECTORS_FILE) {
             continue;
         }
 
