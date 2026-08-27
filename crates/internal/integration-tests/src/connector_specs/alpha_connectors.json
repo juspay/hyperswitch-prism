@@ -1,0 +1,323 @@
+{
+  "_readme": [
+    "Connectors CI does not certify against a live sandbox.",
+    "",
+    "Two lists, deliberately separate. Read the one you are about to edit.",
+    "",
+    "grandfathered — connectors that predate certification and have never been",
+    "proven. TODO: drive this list to zero. It can only shrink; CI fails if a",
+    "name is added to it. A connector leaves it by gaining credentials in the",
+    "CI credentials file, at which point CI requires the removal.",
+    "",
+    "unproven_new — a connector integrated after certification existed, merging",
+    "without live proof. Each entry states why. This is an exception a",
+    "maintainer accepted, not the default: being one of 101 names in the list",
+    "above is a backlog, not a precedent."
+  ],
+  "grandfathered": {
+    "absa_sanlam": {
+      "since": "2026-08-27"
+    },
+    "aci": {
+      "since": "2026-08-27"
+    },
+    "adyen": {
+      "since": "2026-08-27"
+    },
+    "affirm": {
+      "since": "2026-08-27"
+    },
+    "airwallex": {
+      "since": "2026-08-27"
+    },
+    "authipay": {
+      "since": "2026-08-27"
+    },
+    "authorizedotnet": {
+      "since": "2026-08-27"
+    },
+    "axisbank": {
+      "since": "2026-08-27"
+    },
+    "bambora": {
+      "since": "2026-08-27"
+    },
+    "bamboraapac": {
+      "since": "2026-08-27"
+    },
+    "bankofamerica": {
+      "since": "2026-08-27"
+    },
+    "barclaycard": {
+      "since": "2026-08-27"
+    },
+    "billwerk": {
+      "since": "2026-08-27"
+    },
+    "bluesnap": {
+      "since": "2026-08-27"
+    },
+    "boost": {
+      "since": "2026-08-27"
+    },
+    "braintree": {
+      "since": "2026-08-27"
+    },
+    "calida": {
+      "since": "2026-08-27"
+    },
+    "cashfree": {
+      "since": "2026-08-27"
+    },
+    "cashtocode": {
+      "since": "2026-08-27"
+    },
+    "celero": {
+      "since": "2026-08-27"
+    },
+    "checkout": {
+      "since": "2026-08-27"
+    },
+    "cryptopay": {
+      "since": "2026-08-27"
+    },
+    "cybersource": {
+      "since": "2026-08-27"
+    },
+    "datatrans": {
+      "since": "2026-08-27"
+    },
+    "dlocal": {
+      "since": "2026-08-27"
+    },
+    "easebuzz": {
+      "since": "2026-08-27"
+    },
+    "elavon": {
+      "since": "2026-08-27"
+    },
+    "finix": {
+      "since": "2026-08-27"
+    },
+    "fiservcommercehub": {
+      "since": "2026-08-27"
+    },
+    "fiservemea": {
+      "since": "2026-08-27"
+    },
+    "fiuu": {
+      "since": "2026-08-27"
+    },
+    "flywire": {
+      "since": "2026-08-27"
+    },
+    "forte": {
+      "since": "2026-08-27"
+    },
+    "getnet": {
+      "since": "2026-08-27"
+    },
+    "gigadat": {
+      "since": "2026-08-27"
+    },
+    "givepayments": {
+      "since": "2026-08-27"
+    },
+    "globalpay": {
+      "since": "2026-08-27"
+    },
+    "glomopay": {
+      "since": "2026-08-27"
+    },
+    "grabpay": {
+      "since": "2026-08-27"
+    },
+    "helcim": {
+      "since": "2026-08-27"
+    },
+    "hipay": {
+      "since": "2026-08-27"
+    },
+    "hyperpg": {
+      "since": "2026-08-27"
+    },
+    "hyperswitch": {
+      "since": "2026-08-27"
+    },
+    "iatapay": {
+      "since": "2026-08-27"
+    },
+    "imerchantsolutions": {
+      "since": "2026-08-27"
+    },
+    "itaubank": {
+      "since": "2026-08-27"
+    },
+    "jpmorgan": {
+      "since": "2026-08-27"
+    },
+    "juspay": {
+      "since": "2026-08-27"
+    },
+    "kount": {
+      "since": "2026-08-27"
+    },
+    "loonio": {
+      "since": "2026-08-27"
+    },
+    "maya": {
+      "since": "2026-08-27"
+    },
+    "mifinity": {
+      "since": "2026-08-27"
+    },
+    "mollie": {
+      "since": "2026-08-27"
+    },
+    "multisafepay": {
+      "since": "2026-08-27"
+    },
+    "netcetera": {
+      "since": "2026-08-27"
+    },
+    "nexinets": {
+      "since": "2026-08-27"
+    },
+    "nexixpay": {
+      "since": "2026-08-27"
+    },
+    "nmi": {
+      "since": "2026-08-27"
+    },
+    "noon": {
+      "since": "2026-08-27"
+    },
+    "novalnet": {
+      "since": "2026-08-27"
+    },
+    "nuvei": {
+      "since": "2026-08-27"
+    },
+    "paybox": {
+      "since": "2026-08-27"
+    },
+    "payconex": {
+      "since": "2026-08-27"
+    },
+    "payload": {
+      "since": "2026-08-27"
+    },
+    "payme": {
+      "since": "2026-08-27"
+    },
+    "paypal": {
+      "since": "2026-08-27"
+    },
+    "paysafe": {
+      "since": "2026-08-27"
+    },
+    "paytm": {
+      "since": "2026-08-27"
+    },
+    "payu": {
+      "since": "2026-08-27"
+    },
+    "peachpayments": {
+      "since": "2026-08-27"
+    },
+    "phonepe": {
+      "since": "2026-08-27"
+    },
+    "pinelabs_online": {
+      "since": "2026-08-27"
+    },
+    "placetopay": {
+      "since": "2026-08-27"
+    },
+    "powertranz": {
+      "since": "2026-08-27"
+    },
+    "ppro": {
+      "since": "2026-08-27"
+    },
+    "qwikcilver": {
+      "since": "2026-08-27"
+    },
+    "rapyd": {
+      "since": "2026-08-27"
+    },
+    "razorpay": {
+      "since": "2026-08-27"
+    },
+    "razorpayv2": {
+      "since": "2026-08-27"
+    },
+    "redsys": {
+      "since": "2026-08-27"
+    },
+    "revolut": {
+      "since": "2026-08-27"
+    },
+    "revolv3": {
+      "since": "2026-08-27"
+    },
+    "shift4": {
+      "since": "2026-08-27"
+    },
+    "silverflow": {
+      "since": "2026-08-27"
+    },
+    "stax": {
+      "since": "2026-08-27"
+    },
+    "tamara": {
+      "since": "2026-08-27"
+    },
+    "tesouro": {
+      "since": "2026-08-27"
+    },
+    "truelayer": {
+      "since": "2026-08-27"
+    },
+    "trustly": {
+      "since": "2026-08-27"
+    },
+    "trustpay": {
+      "since": "2026-08-27"
+    },
+    "trustpayments": {
+      "since": "2026-08-27"
+    },
+    "tsys": {
+      "since": "2026-08-27"
+    },
+    "tsys_transit": {
+      "since": "2026-08-27"
+    },
+    "twoc_twop_paco": {
+      "since": "2026-08-27"
+    },
+    "volt": {
+      "since": "2026-08-27"
+    },
+    "wellsfargo": {
+      "since": "2026-08-27"
+    },
+    "worldpay": {
+      "since": "2026-08-27"
+    },
+    "worldpayvantiv": {
+      "since": "2026-08-27"
+    },
+    "worldpayxml": {
+      "since": "2026-08-27"
+    },
+    "xendit": {
+      "since": "2026-08-27"
+    },
+    "zift": {
+      "since": "2026-08-27"
+    }
+  },
+  "unproven_new": {}
+}
