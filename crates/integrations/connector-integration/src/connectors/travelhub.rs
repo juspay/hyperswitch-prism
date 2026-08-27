@@ -11,7 +11,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -233,7 +236,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .response
             .parse_struct("TravelhubErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "Failed to parse the Travelhub error response body (expected Spring Boot-style JSON with timestamp, status, error, message, path fields)"
+                            .to_string(),
+                    ),
+                },
             })?;
 
         with_error_response_body!(event_builder, response);

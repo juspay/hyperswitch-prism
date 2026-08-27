@@ -1,6 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_utils::MinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -59,7 +60,17 @@ impl TryFrom<&ConnectorSpecificConfig> for TravelhubAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: IntegrationErrorContext::default()
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure the connector account is configured with Travelhub credentials (merchant_id, username, password)"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "ConnectorSpecificConfig variant mismatch: expected Travelhub credentials but received credentials for a different connector; the request may have been routed to the wrong connector"
+                                .to_string(),
+                        ),
+                    }
                 }
             )),
         }
@@ -133,7 +144,7 @@ pub struct TravelhubPayment {
 pub struct TravelhubPaymentsRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: i64,
+    pub amount: MinorUnit,
     pub currency: String,
     pub capture: bool,
     pub payment: TravelhubPayment,
@@ -154,7 +165,17 @@ fn get_card_payment_method_code<T: PaymentMethodDataTypes>(
         _ => Err(IntegrationError::NotSupported {
             message: "card network".to_string(),
             connector: "travelhub",
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Use a card from a supported network: Visa, Mastercard, American Express, Discover, Diners Club, JCB, Cartes Bancaires, or UnionPay"
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(
+                    "The provided card network is not supported by travelhub card payments"
+                        .to_string(),
+                ),
+            },
         }),
     }
 }
@@ -183,7 +204,13 @@ impl<T: PaymentMethodDataTypes>
                 return Err(IntegrationError::NotSupported {
                     message: "Selected payment method".to_string(),
                     connector: "travelhub",
-                    context: IntegrationErrorContext::default(),
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Use card as the payment method".to_string()),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Travelhub currently supports only card payments".to_string(),
+                        ),
+                    },
                 }
                 .into());
             }
@@ -196,7 +223,17 @@ impl<T: PaymentMethodDataTypes>
             .or_else(|| card_data.card_holder_name.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "billing.first_name or shipping.first_name or card.card_holder_name",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide the cardholder name via billing.first_name, shipping.first_name, or card.card_holder_name"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Travelhub requires the cardholder name (card_name) for card payments"
+                            .to_string(),
+                    ),
+                },
             })?;
 
         let expiry_date = format!(
@@ -250,7 +287,7 @@ impl<T: PaymentMethodDataTypes>
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount.get_amount_as_i64(),
+            amount: item.request.minor_amount,
             currency: item.request.currency.to_string(),
             capture: is_auto_capture,
             payment: TravelhubPayment {
@@ -278,11 +315,11 @@ pub struct TravelhubResponse3DS {
     #[serde(rename = "acsURL", default, skip_serializing_if = "Option::is_none")]
     pub acs_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pa_req: Option<String>,
+    pub pa_req: Option<Secret<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub md: Option<String>,
+    pub md: Option<Secret<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub cavv: Option<String>,
+    pub cavv: Option<Secret<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -303,6 +340,23 @@ pub struct TravelhubRedirect {
     pub parameters: Option<serde_json::Value>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TravelhubResult {
+    Approved,
+    Captured,
+    Settled,
+    Declined,
+    Error,
+    Invalid,
+    Redirected,
+    Cancelled,
+    Refunded,
+    Pending,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct TravelhubPaymentsResponse {
     #[serde(rename = "merchantId", default)]
@@ -312,11 +366,11 @@ pub struct TravelhubPaymentsResponse {
     #[serde(rename = "transactionId", default)]
     pub transaction_id: Option<String>,
     #[serde(default)]
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     #[serde(default)]
-    pub currency: Option<String>,
+    pub currency: Option<Currency>,
     #[serde(default)]
-    pub result: Option<String>,
+    pub result: Option<TravelhubResult>,
     #[serde(
         rename = "authorizationCode",
         default,
@@ -348,23 +402,29 @@ pub type TravelhubVoidResponse = TravelhubPaymentsResponse;
 pub type TravelhubRefundResponse = TravelhubPaymentsResponse;
 pub type TravelhubRSyncResponse = TravelhubPaymentsResponse;
 
-fn map_travelhub_status(result: &str) -> AttemptStatus {
+fn map_travelhub_status(result: &TravelhubResult) -> AttemptStatus {
     match result {
-        "APPROVED" => AttemptStatus::Authorized,
-        "CAPTURED" | "SETTLED" => AttemptStatus::Charged,
-        "DECLINED" | "ERROR" | "INVALID" => AttemptStatus::Failure,
-        "REDIRECTED" => AttemptStatus::AuthenticationPending,
-        "CANCELLED" => AttemptStatus::Voided,
-        "PENDING" => AttemptStatus::Pending,
-        _ => AttemptStatus::Pending,
+        TravelhubResult::Approved => AttemptStatus::Authorized,
+        TravelhubResult::Captured | TravelhubResult::Settled => AttemptStatus::Charged,
+        TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid => {
+            AttemptStatus::Failure
+        }
+        TravelhubResult::Redirected => AttemptStatus::AuthenticationPending,
+        TravelhubResult::Cancelled => AttemptStatus::Voided,
+        TravelhubResult::Pending | TravelhubResult::Unknown => AttemptStatus::Pending,
+        TravelhubResult::Refunded => AttemptStatus::Pending,
     }
 }
 
-fn map_travelhub_refund_status(result: &str) -> RefundStatus {
+fn map_travelhub_refund_status(result: &TravelhubResult) -> RefundStatus {
     match result {
-        "APPROVED" | "REFUNDED" | "SETTLED" => RefundStatus::Success,
-        "DECLINED" | "ERROR" | "INVALID" => RefundStatus::Failure,
-        "PENDING" => RefundStatus::Pending,
+        TravelhubResult::Approved
+        | TravelhubResult::Refunded
+        | TravelhubResult::Settled => RefundStatus::Success,
+        TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid => {
+            RefundStatus::Failure
+        }
+        TravelhubResult::Pending | TravelhubResult::Unknown => RefundStatus::Pending,
         _ => RefundStatus::Pending,
     }
 }
@@ -379,16 +439,20 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
     fn try_from(
         item: ResponseRouterData<TravelhubPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
 
         let redirection_data = item.response.response3ds.as_ref().and_then(|r3ds| {
             r3ds.acs_url.as_ref().map(|acs_url| {
                 let mut form_fields = std::collections::HashMap::new();
                 if let Some(pa_req) = &r3ds.pa_req {
-                    form_fields.insert("PaReq".to_string(), pa_req.clone());
+                    form_fields.insert("PaReq".to_string(), pa_req.peek().to_owned());
                 }
                 if let Some(md) = &r3ds.md {
-                    form_fields.insert("MD".to_string(), md.clone());
+                    form_fields.insert("MD".to_string(), md.peek().to_owned());
                 }
                 Box::new(RedirectForm::Form {
                     endpoint: acs_url.clone(),
@@ -400,7 +464,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
 
         let status = if redirection_data.is_some() {
             AttemptStatus::AuthenticationPending
-        } else if result == "APPROVED" {
+        } else if result == &TravelhubResult::Approved {
             let is_auto_capture =
                 !crate::utils::is_manual_capture(item.router_data.request.capture_method);
             if is_auto_capture {
@@ -484,7 +548,11 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TravelhubCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
         let status = map_travelhub_status(result);
 
         Ok(Self {
@@ -553,7 +621,11 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TravelhubVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
         let status = map_travelhub_status(result);
 
         Ok(Self {
@@ -622,8 +694,12 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TravelhubPSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
-        let status = if result == "APPROVED" {
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
+        let status = if result == &TravelhubResult::Approved {
             let is_auto_capture =
                 !crate::utils::is_manual_capture(item.router_data.request.capture_method);
             if is_auto_capture {
@@ -705,7 +781,11 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TravelhubRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
         let refund_status = map_travelhub_refund_status(result);
 
         let connector_refund_id = item.response.transaction_id.clone().unwrap_or_else(|| {
@@ -766,7 +846,11 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TravelhubRSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let result = item.response.result.as_deref().unwrap_or("PENDING");
+        let result = item
+            .response
+            .result
+            .as_ref()
+            .unwrap_or(&TravelhubResult::Pending);
         let refund_status = map_travelhub_refund_status(result);
 
         let connector_refund_id = item
