@@ -5575,7 +5575,16 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(|money| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                    })
+                })
+                .transpose()?,
             access_token,
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
@@ -5792,7 +5801,16 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(|money| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                    })
+                })
+                .transpose()?,
             access_token,
             session_token: None,
             reference_id: None,
