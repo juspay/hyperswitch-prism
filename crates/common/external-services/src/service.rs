@@ -382,9 +382,6 @@ where
                             .set_raw_connector_response(raw_response_string.map(Into::into));
                     }
 
-                    // Response headers are functional data (e.g. worldpayxml replays the
-                    // 3DS machine cookie from a set-cookie header), so they are set
-                    // regardless of the raw-connector-data flag.
                     updated_router_data
                         .resource_common_data
                         .set_connector_response_headers(body.headers.clone());
@@ -416,9 +413,8 @@ where
                     }
 
                     let mut handled_router_data = handle_response_result?;
-                    // The headers exist for connector transformers (e.g. worldpayxml's 3DS
-                    // machine cookie); they are only surfaced to clients when raw connector
-                    // data was requested, preserving the response contract.
+                    // Headers are set for response transformers; they are only surfaced to
+                    // clients when raw connector data was requested.
                     if !(all_keys_required.unwrap_or(true) && return_raw) {
                         handled_router_data
                             .resource_common_data
