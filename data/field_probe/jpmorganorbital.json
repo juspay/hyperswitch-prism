@@ -1,0 +1,729 @@
+{
+  "connector": "jpmorganorbital",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Payment method bank debit is not supported by jpmorganorbital"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Payment method pay later is not supported by jpmorganorbital"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Payment method pay later is not supported by jpmorganorbital"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Payment method bank debit is not supported by jpmorganorbital"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Payment method bank debit is not supported by jpmorganorbital"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "merchantid": "probe_key",
+            "orbitalconnectionpassword": "probe_key",
+            "orbitalconnectionusername": "probe_key",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"4111111111111111\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"probe-txn-001\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"9497157627300820\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"737\",\"ccCardVerifyPresenceInd\":\"1\"}}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method reward is not supported by jpmorganorbital"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method reward is not supported by jpmorganorbital"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Payment method pay later is not supported by jpmorganorbital"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Payment method gift card is not supported by jpmorganorbital"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Payment method bank debit is not supported by jpmorganorbital"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method bank transfer is not supported by jpmorganorbital"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method bank debit is not supported by jpmorganorbital"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method voucher is not supported by jpmorganorbital"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method bank redirect is not supported by jpmorganorbital"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Payment method UPI is not supported by jpmorganorbital"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method UPI is not supported by jpmorganorbital"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method UPI is not supported by jpmorganorbital"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Payment method wallet is not supported by jpmorganorbital"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for jpmorganorbital"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by jpmorganorbital connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by jpmorganorbital connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by jpmorganorbital connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by jpmorganorbital connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for jpmorganorbital"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for jpmorganorbital"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by jpmorganorbital connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by jpmorganorbital connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by jpmorganorbital connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by jpmorganorbital connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway/inquiry",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "merchantid": "probe_key",
+            "orbitalconnectionpassword": "probe_key",
+            "orbitalconnectionusername": "probe_key",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"version\":\"5.2\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"order\":{\"orderID\":\"probe-merchant-txn-001\",\"inquiryRetryNumber\":\"5695845244403087\"}}"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by jpmorganorbital connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "merchantid": "probe_key",
+            "orbitalconnectionpassword": "probe_key",
+            "orbitalconnectionusername": "probe_key",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"{{$card_number}}\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"probe-proxy-txn-001\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"7709115049597183\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"{{$card_cvc}}\",\"ccCardVerifyPresenceInd\":\"1\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "repeat_payment flow not supported by jpmorganorbital connector"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by jpmorganorbital connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for jpmorganorbital"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for jpmorganorbital"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for jpmorganorbital"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method payment method token is not supported by jpmorganorbital"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by jpmorganorbital connector"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for jpmorganorbital"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for jpmorganorbital"
+      }
+    }
+  }
+}

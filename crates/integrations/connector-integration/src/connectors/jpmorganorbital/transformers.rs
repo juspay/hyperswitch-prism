@@ -41,7 +41,9 @@ use domain_types::{
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::connectors::jpmorganorbital::{JpmorganOrbitalAmountConvertor, JpmorganOrbitalRouterData};
+use crate::connectors::jpmorganorbital::{
+    JpmorganOrbitalAmountConvertor, JpmorganOrbitalRouterData,
+};
 use crate::types::ResponseRouterData;
 
 /// Feature release version. Required to receive v4 / Feature Version 5.2 response
@@ -109,8 +111,11 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                 // `bin` and `terminal_id` are merchant provisioning facts. Guessing
                 // them would silently route a Tandem (Canadian) merchant at the
                 // Stratus host, so fail loudly instead.
-                let bin = bin.clone().filter(|value| !value.trim().is_empty()).ok_or_else(|| {
-                    error_stack::report!(IntegrationError::InvalidConnectorConfig {
+                let bin = bin
+                    .clone()
+                    .filter(|value| !value.trim().is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::InvalidConnectorConfig {
                         config: "jpmorganorbital.bin",
                         context: IntegrationErrorContext {
                             suggested_action: Some(
@@ -121,7 +126,7 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                             ..Default::default()
                         },
                     })
-                })?;
+                    })?;
                 let terminal_id = terminal_id
                     .clone()
                     .filter(|value| !value.trim().is_empty())
@@ -188,9 +193,7 @@ pub fn orbital_amount(
 
 /// Multiply a decimal string by 100 without floating point, and without a decimal
 /// point, sign, separator or currency symbol in the result.
-fn shift_two_decimal_places(
-    major: &str,
-) -> Result<String, error_stack::Report<IntegrationError>> {
+fn shift_two_decimal_places(major: &str) -> Result<String, error_stack::Report<IntegrationError>> {
     let invalid = |reason: &str| {
         error_stack::report!(IntegrationError::InvalidDataFormat {
             field_name: "order.amount",
@@ -559,10 +562,7 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
     card: &Card<T>,
     authentication_data: &AuthenticationData,
     bin: &str,
-) -> Option<(
-    JpmorganOrbitalCryptogram,
-    JpmorganOrbitalAdditionalAuthInfo,
-)> {
+) -> Option<(JpmorganOrbitalCryptogram, JpmorganOrbitalAdditionalAuthInfo)> {
     let cavv = authentication_data.cavv.as_ref()?;
     let brand = resolve_brand(card);
     let eci = map_eci(authentication_data.eci.as_deref()?, brand)?;
@@ -668,12 +668,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let cc_exp = card.get_expiry_date_as_yyyymm("");
 
         let cvc = card.card_cvc.peek().trim().to_string();
-        let cardholder_verification = (!cvc.is_empty()).then(|| {
-            JpmorganOrbitalCardholderVerification {
+        let cardholder_verification =
+            (!cvc.is_empty()).then(|| JpmorganOrbitalCardholderVerification {
                 cc_card_verify_num: Secret::new(cvc),
                 cc_card_verify_presence_ind: CARD_VERIFY_PRESENCE_PRESENT.to_string(),
-            }
-        });
+            });
 
         // Orbital 3DS is a passthrough: the challenge (if any) already happened in the
         // merchant's own MPI / the UCS external-authentication flow. There is no
