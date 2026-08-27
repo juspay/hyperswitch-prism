@@ -817,6 +817,7 @@ fn handle_payment_response<F, T>(
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             };
 

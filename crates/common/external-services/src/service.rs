@@ -344,6 +344,7 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
         FlowStatus::Payment(status) => format!("payment_{status}"),
         FlowStatus::Refund(status) => format!("refund_{status}"),
         FlowStatus::Dispute(status) => format!("dispute_{status}"),
+        FlowStatus::Payout(status) => format!("payout_{status}"),
     }
 }
 
@@ -374,6 +375,7 @@ where
                     let status_code = body.status_code;
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
+                    tracing::Span::current().record("res_code", u64::from(status_code));
 
                     if all_keys_required.unwrap_or(true) && return_raw {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
@@ -475,6 +477,17 @@ where
 
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
+                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+                        if let Some(error_data) = &evt.error {
+                            json_fields.push(("response.body", error_data.inner().clone()));
+                        }
+                        // Use event headers (already masked) — consistent with success path
+                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
+                            json_fields.push(("response.headers", headers_json));
+                        }
+                        if !json_fields.is_empty() {
+                            record_json_fields_on_span(json_fields);
+                        }
                     }
                     tracing::Span::current().record(
                         "response.error_message",
@@ -484,6 +497,8 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    tracing::Span::current()
+                        .record("res_code", u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -602,6 +617,7 @@ pub struct EventProcessingParams<'a> {
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,
+        res_code = Empty,
         message_ = "Golden Log Line (outgoing)",
         // `latency` is the pre-existing human-readable string; `latency_ms` is the same
         // duration as a plain number of milliseconds, for numeric downstream consumers.
@@ -1076,8 +1092,6 @@ where
                         },
                         external_service_elapsed.as_secs_f64(),
                     );
-                    tracing::info!(?response, "response from connector");
-
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),

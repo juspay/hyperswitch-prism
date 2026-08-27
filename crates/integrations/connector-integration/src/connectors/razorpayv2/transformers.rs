@@ -643,6 +643,7 @@ impl
                 incremental_authorization_allowed: None,
                 status_code: _status_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             RazorpayStatus::Failed => Err(ErrorResponse {
                 code: payment_response
@@ -735,6 +736,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: _status_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -778,6 +780,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: _status_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

@@ -490,6 +490,7 @@ impl Revolv3SaleResponse {
                 incremental_authorization_allowed: None,
                 status_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -534,6 +535,7 @@ impl Revolv3AuthorizeResponse {
                     incremental_authorization_allowed: None,
                     status_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
             }),
             _ => Ok(DerivedPaymentResponse {
@@ -715,6 +717,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1055,6 +1058,7 @@ impl TryFrom<ResponseRouterData<Revolv3AuthReversalResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Voided,

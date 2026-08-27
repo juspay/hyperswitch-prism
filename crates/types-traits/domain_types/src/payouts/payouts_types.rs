@@ -11,12 +11,13 @@ use crate::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct PayoutFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payout_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,

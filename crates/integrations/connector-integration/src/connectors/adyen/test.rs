@@ -74,7 +74,7 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -286,7 +286,7 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,

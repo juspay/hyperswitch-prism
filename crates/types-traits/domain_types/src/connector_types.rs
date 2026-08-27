@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_enums::{
     AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
@@ -251,6 +251,7 @@ pub enum PayoutConnectorEnum {
     Santander,
     Truelayer,
     Trustly,
+    GotymeSanlam,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -308,6 +309,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Santander(_) => Ok(Self::Santander),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Trustly(_) => Ok(Self::Trustly),
+            AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -815,7 +817,7 @@ pub struct PaymentFlowData {
     pub connector_http_status_code: Option<u16>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub external_latency: Option<u128>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -2001,6 +2003,7 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
+        payment_account_reference: Option<String>,
     },
     ClientAuthenticationTokenResponse {
         session_data: ClientAuthenticationTokenData,
@@ -2738,7 +2741,7 @@ pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3813,7 +3816,7 @@ pub struct AcceptDisputeData {
 pub struct DisputeFlowData {
     pub dispute_id: Option<String>,
     pub connector_dispute_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
@@ -3869,7 +3872,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3924,7 +3927,7 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefreshPaymentMethodFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
@@ -5694,6 +5697,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
             AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
+            AuthType::GotymeSanlam(_) => Ok(Self::Payout(PayoutConnectorEnum::GotymeSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
