@@ -1666,6 +1666,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     redirection_data: Some(Box::new(redirection_data)),
                     connector_metadata: cookie.map(|value| serde_json::json!({ "cookie": value })),
+                    payment_account_reference: None,
                     mandate_reference: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
