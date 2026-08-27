@@ -274,7 +274,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   TsysConfig: ["deviceId", "transactionKey", "developerId"],
   WellsfargoConfig: ["apiKey", "merchantAccount", "apiSecret"],
   WorldpayvantivConfig: ["user", "password", "merchantId"],
-  WorldpayxmlConfig: ["apiUsername", "apiPassword", "merchantCode"],
+  WorldpayxmlConfig: ["apiUsername", "apiPassword", "merchantCode", "issuerId", "organizationalUnitId", "jwtMacKey"],
   ZiftConfig: ["userName", "password", "accountId"],
   FiservcommercehubConfig: ["apiKey", "secret", "merchantId", "terminalId"],
   AbsaSanlamConfig: ["apiKey", "merchantId"],

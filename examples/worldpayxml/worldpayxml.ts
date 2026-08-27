@@ -18,6 +18,9 @@ const _defaultConfig: types.IConnectorConfig = {
             apiUsername: { value: 'YOUR_API_USERNAME' },
             apiPassword: { value: 'YOUR_API_PASSWORD' },
             merchantCode: { value: 'YOUR_MERCHANT_CODE' },
+            issuerId: { value: 'YOUR_ISSUER_ID' },
+            organizationalUnitId: { value: 'YOUR_ORGANIZATIONAL_UNIT_ID' },
+            jwtMacKey: { value: 'YOUR_JWT_MAC_KEY' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
