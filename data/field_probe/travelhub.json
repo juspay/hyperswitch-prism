@@ -10,111 +10,111 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Card": {
         "status": "not_supported",
-        "error": "card network is not supported by travelhub"
+        "error": "card network is not supported by travelhub. The provided card network is not supported by travelhub card payments"
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Crypto": {
         "status": "not_supported",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Givex": {
         "status": "not_supported",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Paysera": {
         "status": "not_supported",
@@ -342,111 +342,111 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       }
     },
     "capture": {
@@ -712,7 +712,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Selected payment method is not supported by travelhub"
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       }
     },
     "token_setup_recurring": {
