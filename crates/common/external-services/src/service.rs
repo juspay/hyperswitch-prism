@@ -474,7 +474,7 @@ where
                         }
                     }
 
-                    if let Some(evt) = event.as_deref_mut() {
+                    if let Some(evt) = event {
                         evt.set_error_response(&error_response);
                         if let Some(error_data) = &evt.error {
                             record_json_fields_on_span(vec![(
