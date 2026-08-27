@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_enums::{
     AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
@@ -817,7 +817,7 @@ pub struct PaymentFlowData {
     pub connector_http_status_code: Option<u16>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub external_latency: Option<u128>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -2740,7 +2740,7 @@ pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3815,7 +3815,7 @@ pub struct AcceptDisputeData {
 pub struct DisputeFlowData {
     pub dispute_id: Option<String>,
     pub connector_dispute_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
@@ -3871,7 +3871,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3926,7 +3926,7 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefreshPaymentMethodFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
