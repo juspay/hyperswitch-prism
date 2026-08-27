@@ -25,7 +25,6 @@ set -uo pipefail
 
 ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
 SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
-ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 BASE_SHA="${BASE_SHA:-}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -38,13 +37,6 @@ SERVER_BINARY="target/debug/grpc-server"
 
 # shellcheck source=../../scripts/grpc-server.sh
 source "scripts/grpc-server.sh"
-
-# Recorded as not certifiable — see alpha_connectors.json for which list and why.
-is_alpha() {
-  [[ -f "${ALPHA_FILE}" ]] || return 1
-  jq -e --arg n "$1" '(.grandfathered + .unproven_new) | has($n)' \
-    "${ALPHA_FILE}" >/dev/null 2>&1
-}
 
 # Names are only ever read from the manifest, but they end up in `jq --arg`
 # lookups and file paths, so keep them to the shape a connector name can have.
@@ -215,12 +207,7 @@ if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
   for specs in "${SPECS_ROOT}"/*/specs.json; do
     [[ -f "${specs}" ]] || continue
     [[ "$(jq -r '.live_in_production // false' "${specs}")" == "true" ]] || continue
-    sname="$(basename "$(dirname "${specs}")")"
-    if is_alpha "${sname}"; then
-      echo "  ${sname}: recorded in alpha_connectors.json — not certified"
-      continue
-    fi
-    CONNECTORS+=("${sname}")
+    CONNECTORS+=("$(basename "$(dirname "${specs}")")")
   done
   if [[ ${#CONNECTORS[@]} -eq 0 ]]; then
     echo "::error::Shared code changed but no connector declares live_in_production — nothing would be certified."
@@ -241,8 +228,8 @@ else
       continue
     fi
 
-    if is_alpha "${name}"; then
-      echo "  ${name}: recorded in alpha_connectors.json — not certified by this PR"
+    if [[ "$(jq -r '.live_creds // false' "${specs}")" != "true" ]]; then
+      echo "  ${name}: live_creds is not true — not certified by this PR"
       continue
     fi
 

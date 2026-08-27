@@ -118,33 +118,11 @@ jobs:
         if: steps.filter.outputs.connector == 'true'
         shell: bash
         run: |
-          specs_root=crates/internal/integration-tests/src/connector_specs
-          alpha="$specs_root/alpha_connectors.json"
-          base_ref="${{ github.event.pull_request.base.sha || github.event.before }}"
-
-          raw=$(echo '${{ steps.filter.outputs.connector_files }}' | \
+          names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
             jq -r '.[]' | \
             grep -oE '(connectors|connector_specs)/[^/]+' | \
-            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||')
-
-          # Promoting a connector out of alpha_connectors.json is what starts
-          # certifying it, but the promotion touches only that shared file — so
-          # without this the first PR to certify a connector never runs it.
-          if [ -f "$alpha" ]; then
-            before=$(git show "$base_ref:$alpha" 2>/dev/null || echo '{}')
-            promoted=$(jq -rn \
-              --argjson b "$(jq '(.grandfathered // {}) + (.unproven_new // {})' <<< "$before")" \
-              --argjson h "$(jq '(.grandfathered // {}) + (.unproven_new // {})' "$alpha")" \
-              '($b | keys) - ($h | keys) | .[]' 2>/dev/null || true)
-            raw=$(printf '%s\n%s\n' "$raw" "$promoted")
-          fi
-
-          # The regex also matches files that sit directly in connector_specs/,
-          # such as alpha_connectors.json itself. Keep only real connectors.
-          names=$(echo "$raw" | sort -u | while read -r n; do
-            [ -n "$n" ] && [ -f "$specs_root/$n/specs.json" ] && echo "$n"
-          done | paste -sd ',' -)
-
+            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
+            sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
 
@@ -650,13 +628,6 @@ jobs:
           sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
           grpcurl --version
 
-      - name: Check the alpha connector list
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: .github/scripts/check-alpha-list.sh
-
       - name: Verify newly added connectors' declared scenarios
         id: verify-new-connectors
         if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
@@ -680,13 +651,14 @@ jobs:
 
       # A connector whose connector_specs/<name>/ directory did not exist at this
       # PR's base commit must prove itself on its own PR. Its specs.json states
-      # what it supports in `supported_suites`.
+      # what it supports in `supported_suites` and whether CI can prove it in
+      # `live_creds`.
       #
-      # By default every scenario of every declared suite runs against the
-      # sandbox and must pass. Merging unproven is allowed but never silent: the
-      # connector goes in alpha_connectors.json under `unproven_new` with a
-      # reason, and is listed in the job summary and in a PR comment. It starts
-      # certifying the moment that entry is removed.
+      # live_creds: true runs every scenario of every declared suite against the
+      # sandbox, and they must pass. live_creds: false is allowed but never
+      # silent: no_creds_reason is mandatory, and the connector is listed in the
+      # job summary and in a PR comment as unproven. It does not certify until
+      # live_creds is flipped to true in a later PR.
       - name: Comment unproven connector declarations on the PR
         if: ${{ github.event_name == 'pull_request' && steps.verify-new-connectors.outputs.unproven == 'true' }}
         uses: actions/github-script@v7
@@ -703,9 +675,9 @@ jobs:
               '',
               ...lines.map(l => `- ${l}`),
               '',
-              'These connectors are recorded under `unproven_new` in `alpha_connectors.json`.',
+              'These connectors declare `live_creds: false` in their `specs.json`.',
               'No real sandbox call backs them. Confirm each stated reason before approving;',
-              'they do not certify until the entry is removed.',
+              'they do not certify until `live_creds` is flipped to true.',
             ].join('\n');
 
             const { owner, repo } = context.repo;
