@@ -851,6 +851,11 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    GotymeSanlam {
+        api_key: Secret<String>,
+        profile_id: Secret<String>,
+        base_url: Option<String>,
+    },
     PinelabsOnline {
         client_id: Secret<String>,
         client_secret: Secret<String>,
@@ -1133,6 +1138,10 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             AbsaSanlam { api_key, base_url },
+            GotymeSanlam {
+                api_key,
+                profile_id
+            },
             Bamboraapac {
                 username,
                 password,
@@ -1718,6 +1727,10 @@ impl ConnectorSpecificConfig {
                     merchant_acceptor_key
                 },
                 AbsaSanlam { api_key, base_url },
+                GotymeSanlam {
+                    api_key,
+                    profile_id
+                },
                 Trustpay {
                     api_key,
                     project_id,
@@ -2176,6 +2189,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: absa_sanlam.api_key.ok_or_else(err)?,
                 merchant_id: absa_sanlam.merchant_id.ok_or_else(err)?,
                 base_url: absa_sanlam.base_url,
+            }),
+            AuthType::GotymeSanlam(gotyme_sanlam) => Ok(Self::GotymeSanlam {
+                api_key: gotyme_sanlam.api_key.ok_or_else(err)?,
+                profile_id: gotyme_sanlam.profile_id.ok_or_else(err)?,
+                base_url: gotyme_sanlam.base_url,
             }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
@@ -4025,6 +4043,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
+                PayoutConnectorEnum::GotymeSanlam => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
+                        api_key: api_key.clone(),
+                        profile_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
                 PayoutConnectorEnum::Trustly => match auth {
                     ConnectorAuthType::SignatureKey {
@@ -4050,6 +4076,7 @@ pub enum FlowStatus {
     Payment(common_enums::enums::AttemptStatus),
     Refund(common_enums::enums::RefundStatus),
     Dispute(common_enums::enums::DisputeStatus),
+    Payout(common_enums::enums::PayoutStatus),
 }
 
 impl FlowStatus {
@@ -4073,6 +4100,14 @@ impl FlowStatus {
     pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
         match self {
             FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract PayoutStatus if this is a Payout variant
+    pub fn as_payout_status(&self) -> Option<common_enums::enums::PayoutStatus> {
+        match self {
+            FlowStatus::Payout(status) => Some(*status),
             _ => None,
         }
     }

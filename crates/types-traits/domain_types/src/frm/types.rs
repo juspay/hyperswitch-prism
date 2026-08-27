@@ -88,7 +88,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -126,7 +126,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -164,7 +164,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,

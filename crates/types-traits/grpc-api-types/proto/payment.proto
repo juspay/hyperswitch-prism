@@ -905,7 +905,7 @@ enum Connector {
   WORLDPAYRAFT = 139;
   // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
   // (= JPMorgan Payments API v2) above.
-  JPMORGAN_ORBITAL = 140;
+  JPMORGAN_ORBITAL = 141;
 }
 
 // Payment method types
@@ -2707,6 +2707,8 @@ message PaymentServiceAuthorizeResponse {
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 24;
 
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 28;
 }
 
 // Request message for synchronizing payment status
@@ -2856,6 +2858,9 @@ message PaymentServiceGetResponse {
   // Payment method details received from the connector mid-payment, intended for
   // saving for the returning-customer flow.
   optional PaymentMethod connector_returned_payment_method_details = 40;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 42;
 }
 
 // Request message for voiding a payment
@@ -2939,6 +2944,9 @@ message PaymentServiceVoidResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 16;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 19;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -3210,6 +3218,9 @@ message PaymentServiceCaptureResponse {
   // Another reference for the connector's transaction, returned in the connector's response.
   // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
   optional string connector_reference_id = 18;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 22;
 }
 
 // Request message for creating an order
@@ -3627,6 +3638,9 @@ message PaymentServiceSetupRecurringResponse {
   // Raw Response for debugging
   optional SecretString raw_connector_response = 18;
   optional SecretString typed_connector_response = 21;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 22;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3786,6 +3800,9 @@ message RecurringPaymentServiceChargeResponse {
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
   optional string network_txn_link_id = 20;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 24;
 }
 
 // Request message for a mandate revoke operation
@@ -5328,6 +5345,12 @@ message AbsaSanlamConfig {
   optional string base_url = 50;
 }
 
+message GotymeSanlamConfig {
+  SecretString api_key = 1;
+  SecretString profile_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -6062,8 +6085,10 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
-    // JPMORGAN_ORBITAL = 140
-    JpmorganOrbitalConfig jpmorgan_orbital = 150;
+    // GOTYME_SANLAM = 140
+    GotymeSanlamConfig gotyme_sanlam = 150;
+    // JPMORGAN_ORBITAL = 141
+    JpmorganOrbitalConfig jpmorgan_orbital = 151;
   }
 }
 
