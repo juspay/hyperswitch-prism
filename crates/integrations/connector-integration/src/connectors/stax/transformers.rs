@@ -415,6 +415,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxPaymentResponse, 
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -461,6 +462,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -539,6 +541,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -804,6 +807,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1340,6 +1344,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1485,6 +1490,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {

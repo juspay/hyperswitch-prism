@@ -1742,6 +1742,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1887,6 +1888,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2028,6 +2030,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2101,6 +2104,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2174,6 +2178,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2267,6 +2272,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         };
 
                         return Ok(Self {
@@ -2368,6 +2374,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
 
                 Ok(Self {
@@ -2405,6 +2412,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
 
                 Ok(Self {
