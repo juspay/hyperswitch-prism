@@ -18,11 +18,11 @@ use std::collections::HashMap;
 use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, RefundStatus};
 use common_utils::{types::StringMinorUnit, Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -279,7 +279,7 @@ pub struct SaferpayAuthentication {
 /// presence of `ReturnUrl` / `Authentication`; `TerminalId` is required on both and
 /// on no other endpoint.
 #[derive(Debug, Clone, Serialize)]
-pub struct SaferpayAuthorizeRequest<T: PaymentMethodDataTypes> {
+pub struct SaferpayCardAuthorizationRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "RequestHeader")]
     pub request_header: SaferpayRequestHeader,
     #[serde(rename = "TerminalId")]
@@ -294,14 +294,60 @@ pub struct SaferpayAuthorizeRequest<T: PaymentMethodDataTypes> {
     pub authentication: Option<SaferpayAuthentication>,
 }
 
+/// The Authorize flow speaks to two different endpoints.
+///
+/// * Non-3DS: `AuthorizeDirect` with the raw card.
+/// * 3DS settle: `Authorize {Token}`, finalising the journey `PreAuthenticate` opened.
+///
+/// Either way this flow is where the money moves. See `is_three_ds_settlement`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum SaferpayAuthorizeRequest<T: PaymentMethodDataTypes> {
+    /// `POST /Payment/v1/Transaction/AuthorizeDirect`
+    Direct(Box<SaferpayCardAuthorizationRequest<T>>),
+    /// `POST /Payment/v1/Transaction/Authorize`
+    Settle {
+        #[serde(rename = "RequestHeader")]
+        request_header: SaferpayRequestHeader,
+        #[serde(rename = "Token")]
+        token: String,
+    },
+}
+
 type AuthorizeRouterData<T> =
     RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>;
 
-/// `true` when this attempt must go through the redirect (`Initialize`) leg.
-pub fn is_three_ds_authorize<T: PaymentMethodDataTypes>(
-    router_data: &AuthorizeRouterData<T>,
+/// `true` when this Authorize is the 3DS settle leg rather than a fresh charge.
+///
+/// `PreAuthenticate` opens the journey with `Initialize` and returns a redirect; the caller
+/// stops there (`should_continue_after_preauthenticate` defaults to false), so a 3DS attempt
+/// never reaches Authorize before the shopper has been away. When it comes back, the caller
+/// re-enters through complete-authorize with `redirect_response` populated — that is the
+/// signal, and it is the same one Ilixium keys on (`ilixium::is_three_ds_completion`).
+pub fn is_three_ds_settlement<T: PaymentMethodDataTypes>(
+    request: &PaymentsAuthorizeData<T>,
 ) -> bool {
-    router_data.resource_common_data.auth_type == AuthenticationType::ThreeDs
+    request.redirect_response.is_some()
+}
+
+/// The Saferpay session `Token` published by `PreAuthenticate`.
+///
+/// It rides in `connector_metadata`, which the caller persists on the attempt and hands back
+/// on the settle Authorize as `connector_feature_data` — the same channel Paysafe uses to
+/// carry its payment handle across a redirect.
+fn settle_token<T: PaymentMethodDataTypes>(request: &PaymentsAuthorizeData<T>) -> Option<String> {
+    request
+        .connector_feature_data
+        .as_ref()
+        .and_then(|metadata| {
+            metadata
+                .peek()
+                .get(SAFERPAY_TOKEN_METADATA_KEY)
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+                .map(str::to_string)
+        })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -313,6 +359,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
         let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        // 3DS settle: spend the session token PreAuthenticate obtained. The card is not
+        // read here — Saferpay needs only the token — even though the caller rehydrates it
+        // from the temp locker to satisfy the framework's payment-method requirement.
+        if is_three_ds_settlement(request) {
+            let token = settle_token(request)
+                .ok_or_else(|| missing_field("connector_feature_data.saferpay_token"))?;
+            return Ok(Self::Settle {
+                request_header: SaferpayRequestHeader::new(&auth),
+                token,
+            });
+        }
 
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card,
@@ -326,8 +385,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Saferpay's Transaction interface has no field to carry an externally
         // obtained CAVV/ECI/dsTransId: 3DS is always run by Saferpay itself through
-        // the Initialize redirect, so merchant-supplied authentication data cannot
-        // be honoured.
+        // the PreAuthenticate redirect, so merchant-supplied authentication data
+        // cannot be honoured. (The 3DS settle leg was handled above.)
         if request.authentication_data.is_some() {
             return Err(not_supported(
                 "External/merchant-provided 3DS authentication data".to_string(),
@@ -340,8 +399,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if request.mandate_id.is_some() || request.setup_mandate_details.is_some() {
             return Err(not_supported("Mandates / stored credentials".to_string()));
         }
-
-        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
 
         let exp_year = card
             .get_expiry_year_4_digit()
@@ -367,24 +424,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string());
 
-        let (return_url, authentication) = if is_three_ds_authorize(router_data) {
-            let url = request
-                .router_return_url
-                .clone()
-                .or_else(|| request.complete_authorize_url.clone())
-                .or_else(|| common.return_url.clone())
-                .ok_or_else(|| missing_field("router_return_url"))?;
-            (
-                Some(SaferpayReturnUrl { url }),
-                Some(SaferpayAuthentication {
-                    three_ds_challenge: "FORCE",
-                }),
-            )
-        } else {
-            (None, None)
-        };
+        // A 3DS attempt never reaches this flow for the initial charge — PreAuthenticate
+        // owns `Initialize`. Reaching here with ThreeDs means the authentication legs did
+        // not run, which on the hyperswitch path means the connector's
+        // `is_pre_authentication_flow_required` predicate is not wired up. Failing loudly
+        // beats silently charging without authentication.
+        if common.auth_type == AuthenticationType::ThreeDs {
+            return Err(not_supported(
+                "3DS on AuthorizeDirect — the PreAuthenticate leg must run first".to_string(),
+            ));
+        }
 
-        Ok(Self {
+        Ok(Self::Direct(Box::new(SaferpayCardAuthorizationRequest {
             request_header: SaferpayRequestHeader::new(&auth),
             terminal_id: auth.terminal_id.clone(),
             payment: SaferpayPaymentDetails {
@@ -404,9 +455,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     holder_name: card.get_optional_cardholder_name(),
                 },
             },
-            return_url,
-            authentication,
-        })
+            return_url: None,
+            authentication: None,
+        })))
     }
 }
 
@@ -633,10 +684,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayAuthorizeResp
     ) -> Result<Self, Self::Error> {
         let response = item.response.0;
 
-        // Non-3DS (`AuthorizeDirect`): a real transaction already exists.
-        if let Some(transaction) = response.transaction.as_ref() {
+        // Both arms of this flow — `AuthorizeDirect` (non-3DS) and the read-only
+        // `Inquire` that tails a completed 3DS journey — answer with a `Transaction`.
+        // There is no token-bearing arm any more: `Initialize` lives in PreAuthenticate.
+        let transaction = response.transaction.as_ref().ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: Authorize response carried no Transaction object",
+            ))
+        })?;
+
+        {
             let status = transaction.attempt_status();
-            return Ok(Self {
+            Ok(Self {
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(transaction.id.clone()),
                     redirection_data: None,
@@ -657,134 +717,27 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayAuthorizeResp
                     ..item.router_data.resource_common_data
                 },
                 ..item.router_data
-            });
+            })
         }
-
-        // 3DS (`Initialize`): only a `Token` exists. It is published as the
-        // resource id, in `connector_metadata` and — via the caller round-tripping
-        // it as `connector_feature_data` — is what PSync uses for the second leg
-        // (`POST /Transaction/Authorize` with `{ "Token": ... }`).
-        let token = response.token.clone().ok_or_else(|| {
-            error_stack::report!(crate::utils::unexpected_response_fail(
-                item.http_code,
-                "saferpay: Authorize response carried neither a Transaction nor a Token",
-            ))
-        })?;
-
-        // `RedirectRequired: false` means Saferpay resolved authentication inline
-        // and no browser step is needed; the transaction is still finalised by the
-        // token-based Authorize, which PSync issues.
-        let redirection_data = if response.redirect_required.unwrap_or(false) {
-            response.redirect_form().map(Box::new)
-        } else {
-            None
-        };
-
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(token.clone()),
-                redirection_data,
-                mandate_reference: None,
-                connector_metadata: response.initialize_metadata(&token),
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: None,
-                incremental_authorization_allowed: None,
-                splits: None,
-                status_code: item.http_code,
-            }),
-            resource_common_data: PaymentFlowData {
-                status: AttemptStatus::AuthenticationPending,
-                ..item.router_data.resource_common_data
-            },
-            ..item.router_data
-        })
     }
 }
 
 // =============================================================================
-// PSYNC — `Inquire`, or the 3DS second leg (`Authorize` with a token)
+// PSYNC — `Inquire`
 // =============================================================================
 
-/// PSync body.
+/// PSync body: `POST /Payment/v1/Transaction/Inquire`.
 ///
-/// Saferpay has two different "read the current state" calls depending on what the
-/// stored handle is, and they are different endpoints with different bodies:
-///
-/// * a Saferpay session `Token` (the attempt is `AuthenticationPending` after
-///   `Initialize`) ⇒ `POST /Transaction/Authorize` with `{ "Token": ... }`, which
-///   finalises the 3DS transaction and returns the real `Transaction`. `Inquire`
-///   would answer `TRANSACTION_NOT_FOUND` here, because no transaction exists yet.
-/// * a real `Transaction.Id` ⇒ `POST /Transaction/Inquire`.
-///
-/// The token is carried by `PaymentsSyncData::connector_feature_data` — the
-/// `connector_metadata` published by `Initialize` and round-tripped by the
-/// caller. See `pending_three_ds_token` for why `encoded_data` is not used.
+/// A sync is strictly read-only. The 3DS second leg is the settle `Authorize`.
 #[derive(Debug, Clone, Serialize)]
-#[serde(untagged)]
-pub enum SaferpayPSyncRequest {
-    /// `POST /Payment/v1/Transaction/Authorize`
-    TokenAuthorize {
-        #[serde(rename = "RequestHeader")]
-        request_header: SaferpayRequestHeader,
-        #[serde(rename = "Token")]
-        token: String,
-    },
-    /// `POST /Payment/v1/Transaction/Inquire`
-    Inquire {
-        #[serde(rename = "RequestHeader")]
-        request_header: SaferpayRequestHeader,
-        #[serde(rename = "TransactionReference")]
-        transaction_reference: SaferpayTransactionReference,
-    },
+pub struct SaferpayPSyncRequest {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TransactionReference")]
+    pub transaction_reference: SaferpayTransactionReference,
 }
 
 type SyncRouterData = RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>;
-
-/// The Saferpay session token to finalise, if this sync is the 3DS second leg.
-///
-/// The token is carried by `connector_feature_data` — the `connector_metadata`
-/// this connector published from `Initialize`, which the caller persists on the
-/// attempt and hands back on every subsequent sync. Once the second leg
-/// succeeds the sync response replaces that metadata with the capture-id blob
-/// (see `SaferpayTransaction::connector_metadata`), so the token disappears and
-/// later syncs correctly fall through to `Inquire`.
-///
-/// `encoded_data` is deliberately NOT used: hyperswitch fills it with the raw
-/// query string of the redirect return URL, and Saferpay calls the return URL
-/// with no query parameters at all, so it is empty on the one sync that matters
-/// and is never a valid token when it is not.
-pub fn pending_three_ds_token(request: &PaymentsSyncData) -> Option<String> {
-    let token = request
-        .connector_feature_data
-        .as_ref()
-        .and_then(|metadata| {
-            metadata
-                .peek()
-                .get(SAFERPAY_TOKEN_METADATA_KEY)
-                .and_then(serde_json::Value::as_str)
-                .map(str::trim)
-                .filter(|token| !token.is_empty())
-                .map(str::to_string)
-        })?;
-
-    // The token stays in the stored metadata forever — the caller does not persist
-    // `connector_metadata` from a sync response, so this connector cannot clear it.
-    // What *does* change is the stored transaction id: `Initialize` publishes the
-    // token as the resource id, and the successful second leg replaces it with the
-    // real `Transaction.Id`. So the token is only still pending while the stored id
-    // is that same token.
-    //
-    // Without this check every later sync would replay `Authorize` against a spent
-    // token, which Saferpay rejects with `TRANSACTION_IN_WRONG_STATE`
-    // ("Invalid action") — a bogus error on a healthy, already-authorized payment.
-    let stored_id = request
-        .connector_transaction_id
-        .get_connector_transaction_id()
-        .ok()?;
-
-    (stored_id == token).then_some(token)
-}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<SaferpayRouterData<SyncRouterData, T>> for SaferpayPSyncRequest
@@ -794,14 +747,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(item: SaferpayRouterData<SyncRouterData, T>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
-        let request_header = SaferpayRequestHeader::new(&auth);
-
-        if let Some(token) = pending_three_ds_token(&router_data.request) {
-            return Ok(Self::TokenAuthorize {
-                request_header,
-                token,
-            });
-        }
 
         let transaction_id = router_data
             .request
@@ -809,15 +754,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_connector_transaction_id()
             .map_err(|_| missing_field("connector_transaction_id"))?;
 
-        Ok(Self::Inquire {
-            request_header,
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth),
             transaction_reference: SaferpayTransactionReference { transaction_id },
         })
     }
 }
 
-/// Both PSync modes answer with the shared payments envelope; the newtype only
-/// gives the macro framework a distinct response type per flow.
+/// The newtype only gives the macro framework a distinct response type per flow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct SaferpayPSyncResponse(pub SaferpayPaymentsResponse);
@@ -857,6 +801,182 @@ impl TryFrom<ResponseRouterData<SaferpayPSyncResponse, Self>> for SyncRouterData
             }),
             resource_common_data: PaymentFlowData {
                 status: transaction.attempt_status(),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// PRE-AUTHENTICATE — `Initialize` (opens the 3DS journey)
+// =============================================================================
+
+/// Body for `POST /Payment/v1/Transaction/Initialize`.
+///
+/// Same shape as `AuthorizeDirect` plus `ReturnUrl` and `Authentication`; the
+/// presence of `ReturnUrl` is what makes Saferpay return a redirect instead of
+/// authorizing inline.
+#[derive(Debug, Clone, Serialize)]
+#[serde(transparent)]
+pub struct SaferpayPreAuthenticateRequest<T: PaymentMethodDataTypes>(
+    pub SaferpayCardAuthorizationRequest<T>,
+);
+
+type PreAuthenticateRouterData<T> = RouterDataV2<
+    PreAuthenticate,
+    PaymentFlowData,
+    PaymentsPreAuthenticateData<T>,
+    PaymentsResponseData,
+>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<PreAuthenticateRouterData<T>, T>>
+    for SaferpayPreAuthenticateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<PreAuthenticateRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+
+        let card = match &request.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported by saferpay".to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        if request.mandate_reference.is_some() {
+            return Err(not_supported("Mandates / stored credentials".to_string()));
+        }
+
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        let exp_year = card
+            .get_expiry_year_4_digit()
+            .expose()
+            .parse::<u16>()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_exp_year",
+                    context: context(),
+                })
+            })?;
+        let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "card_exp_month",
+                context: context(),
+            })
+        })?;
+
+        let amount = SaferpayAmountConvertor::convert(
+            request.amount,
+            request.currency.ok_or_else(|| missing_field("currency"))?,
+        )?;
+
+        // `continue_redirection_url` first, deliberately. It is the URL that routes the
+        // returning shopper into the caller's complete-authorize path, which is what
+        // dispatches the settle Authorize. Landing on the plain return URL instead would
+        // leave the payment stuck at `AuthenticationPending`, because the second leg
+        // would never be issued.
+        let url = request
+            .continue_redirection_url
+            .clone()
+            .map(|url| url.to_string())
+            .or_else(|| request.router_return_url.clone().map(|url| url.to_string()))
+            .or_else(|| common.return_url.clone())
+            .ok_or_else(|| missing_field("continue_redirection_url"))?;
+
+        Ok(Self(SaferpayCardAuthorizationRequest {
+            request_header: SaferpayRequestHeader::new(&auth),
+            terminal_id: auth.terminal_id.clone(),
+            payment: SaferpayPaymentDetails {
+                amount: SaferpayAmount {
+                    value: amount,
+                    currency_code: request.currency.ok_or_else(|| missing_field("currency"))?,
+                },
+                order_id: truncate_order_id(&common.connector_request_reference_id),
+                description: common
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string()),
+            },
+            payment_means: SaferpayPaymentMeans {
+                card: SaferpayCardDetails {
+                    number: card.card_number.clone(),
+                    exp_year,
+                    exp_month,
+                    verification_code: Some(card.card_cvc.clone()),
+                    holder_name: card.get_optional_cardholder_name(),
+                },
+            },
+            return_url: Some(SaferpayReturnUrl { url }),
+            authentication: Some(SaferpayAuthentication {
+                three_ds_challenge: "FORCE",
+            }),
+        }))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SaferpayPreAuthenticateResponse(pub SaferpayPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayPreAuthenticateResponse, Self>>
+    for PreAuthenticateRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpayPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        let token = response.token.clone().ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: Initialize response carried no Token",
+            ))
+        })?;
+
+        // `RedirectRequired: false` means Saferpay resolved authentication inline and
+        // no browser step is needed. The token still has to be spent by
+        // the settle Authorize, so the only difference is that no redirect is emitted.
+        let redirection_data = if response.redirect_required.unwrap_or(false) {
+            response.redirect_form().map(Box::new)
+        } else {
+            None
+        };
+
+        // The token travels in `connector_feature_data` on the common data — the channel
+        // the framework reads for this leg (it does not read it off the response variant).
+        // The caller persists it as `connector_metadata` on the attempt and hands it back
+        // on the settle Authorize.
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: Some(ResponseId::ConnectorTransactionId(token.clone())),
+                redirection_data,
+                // The token's carrier is `connector_feature_data` below; the caller
+                // persists that as `connector_metadata` and hands it back on the settle
+                // Authorize. No 3DS protocol data exists to report here — Saferpay runs
+                // the authentication itself and never returns a CAVV/ECI.
+                authentication_data: None,
+                connector_response_reference_id: None,
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::AuthenticationPending,
+                connector_feature_data: Some(Secret::new(serde_json::json!({
+                    SAFERPAY_TOKEN_METADATA_KEY: token,
+                    SAFERPAY_STAGE_METADATA_KEY: STAGE_INITIALIZED,
+                }))),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

@@ -12,25 +12,32 @@
 //! | UCS flow | Saferpay endpoint |
 //! |---|---|
 //! | Authorize (non-3DS) | `POST /Payment/v1/Transaction/AuthorizeDirect` |
-//! | Authorize (3DS) | `POST /Payment/v1/Transaction/Initialize` |
-//! | PSync (3DS second leg) | `POST /Payment/v1/Transaction/Authorize` |
+//! | PreAuthenticate (3DS) | `POST /Payment/v1/Transaction/Initialize` |
+//! | Authorize (3DS settle) | `POST /Payment/v1/Transaction/Authorize` |
 //! | PSync / RSync | `POST /Payment/v1/Transaction/Inquire` |
 //! | Refund settle | `POST /Payment/v1/Transaction/Capture` (issued from RSync) |
 //! | Capture | `POST /Payment/v1/Transaction/Capture` |
 //! | Void | `POST /Payment/v1/Transaction/Cancel` |
 //! | Refund | `POST /Payment/v1/Transaction/Refund` |
 //!
-//! **3DS second leg.** UCS has no `CompleteAuthorize` flow, so the token-based
-//! `Authorize` that finalises a redirect transaction is issued from **PSync**, which
-//! branches on whether the held handle is an `Initialize` session token (carried in
-//! `PaymentsSyncData::connector_feature_data`) or a real `Transaction.Id`.
+//! **3DS is two calls: PreAuthenticate opens, Authorize settles.** `PreAuthenticate`
+//! sends `Initialize`, which yields a session `Token` and the URL of Saferpay's hosted
+//! DCC + 3DS pages; the token is published in `connector_feature_data` (and mirrored into
+//! `AuthenticationData`). When the shopper returns, the caller re-enters through
+//! complete-authorize with `redirect_response` set, and **Authorize** spends the token
+//! with `Authorize {Token}` — which both validates the authentication and moves the money.
+//!
+//! `Authenticate` and `PostAuthenticate` are deliberately unimplemented. Those legs exist
+//! to produce `AuthenticationData` (CAVV/ECI/transStatus) for a *following* Authorize to
+//! spend, as Cybersource-style connectors do from a standalone 3DS API. Saferpay has no
+//! such API and never returns a CAVV, so modelling the second call as `PostAuthenticate`
+//! would leave an Authorize still to run with nothing to send — the trap Ilixium documents.
 //!
 //! **Refunds settle from RSync.** `POST /Transaction/Refund` only creates the
 //! refund in state `AUTHORIZED`; it never settles on its own. Since UCS has no
 //! "capture a refund" flow and Refund itself is a single request, the settling
-//! `Capture` is issued from **RSync** while the refund is still `Pending` — the same
-//! shape as the 3DS second leg above. Refund therefore reports `Pending`, and the
-//! first RSync settles it to `Success`.
+//! `Capture` is issued from **RSync** while the refund is still `Pending`. Refund
+//! therefore reports `Pending`, and the first RSync settles it to `Success`.
 //!
 //! **Capture method.** Saferpay has no auto-capture request field on
 //! `AuthorizeDirect` / `Initialize` — settlement behaviour is a terminal-level
@@ -49,11 +56,11 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -71,7 +78,8 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as saferpay, SaferpayAuthorizeRequest, SaferpayAuthorizeResponse, SaferpayCaptureRequest,
-    SaferpayCaptureResponse, SaferpayPSyncRequest, SaferpayPSyncResponse, SaferpayRefundRequest,
+    SaferpayCaptureResponse, SaferpayPSyncRequest, SaferpayPSyncResponse,
+    SaferpayPreAuthenticateRequest, SaferpayPreAuthenticateResponse, SaferpayRefundRequest,
     SaferpayRefundResponse, SaferpayRefundSyncRequest, SaferpayRefundSyncResponse,
     SaferpayVoidRequest, SaferpayVoidResponse,
 };
@@ -145,6 +153,12 @@ macros::create_all_prerequisites!(
             request_body: SaferpayRefundSyncRequest,
             response_body: SaferpayRefundSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: SaferpayPreAuthenticateRequest<T>,
+            response_body: SaferpayPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -267,10 +281,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // `AuthorizeDirect` never performs 3-D Secure, so a 3DS attempt has to
-            // go through the redirect-based `Initialize`.
-            let path = if saferpay::is_three_ds_authorize(req) {
-                PATH_INITIALIZE
+            // 3DS never reaches `AuthorizeDirect`: `PreAuthenticate` opens the journey
+            // with `Initialize`, and this flow finalises it with the token-based
+            // `Authorize` once the shopper returns. Non-3DS goes straight to
+            // `AuthorizeDirect`.
+            let path = if saferpay::is_three_ds_settlement(&req.request) {
+                PATH_AUTHORIZE
             } else {
                 PATH_AUTHORIZE_DIRECT
             };
@@ -279,8 +295,8 @@ macros::macro_connector_implementation!(
     }
 );
 
-// PSync Flow — either the 3DS second leg (`Authorize` with the session token) or a
-// plain `Inquire`, decided by whether a token was handed back to us.
+// PSync Flow — a read-only `Inquire`. The 3DS second leg is the settle Authorize, so a
+// sync never mutates state.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Saferpay,
@@ -305,15 +321,48 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // While the attempt is `AuthenticationPending` no transaction exists
-            // yet, so `Inquire` would answer TRANSACTION_NOT_FOUND; the token-based
-            // `Authorize` both finalises and reports the transaction.
-            let path = if saferpay::pending_three_ds_token(&req.request).is_some() {
-                PATH_AUTHORIZE
-            } else {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
                 PATH_INQUIRE
-            };
-            Ok(format!("{}{}", self.connector_base_url_payments(req), path))
+            ))
+        }
+    }
+);
+
+// PreAuthenticate Flow — opens the 3-D Secure journey. `Initialize` returns a session
+// `Token` plus the URL of Saferpay's hosted DCC + 3DS pages; the browser goes there and
+// comes back to `continue_redirection_url`, which is what routes the caller into
+// `PostAuthenticate`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Saferpay,
+    curl_request: Json(SaferpayPreAuthenticateRequest<T>),
+    curl_response: SaferpayPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                PATH_INITIALIZE
+            ))
         }
     }
 );
@@ -470,6 +519,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Saferpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Saferpay<T>
 {
 }
@@ -550,11 +604,12 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         DefendDispute,
         MandateRevoke,
+        // Both exist to hand `AuthenticationData` to a following Authorize. Saferpay's
+        // second call *is* the authorization, so it lives on Authorize instead.
         Authenticate,
+        PostAuthenticate,
         IncrementalAuthorization,
         CreateOrder,
-        PostAuthenticate,
-        PreAuthenticate,
         PaymentMethodToken,
         VoidPC,
         RepeatPayment,
