@@ -995,6 +995,28 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// JP Morgan Orbital (Chase Paymentech Orbital Gateway).
+    ///
+    /// **Not** the `Jpmorgan` variant above, which configures the JPMorgan Payments
+    /// API v2 with an OAuth2 client id/secret. Orbital authenticates with three plain
+    /// HTTP headers instead.
+    ///
+    /// `username` / `password` / `merchant_id` are the header credentials
+    /// (`orbitalConnectionUsername`, `orbitalConnectionPassword`, `merchantID`);
+    /// `merchant_id` is additionally echoed in the request body.
+    ///
+    /// `bin` and `terminal_id` are **not secrets** — they are merchant provisioning
+    /// facts that travel in the request body and cannot be derived by the connector:
+    /// `bin` selects the back-end authorization host (`"000001"` Stratus / US,
+    /// `"000002"` Tandem / Canada) and `terminal_id` is the 3-digit terminal.
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1355,6 +1377,11 @@ impl ConnectorSpecificConfig {
             },
             Worldpayraft {
                 license,
+                merchant_id
+            },
+            JpmorganOrbital {
+                username,
+                password,
                 merchant_id
             },
             Imerchantsolutions { api_key },
@@ -1840,6 +1867,11 @@ impl ConnectorSpecificConfig {
                 },
                 Worldpayraft {
                     license,
+                    merchant_id
+                },
+                JpmorganOrbital {
+                    username,
+                    password,
                     merchant_id
                 },
                 Imerchantsolutions { api_key },
@@ -2486,6 +2518,14 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
+            }),
+            AuthType::JpmorganOrbital(jpmorgan_orbital) => Ok(Self::JpmorganOrbital {
+                username: jpmorgan_orbital.username.ok_or_else(err)?,
+                password: jpmorgan_orbital.password.ok_or_else(err)?,
+                merchant_id: jpmorgan_orbital.merchant_id.ok_or_else(err)?,
+                bin: jpmorgan_orbital.bin,
+                terminal_id: jpmorgan_orbital.terminal_id,
+                base_url: jpmorgan_orbital.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3744,6 +3784,25 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Legacy path only. `bin` / `terminal_id` have no slot in
+                // `ConnectorAuthType`, so a merchant configured this way will be
+                // rejected with `InvalidConnectorConfig` when the request is built;
+                // use the typed `x-connector-config` payload instead.
+                ConnectorEnum::JpmorganOrbital => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: None,
+                        terminal_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

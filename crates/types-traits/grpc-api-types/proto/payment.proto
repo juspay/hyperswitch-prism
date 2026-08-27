@@ -903,6 +903,9 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
+  // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
+  // (= JPMorgan Payments API v2) above.
+  JPMORGAN_ORBITAL = 140;
 }
 
 // Payment method types
@@ -5718,6 +5721,23 @@ message WorldpayraftConfig {
   optional string base_url = 50;
 }
 
+// JP Morgan Orbital (Chase Paymentech Orbital Gateway). NOT JpmorganConfig, which
+// configures the OAuth2-based JPMorgan Payments API v2.
+message JpmorganOrbitalConfig {
+  // Header orbitalConnectionUsername
+  SecretString username = 1;
+  // Header orbitalConnectionPassword
+  SecretString password = 2;
+  // Header merchantID, also echoed in the request body as merchant.merchantID
+  SecretString merchant_id = 3;
+  // Body merchant.bin: "000001" (Stratus, US) or "000002" (Tandem, Canada).
+  // Merchant provisioning fact, not a secret.
+  optional string bin = 4;
+  // Body merchant.terminalID: 3 digits ("001" on Stratus). Not a secret.
+  optional string terminal_id = 5;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6042,6 +6062,8 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
+    // JPMORGAN_ORBITAL = 140
+    JpmorganOrbitalConfig jpmorgan_orbital = 150;
   }
 }
 
