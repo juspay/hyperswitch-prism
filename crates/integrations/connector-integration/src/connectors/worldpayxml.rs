@@ -816,7 +816,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
             })?;
         let jwt = worldpayxml::sign_worldpayxml_jwt(
-            &worldpayxml::WorldpayxmlDdcJwt {
+            &requests::WorldpayxmlDdcJwt {
                 jti: uuid::Uuid::new_v4().to_string(),
                 iat,
                 iss,

@@ -20,7 +20,7 @@ use domain_types::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::{
     requests::{self, WorldpayxmlAction},
@@ -400,26 +400,9 @@ impl From<Option<common_enums::MitCategory>> for requests::WorldpayxmlMandateTyp
     }
 }
 
-/// Payload the device-data-collection page posts back on the shopper's return.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct WorldpayxmlDdcRedirectResponse {
-    pub action_code: String,
-    pub session_id: Option<Secret<String>>,
-}
-
-/// Payload the ACS posts back after a 3DS challenge.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct WorldpayxmlRedirectionResponse {
-    pub m_d: Option<String>,
-    pub response: String,
-    pub transaction_id: Option<String>,
-}
-
 pub(crate) fn parse_worldpayxml_challenge_return(
     redirect_response: Option<&ContinueRedirectionResponse>,
-) -> Option<WorldpayxmlRedirectionResponse> {
+) -> Option<responses::WorldpayxmlRedirectionResponse> {
     redirect_response
         .and_then(|redirect| redirect.payload.as_ref())
         .and_then(|payload| serde_json::from_value(payload.peek().clone()).ok())
@@ -427,7 +410,7 @@ pub(crate) fn parse_worldpayxml_challenge_return(
 
 fn parse_worldpayxml_ddc_return(
     redirect_response: Option<&ContinueRedirectionResponse>,
-) -> Option<WorldpayxmlDdcRedirectResponse> {
+) -> Option<responses::WorldpayxmlDdcRedirectResponse> {
     redirect_response
         .and_then(|redirect| redirect.payload.as_ref())
         .and_then(|payload| serde_json::from_value(payload.peek().clone()).ok())
@@ -446,25 +429,6 @@ pub(crate) fn get_worldpayxml_cookie(
             field_name: "connector_feature_data.cookie",
             context: Default::default(),
         })
-}
-
-#[derive(Debug, Serialize)]
-struct WorldpayxmlChallengeJwtPayload {
-    #[serde(rename = "ACSUrl")]
-    acs_url: String,
-    #[serde(rename = "Payload")]
-    payload: Secret<String>,
-    #[serde(rename = "TransactionId")]
-    transaction_id: String,
-}
-
-#[derive(Debug, Serialize)]
-pub(crate) struct WorldpayxmlDdcJwt {
-    pub jti: String,
-    pub iat: u64,
-    pub iss: Secret<String>,
-    #[serde(rename = "OrgUnitId")]
-    pub org_unit_id: Secret<String>,
 }
 
 /// Device-data-collection page: a hidden iframe posts Bin+JWT to Cardinal Collect, the
@@ -524,21 +488,6 @@ pub(crate) fn build_worldpayxml_ddc_page(collect_url: &str, bin: &str, jwt: &str
 </body>
 </html>"#
     )
-}
-
-#[derive(Debug, Serialize)]
-struct WorldpayxmlChallengeJwt {
-    jti: String,
-    iat: u64,
-    iss: Secret<String>,
-    #[serde(rename = "OrgUnitId")]
-    org_unit_id: Secret<String>,
-    #[serde(rename = "ReturnUrl")]
-    return_url: String,
-    #[serde(rename = "Payload")]
-    payload: WorldpayxmlChallengeJwtPayload,
-    #[serde(rename = "ObjectifyPayload")]
-    objectify_payload: bool,
 }
 
 pub(crate) fn sign_worldpayxml_jwt<C: Serialize>(
@@ -648,31 +597,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (additional_threeds_data, session) =
             match router_data.request.redirect_response.as_ref() {
                 Some(_) => {
-                    let browser_info = router_data.request.browser_info.as_ref().ok_or(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "browser_info",
-                            context: Default::default(),
-                        },
-                    )?;
-                    browser_info.accept_header.as_ref().ok_or(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "browser_info.accept_header",
-                            context: Default::default(),
-                        },
-                    )?;
-                    browser_info.user_agent.as_ref().ok_or(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "browser_info.user_agent",
-                            context: Default::default(),
-                        },
-                    )?;
-                    let shopper_ip_address = browser_info
-                        .ip_address
-                        .map(|ip| Secret::new(ip.to_string()))
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "browser_info.ip_address",
-                            context: Default::default(),
-                        })?;
+                    let browser_info = router_data.request.get_browser_info()?;
+                    browser_info.get_accept_header()?;
+                    browser_info.get_user_agent()?;
+                    let shopper_ip_address = browser_info.get_ip_address()?;
                     let ddc_return = parse_worldpayxml_ddc_return(
                         router_data.request.redirect_response.as_ref(),
                     );
@@ -1681,13 +1609,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     )
                 })?;
             let jwt = sign_worldpayxml_jwt(
-                &WorldpayxmlChallengeJwt {
+                &requests::WorldpayxmlChallengeJwt {
                     jti: uuid::Uuid::new_v4().to_string(),
                     iat,
                     iss,
                     org_unit_id,
                     return_url,
-                    payload: WorldpayxmlChallengeJwtPayload {
+                    payload: requests::WorldpayxmlChallengeJwtPayload {
                         acs_url,
                         payload,
                         transaction_id,
