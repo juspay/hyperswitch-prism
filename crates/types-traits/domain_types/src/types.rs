@@ -404,6 +404,7 @@ pub struct Connectors {
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub absa_sanlam: ConnectorParams,
+    pub gotyme_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
@@ -843,6 +844,7 @@ impl Connectors {
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
+            PayoutConnectorEnum::GotymeSanlam => patched.gotyme_sanlam.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -7707,9 +7709,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentS
             }
             // For Refund/Dispute in payment context, this shouldn't happen
             // but we provide sensible defaults
-            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::Unspecified
-            }
+            router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::Unspecified,
         }
     }
 }
@@ -7722,9 +7724,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundSt
                 grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
             }
             // For Payment/Dispute in refund context, map to failure
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::RefundFailure
-            }
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::RefundFailure,
         }
     }
 }
@@ -7737,9 +7739,24 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeS
                 grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
             }
             // For Payment/Refund in dispute context, map to default/unspecified
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
-                Self::default()
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Payout(_) => Self::default(),
+        }
+    }
+}
+
+// Map FlowStatus to PayoutStatus (for payout flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payouts::payout_enums::PayoutStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Payout(payout_status) => {
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(payout_status)
             }
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_) => Self::default(),
         }
     }
 }
@@ -7779,6 +7796,9 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
                         ),
                     ),
                 }
+            }
+            router_data::FlowStatus::Payout(_) => {
+                grpc_api_types::payments::FlowStatus { status: None }
             }
         }
     }

@@ -344,6 +344,7 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
         FlowStatus::Payment(status) => format!("payment_{status}"),
         FlowStatus::Refund(status) => format!("refund_{status}"),
         FlowStatus::Dispute(status) => format!("dispute_{status}"),
+        FlowStatus::Payout(status) => format!("payout_{status}"),
     }
 }
 
@@ -1076,8 +1077,6 @@ where
                         },
                         external_service_elapsed.as_secs_f64(),
                     );
-                    tracing::info!(?response, "response from connector");
-
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),

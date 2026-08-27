@@ -5325,6 +5325,12 @@ message AbsaSanlamConfig {
   optional string base_url = 50;
 }
 
+message GotymeSanlamConfig {
+  SecretString api_key = 1;
+  SecretString profile_id = 2;
+  optional string base_url = 50;
+}
+
 message ItaubankConfig {
   SecretString client_secret = 1;
   SecretString client_id = 2;
@@ -6042,6 +6048,8 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
+    // GOTYME_SANLAM = 140
+    GotymeSanlamConfig gotyme_sanlam = 150;
   }
 }
 
