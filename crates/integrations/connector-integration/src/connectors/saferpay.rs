@@ -15,6 +15,7 @@
 //! | Authorize (3DS) | `POST /Payment/v1/Transaction/Initialize` |
 //! | PSync (3DS second leg) | `POST /Payment/v1/Transaction/Authorize` |
 //! | PSync / RSync | `POST /Payment/v1/Transaction/Inquire` |
+//! | Refund settle | `POST /Payment/v1/Transaction/Capture` (issued from RSync) |
 //! | Capture | `POST /Payment/v1/Transaction/Capture` |
 //! | Void | `POST /Payment/v1/Transaction/Cancel` |
 //! | Refund | `POST /Payment/v1/Transaction/Refund` |
@@ -23,6 +24,13 @@
 //! `Authorize` that finalises a redirect transaction is issued from **PSync**, which
 //! branches on whether the held handle is an `Initialize` session token (carried in
 //! `PaymentsSyncData::connector_feature_data`) or a real `Transaction.Id`.
+//!
+//! **Refunds settle from RSync.** `POST /Transaction/Refund` only creates the
+//! refund in state `AUTHORIZED`; it never settles on its own. Since UCS has no
+//! "capture a refund" flow and Refund itself is a single request, the settling
+//! `Capture` is issued from **RSync** while the refund is still `Pending` — the same
+//! shape as the 3DS second leg above. Refund therefore reports `Pending`, and the
+//! first RSync settles it to `Success`.
 //!
 //! **Capture method.** Saferpay has no auto-capture request field on
 //! `AuthorizeDirect` / `Initialize` — settlement behaviour is a terminal-level
@@ -440,11 +448,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!(
-                "{}{}",
-                self.connector_base_url_refunds(req),
+            // A Saferpay refund is created `AUTHORIZED` and never settles by itself;
+            // it needs an explicit Capture against the refund's own transaction id.
+            // There is no "capture a refund" flow in UCS, so RSync issues it while
+            // the refund is still pending, then falls back to Inquire once settled.
+            let path = if saferpay::refund_needs_settlement(&req.request) {
+                PATH_CAPTURE
+            } else {
                 PATH_INQUIRE
-            ))
+            };
+            Ok(format!("{}{}", self.connector_base_url_refunds(req), path))
         }
     }
 );

@@ -1197,6 +1197,25 @@ pub struct SaferpayRefundSyncRequest {
 type RefundSyncRouterData =
     RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>;
 
+/// True when this sync must first *settle* the refund rather than just read it.
+///
+/// A Saferpay refund is a two-call operation: `POST /Transaction/Refund` only
+/// creates the refund transaction in state `AUTHORIZED`, and it never settles on
+/// its own — it stays `AUTHORIZED` indefinitely until an explicit
+/// `POST /Transaction/Capture` is issued against the refund's own transaction id.
+///
+/// UCS has no dedicated "capture a refund" flow and the Refund flow itself is a
+/// single request, so the settling Capture is issued from RSync — the same shape
+/// as the 3DS second leg in PSync. While the caller still reports the refund as
+/// `Pending`, RSync issues the Capture; once it has settled, RSync reverts to a
+/// plain `Inquire`.
+///
+/// Without this, a Saferpay refund can never reach `Success` through the normal
+/// refund lifecycle.
+pub fn refund_needs_settlement(request: &RefundSyncData) -> bool {
+    matches!(request.refund_status, RefundStatus::Pending)
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<SaferpayRouterData<RefundSyncRouterData, T>> for SaferpayRefundSyncRequest
 {
@@ -1206,6 +1225,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
 
+        // Both `Capture` and `Inquire` take the same body shape, keyed on the
+        // refund's own transaction id; only the endpoint differs (see `get_url`).
         Ok(Self {
             request_header: SaferpayRequestHeader::new(&auth),
             transaction_reference: SaferpayTransactionReference {
@@ -1215,9 +1236,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// RSync answers with one of two different bodies depending on which endpoint it
+/// hit (see `refund_needs_settlement`):
+///
+/// * `Capture`  -> `{"CaptureId": "...", "Status": "CAPTURED", ...}` — no
+///   `Transaction` object at all.
+/// * `Inquire`  -> `{"Transaction": {"Type": "REFUND", "Status": "...", ...}}`
+///
+/// `Settled` is listed first so serde tries the narrower shape before the
+/// transaction-bearing one.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct SaferpayRefundSyncResponse(pub SaferpayPaymentsResponse);
+#[serde(untagged)]
+pub enum SaferpayRefundSyncResponse {
+    /// Response to the settling `Capture`.
+    Settled(SaferpayCaptureResponse),
+    /// Response to a plain `Inquire`.
+    Inquired(SaferpayPaymentsResponse),
+}
 
 impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyncRouterData {
     type Error = error_stack::Report<ConnectorError>;
@@ -1225,7 +1260,32 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
     fn try_from(
         item: ResponseRouterData<SaferpayRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response.0;
+        let response = match item.response {
+            // The settling Capture succeeded: Saferpay returns only a CaptureId and
+            // a status, so the refund id is the one we already hold.
+            SaferpayRefundSyncResponse::Settled(capture) => {
+                let refund_status = match capture.status.as_deref().unwrap_or_default() {
+                    STATUS_CAPTURED => RefundStatus::Success,
+                    STATUS_PENDING => RefundStatus::Pending,
+                    _ => RefundStatus::Pending,
+                };
+
+                return Ok(Self {
+                    response: Ok(RefundsResponseData {
+                        connector_refund_id: item.router_data.request.connector_refund_id.clone(),
+                        refund_status,
+                        status_code: item.http_code,
+                        acquirer_reference_number: None,
+                    }),
+                    resource_common_data: RefundFlowData {
+                        status: refund_status,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                });
+            }
+            SaferpayRefundSyncResponse::Inquired(inquired) => inquired,
+        };
 
         let transaction = response.transaction.as_ref().ok_or_else(|| {
             error_stack::report!(crate::utils::unexpected_response_fail(
