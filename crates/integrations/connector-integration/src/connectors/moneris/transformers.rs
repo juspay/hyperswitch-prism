@@ -1,9 +1,6 @@
 use crate::{types::ResponseRouterData, utils};
 use common_enums::{MitCategory, PaymentChannel, RefundStatus};
-use common_utils::{
-    types::{MinorUnit, Money},
-    Email,
-};
+use common_utils::{types::Money, Email};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
@@ -236,13 +233,6 @@ pub struct MonerisThreeDSecureCryptogramData {
 pub enum MonerisThreeDSecureData {
     AuthenticationId(MonerisThreeDSecureAuthenticationId),
     Cryptogram(MonerisThreeDSecureCryptogramData),
-}
-
-#[derive(Default, Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct Amount {
-    currency: common_enums::Currency,
-    amount: MinorUnit,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -1187,7 +1177,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisPaymentsCaptureRequest {
-    amount: Amount,
+    amount: Money,
     idempotency_key: String,
 }
 
@@ -1206,7 +1196,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = Amount {
+        let amount = Money {
             currency: item.router_data.request.currency,
             amount: item.router_data.request.minor_amount_to_capture,
         };
@@ -1262,7 +1252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MonerisRefundRequest {
-    pub refund_amount: Amount,
+    pub refund_amount: Money,
     pub idempotency_key: String,
     pub reason: Option<String>,
     pub payment_id: String,
@@ -1283,7 +1273,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let refund_amount = Amount {
+        let refund_amount = Money {
             currency: item.router_data.request.currency,
             amount: item.router_data.request.minor_refund_amount,
         };
@@ -1550,7 +1540,7 @@ pub struct MonerisPreAuthenticateRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     pub idempotency_key: String,
-    pub amount: Amount,
+    pub amount: Money,
     pub cardholder_name: Secret<String>,
     pub cardholder_email: Email,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1731,7 +1721,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country: resource.get_optional_billing_country(),
         };
 
-        let amount = Amount {
+        let amount = Money {
             currency: req.currency.unwrap_or_default(),
             amount: req.amount,
         };
