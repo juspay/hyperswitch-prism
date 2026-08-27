@@ -306,7 +306,6 @@ impl
             .or_else(|| item.connector_order_id.clone());
 
         Self {
-            payment_method_token: item.payment_method_token.clone(),
             split_settlement: item.split_settlement.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
@@ -1173,7 +1172,6 @@ impl
         });
 
         Self {
-            payment_method_token: request.payment_method_token.clone(),
             split_settlement: request.split_settlement.clone(),
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),

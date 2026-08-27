@@ -184,6 +184,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
         amount: Some(usd_money(1000)),
         payment_method: Some(PaymentMethod {
             payment_method: Some(PmVariant::Token(proto::TokenPaymentMethodType {
+                payment_method_type: None,
                 token: Some(Secret::new("probe_pm_token".to_string())),
             })),
         }),

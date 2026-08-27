@@ -1660,8 +1660,6 @@ impl PaymentsCancelPostCaptureData {
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub payment_method_data: PaymentMethodData<T>,
-    /// Connector token from a Tokenize pre-step, carried alongside the payment method.
-    pub payment_method_token: Option<Secret<String>>,
     /// total amount (original_amount + surcharge_amount + tax_on_surcharge_amount)
     /// If connector supports separate field for surcharge amount, consider using below functions defined on `PaymentsAuthorizeData` to fetch original amount and surcharge amount separately
     /// ```text

@@ -543,7 +543,6 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             response: payment_response,
             request: PaymentsAuthorizeData {
-                payment_method_token: None,
                 integrity_object: response_integrity_object,
                 ..router_data.request
             },

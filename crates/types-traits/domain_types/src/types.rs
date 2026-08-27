@@ -1488,6 +1488,9 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
+                        payment_method_type: <Option<common_enums::PaymentMethodType>>::foreign_try_from(
+                            token.payment_method_type(),
+                        )?,
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -3439,7 +3442,6 @@ pub struct AuthorizationRequest {
     pub order_details: Option<Vec<grpc_payment_types::OrderDetailsWithAmount>>,
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
-    pub payment_method_token: Option<Secret<String>>,
     pub mit_category: Option<common_enums::MitCategory>,
     pub merchant_request_id: Option<String>,
     /// Connector-side order identifier when a `CreateOrder` has already been
@@ -3553,7 +3555,6 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             statement_descriptor_suffix: req.statement_descriptor_suffix,
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
-            payment_method_token: req.payment_method_token.clone(),
             mit_category,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
@@ -3624,7 +3625,6 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             order_details: None,
             tokenization_strategy: None,
             test_mode: req.test_mode,
-            payment_method_token: None,
             mit_category: None,
             merchant_request_id: None,
             connector_order_id: req.connector_order_id,
@@ -4601,7 +4601,6 @@ impl<
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
-            payment_method_token: value.payment_method_token.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             confirm: true,
@@ -19346,7 +19345,6 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
-        payment_method_token: None,
         split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
@@ -19354,6 +19352,7 @@ pub fn tokenized_authorize_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    payment_method_type: None,
                 },
             )),
         }),
@@ -19447,6 +19446,7 @@ pub fn tokenized_setup_recurring_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    payment_method_type: None,
                 },
             )),
         }),
@@ -19530,7 +19530,6 @@ pub fn proxied_authorize_to_base(
         })
     })?;
     Ok(PaymentServiceAuthorizeRequest {
-        payment_method_token: None,
         split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,

@@ -905,126 +905,6 @@ enum Connector {
   WORLDPAYRAFT = 139;
 }
 
-// Payment method types
-enum PaymentMethodType {
-  PAYMENT_METHOD_TYPE_UNSPECIFIED = 0; // Default value
-  ACH = 1;
-  AFFIRM = 2;
-  AFTERPAY_CLEARPAY = 3;
-  ALFAMART = 4;
-  ALI_PAY = 5;
-  ALI_PAY_HK = 6;
-  ALMA = 7;
-  AMAZON_PAY = 8;
-  APPLE_PAY = 9;
-  ATOME = 10;
-  BACS = 11;
-  BANCONTACT_CARD = 12;
-  BECS = 13;
-  BENEFIT = 14;
-  BIZUM = 15;
-  BLIK = 16;
-  BOLETO = 17;
-  BCA_BANK_TRANSFER = 18;
-  BNI_VA = 19;
-  BRI_VA = 20;
-  CARD_REDIRECT = 21;
-  CIMB_VA = 22;
-  CLASSIC_REWARD = 23;
-  CREDIT = 24;
-  CRYPTO_CURRENCY = 25;
-  CASHAPP = 26;
-  DANA = 27;
-  DANAMON_VA = 28;
-  DEBIT = 29;
-  DUIT_NOW = 30;
-  EFECTY = 31;
-  EFT = 32;
-  EPS = 33;
-  FPS = 34;
-  EVOUCHER = 35;
-  GIROPAY = 36;
-  GIVEX = 37;
-  GOOGLE_PAY = 38;
-  GO_PAY = 39;
-  GCASH = 40;
-  IDEAL = 41;
-  INTERAC = 42;
-  INDOMARET = 43;
-  KAKAO_PAY = 44;
-  LOCAL_BANK_REDIRECT = 45;
-  MANDIRI_VA = 46;
-  KNET = 47;
-  MB_WAY = 48;
-  MOBILE_PAY = 49;
-  MOMO = 50;
-  MOMO_ATM = 51;
-  MULTIBANCO = 52;
-  ONLINE_BANKING_THAILAND = 53;
-  ONLINE_BANKING_CZECH_REPUBLIC = 54;
-  ONLINE_BANKING_FINLAND = 55;
-  ONLINE_BANKING_FPX = 56;
-  ONLINE_BANKING_POLAND = 57;
-  ONLINE_BANKING_SLOVAKIA = 58;
-  OXXO = 59;
-  PAGO_EFECTIVO = 60;
-  PERMATA_BANK_TRANSFER = 61;
-  OPEN_BANKING_UK = 62;
-  PAY_BRIGHT = 63;
-  PAZE = 64;
-  PIX = 65;
-  PAY_SAFE_CARD = 66;
-  PRZELEWY24 = 67;
-  PROMPT_PAY = 68;
-  PSE = 69;
-  RED_COMPRA = 70;
-  RED_PAGOS = 71;
-  SAMSUNG_PAY = 72;
-  SEPA = 73;
-  SEPA_BANK_TRANSFER = 74;
-  SOFORT = 75;
-  SWISH = 76;
-  TOUCH_N_GO = 77;
-  TRUSTLY_BANK_REDIRECT = 78;
-  TWINT = 79;
-  UPI_COLLECT = 80;
-  UPI_INTENT = 81;
-  UPI_QR = 82;
-  VIPPS = 83;
-  VIET_QR = 84;
-  VENMO = 85;
-  WALLEY = 86;
-  WE_CHAT_PAY = 87;
-  SEVEN_ELEVEN = 88;
-  LAWSON = 89;
-  MINI_STOP = 90;
-  FAMILY_MART = 91;
-  SEICOMART = 92;
-  PAY_EASY = 93;
-  LOCAL_BANK_TRANSFER = 94;
-  OPEN_BANKING_PIS = 95;
-  DIRECT_CARRIER_BILLING = 96;
-  INSTANT_BANK_TRANSFER = 97;
-  PAY_PAL = 98;
-  REVOLUT_PAY = 99;
-  INSTANT_BANK_TRANSFER_FINLAND = 100;
-  INSTANT_BANK_TRANSFER_POLAND = 101;
-  SATISPAY = 102;
-  WERO = 103;
-  NETWORK_TOKEN = 104;
-  NETBANKING = 105;
-  LAZY_PAY = 106;
-  PHONE_PE = 107;
-  BILL_DESK = 108;
-  CASH_FREE = 109;
-  PAY_U = 110;
-  EASE_BUZZ = 111;
-  OPEN_BANKING = 112;
-  QWIKCILVER_WALLET = 113;
-  SKRILL = 114;
-  PAYMAYA = 115;
-  GRAB_PAY = 116;
-}
 
 // Product type enumeration
 enum ProductType {
@@ -2532,8 +2412,6 @@ message PaymentServiceAuthorizeRequest {
 
   // Session and Token Information
   optional string session_token = 17;
-  // Connector token from a PaymentMethodService/Tokenize pre-step, carried alongside payment_method.
-  optional SecretString payment_method_token = 53;
 
   // Order Details
   optional string order_category = 18;

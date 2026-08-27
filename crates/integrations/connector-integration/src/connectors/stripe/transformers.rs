@@ -2045,15 +2045,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
-        let side_token = item.request.payment_method_token.clone();
-        let (card_token, payment_method_id) = match (&item.request.payment_method_data, side_token)
-        {
-            (
-                PaymentMethodData::Wallet(WalletData::ApplePay(_) | WalletData::GooglePay(_)),
-                Some(token),
-            ) => (Some(token), None),
-            (PaymentMethodData::PaymentMethodToken(t), _) => (None, Some(t.token.clone())),
-            (_, other) => (None, other),
+        // A token that a Tokenize pre-step minted from a wallet goes on
+        // payment_method_data[card][token]; a bare stored token is a Stripe payment
+        // method id and goes on payment_method.
+        let (card_token, payment_method_id) = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => match t.payment_method_type {
+                Some(
+                    common_enums::PaymentMethodType::ApplePay
+                    | common_enums::PaymentMethodType::GooglePay,
+                ) => (Some(t.token.clone()), None),
+                _ => (None, Some(t.token.clone())),
+            },
+            _ => (None, None),
         };
         let payment_method_token = card_token.clone().or(payment_method_id.clone());
 

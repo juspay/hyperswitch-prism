@@ -130,7 +130,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
@@ -342,7 +341,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
@@ -505,7 +503,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
@@ -690,7 +687,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
@@ -1077,7 +1073,6 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
-                payment_method_token: None,
                 split_settlement: None,
                 customer_document_details: None,
                 payment_channel: None,
@@ -1296,7 +1291,6 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
-                payment_method_token: None,
                 split_settlement: None,
                 customer_document_details: None,
                 payment_channel: None,
@@ -1784,7 +1778,6 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,

@@ -3747,7 +3747,6 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         });
 
     PaymentsAuthorizeData {
-        payment_method_token: None,
         payment_method_data: req.payment_method_data.clone(),
         amount: req.minor_amount,
         order_tax_amount: None,

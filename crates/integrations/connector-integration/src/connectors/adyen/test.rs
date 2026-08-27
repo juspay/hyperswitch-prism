@@ -101,7 +101,6 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
@@ -314,7 +313,6 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
-                    payment_method_token: None,
                     split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
