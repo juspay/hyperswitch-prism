@@ -1488,9 +1488,15 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
-                        payment_method_type: <Option<common_enums::PaymentMethodType>>::foreign_try_from(
-                            token.payment_method_type(),
-                        )?,
+                        payment_method_type: match token.payment_method_type() {
+                            grpc_api_types::payments::token_payment_method_type::PaymentMethodType::ApplePay => {
+                                Some(common_enums::PaymentMethodType::ApplePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::PaymentMethodType::GooglePay => {
+                                Some(common_enums::PaymentMethodType::GooglePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::PaymentMethodType::Unspecified => None,
+                        },
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
