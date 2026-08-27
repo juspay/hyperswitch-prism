@@ -125,6 +125,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Worldpayxml<T>
 {
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        _completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        // Card 3DS starts with Cardinal device data collection; both the DDC return and
+        // the challenge return re-enter Authorize, which branches on the redirect payload.
+        // Wallets authorize directly: the initial order arms additional3DSData itself.
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+            && matches!(redirect_state, RedirectState::InitialRequest)
+        {
+            AuthenticationStep::PreAuthenticate
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
