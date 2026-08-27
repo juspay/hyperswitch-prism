@@ -5,12 +5,13 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
+    connector_flow::{Authorize, Capture, PaymentMethodToken, RepeatPayment, SetupMandate, Void},
     connector_types::{
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -66,6 +67,7 @@ pub struct CardSource<
     pub number: RawCardNumber<T>,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -82,7 +84,14 @@ pub struct WalletSource {
 /// Constants for ACH payment type
 const ACH_PAYMENT_TYPE: &str = "ach";
 const ACH_COUNTRY_US: &str = "US";
-
+/// Source `type` Checkout expects for a wallet token that arrives already decrypted into a
+/// network token.
+const NETWORK_TOKEN_TYPE: &str = "network_token";
+/// Documentation for the connector-decryption path, surfaced on the errors that ask for a token.
+const CHECKOUT_TOKENS_DOC_URL: &str =
+    "https://api-reference.checkout.com/tag/Tokens/#operation/requestAToken";
+const APPLE_PAY_TOKEN_TYPE: &str = "applepay";
+const GOOGLE_PAY_TOKEN_TYPE: &str = "googlepay";
 /// Checkout.com ACH account holder type (mapped from common_enums::BankHolderType)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -169,6 +178,7 @@ pub struct CheckoutRawCardDetails {
     pub number: cards::CardNumber,
     pub expiry_month: Secret<String>,
     pub expiry_year: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
@@ -209,7 +219,7 @@ pub struct GooglePayPredecrypt {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     eci: String,
-    cryptogram: Option<Secret<String>>,
+    cryptogram: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -246,9 +256,24 @@ pub enum CheckoutPaymentType {
     Recurring,
 }
 
+/// Checkout credentials.
+///
+/// NOTE — the two key fields are the opposite way round from what the names suggest, and this
+/// is deliberate. Checkout issues two keys per account, mapped onto the auth fields as:
+///
+/// * `api_key`    = the **public** key (`pk_...`). Used *only* by `POST /tokens`, the wallet
+///   tokenization exchange. That endpoint rejects the secret key with `403`.
+/// * `api_secret` = the **secret** key (`sk_...`). Used by every other endpoint (`/payments`,
+///   captures, voids, refunds, syncs). `/payments` rejects the public key with `401`.
+///
+/// Do not "fix" this by swapping them or by introducing a separate public-key field: the
+/// asymmetry is Checkout's, the field names are the connector auth type's, and the two are matched here on
+/// purpose so a merchant's existing Checkout credentials work unchanged.
 pub struct CheckoutAuthType {
+    /// Public key (`pk_...`) — see the note on [`CheckoutAuthType`]. Tokenization only.
     pub api_key: Secret<String>,
     pub processing_channel_id: Secret<String>,
+    /// Secret key (`sk_...`) — see the note on [`CheckoutAuthType`]. Everything except tokenization.
     pub api_secret: Secret<String>,
 }
 
@@ -400,7 +425,17 @@ impl TryFrom<&ConnectorSpecificConfig> for CheckoutAuthType {
             })
         } else {
             Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Configure this merchant account's Checkout connector with api_key, \
+                         api_secret and processing_channel_id."
+                            .to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Failed to obtain CheckoutAuthType from ConnectorSpecificConfig".to_owned(),
+                    ),
+                    doc_url: None,
+                },
             }
             .into())
         }
@@ -422,6 +457,315 @@ fn split_account_holder_name(
             None => (Some(Secret::new(name)), None),
         },
         _ => (None, None),
+    }
+}
+
+/// Error for a wallet payload that reaches Authorize while still encrypted.
+///
+/// Checkout decrypts wallet payloads at its end, but only behind a separate `POST /tokens` call
+/// that is authenticated with the account's *public* key and yields a single-use `tok_...`. A
+/// `POST /payments` request cannot carry the raw wallet payload, so the exchange has to happen
+/// before Authorize is invoked; the resulting token is then handed back on
+/// `payment_method.token` and consumed as `source.type = "token"`.
+///
+/// UCS now performs that exchange itself — see the `PaymentMethodToken` flow
+/// ([`CheckoutTokenRequest`]) exposed as `PaymentMethodService/Tokenize`. So this is no longer
+/// "Checkout cannot do this"; it is "this payload is at the wrong step of a two-call sequence".
+/// The arm is deliberately kept rather than tokenizing inline from Authorize: Checkout's tokens
+/// are single-use and expire 15 minutes after issue, so minting one inside Authorize would hide a
+/// second network call (with different credentials, and its own failure modes) behind a flow the
+/// caller believes is one request, and would silently double-charge nothing but double-spend the
+/// token on any Authorize retry. Keeping the two calls explicit also lets the caller reuse a token
+/// across Authorize and SetupMandate, which is what the tail of this path already supports.
+fn encrypted_wallet_needs_token(wallet_name: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: format!("{wallet_name} payload that is still encrypted"),
+        connector: "checkout",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Call PaymentMethodService/Tokenize on this connector first — it performs \
+                 Checkout's POST /tokens exchange (authenticated with the account public key) — \
+                 then send the returned `tok_...` on `payment_method.token`, or supply the wallet \
+                 already decrypted as a network token"
+                    .to_owned(),
+            ),
+            doc_url: Some(CHECKOUT_TOKENS_DOC_URL.to_owned()),
+            additional_context: None,
+        },
+    })
+}
+
+/// Builds the Checkout wallet source for a Checkout-issued reference token (`tok_...`).
+///
+/// This is the tail of the connector-decryption path: the wallet payload was handed to Checkout's
+/// `POST /tokens` endpoint, Checkout decrypted it and returned a single-use token, and the payment
+/// itself just references that token, i.e. `PaymentMethodToken::Token` ->
+/// `PaymentSource::Wallets { source_type: Token }` mapping.
+impl From<(Secret<String>, Option<CheckoutAddress>)> for WalletSource {
+    fn from((token, billing_address): (Secret<String>, Option<CheckoutAddress>)) -> Self {
+        Self {
+            source_type: CheckoutSourceTypes::Token,
+            token,
+            billing_address,
+        }
+    }
+}
+
+/// Builds the Checkout payment source for a wallet whose token has already been decrypted.
+///
+/// Checkout accepts a decrypted wallet in the network-token shape (PAN + cryptogram). A wallet that
+/// is still encrypted has to go through Checkout's `POST /tokens` exchange first — see
+/// [`encrypted_wallet_needs_token`] and [`WalletSource::from`]. Shared by the Authorize and
+/// SetupMandate flows so a zero-amount mandate setup accepts the same wallets as a regular payment.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(&WalletData, Option<CheckoutAddress>)> for PaymentSource<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        (wallet_data, billing_address): (&WalletData, Option<CheckoutAddress>),
+    ) -> Result<Self, Self::Error> {
+        match wallet_data {
+            WalletData::GooglePay(google_pay_data) => match &google_pay_data.tokenization_data {
+                domain_types::payment_method_data::GpayTokenizationData::Decrypted(
+                    google_pay_decrypted_data,
+                ) => {
+                    let expiry_month = google_pay_decrypted_data
+                        .get_expiry_month()
+                        .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_month",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Checkout's network-token source needs a two-digit expiry month \
+                                     from the decrypted Google Pay token."
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+
+                    let expiry_year = google_pay_decrypted_data
+                        .get_four_digit_expiry_year()
+                        .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_year",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Checkout's network-token source needs a four-digit expiry year \
+                                     from the decrypted Google Pay token."
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+
+                    // A PAN_ONLY token decrypts to a plain FPAN with neither(eci and cryptogram), so it has to be
+                    // sent as an ordinary card source instead — Checkout rejects a network token
+                    // that arrives without its cryptogram.
+                    match (
+                        google_pay_decrypted_data.cryptogram.clone(),
+                        google_pay_decrypted_data.eci_indicator.clone(),
+                    ) {
+                        (Some(cryptogram), Some(eci)) => {
+                            Ok(Self::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
+                                _type: NETWORK_TOKEN_TYPE.to_string(),
+                                token: google_pay_decrypted_data
+                                    .application_primary_account_number
+                                    .clone(),
+                                token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
+                                expiry_month,
+                                expiry_year,
+                                eci,
+                                cryptogram,
+                                billing_address,
+                            })))
+                        }
+                        _ => Ok(Self::RawCardForNTI(CheckoutRawCardDetails {
+                            source_type: CheckoutSourceTypes::Card,
+                            number: google_pay_decrypted_data
+                                .application_primary_account_number
+                                .clone(),
+                            expiry_month,
+                            expiry_year,
+                            cvv: None,
+                            billing_address,
+                            account_holder: None,
+                        })),
+                    }
+                }
+                domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
+                    Err(encrypted_wallet_needs_token("Google Pay"))
+                }
+            },
+            WalletData::ApplePay(apple_pay_data) => match apple_pay_data
+                .payment_data
+                .get_decrypted_apple_pay_payment_data_optional()
+            {
+                Some(apple_pay_decrypt_data) => {
+                    Ok(Self::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
+                        token: apple_pay_decrypt_data
+                            .application_primary_account_number
+                            .clone(),
+                        decrypt_type: NETWORK_TOKEN_TYPE.to_string(),
+                        token_type: APPLE_PAY_TOKEN_TYPE.to_string(),
+                        expiry_month: apple_pay_decrypt_data.get_expiry_month(),
+                        expiry_year: apple_pay_decrypt_data.get_four_digit_expiry_year(),
+                        eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
+                        cryptogram: apple_pay_decrypt_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                        billing_address,
+                    })))
+                }
+                None => Err(encrypted_wallet_needs_token("Apple Pay")),
+            },
+            _ => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Checkout only accepts Google Pay and Apple Pay wallets as a decrypted \
+                     network token"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            )
+            .into()),
+        }
+    }
+}
+
+/// Request body for Checkout's `POST /tokens` — the connector-decryption head.
+///
+/// Checkout wants the *raw* wallet payload exactly as the wallet SDK produced it, wrapped in a
+/// discriminator: `{"type": "applepay" | "googlepay", "token_data": { .. }}`. The response is a
+/// single-use `tok_...` that `POST /payments` then consumes as `source.type = "token"` (see
+/// [`WalletSource::from`]).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[serde(tag = "type", content = "token_data")]
+pub enum CheckoutTokenRequest {
+    Googlepay(CheckoutGooglePayData),
+    Applepay(Box<CheckoutApplePayData>),
+}
+
+/// Google Pay `PaymentData.paymentMethodData.tokenizationData.token`, parsed out of the opaque
+/// JSON string the Google Pay SDK hands over.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutGooglePayData {
+    protocol_version: Secret<String>,
+    signature: Secret<String>,
+    signed_message: Secret<String>,
+}
+
+/// Apple Pay `PKPaymentToken.paymentData`, parsed out of the base64 blob the Apple Pay SDK
+/// hands over.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CheckoutApplePayData {
+    version: Secret<String>,
+    data: Secret<String>,
+    signature: Secret<String>,
+    header: CheckoutApplePayHeader,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutApplePayHeader {
+    ephemeral_public_key: Secret<String>,
+    public_key_hash: Secret<String>,
+    transaction_id: Secret<String>,
+}
+
+/// Response of `POST /tokens`. Checkout echoes the request `type` and expiry alongside the token;
+/// only the token is load-bearing for the payment that follows.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CheckoutTokenResponse {
+    token: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        CheckoutRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    > for CheckoutTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: CheckoutRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::GooglePay(_) => Ok(Self::Googlepay(
+                    wallet_data.get_wallet_token_as_json("Google Pay".to_string())?,
+                )),
+                WalletData::ApplePay(_) => Ok(Self::Applepay(Box::new(
+                    wallet_data.get_wallet_token_as_json("Apple Pay".to_string())?,
+                ))),
+                _ => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("checkout"),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Checkout's POST /tokens exchange only accepts Google Pay and Apple \
+                         Pay payloads"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                )
+                .into()),
+            },
+            _ => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("checkout"),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Checkout's Tokenize flow only accepts wallet payment method data"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            )
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CheckoutTokenResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodToken,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<CheckoutTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(PaymentMethodTokenResponse {
+                token: item.response.token.expose(),
+                // Checkout's `tok_...` is single-use and expires after 15 minutes, so it is
+                // not a durable payment method identifier.
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
 
@@ -534,176 +878,105 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_optional_billing_country(),
         });
 
-        let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) = match item
-            .router_data
-            .request
-            .payment_method_data
-            .clone()
-        {
-            PaymentMethodData::Card(ccard) => {
-                let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
+        let (source_var, previous_payment_id, merchant_initiated, store_for_future_use) =
+            match item.router_data.request.payment_method_data.clone() {
+                PaymentMethodData::Card(ccard) => {
+                    let (first_name, last_name) = split_account_holder_name(ccard.card_holder_name);
 
-                let payment_source = PaymentSource::Card(CardSource {
-                    source_type: CheckoutSourceTypes::Card,
-                    number: ccard.card_number.clone(),
-                    expiry_month: ccard.card_exp_month.clone(),
-                    expiry_year: ccard.card_exp_year.clone(),
-                    cvv: Some(ccard.card_cvc),
-                    billing_address: billing_details,
-                    account_holder: Some(CheckoutAccountHolderDetails {
-                        first_name,
-                        last_name,
-                    }),
-                });
-                Ok((payment_source, None, Some(false), store_for_future_use))
-            }
-            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::GooglePay(google_pay_data) => {
-                    match &google_pay_data.tokenization_data {
-                        domain_types::payment_method_data::GpayTokenizationData::Decrypted(
-                            google_pay_decrypted_data,
-                        ) => {
-                            let token = google_pay_decrypted_data
-                                .application_primary_account_number
-                                .clone();
+                    let payment_source = PaymentSource::Card(CardSource {
+                        source_type: CheckoutSourceTypes::Card,
+                        number: ccard.card_number.clone(),
+                        expiry_month: ccard.card_exp_month.clone(),
+                        expiry_year: ccard.card_exp_year.clone(),
+                        cvv: Some(ccard.card_cvc),
+                        billing_address: billing_details,
+                        account_holder: Some(CheckoutAccountHolderDetails {
+                            first_name,
+                            last_name,
+                        }),
+                    });
+                    Ok((payment_source, None, Some(false), store_for_future_use))
+                }
+                PaymentMethodData::Wallet(wallet_data) => {
+                    let p_source = PaymentSource::try_from((&wallet_data, billing_details))?;
+                    Ok((p_source, None, Some(false), store_for_future_use))
+                }
+                // Connector-decryption path: the wallet payload was already exchanged for a
+                // Checkout token (`tok_...`) via `POST /tokens`, so the payment only references
+                // it. The token is single-use and expires 15 minutes after it was issued.
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    let payment_source =
+                        PaymentSource::Wallets((token_data.token, billing_details).into());
+                    Ok((payment_source, None, Some(false), store_for_future_use))
+                }
+                PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    card_holder_name,
+                    bank_holder_type,
+                    bank_type,
+                    ..
+                }) => {
+                    // Get account holder name from bank_account_holder_name, card_holder_name, or billing details
+                    let holder_name = bank_account_holder_name.or(card_holder_name).or_else(|| {
+                        item.router_data
+                            .resource_common_data
+                            .get_billing_full_name()
+                            .ok()
+                    });
 
-                            let expiry_month = google_pay_decrypted_data
-                                .get_expiry_month()
-                                .change_context(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay_decrypted_data.card_exp_month",
-                                    context: Default::default(),
-                                })?;
+                    // Map bank_holder_type to Checkout's expected format
+                    let holder_type: CheckoutAchHolderType = bank_holder_type
+                        .map(Into::into)
+                        .unwrap_or(CheckoutAchHolderType::Individual);
 
-                            let expiry_year = google_pay_decrypted_data
-                                .get_four_digit_expiry_year()
-                                .change_context(IntegrationError::InvalidDataFormat {
-                                    field_name: "google_pay_decrypted_data.card_exp_year",
-                                    context: Default::default(),
-                                })?;
-
-                            let cryptogram = google_pay_decrypted_data.cryptogram.clone();
-
-                            let p_source =
-                                PaymentSource::GooglePayPredecrypt(Box::new(GooglePayPredecrypt {
-                                    _type: "network_token".to_string(),
-                                    token,
-                                    token_type: "googlepay".to_string(),
-                                    expiry_month,
-                                    expiry_year,
-                                    eci: "06".to_string(),
-                                    cryptogram,
-                                    billing_address: billing_details,
-                                }));
-
-                            Ok((p_source, None, Some(false), store_for_future_use))
-                        }
-                        domain_types::payment_method_data::GpayTokenizationData::Encrypted(_) => {
-                            Err(IntegrationError::MissingRequiredField {
-                                field_name: "google_pay_decrypted_data",
-                                context: Default::default(),
+                    // Only include account_holder when a name is available to avoid
+                    // sending null first_name/last_name which causes ACH validation errors
+                    let account_holder = match holder_name {
+                        Some(name) => {
+                            let (first_name, last_name) = split_account_holder_name(Some(name));
+                            Some(AchAccountHolder {
+                                holder_type,
+                                first_name,
+                                last_name,
                             })
                         }
-                    }
-                }
-                WalletData::ApplePay(apple_pay_data) => {
-                    match apple_pay_data
-                        .payment_data
-                        .get_decrypted_apple_pay_payment_data_optional()
-                    {
-                        Some(apple_pay_decrypt_data) => {
-                            let exp_month = apple_pay_decrypt_data.get_expiry_month();
-                            let expiry_year_4_digit =
-                                apple_pay_decrypt_data.get_four_digit_expiry_year();
-                            let p_source =
-                                PaymentSource::ApplePayPredecrypt(Box::new(ApplePayPredecrypt {
-                                    token: apple_pay_decrypt_data
-                                        .application_primary_account_number
-                                        .clone(),
-                                    decrypt_type: "network_token".to_string(),
-                                    token_type: "applepay".to_string(),
-                                    expiry_month: exp_month,
-                                    expiry_year: expiry_year_4_digit,
-                                    eci: apple_pay_decrypt_data.payment_data.eci_indicator.clone(),
-                                    cryptogram: apple_pay_decrypt_data
-                                        .payment_data
-                                        .online_payment_cryptogram
-                                        .clone(),
-                                    billing_address: billing_details,
-                                }));
-                            Ok((p_source, None, Some(false), store_for_future_use))
-                        }
-                        None => Err(IntegrationError::NotImplemented(
-                            utils::get_unimplemented_payment_method_error_message("checkout"),
-                            Default::default(),
-                        )),
-                    }
+                        None => None,
+                    };
+
+                    let account_type = CheckoutBankType::try_from(
+                        bank_type.unwrap_or(common_enums::BankType::Savings),
+                    )?;
+
+                    let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
+                        source_type: ACH_PAYMENT_TYPE.to_string(),
+                        account_type,
+                        country: ACH_COUNTRY_US.to_string(),
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_holder,
+                    });
+                    // For ACH bank debit, we typically want to store for future use if it's a mandate payment
+                    let store_for_future = if item.router_data.request.is_mandate_payment() {
+                        Some(true)
+                    } else {
+                        store_for_future_use
+                    };
+                    Ok((payment_source, None, Some(false), store_for_future))
                 }
                 _ => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout \
+                         tokens and ACH bank debit"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
                 )),
-            },
-            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
-                account_number,
-                routing_number,
-                bank_account_holder_name,
-                card_holder_name,
-                bank_holder_type,
-                bank_type,
-                ..
-            }) => {
-                // Get account holder name from bank_account_holder_name, card_holder_name, or billing details
-                let holder_name = bank_account_holder_name.or(card_holder_name).or_else(|| {
-                    item.router_data
-                        .resource_common_data
-                        .get_billing_full_name()
-                        .ok()
-                });
-
-                // Map bank_holder_type to Checkout's expected format
-                let holder_type: CheckoutAchHolderType = bank_holder_type
-                    .map(Into::into)
-                    .unwrap_or(CheckoutAchHolderType::Individual);
-
-                // Only include account_holder when a name is available to avoid
-                // sending null first_name/last_name which causes ACH validation errors
-                let account_holder = match holder_name {
-                    Some(name) => {
-                        let (first_name, last_name) = split_account_holder_name(Some(name));
-                        Some(AchAccountHolder {
-                            holder_type,
-                            first_name,
-                            last_name,
-                        })
-                    }
-                    None => None,
-                };
-
-                let account_type = CheckoutBankType::try_from(
-                    bank_type.unwrap_or(common_enums::BankType::Savings),
-                )?;
-
-                let payment_source = PaymentSource::AchBankDebit(AchBankDebitSource {
-                    source_type: ACH_PAYMENT_TYPE.to_string(),
-                    account_type,
-                    country: ACH_COUNTRY_US.to_string(),
-                    account_number: account_number.clone(),
-                    routing_number: routing_number.clone(),
-                    account_holder,
-                });
-                // For ACH bank debit, we typically want to store for future use if it's a mandate payment
-                let store_for_future = if item.router_data.request.is_mandate_payment() {
-                    Some(true)
-                } else {
-                    store_for_future_use
-                };
-                Ok((payment_source, None, Some(false), store_for_future))
-            }
-            _ => Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("checkout"),
-                Default::default(),
-            )),
-        }?;
+            }?;
 
         let authentication_data = item.router_data.request.authentication_data.as_ref();
 
@@ -1009,7 +1282,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             }
                             None => Err(IntegrationError::MissingRequiredField {
                                 field_name: "token_source",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some("Checkout needs the wallet a network token was issued for \
+                                 (applepay or googlepay) to replay it against a network \
+                                 transaction id".to_owned()),
+                                    ..Default::default()
+                                },
                             })?,
                         };
 
@@ -1036,13 +1314,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                     _ => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("checkout"),
-                        Default::default(),
+                        IntegrationErrorContext {
+                            additional_context: Some("A network-transaction-id replay on Checkout needs either raw card \
+                             details or a decrypted wallet network token".to_owned()),
+                            ..Default::default()
+                        },
                     )),
                 }
             }
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
-                Default::default(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Checkout RepeatPayment supports a connector mandate id (source_id) or \
+                     a network transaction id"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             )),
         }?;
 
@@ -1325,9 +1614,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
+            // Apple Pay / Google Pay tokens that arrive decrypted can seed a mandate the same
+            // way a raw card can, so a zero-amount setup must accept them too.
+            PaymentMethodData::Wallet(wallet_data) => {
+                let payment_source = PaymentSource::try_from((&wallet_data, billing_details))?;
+                Ok((payment_source, None, Some(false), payment_type, Some(true)))
+            }
+            // Connector-decryption path: same as Authorize, the wallet payload was already
+            // exchanged for a Checkout token, so the mandate setup only references it.
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let payment_source =
+                    PaymentSource::Wallets((token_data.token, billing_details).into());
+                Ok((payment_source, None, Some(false), payment_type, Some(true)))
+            }
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
-                Default::default(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Checkout SetupMandate supports cards, decrypted Google Pay / Apple Pay \
+                     wallets and Checkout tokens"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             )),
         }?;
 

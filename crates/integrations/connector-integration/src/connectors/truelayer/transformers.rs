@@ -389,6 +389,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 iban,
                 account_holder_name,
                 additional_details,
+                ..
             }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
@@ -654,6 +655,667 @@ pub struct TruelayerProviderSelection {
     provider_id: Option<String>,
 }
 
+fn map_truelayer_provider_id_to_bank_name(
+    provider_id: &str,
+) -> Result<common_enums::BankNames, String> {
+    match provider_id.trim() {
+        "xs2a-bank-austria" => Ok(common_enums::BankNames::BankAustria),
+        "xs2a-bawag-psk" => Ok(common_enums::BankNames::BawagPsk),
+        "xs2a-easybank" => Ok(common_enums::BankNames::EasyBank),
+        "xs2a-erste-at" => Ok(common_enums::BankNames::ErsteBank),
+        "xs2a-ing-at" | "xs2a-ing-be" | "xs2a-ing-germany" | "xs2a-ing-spain" | "xs2a-ing-it" => {
+            Ok(common_enums::BankNames::Ing)
+        }
+        "xs2a-raiffeisen-at" => Ok(common_enums::BankNames::Raiffeisenbank),
+        "ob-revolut-at" | "ob-revolut-be" | "ob-revolut-de" | "ob-revolut-es" | "ob-revolut-ee"
+        | "ob-revolut-fi" | "ob-revolut-fr" | "ob-revolut" | "ob-revolut-ie" | "ob-revolut-is" => {
+            Ok(common_enums::BankNames::Revolut)
+        }
+        "xs2a-sparda-bank-wien" => Ok(common_enums::BankNames::SpardaBankWien),
+        "xs2a-argenta-be" => Ok(common_enums::BankNames::Argenta),
+        "xs2a-belfius" => Ok(common_enums::BankNames::Belfius),
+        "stet-beobank" => Ok(common_enums::BankNames::Beobank),
+        "stet-bnp-paribas-fortis-be" => Ok(common_enums::BankNames::BnpParibasFortis),
+        "xs2a-cbc-be" => Ok(common_enums::BankNames::CbcBanque),
+        "stet-fintro" => Ok(common_enums::BankNames::Fintro),
+        "stet-hello-bank-be" | "stet-bnp-paribas-hello-bank" | "xs2a-hello-bank-it" => {
+            Ok(common_enums::BankNames::HelloBank)
+        }
+        "xs2a-kbc-be" => Ok(common_enums::BankNames::Kbc),
+        "xs2a-kbc-brussels-be" => Ok(common_enums::BankNames::KbcBrussels),
+        "xs2a-n26-be" | "xs2a-n26-de" | "xs2a-n26-es" | "xs2a-n26-fi" | "xs2a-n26-fr"
+        | "xs2a-n26-it" | "xs2a-n26-nl" => Ok(common_enums::BankNames::N26),
+        "xs2a-triodos-be" => Ok(common_enums::BankNames::Triodos),
+        "ob-transferwise-be" | "ob-transferwise-de" | "ob-transferwise-es"
+        | "ob-transferwise-fr" | "ob-transferwise" | "ob-transferwise-ie" => {
+            Ok(common_enums::BankNames::Wise)
+        }
+        "xs2a-comdirect" => Ok(common_enums::BankNames::Comdirect),
+        "xs2a-commerzbank" => Ok(common_enums::BankNames::Commerzbank),
+        "xs2a-deutsche-bank" => Ok(common_enums::BankNames::DeutscheBank),
+        "xs2a-deutschekredit-de" => Ok(common_enums::BankNames::Dkb),
+        "xs2a-hypovereinsbank" => Ok(common_enums::BankNames::HypoVereinsbank),
+        "xs2a-postbank-de" => Ok(common_enums::BankNames::PostBank),
+        "xs2a-santander-de" | "ob-santander" => Ok(common_enums::BankNames::Santander),
+        "xs2a-sparkasse" => Ok(common_enums::BankNames::Sparkasse),
+        "xs2a-targobank-de" => Ok(common_enums::BankNames::TargoBank),
+        "xs2a-volksbanken-de" => Ok(common_enums::BankNames::VolksbankenRaiffeisenbanken),
+        "xs2a-redsys-banco-sabadell" => Ok(common_enums::BankNames::BancoDeSabadell),
+        "xs2a-redsys-banco-santander" => Ok(common_enums::BankNames::BancoSantander),
+        "xs2a-bankinter-es" => Ok(common_enums::BankNames::Bankinter),
+        "xs2a-redsys-bbva" | "xs2a-redsys-bbva-it" => Ok(common_enums::BankNames::Bbva),
+        "xs2a-redsys-caixabank" => Ok(common_enums::BankNames::Caixa),
+        "xs2a-grupo-caja-rural" => Ok(common_enums::BankNames::CajaRural),
+        "xs2a-cajamar" => Ok(common_enums::BankNames::Cajamar),
+        "xs2a-evo-banco" => Ok(common_enums::BankNames::EvoBanco),
+        "xs2a-ibercaja" => Ok(common_enums::BankNames::Ibercaja),
+        "xs2a-imaginbank" => Ok(common_enums::BankNames::Imagin),
+        "xs2a-kutxabank" => Ok(common_enums::BankNames::Kutxabank),
+        "xs2a-laboral-kutxa" => Ok(common_enums::BankNames::LaboralKutxa),
+        "xs2a-openbank" => Ok(common_enums::BankNames::Openbank),
+        "xs2a-unicaja-banco" => Ok(common_enums::BankNames::Unicaja),
+        "xs2a-aktia-fi" => Ok(common_enums::BankNames::Aktia),
+        "xs2a-alandsbanken-fi" => Ok(common_enums::BankNames::Alandsbanken),
+        "xs2a-danske-fi" | "ob-danske" => Ok(common_enums::BankNames::DanskeBank),
+        "xs2a-handelsbanken-fi" => Ok(common_enums::BankNames::Handelsbanken),
+        "xs2a-nordea-fi" => Ok(common_enums::BankNames::Nordea),
+        "xs2a-oma-sp-fi" => Ok(common_enums::BankNames::OmaSp),
+        "xs2a-op-fi" => Ok(common_enums::BankNames::Op),
+        "xs2a-pop-pankki-fi" => Ok(common_enums::BankNames::PopPankki),
+        "xs2a-s-pankki-fi" => Ok(common_enums::BankNames::SPankki),
+        "xs2a-saastopankki-fi" => Ok(common_enums::BankNames::Saastopankki),
+        "stet-allianz" => Ok(common_enums::BankNames::AllianzBanque),
+        "stet-arkea-banque-entreprises" => {
+            Ok(common_enums::BankNames::ArkeaBanqueEntreprisesEtInstitutionnels)
+        }
+        "stet-arkea-banque-privee" => Ok(common_enums::BankNames::ArkeaBanquePrivee),
+        "stet-axa" => Ok(common_enums::BankNames::AxaBanque),
+        "stet-banque-de-savoie" => Ok(common_enums::BankNames::BanqueDeSavoie),
+        "stet-banque-populaire" => Ok(common_enums::BankNames::BanquePopulaire),
+        "stet-bnp-paribas-ma-banque" => Ok(common_enums::BankNames::BnpParibas),
+        "stet-boursorama" => Ok(common_enums::BankNames::BoursoBank),
+        "stet-bpe" => Ok(common_enums::BankNames::Bpe),
+        "stet-caisse-d-epargne" => Ok(common_enums::BankNames::CaisseDEpargne),
+        "stet-cic" => Ok(common_enums::BankNames::Cic),
+        "stet-credit-agricole" | "xs2a-credit-agricole-it" => {
+            Ok(common_enums::BankNames::CreditAgricole)
+        }
+        "stet-credit-mutuel" => Ok(common_enums::BankNames::CreditMutuel),
+        "stet-credit-mutuel-de-bretagne" => Ok(common_enums::BankNames::CreditMutuelDeBretagne),
+        "stet-credit-mutuel-de-sud-ouest" => Ok(common_enums::BankNames::CreditMutuelDuSudOuest),
+        "stet-fortuneo" => Ok(common_enums::BankNames::Fortuneo),
+        "stet-banque-postale" => Ok(common_enums::BankNames::LaBanquePostale),
+        "stet-banque-postale-business" => Ok(common_enums::BankNames::LaBanquePostaleBusiness),
+        "stet-lcl" => Ok(common_enums::BankNames::Lcl),
+        "stet-monabanq" => Ok(common_enums::BankNames::Monabanq),
+        "stet-societe-generale" => Ok(common_enums::BankNames::SocieteGenerale),
+        "ob-aib-gb" => Ok(common_enums::BankNames::AlliedIrishBank),
+        "ob-aib-gb-corporate" => Ok(common_enums::BankNames::AlliedIrishBankCorporate),
+        "ob-amex" => Ok(common_enums::BankNames::AmericanExpress),
+        "ob-boi" => Ok(common_enums::BankNames::BankOfIrelandUk),
+        "ob-bos" => Ok(common_enums::BankNames::BankOfScotland),
+        "ob-bos-business" => Ok(common_enums::BankNames::BankOfScotlandBusiness),
+        "ob-barclaycard" => Ok(common_enums::BankNames::Barclaycard),
+        "ob-barclays" => Ok(common_enums::BankNames::Barclays),
+        "ob-barclays-business" => Ok(common_enums::BankNames::BarclaysBusiness),
+        "ob-capital-one" => Ok(common_enums::BankNames::CapitalOne),
+        "ob-chase" => Ok(common_enums::BankNames::Chase),
+        "ob-clydesdale-bank" => Ok(common_enums::BankNames::ClydesdaleBank),
+        "ob-coutts" => Ok(common_enums::BankNames::Coutts),
+        "ob-danske-business" => Ok(common_enums::BankNames::DanskeBankBusiness),
+        "ob-first-direct" => Ok(common_enums::BankNames::FirstDirect),
+        "ob-halifax" => Ok(common_enums::BankNames::Halifax),
+        "ob-hsbc" => Ok(common_enums::BankNames::Hsbc),
+        "ob-hsbc-business" => Ok(common_enums::BankNames::HsbcBusiness),
+        "ob-lloyds" => Ok(common_enums::BankNames::Lloyds),
+        "ob-lloyds-business" => Ok(common_enums::BankNames::LloydsBusiness),
+        "ob-lloyds-commercial" => Ok(common_enums::BankNames::LloydsCommercial),
+        "ob-ms" => Ok(common_enums::BankNames::MSBank),
+        "ob-mbna" => Ok(common_enums::BankNames::Mbna),
+        "ob-mettle" => Ok(common_enums::BankNames::MettleBank),
+        "ob-monzo" => Ok(common_enums::BankNames::Monzo),
+        "ob-nationwide" => Ok(common_enums::BankNames::Nationwide),
+        "ob-natwest" => Ok(common_enums::BankNames::NatWest),
+        "ob-natwest-business" => Ok(common_enums::BankNames::NatWestBankline),
+        "ob-rbs" => Ok(common_enums::BankNames::RoyalBankOfScotland),
+        "ob-rbs-business" => Ok(common_enums::BankNames::RoyalBankOfScotlandBankline),
+        "ob-santander-business" => Ok(common_enums::BankNames::SantanderBusiness),
+        "ob-santander-personal" => Ok(common_enums::BankNames::SantanderPersonal),
+        "ob-starling" => Ok(common_enums::BankNames::Starling),
+        "ob-tesco" => Ok(common_enums::BankNames::TescoBank),
+        "ob-tide" => Ok(common_enums::BankNames::Tide),
+        "ob-tsb" => Ok(common_enums::BankNames::Tsb),
+        "ob-ulster" => Ok(common_enums::BankNames::UlsterBank),
+        "ob-ulster-business" => Ok(common_enums::BankNames::UlsterBankline),
+        "ob-virgin-money" => Ok(common_enums::BankNames::VirginMoney),
+        "ob-virgin-money-merged" => Ok(common_enums::BankNames::VirginMoneyMerged),
+        "ob-yorkshire-bank" => Ok(common_enums::BankNames::YorkshireBank),
+        "ob-cashplus" => Ok(common_enums::BankNames::Zempler),
+        "ob-aib" => Ok(common_enums::BankNames::Aib),
+        "ob-aib-business" => Ok(common_enums::BankNames::AibBusiness),
+        "ob-boi-ie" => Ok(common_enums::BankNames::BankOfIreland),
+        "ob-boi-ie-business" => Ok(common_enums::BankNames::BankOfIrelandBusiness),
+        "ob-ebs" => Ok(common_enums::BankNames::Ebs),
+        "ob-ptsb" => Ok(common_enums::BankNames::Ptsb),
+        "mybank-allianz-bank-financial-advisors-spa-it" => {
+            Ok(common_enums::BankNames::AllianzBankFinancialAdvisorsSpa)
+        }
+        "mybank-alto-adige-it" => Ok(common_enums::BankNames::AltoAdige),
+        "mybank-alto-adige-banca-suedtirol-bank-it" => {
+            Ok(common_enums::BankNames::AltoAdigeBancaSuedtirolBank)
+        }
+        "mybank-banca-360-credito-cooperativo-fvg-it" => {
+            Ok(common_enums::BankNames::Banca360CreditoCooperativoFvg)
+        }
+        "mybank-banca-adria-colli-euganei-it" => {
+            Ok(common_enums::BankNames::BancaAdriaColliEuganei)
+        }
+        "mybank-banca-agricola-popolare-di-ragusa-it" => {
+            Ok(common_enums::BankNames::BancaAgricolaPopolareDiRagusa)
+        }
+        "mybank-banca-alpi-marittime-cc-carru-it" => {
+            Ok(common_enums::BankNames::BancaAlpiMarittimeCcCarru)
+        }
+        "mybank-banca-alta-toscana-it" => Ok(common_enums::BankNames::BancaAltaToscana),
+        "mybank-banca-annia-it" => Ok(common_enums::BankNames::BancaAnnia),
+        "mybank-banca-centro-emilia-it" => Ok(common_enums::BankNames::BancaCentroEmilia),
+        "mybank-banca-centro-lazio-it" => Ok(common_enums::BankNames::BancaCentroLazio),
+        "mybank-banca-centro-toscana-umbria-it" => {
+            Ok(common_enums::BankNames::BancaCentroToscanaUmbria)
+        }
+        "mybank-banca-centropadana-it" => Ok(common_enums::BankNames::BancaCentropadana),
+        "xs2a-cesare-ponti-it" => Ok(common_enums::BankNames::BancaCesarePonti),
+        "mybank-banca-del-catanzarese-it" => Ok(common_enums::BankNames::BancaDelCatanzarese),
+        "mybank-banca-del-cilento-di-sassano-e-v-it" => {
+            Ok(common_enums::BankNames::BancaDelCilentoDiSassanoEV)
+        }
+        "mybank-banca-del-piceno-it" => Ok(common_enums::BankNames::BancaDelPiceno),
+        "mybank-banca-del-piemonte-it" => Ok(common_enums::BankNames::BancaDelPiemonte),
+        "mybank-banca-del-territorio-lombardo-it" => {
+            Ok(common_enums::BankNames::BancaDelTerritorioLombardo)
+        }
+        "mybank-banca-del-veneto-centrale-it" => {
+            Ok(common_enums::BankNames::BancaDelVenetoCentrale)
+        }
+        "mybank-banca-della-marca-credcooperativo-it" => {
+            Ok(common_enums::BankNames::BancaDellaMarcaCredcooperativo)
+        }
+        "mybank-banca-delle-terre-venete-it" => Ok(common_enums::BankNames::BancaDelleTerreVenete),
+        "mybank-banca-di-alba-credito-cooperativo-it" => {
+            Ok(common_enums::BankNames::BancaDiAlbaCreditoCooperativo)
+        }
+        "mybank-banca-di-anghiari-e-stia-cc-it" => {
+            Ok(common_enums::BankNames::BancaDiAnghiariEStiaCc)
+        }
+        "mybank-banca-di-bologna-it" => Ok(common_enums::BankNames::BancaDiBologna),
+        "mybank-banca-di-caraglio-it" => Ok(common_enums::BankNames::BancaDiCaraglio),
+        "mybank-banca-di-credito-popolare-scpa-it" => {
+            Ok(common_enums::BankNames::BancaDiCreditoPopolareScpa)
+        }
+        "mybank-banca-di-imola-spa-it" => Ok(common_enums::BankNames::BancaDiImolaSpa),
+        "mybank-banca-di-pesaro-it" => Ok(common_enums::BankNames::BancaDiPesaro),
+        "mybank-banca-di-pescia-e-cascina-it" => Ok(common_enums::BankNames::BancaDiPesciaECascina),
+        "mybank-banca-di-piacenza-scpa-it" => Ok(common_enums::BankNames::BancaDiPiacenzaScpa),
+        "mybank-banca-di-taranto-bcc-it" => Ok(common_enums::BankNames::BancaDiTarantoBcc),
+        "mybank-banca-di-udine-credito-coop-it" => {
+            Ok(common_enums::BankNames::BancaDiUdineCreditoCoop)
+        }
+        "mybank-banca-don-rizzo-it" => Ok(common_enums::BankNames::BancaDonRizzo),
+        "mybank-banca-fideuram-it" => Ok(common_enums::BankNames::BancaFideuram),
+        "mybank-banca-finnat-euramerica-spa-it" => {
+            Ok(common_enums::BankNames::BancaFinnatEuramericaSpa)
+        }
+        "mybank-banca-generali-spa-it" => Ok(common_enums::BankNames::BancaGeneraliSpa),
+        "mybank-banca-lazio-nord-it" => Ok(common_enums::BankNames::BancaLazioNord),
+        "mybank-banca-malatestiana-it" => Ok(common_enums::BankNames::BancaMalatestiana),
+        "xs2a-mps-it" | "mybank-banca-monte-dei-paschi-di-siena-it" => {
+            Ok(common_enums::BankNames::BancaMonteDeiPaschiDiSiena)
+        }
+        "mybank-banca-passadore-it" => Ok(common_enums::BankNames::BancaPassadore),
+        "mybank-banca-patavina-it" => Ok(common_enums::BankNames::BancaPatavina),
+        "mybank-banca-patrimoni-sella-it" => Ok(common_enums::BankNames::BancaPatrimoniSella),
+        "mybank-banca-per-il-trentinoaltoadige-it" => {
+            Ok(common_enums::BankNames::BancaPerIlTrentinoaltoadige)
+        }
+        "mybank-banca-popolare-del-lazio-scpa-it" => {
+            Ok(common_enums::BankNames::BancaPopolareDelLazioScpa)
+        }
+        "mybank-banca-popolare-dell-alto-adige-it" => {
+            Ok(common_enums::BankNames::BancaPopolareDellAltoAdige)
+        }
+        "xs2a-banca-popolare-sondrio-it" | "mybank-banca-popolare-di-sondrio-it" => {
+            Ok(common_enums::BankNames::BancaPopolareDiSondrio)
+        }
+        "mybank-banca-popolare-pugliese-it" => Ok(common_enums::BankNames::BancaPopolarePugliese),
+        "mybank-banca-popolare-valconca-scpa-it" => {
+            Ok(common_enums::BankNames::BancaPopolareValconcaScpa)
+        }
+        "mybank-banca-san-francesco-credito-coop-it" => {
+            Ok(common_enums::BankNames::BancaSanFrancescoCreditoCoop)
+        }
+        "xs2a-banca-sella-it" | "mybank-banca-sella-it" => Ok(common_enums::BankNames::BancaSella),
+        "mybank-banca-sistema-spa-it" => Ok(common_enums::BankNames::BancaSistemaSpa),
+        "mybank-banca-sviluppo-cooperaz-credito-it" => {
+            Ok(common_enums::BankNames::BancaSviluppoCooperazCredito)
+        }
+        "mybank-banca-tema-it" => Ok(common_enums::BankNames::BancaTema),
+        "mybank-banca-terre-etrusche-e-di-maremma-it" => {
+            Ok(common_enums::BankNames::BancaTerreEtruscheEDiMaremma)
+        }
+        "mybank-banca-territori-del-monviso-it" => {
+            Ok(common_enums::BankNames::BancaTerritoriDelMonviso)
+        }
+        "mybank-banca-valsabbina-it" => Ok(common_enums::BankNames::BancaValsabbina),
+        "mybank-banca-veronese-cc-di-concamarise-it" => {
+            Ok(common_enums::BankNames::BancaVeroneseCcDiConcamarise)
+        }
+        "mybank-banco-azzoaglio-it" => Ok(common_enums::BankNames::BancoAzzoaglio),
+        "mybank-banco-bpm-spa-servizio-webank-it" => {
+            Ok(common_enums::BankNames::BancoBpmSpaServizioWebank)
+        }
+        "mybank-banco-bpm-spa-servizio-youweb-it" => {
+            Ok(common_enums::BankNames::BancoBpmSpaServizioYouweb)
+        }
+        "mybank-banco-bpm-spa-youbusiness-web-it" => {
+            Ok(common_enums::BankNames::BancoBpmSpaYoubusinessWeb)
+        }
+        "xs2a-banco-bpm-we-bank-it" => Ok(common_enums::BankNames::BancoBpmWeBank),
+        "xs2a-banco-bpm-you-web-it" => Ok(common_enums::BankNames::BancoBpmYouWeb),
+        "mybank-banco-desio-brianza-it" => Ok(common_enums::BankNames::BancoDesioBrianza),
+        "xs2a-banco-di-sardegna-it" => Ok(common_enums::BankNames::BancoDiSardegna),
+        "mybank-banco-marchigiano-it" => Ok(common_enums::BankNames::BancoMarchigiano),
+        "xs2a-banco-posta-it" => Ok(common_enums::BankNames::BancoPosta),
+        "mybank-bcc-abruzzese-cappelle-sul-tavo-it" => {
+            Ok(common_enums::BankNames::BccAbruzzeseCappelleSulTavo)
+        }
+        "mybank-bcc-abruzzi-e-molise-it" => Ok(common_enums::BankNames::BccAbruzziEMolise),
+        "mybank-bcc-adriatico-teramano-it" => Ok(common_enums::BankNames::BccAdriaticoTeramano),
+        "mybank-bcc-agro-bresciano-it" => Ok(common_enums::BankNames::BccAgroBresciano),
+        "mybank-bcc-agro-pontino-it" => Ok(common_enums::BankNames::BccAgroPontino),
+        "mybank-bcc-alberobello-sammichele-monopoli-it" => {
+            Ok(common_enums::BankNames::BccAlberobelloSammicheleMonopoli)
+        }
+        "mybank-bcc-alto-tirreno-della-calabria-it" => {
+            Ok(common_enums::BankNames::BccAltoTirrenoDellaCalabria)
+        }
+        "mybank-bcc-anagni-it" => Ok(common_enums::BankNames::BccAnagni),
+        "mybank-bcc-basilicata-it" => Ok(common_enums::BankNames::BccBasilicata),
+        "mybank-bcc-bellegra-it" => Ok(common_enums::BankNames::BccBellegra),
+        "mybank-bcc-brescia-it" => Ok(common_enums::BankNames::BccBrescia),
+        "mybank-bcc-brianza-e-laghi-it" => Ok(common_enums::BankNames::BccBrianzaELaghi),
+        "mybank-bcc-campania-centro-it" => Ok(common_enums::BankNames::BccCampaniaCentro),
+        "mybank-bcc-capaccio-paestum-it" => Ok(common_enums::BankNames::BccCapaccioPaestum),
+        "mybank-bcc-castelli-romani-e-tuscolo-it" => {
+            Ok(common_enums::BankNames::BccCastelliRomaniETuscolo)
+        }
+        "mybank-bcc-centro-calabria-it" => Ok(common_enums::BankNames::BccCentroCalabria),
+        "mybank-bcc-conversano-it" => Ok(common_enums::BankNames::BccConversano),
+        "mybank-bcc-degli-ulivi-terra-di-bari-it" => {
+            Ok(common_enums::BankNames::BccDegliUliviTerraDiBari)
+        }
+        "mybank-bcc-dei-castelli-e-degli-iblei-it" => {
+            Ok(common_enums::BankNames::BccDeiCastelliEDegliIblei)
+        }
+        "mybank-bcc-dei-colli-albani-it" => Ok(common_enums::BankNames::BccDeiColliAlbani),
+        "mybank-bcc-del-circeo-e-privernate-it" => {
+            Ok(common_enums::BankNames::BccDelCirceoEPrivernate)
+        }
+        "mybank-bcc-del-garda-it" => Ok(common_enums::BankNames::BccDelGarda),
+        "mybank-bcc-del-metauro-it" => Ok(common_enums::BankNames::BccDelMetauro),
+        "mybank-bcc-del-velino-it" => Ok(common_enums::BankNames::BccDelVelino),
+        "mybank-bcc-dell-alta-murgia-it" => Ok(common_enums::BankNames::BccDellAltaMurgia),
+        "mybank-bcc-della-provincia-romana-it" => {
+            Ok(common_enums::BankNames::BccDellaProvinciaRomana)
+        }
+        "mybank-bcc-della-romagna-occidentale-it" => {
+            Ok(common_enums::BankNames::BccDellaRomagnaOccidentale)
+        }
+        "mybank-bcc-delle-madonie-it" => Ok(common_enums::BankNames::BccDelleMadonie),
+        "mybank-bcc-di-altofonte-e-caccamo-it" => {
+            Ok(common_enums::BankNames::BccDiAltofonteECaccamo)
+        }
+        "mybank-bcc-di-aquara-it" => Ok(common_enums::BankNames::BccDiAquara),
+        "mybank-bcc-di-arborea-it" => Ok(common_enums::BankNames::BccDiArborea),
+        "mybank-bcc-di-bari-it" => Ok(common_enums::BankNames::BccDiBari),
+        "mybank-bcc-di-barlassina-it" => Ok(common_enums::BankNames::BccDiBarlassina),
+        "mybank-bcc-di-bene-vagienna-it" => Ok(common_enums::BankNames::BccDiBeneVagienna),
+        "mybank-bcc-di-binasco-it" => Ok(common_enums::BankNames::BccDiBinasco),
+        "mybank-bcc-di-buccino-e-comuni-cilentani-it" => {
+            Ok(common_enums::BankNames::BccDiBuccinoEComuniCilentani)
+        }
+        "mybank-bcc-di-busto-garolfo-e-buguggiate-it" => {
+            Ok(common_enums::BankNames::BccDiBustoGarolfoEBuguggiate)
+        }
+        "mybank-bcc-di-cagliari-it" => Ok(common_enums::BankNames::BccDiCagliari),
+        "mybank-bcc-di-canosa-loconia-it" => Ok(common_enums::BankNames::BccDiCanosaLoconia),
+        "mybank-bcc-di-caravaggio-it" => Ok(common_enums::BankNames::BccDiCaravaggio),
+        "mybank-bcc-di-cassano-delle-murge-e-tolve-it" => {
+            Ok(common_enums::BankNames::BccDiCassanoDelleMurgeETolve)
+        }
+        "mybank-bcc-di-cherasco-it" => Ok(common_enums::BankNames::BccDiCherasco),
+        "mybank-bcc-di-filottrano-it" => Ok(common_enums::BankNames::BccDiFilottrano),
+        "mybank-bcc-di-flumeri-it" => Ok(common_enums::BankNames::BccDiFlumeri),
+        "mybank-bcc-di-gambatesa-it" => Ok(common_enums::BankNames::BccDiGambatesa),
+        "mybank-bcc-di-gaudiano-di-lavello-it" => {
+            Ok(common_enums::BankNames::BccDiGaudianoDiLavello)
+        }
+        "mybank-bcc-di-leverano-it" => Ok(common_enums::BankNames::BccDiLeverano),
+        "mybank-bcc-di-locorotondo-it" => Ok(common_enums::BankNames::BccDiLocorotondo),
+        "mybank-bcc-di-montepaone-it" => Ok(common_enums::BankNames::BccDiMontepaone),
+        "mybank-bcc-di-napoli-it" => Ok(common_enums::BankNames::BccDiNapoli),
+        "mybank-bcc-di-ostra-e-morro-d-alba-it" => {
+            Ok(common_enums::BankNames::BccDiOstraEMorroDAlba)
+        }
+        "mybank-bcc-di-ostuni-it" => Ok(common_enums::BankNames::BccDiOstuni),
+        "mybank-bcc-di-pachino-it" => Ok(common_enums::BankNames::BccDiPachino),
+        "mybank-bcc-di-pergola-e-corinaldo-it" => {
+            Ok(common_enums::BankNames::BccDiPergolaECorinaldo)
+        }
+        "mybank-bcc-di-pianfei-e-rocca-de-baldi-it" => {
+            Ok(common_enums::BankNames::BccDiPianfeiERoccaDeBaldi)
+        }
+        "mybank-bcc-di-pontassieve-it" => Ok(common_enums::BankNames::BccDiPontassieve),
+        "mybank-bcc-di-recanati-e-colmurano-it" => {
+            Ok(common_enums::BankNames::BccDiRecanatiEColmurano)
+        }
+        "mybank-bcc-di-roma-it" => Ok(common_enums::BankNames::BccDiRoma),
+        "mybank-bcc-di-san-giovanni-rotondo-it" => {
+            Ok(common_enums::BankNames::BccDiSanGiovanniRotondo)
+        }
+        "mybank-bcc-di-san-marzano-di-san-giuseppe-it" => {
+            Ok(common_enums::BankNames::BccDiSanMarzanoDiSanGiuseppe)
+        }
+        "mybank-bcc-di-santeramo-in-colle-it" => Ok(common_enums::BankNames::BccDiSanteramoInColle),
+        "mybank-bcc-di-sarsina-it" => Ok(common_enums::BankNames::BccDiSarsina),
+        "mybank-bcc-di-scafati-e-cetara-it" => Ok(common_enums::BankNames::BccDiScafatiECetara),
+        "mybank-bcc-di-smarco-dei-cavoti-it" => Ok(common_enums::BankNames::BccDiSmarcoDeiCavoti),
+        "mybank-bcc-di-spello-e-del-velino-it" => {
+            Ok(common_enums::BankNames::BccDiSpelloEDelVelino)
+        }
+        "mybank-bcc-di-terra-d-otranto-it" => Ok(common_enums::BankNames::BccDiTerraDOtranto),
+        "mybank-bcc-felsinea-it" => Ok(common_enums::BankNames::BccFelsinea),
+        "mybank-bcc-g-toniolo-di-san-cataldo-it" => {
+            Ok(common_enums::BankNames::BccGTonioloDiSanCataldo)
+        }
+        "mybank-bcc-gran-sasso-d-italia-it" => Ok(common_enums::BankNames::BccGranSassoDItalia),
+        "mybank-bcc-la-riscossa-di-regalbuto-it" => {
+            Ok(common_enums::BankNames::BccLaRiscossaDiRegalbuto)
+        }
+        "mybank-bcc-lodi-it" => Ok(common_enums::BankNames::BccLodi),
+        "mybank-bcc-milano-it" => Ok(common_enums::BankNames::BccMilano),
+        "mybank-bcc-monte-pruno-it" => Ok(common_enums::BankNames::BccMontePruno),
+        "mybank-bcc-nettuno-it" => Ok(common_enums::BankNames::BccNettuno),
+        "mybank-bcc-oglio-e-serio-it" => Ok(common_enums::BankNames::BccOglioESerio),
+        "mybank-bcc-pordenonese-e-monsile-it" => {
+            Ok(common_enums::BankNames::BccPordenoneseEMonsile)
+        }
+        "mybank-bcc-pratola-peligna-it" => Ok(common_enums::BankNames::BccPratolaPeligna),
+        "mybank-bcc-prealpi-san-biagio-it" => Ok(common_enums::BankNames::BccPrealpiSanBiagio),
+        "mybank-bcc-ravenna-forli-imola-it" => Ok(common_enums::BankNames::BccRavennaForliImola),
+        "mybank-bcc-san-giuseppe-di-mussomeli-it" => {
+            Ok(common_enums::BankNames::BccSanGiuseppeDiMussomeli)
+        }
+        "mybank-bcc-terra-di-lavoro-it" => Ok(common_enums::BankNames::BccTerraDiLavoro),
+        "mybank-bcc-triuggio-valle-del-lambro-it" => {
+            Ok(common_enums::BankNames::BccTriuggioValleDelLambro)
+        }
+        "mybank-bcc-valdarno-fiorentino-it" => Ok(common_enums::BankNames::BccValdarnoFiorentino),
+        "mybank-bcc-valdostana-it" => Ok(common_enums::BankNames::BccValdostana),
+        "mybank-bcc-valle-del-torto-it" => Ok(common_enums::BankNames::BccValleDelTorto),
+        "mybank-bcc-veneta-it" => Ok(common_enums::BankNames::BccVeneta),
+        "mybank-bcc-venezia-giulia-it" => Ok(common_enums::BankNames::BccVeneziaGiulia),
+        "mybank-bcc-versilia-lunigiana-e-garfagnana-it" => {
+            Ok(common_enums::BankNames::BccVersiliaLunigianaEGarfagnana)
+        }
+        "mybank-bcc-vicentino-pojana-maggiore-it" => {
+            Ok(common_enums::BankNames::BccVicentinoPojanaMaggiore)
+        }
+        "xs2a-bibanca-it" => Ok(common_enums::BankNames::BiBanca),
+        "mybank-blu-banca-spa-it" => Ok(common_enums::BankNames::BluBancaSpa),
+        "xs2a-bnl-it" => Ok(common_enums::BankNames::Bnl),
+        "mybank-bozen-it" => Ok(common_enums::BankNames::Bozen),
+        "xs2a-bper-it" => Ok(common_enums::BankNames::BperBanca),
+        "mybank-bvr-banca-banche-venete-riunite-it" => {
+            Ok(common_enums::BankNames::BvrBancaBancheVeneteRiunite)
+        }
+        "mybank-cassa-centrale-banca-it" => Ok(common_enums::BankNames::CassaCentraleBanca),
+        "mybank-cassa-di-risparmio-di-bolzano-it" => {
+            Ok(common_enums::BankNames::CassaDiRisparmioDiBolzano)
+        }
+        "mybank-cassa-di-risparmio-di-fermo-spa-it" => {
+            Ok(common_enums::BankNames::CassaDiRisparmioDiFermoSpa)
+        }
+        "mybank-cassa-di-risparmio-di-savigliano-it" => {
+            Ok(common_enums::BankNames::CassaDiRisparmioDiSavigliano)
+        }
+        "mybank-cassa-padana-it" => Ok(common_enums::BankNames::CassaPadana),
+        "mybank-cassa-rurale-alta-valsugana-it" => {
+            Ok(common_enums::BankNames::CassaRuraleAltaValsugana)
+        }
+        "mybank-cassa-rurale-alto-garda-rovereto-it" => {
+            Ok(common_enums::BankNames::CassaRuraleAltoGardaRovereto)
+        }
+        "mybank-cassa-rurale-di-ledro-it" => Ok(common_enums::BankNames::CassaRuraleDiLedro),
+        "mybank-cassa-rurale-di-treviglio-it" => {
+            Ok(common_enums::BankNames::CassaRuraleDiTreviglio)
+        }
+        "mybank-cassa-rurale-fvg-it" => Ok(common_enums::BankNames::CassaRuraleFvg),
+        "mybank-cassa-rurale-renon-it" => Ok(common_enums::BankNames::CassaRuraleRenon),
+        "mybank-cassa-rurale-val-di-fiemme-it" => {
+            Ok(common_enums::BankNames::CassaRuraleValDiFiemme)
+        }
+        "mybank-cassa-rurale-val-di-sole-it" => Ok(common_enums::BankNames::CassaRuraleValDiSole),
+        "mybank-cassa-rurale-vallagarina-it" => Ok(common_enums::BankNames::CassaRuraleVallagarina),
+        "mybank-cassa-rurale-valsugana-e-tesino-it" => {
+            Ok(common_enums::BankNames::CassaRuraleValsuganaETesino)
+        }
+        "mybank-castagneto-banca-1910-it" => Ok(common_enums::BankNames::CastagnetoBanca1910),
+        "mybank-centromarca-banca-it" => Ok(common_enums::BankNames::CentromarcaBanca),
+        "mybank-chiantibanca-credito-cooperativo-it" => {
+            Ok(common_enums::BankNames::ChiantibancaCreditoCooperativo)
+        }
+        "mybank-cortinabanca-it" => Ok(common_enums::BankNames::Cortinabanca),
+        "mybank-cr-val-di-non-rotaliana-e-giovo-it" => {
+            Ok(common_enums::BankNames::CrValDiNonRotalianaEGiovo)
+        }
+        "mybank-cra-bcc-di-cantu-it" => Ok(common_enums::BankNames::CraBccDiCantu),
+        "mybank-cra-di-borgo-san-giacomo-it" => Ok(common_enums::BankNames::CraDiBorgoSanGiacomo),
+        "mybank-cra-di-boves-it" => Ok(common_enums::BankNames::CraDiBoves),
+        "mybank-cra-di-paliano-it" => Ok(common_enums::BankNames::CraDiPaliano),
+        "xs2a-credem-it" => Ok(common_enums::BankNames::Credem),
+        "mybank-credifriuli-it" => Ok(common_enums::BankNames::Credifriuli),
+        "mybank-credito-cooperativo-agrigentino-it" => {
+            Ok(common_enums::BankNames::CreditoCooperativoAgrigentino)
+        }
+        "mybank-credito-cooperativo-mediocrati-it" => {
+            Ok(common_enums::BankNames::CreditoCooperativoMediocrati)
+        }
+        "mybank-credito-cooperativo-romagnolo-it" => {
+            Ok(common_enums::BankNames::CreditoCooperativoRomagnolo)
+        }
+        "mybank-credito-di-romagna-it" => Ok(common_enums::BankNames::CreditoDiRomagna),
+        "mybank-credito-lombardo-veneto-it" => Ok(common_enums::BankNames::CreditoLombardoVeneto),
+        "mybank-desio-it" => Ok(common_enums::BankNames::Desio),
+        "mybank-emilbanca-cc-it" => Ok(common_enums::BankNames::EmilbancaCc),
+        "xs2a-fineco-it" => Ok(common_enums::BankNames::Fineco),
+        "mybank-fpb-cassa-di-fassa-primiero-belluno-it" => {
+            Ok(common_enums::BankNames::FpbCassaDiFassaPrimieroBelluno)
+        }
+        "xs2a-hype-it" => Ok(common_enums::BankNames::Hype),
+        "mybank-iccrea-banca-spa-it" => Ok(common_enums::BankNames::IccreaBancaSpa),
+        "xs2a-illimity-it" => Ok(common_enums::BankNames::Illimity),
+        "mybank-imprebanca-spa-it" => Ok(common_enums::BankNames::ImprebancaSpa),
+        "xs2a-intesa-sanpaolo-it" | "mybank-intesa-sanpaolo-it" => {
+            Ok(common_enums::BankNames::IntesaSanpaolo)
+        }
+        "mybank-intesa-sanpaolo-inbiz-it" => Ok(common_enums::BankNames::IntesaSanpaoloInbiz),
+        "mybank-intesa-sanpaolo-private-banking-spa-it" => {
+            Ok(common_enums::BankNames::IntesaSanpaoloPrivateBankingSpa)
+        }
+        "xs2a-isybank-it" => Ok(common_enums::BankNames::Isybank),
+        "mybank-la-cassa-di-ravenna-spa-it" => Ok(common_enums::BankNames::LaCassaDiRavennaSpa),
+        "mybank-la-cassa-rurale-it" => Ok(common_enums::BankNames::LaCassaRurale),
+        "mybank-lis-pay-spa-it" => Ok(common_enums::BankNames::LisPaySpa),
+        "xs2a-mooney-it" => Ok(common_enums::BankNames::Mooney),
+        "mybank-mps-it" => Ok(common_enums::BankNames::Mps),
+        "xs2a-postepay-evolution-it" => Ok(common_enums::BankNames::PostePayEvolution),
+        "mybank-primacassa-fvg-it" => Ok(common_enums::BankNames::PrimacassaFvg),
+        "mybank-raiffeisen-algund-it" => Ok(common_enums::BankNames::RaiffeisenAlgund),
+        "mybank-raiffeisen-alta-pusteria-it" => Ok(common_enums::BankNames::RaiffeisenAltaPusteria),
+        "mybank-raiffeisen-alta-venosta-it" => Ok(common_enums::BankNames::RaiffeisenAltaVenosta),
+        "mybank-raiffeisen-alto-adige-it" => Ok(common_enums::BankNames::RaiffeisenAltoAdige),
+        "mybank-raiffeisen-bassa-atesina-it" => Ok(common_enums::BankNames::RaiffeisenBassaAtesina),
+        "mybank-raiffeisen-bassa-valle-isarco-it" => {
+            Ok(common_enums::BankNames::RaiffeisenBassaValleIsarco)
+        }
+        "mybank-raiffeisen-bassa-venosta-it" => Ok(common_enums::BankNames::RaiffeisenBassaVenosta),
+        "mybank-raiffeisen-bolzano-it" => Ok(common_enums::BankNames::RaiffeisenBolzano),
+        "mybank-raiffeisen-bozen-it" => Ok(common_enums::BankNames::RaiffeisenBozen),
+        "mybank-raiffeisen-bruneck-it" => Ok(common_enums::BankNames::RaiffeisenBruneck),
+        "mybank-raiffeisen-brunico-it" => Ok(common_enums::BankNames::RaiffeisenBrunico),
+        "mybank-raiffeisen-campo-di-trens-it" => {
+            Ok(common_enums::BankNames::RaiffeisenCampoDiTrens)
+        }
+        "mybank-raiffeisen-cassa-centr-alto-adige-it" => {
+            Ok(common_enums::BankNames::RaiffeisenCassaCentrAltoAdige)
+        }
+        "mybank-raiffeisen-castelrottoortisei-it" => {
+            Ok(common_enums::BankNames::RaiffeisenCastelrottoortisei)
+        }
+        "mybank-raiffeisen-deutschnofenaldein-it" => {
+            Ok(common_enums::BankNames::RaiffeisenDeutschnofenaldein)
+        }
+        "mybank-raiffeisen-dobbiaco-it" => Ok(common_enums::BankNames::RaiffeisenDobbiaco),
+        "mybank-raiffeisen-eisacktal-it" => Ok(common_enums::BankNames::RaiffeisenEisacktal),
+        "mybank-raiffeisen-etschtal-it" => Ok(common_enums::BankNames::RaiffeisenEtschtal),
+        "mybank-raiffeisen-freienfeld-it" => Ok(common_enums::BankNames::RaiffeisenFreienfeld),
+        "mybank-raiffeisen-funes-it" => Ok(common_enums::BankNames::RaiffeisenFunes),
+        "mybank-raiffeisen-gadertal-it" => Ok(common_enums::BankNames::RaiffeisenGadertal),
+        "mybank-raiffeisen-groeden-it" => Ok(common_enums::BankNames::RaiffeisenGroeden),
+        "mybank-raiffeisen-hochpustertal-it" => {
+            Ok(common_enums::BankNames::RaiffeisenHochpustertal)
+        }
+        "mybank-raiffeisen-kastelruthstulrich-it" => {
+            Ok(common_enums::BankNames::RaiffeisenKastelruthstulrich)
+        }
+        "mybank-raiffeisen-laas-it" => Ok(common_enums::BankNames::RaiffeisenLaas),
+        "mybank-raiffeisen-laces-it" => Ok(common_enums::BankNames::RaiffeisenLaces),
+        "mybank-raiffeisen-lagundo-it" => Ok(common_enums::BankNames::RaiffeisenLagundo),
+        "mybank-raiffeisen-lana-it" => Ok(common_enums::BankNames::RaiffeisenLana),
+        "mybank-raiffeisen-landesbank-suedtirol-it" => {
+            Ok(common_enums::BankNames::RaiffeisenLandesbankSuedtirol)
+        }
+        "mybank-raiffeisen-lasa-it" => Ok(common_enums::BankNames::RaiffeisenLasa),
+        "mybank-raiffeisen-latsch-it" => Ok(common_enums::BankNames::RaiffeisenLatsch),
+        "mybank-raiffeisen-marlengo-it" => Ok(common_enums::BankNames::RaiffeisenMarlengo),
+        "mybank-raiffeisen-marling-it" => Ok(common_enums::BankNames::RaiffeisenMarling),
+        "mybank-raiffeisen-meran-it" => Ok(common_enums::BankNames::RaiffeisenMeran),
+        "mybank-raiffeisen-merano-it" => Ok(common_enums::BankNames::RaiffeisenMerano),
+        "mybank-raiffeisen-monguelfocasiestesido-it" => {
+            Ok(common_enums::BankNames::RaiffeisenMonguelfocasiestesido)
+        }
+        "mybank-raiffeisen-niederdorf-it" => Ok(common_enums::BankNames::RaiffeisenNiederdorf),
+        "mybank-raiffeisen-vintl-it" => Ok(common_enums::BankNames::RaiffeisenVintl),
+        "mybank-raiffeisen-nova-levante-it" => Ok(common_enums::BankNames::RaiffeisenNovaLevante),
+        "xs2a-rabobank" => Ok(common_enums::BankNames::Rabobank),
+        "xs2a-knab-nl" => Ok(common_enums::BankNames::Knab),
+        "mybank-raiffeisen-nova-ponentealdino-it" => {
+            Ok(common_enums::BankNames::RaiffeisenNovaPonentealdino)
+        }
+        "mybank-raiffeisen-obervinschgau-it" => {
+            Ok(common_enums::BankNames::RaiffeisenObervinschgau)
+        }
+        "mybank-raiffeisen-oltradige-it" => Ok(common_enums::BankNames::RaiffeisenOltradige),
+        "mybank-raiffeisen-parcines-it" => Ok(common_enums::BankNames::RaiffeisenParcines),
+        "mybank-raiffeisen-partschins-it" => Ok(common_enums::BankNames::RaiffeisenPartschins),
+        "mybank-raiffeisen-passeier-it" => Ok(common_enums::BankNames::RaiffeisenPasseier),
+        "mybank-raiffeisen-pradtaufers-it" => Ok(common_enums::BankNames::RaiffeisenPradtaufers),
+        "mybank-raiffeisen-pratotubre-it" => Ok(common_enums::BankNames::RaiffeisenPratotubre),
+        "mybank-raiffeisen-salorno-it" => Ok(common_enums::BankNames::RaiffeisenSalorno),
+        "mybank-raiffeisen-salurn-it" => Ok(common_enums::BankNames::RaiffeisenSalurn),
+        "mybank-raiffeisen-san-martino-in-passiria-it" => {
+            Ok(common_enums::BankNames::RaiffeisenSanMartinoInPassiria)
+        }
+        "mybank-raiffeisen-sarntal-it" => Ok(common_enums::BankNames::RaiffeisenSarntal),
+        "mybank-raiffeisen-scena-it" => Ok(common_enums::BankNames::RaiffeisenScena),
+        "mybank-raiffeisen-schenna-it" => Ok(common_enums::BankNames::RaiffeisenSchenna),
+        "mybank-raiffeisen-schlanders-it" => Ok(common_enums::BankNames::RaiffeisenSchlanders),
+        "mybank-raiffeisen-schlernrosengarten-it" => {
+            Ok(common_enums::BankNames::RaiffeisenSchlernrosengarten)
+        }
+        "mybank-raiffeisen-silandro-it" => Ok(common_enums::BankNames::RaiffeisenSilandro),
+
+        "mybank-raiffeisen-suedtirol-it" => Ok(common_enums::BankNames::RaiffeisenSuedtirol),
+        "mybank-raiffeisen-taufererahrntal-it" => {
+            Ok(common_enums::BankNames::RaiffeisenTaufererahrntal)
+        }
+        "mybank-raiffeisen-tesimo-it" => Ok(common_enums::BankNames::RaiffeisenTesimo),
+        "mybank-raiffeisen-tirol-it" => Ok(common_enums::BankNames::RaiffeisenTirol),
+        "mybank-raiffeisen-tirolo-it" => Ok(common_enums::BankNames::RaiffeisenTirolo),
+        "mybank-raiffeisen-tisens-it" => Ok(common_enums::BankNames::RaiffeisenTisens),
+        "mybank-raiffeisen-toblach-it" => Ok(common_enums::BankNames::RaiffeisenToblach),
+        "mybank-raiffeisen-turesaurina-it" => Ok(common_enums::BankNames::RaiffeisenTuresaurina),
+        "mybank-raiffeisen-ueberetsch-it" => Ok(common_enums::BankNames::RaiffeisenUeberetsch),
+        "mybank-raiffeisen-ultenstpankrazlaurein-it" => {
+            Ok(common_enums::BankNames::RaiffeisenUltenstpankrazlaurein)
+        }
+        "mybank-raiffeisen-ultimospancrlaur-it" => {
+            Ok(common_enums::BankNames::RaiffeisenUltimospancrlaur)
+        }
+        "mybank-raiffeisen-untereisacktal-it" => {
+            Ok(common_enums::BankNames::RaiffeisenUntereisacktal)
+        }
+        "mybank-raiffeisen-unterland-it" => Ok(common_enums::BankNames::RaiffeisenUnterland),
+        "mybank-raiffeisen-untervinschgau-it" => {
+            Ok(common_enums::BankNames::RaiffeisenUntervinschgau)
+        }
+        "mybank-raiffeisen-val-badia-it" => Ok(common_enums::BankNames::RaiffeisenValBadia),
+        "mybank-raiffeisen-val-gardena-it" => Ok(common_enums::BankNames::RaiffeisenValGardena),
+        "mybank-raiffeisen-val-passiria-it" => Ok(common_enums::BankNames::RaiffeisenValPassiria),
+        "mybank-raiffeisen-val-sarentino-it" => Ok(common_enums::BankNames::RaiffeisenValSarentino),
+        "mybank-raiffeisen-valle-isarco-it" => Ok(common_enums::BankNames::RaiffeisenValleIsarco),
+        "mybank-raiffeisen-vandoies-it" => Ok(common_enums::BankNames::RaiffeisenVandoies),
+        "mybank-raiffeisen-villabassa-it" => Ok(common_enums::BankNames::RaiffeisenVillabassa),
+        "mybank-raiffeisen-villnoess-it" => Ok(common_enums::BankNames::RaiffeisenVillnoess),
+        "mybank-raiffeisen-welsberggsiestaisten-it" => {
+            Ok(common_enums::BankNames::RaiffeisenWelsberggsiestaisten)
+        }
+        "mybank-raiffeisen-welschnofen-it" => Ok(common_enums::BankNames::RaiffeisenWelschnofen),
+        "mybank-raiffeisen-wipptal-it" => Ok(common_enums::BankNames::RaiffeisenWipptal),
+        "mybank-raiffeisenkasse-ritten-it" => Ok(common_enums::BankNames::RaiffeisenkasseRitten),
+        "mybank-riviera-banca-it" => Ok(common_enums::BankNames::RivieraBanca),
+        "mybank-romagna-banca-it" => Ok(common_enums::BankNames::RomagnaBanca),
+        "mybank-sella-it" => Ok(common_enums::BankNames::Sella),
+        "mybank-sicilbanca-it" => Ok(common_enums::BankNames::Sicilbanca),
+        "mybank-solution-bank-it" => Ok(common_enums::BankNames::SolutionBank),
+        "mybank-suedtiroler-it" => Ok(common_enums::BankNames::Suedtiroler),
+        "mybank-suedtiroler-sparkasse-it" => Ok(common_enums::BankNames::SuedtirolerSparkasse),
+        "mybank-suedtiroler-volksbank-it" => Ok(common_enums::BankNames::SuedtirolerVolksbank),
+        "xs2a-unicredit-it" => Ok(common_enums::BankNames::Unicredit),
+        "mybank-unicredit-online-banking-it" => Ok(common_enums::BankNames::UnicreditOnlineBanking),
+        "mybank-unicredit-uniweb-corporate-it" => {
+            Ok(common_enums::BankNames::UnicreditUniwebCorporate)
+        }
+        "mybank-valpolicella-benaco-banca-it" => {
+            Ok(common_enums::BankNames::ValpolicellaBenacoBanca)
+        }
+        "mybank-volksbank-it" => Ok(common_enums::BankNames::Volksbank),
+        "mybank-volksbank-banca-popolare-it" => Ok(common_enums::BankNames::VolksbankBancaPopolare),
+        "xs2a-widiba-it" => Ok(common_enums::BankNames::Widiba),
+        "mybank-zkb-credcoopdi-trieste-e-gorizia-it" => {
+            Ok(common_enums::BankNames::ZkbCredcoopdiTriesteEGorizia)
+        }
+        "xs2a-abn-amro" => Ok(common_enums::BankNames::AbnAmro),
+        "xs2a-asn" => Ok(common_enums::BankNames::Asn),
+        "xs2a-regiobank" => Ok(common_enums::BankNames::Regiobank),
+        "xs2a-sns" => Ok(common_enums::BankNames::Sns),
+        "xs2a-seb-se" => Ok(common_enums::BankNames::Seb),
+        "xs2a-swedbank-se" => Ok(common_enums::BankNames::Swedbank),
+        "mock-payments-gb-redirect" => Ok(common_enums::BankNames::MockUkPayments),
+        _ => Err(format!("Unknown provider_id: {provider_id}")),
+    }
+}
+
 impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
@@ -749,9 +1411,22 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         .and_then(|pm| pm.provider_selection.as_ref())
                         .and_then(|ps| ps.provider_id.clone());
 
-                    let has_returned_open_banking_details = provider_id.is_some()
-                        && account_holder_name.is_some()
-                        && ((account_number.is_some() && sort_code.is_some()) || iban.is_some());
+                    let bank_name = provider_id.as_ref().and_then(|pid| {
+                        map_truelayer_provider_id_to_bank_name(pid)
+                            .map_err(|error| {
+                                tracing::warn!(
+                                    %error,
+                                    provider_id = %pid,
+                                    "Failed to map TrueLayer provider_id to BankNames"
+                                );
+                            })
+                            .ok()
+                    });
+
+                    let has_returned_open_banking_details = bank_name.is_some()
+                        || (account_holder_name.is_some()
+                            && ((account_number.is_some() && sort_code.is_some())
+                                || iban.is_some()));
 
                     let additional_details = provider_id
                         .map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
@@ -760,6 +1435,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         if has_returned_open_banking_details {
                             Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
                                 BankRedirectData::OpenBanking {
+                                    bank_name,
                                     account_number,
                                     sort_code,
                                     iban,

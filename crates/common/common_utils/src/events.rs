@@ -547,7 +547,8 @@ impl CompiledLogFields {
         let rules = raw
             .iter()
             .filter_map(|(target_path, field_entry)| {
-                let segments: Vec<String> = target_path.split('.').map(String::from).collect();
+                let decoded_target = crate::consts::decode_dot(target_path);
+                let segments: Vec<String> = decoded_target.split('.').map(String::from).collect();
                 let root_key = segments.first()?.clone();
                 let entry = match field_entry {
                     LogFieldEntry::Source { source } => {

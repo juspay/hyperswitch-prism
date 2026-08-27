@@ -195,7 +195,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 |----------------|:---------:|
 | Card | ✓ |
 | Bancontact | ⚠ |
-| Apple Pay | ? |
+| Apple Pay | ✓ |
 | Apple Pay Dec | ? |
 | Apple Pay SDK | ⚠ |
 | Google Pay | ? |
@@ -306,6 +306,24 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_exp_year": "2030",
     "card_cvc": "737",
     "card_holder_name": "John Doe"
+  }
+}
+```
+
+##### Apple Pay
+
+```python
+"payment_method": {
+  "apple_pay_sdk": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
   }
 }
 ```

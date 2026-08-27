@@ -151,6 +151,13 @@ pub(crate) struct ProbeConfig {
     /// Per-connector request field overrides. Key is lowercase connector name.
     #[serde(default)]
     pub(crate) connector_overrides: HashMap<String, ConnectorRequestOverrides>,
+    /// Per-connector wallet token overrides, keyed `<connector>.<pm_variant>`.
+    ///
+    /// The shared wallet fixtures carry one gateway's token shape (Google Pay's
+    /// `PAYMENT_GATEWAY` token is gateway-specific), so connectors that parse the
+    /// envelope need their own. Value is the raw token string.
+    #[serde(default)]
+    pub(crate) wallet_token_overrides: HashMap<String, HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -206,6 +213,7 @@ impl Default for ProbeConfig {
         Self {
             probe: ProbeSettings { max_iterations: 30 },
             connector_overrides: HashMap::new(),
+            wallet_token_overrides: HashMap::new(),
             access_token: AccessTokenConfig {
                 token: "probe_access_token".to_string(),
                 token_type: "Bearer".to_string(),
@@ -306,4 +314,14 @@ pub(crate) fn connector_flow_overrides(
                 })
                 .and_then(|(_, o)| o.flow_overrides.get(&name))
         })
+}
+
+/// Returns the wallet token override for `connector`/`pm_name`, if configured.
+pub(crate) fn wallet_token_override(connector: &ConnectorEnum, pm_name: &str) -> Option<String> {
+    let name = format!("{connector:?}").to_lowercase();
+    get_config()
+        .wallet_token_overrides
+        .get(&name)
+        .and_then(|m| m.get(pm_name))
+        .cloned()
 }

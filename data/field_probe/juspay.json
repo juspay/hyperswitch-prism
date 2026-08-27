@@ -101,7 +101,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -735,7 +735,7 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
       },
       "OpenBankingPis": {
         "status": "not_supported",

@@ -114,6 +114,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -304,6 +305,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -480,6 +482,7 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
