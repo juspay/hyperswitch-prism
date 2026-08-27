@@ -728,13 +728,14 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
     }
 
     println!(
-        "[test_ucs] summary suite={} connector={} passed={} failed={} skipped={} unsupported={}",
+        "[test_ucs] summary suite={} connector={} passed={} failed={} skipped={} unsupported={} connector_specific={}",
         summary.suite,
         summary.connector,
         summary.passed,
         summary.failed,
         summary.skipped,
-        summary.unsupported
+        summary.unsupported,
+        summary.connector_specific
     );
 }
 

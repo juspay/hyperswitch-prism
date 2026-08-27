@@ -32,7 +32,7 @@ use crate::harness::{
     scenario_assert::do_assertion as do_assertion_impl,
     scenario_loader::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
-        scenario_unsupported_reason,
+        merge_connector_specific_scenarios, scenario_unsupported_reason,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
         load_scenario, load_suite_scenarios, load_suite_spec,
@@ -3339,6 +3339,9 @@ pub struct SuiteRunSummary {
     /// scenarios unsupported reads exactly like having five fewer scenarios,
     /// and `passed` looks like more coverage than it is.
     pub unsupported: usize,
+    /// Scenarios that exist only for this connector. Counted apart from the
+    /// baseline so private coverage never reads as shared coverage.
+    pub connector_specific: usize,
     pub results: Vec<SuiteScenarioResult>,
 }
 
@@ -3443,6 +3446,7 @@ pub fn run_scenario_test_with_options(
             failed,
             skipped: 0,
             unsupported: 0,
+            connector_specific: 0,
             results,
         });
     };
@@ -3547,6 +3551,7 @@ pub fn run_scenario_test_with_options(
         // This path runs a named scenario the caller asked for, so nothing was
         // filtered out as unsupported before reaching it.
         unsupported: 0,
+        connector_specific: 0,
         results,
     })
 }
@@ -3646,6 +3651,11 @@ pub fn run_suite_test_with_options(
         .filter(|(_, def)| scenario_matches_supported_payment_methods(def, &supported_methods))
         .collect();
 
+    // Scenarios only this connector has. Merged after the payment-method filter
+    // so a private scenario is never dropped for naming a method the connector
+    // did not bother to declare — it declared the scenario itself.
+    let connector_specific = merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+
     // A scenario the connector declares it cannot support at all. Skipped with
     // its stated reason rather than run and failed.
     let mut unsupported = Vec::new();
@@ -3692,6 +3702,7 @@ pub fn run_suite_test_with_options(
                     failed,
                     skipped,
                     unsupported: unsupported_count,
+                    connector_specific,
                     results,
                 });
             };
@@ -3826,6 +3837,7 @@ pub fn run_suite_test_with_options(
                         failed,
                         skipped,
                         unsupported: unsupported_count,
+                        connector_specific,
                         results,
                     });
                 };
@@ -3942,6 +3954,7 @@ pub fn run_suite_test_with_options(
         failed,
         skipped,
         unsupported: unsupported_count,
+        connector_specific,
         results,
     })
 }
@@ -4858,7 +4871,7 @@ mod tests {
     use crate::harness::auto_gen::resolve_auto_generate;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
-        load_supported_suites_for_connector,
+        load_supported_suites_for_connector, merge_connector_specific_scenarios,
     };
     use crate::harness::scenario_types::{ContextMap, FieldAssert, ScenarioError};
 
@@ -6085,7 +6098,7 @@ grpc-status: 0
             };
 
             for suite in suites {
-                let suite_scenarios = match load_suite_scenarios(&suite) {
+                let mut suite_scenarios = match load_suite_scenarios(&suite) {
                     Ok(file) => file,
                     Err(error) => {
                         failures.push(format!(
@@ -6094,6 +6107,18 @@ grpc-status: 0
                         continue;
                     }
                 };
+
+                // Connector-private scenarios are held to the same proto schema
+                // as the baseline; a private file is not a way around it. This
+                // also surfaces a name that collides with a global scenario.
+                if let Err(error) =
+                    merge_connector_specific_scenarios(&connector, &suite, &mut suite_scenarios)
+                {
+                    failures.push(format!(
+                        "{connector}/{suite}: connector-specific scenarios rejected: {error}"
+                    ));
+                    continue;
+                }
 
                 let mut scenario_names = suite_scenarios.keys().cloned().collect::<Vec<_>>();
                 scenario_names.sort();
