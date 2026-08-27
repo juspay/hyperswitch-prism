@@ -355,7 +355,7 @@ impl CustomerOperationsInternal for Customer {
         request_data_constructor: ConnectorCustomerData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_connector_customer_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -371,7 +371,7 @@ impl CustomerOperationsInternal for Customer {
         request_data_constructor: ConnectorCustomerData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_get_connector_customer_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -765,7 +765,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentVoidData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -781,7 +781,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: RefundsData::foreign_try_from,
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: generate_refund_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -797,7 +797,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_capture_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -813,7 +813,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsIncrementalAuthorizationData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_incremental_authorization_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -829,7 +829,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCancelPostCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_post_capture_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -845,7 +845,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentCreateOrderData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_order_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -2413,7 +2413,7 @@ impl PaymentMethod {
         request_data_constructor: RechargeRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_recharge_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -2429,7 +2429,7 @@ impl PaymentMethod {
         request_data_constructor: CreatePaymentMethodData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_payment_method_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -2478,7 +2478,7 @@ impl PaymentMethod {
         request_data_constructor: PaymentMethodEligibilityData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_method_eligibility_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -3326,7 +3326,7 @@ impl RecurringPaymentOperational for RecurringPayments {
         request_data_constructor: MandateRevokeRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_mandate_revoke_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
