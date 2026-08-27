@@ -30,9 +30,6 @@ pub fn probe_flow_by_definition(
     pm_variants: &HashMap<String, PaymentMethod>,
 ) -> Option<BTreeMap<String, FlowResult>> {
     if def.has_payment_methods {
-        // Authorize and Tokenize are probed once per payment method. Tokenize needs its own cell
-        // per method because a connector that tokenizes a credential before charging it supports
-        // that method through Tokenize, not through a direct Authorize.
         let mut results = BTreeMap::new();
         for (pm_name, pm) in pm_variants {
             let auth = crate::auth::dummy_auth(connector);

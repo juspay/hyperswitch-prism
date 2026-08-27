@@ -219,8 +219,6 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     .unwrap();
     writeln!(f).unwrap();
 
-    // Generate probe functions. Tokenize is excluded: like authorize it is probed once per
-    // payment method, so it gets a payment-method-aware probe instead of the card-only one.
     for flow in flows {
         if flow.key != "tokenize" {
             generate_probe_function(&mut f, flow);
@@ -230,7 +228,6 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     // Generate authorize with PM
     generate_authorize_probe(&mut f);
 
-    // Generate tokenize with PM
     generate_tokenize_probe(&mut f);
 
     // Generate parse_event probe (custom signature, not a req_transformer!)

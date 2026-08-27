@@ -22,12 +22,6 @@ use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
 
-/// Reports whether a wallet payload carries a decrypted *network token* — a PAN accompanied by
-/// a network cryptogram — instead of the wallet provider's own encrypted token.
-///
-/// The cryptogram is what matters, not decryption: a Google Pay `PAN_ONLY` credential decrypts to
-/// a bare PAN and is charged as an ordinary card, so it reports `false`. Apple Pay's decrypted
-/// payload always carries one.
 fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {

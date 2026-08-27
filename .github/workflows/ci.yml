@@ -535,8 +535,7 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         env:
-          # Debug test binaries overflow the 2 MiB default thread stack on the deepest
-          # connector paths (stripe authorize/void); release builds are unaffected.
+          # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
         run: |
           CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"

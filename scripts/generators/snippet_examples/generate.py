@@ -3818,8 +3818,6 @@ def render_llms_txt_entry(
     """
     flows = probe_connector.get("flows", {})
 
-    # A payment method the connector tokenizes before charging is supported through Tokenize even
-    # though a standalone Authorize rejects the raw credential, so take the union across flows.
     supported_pms = sorted({
         pm
         for fdata in flows.values()

@@ -187,8 +187,6 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
-/// Cards tokenize on /v1/payment_methods (/v1/tokens rejects the card body); wallet
-/// payloads tokenize on /v1/tokens.
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
