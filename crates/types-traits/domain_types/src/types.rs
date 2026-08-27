@@ -30,9 +30,10 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use grpc_api_types::payments::{
-    self as grpc_payment_types, AuthenticationType, ConnectorState, DisputeResponse,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceResponse,
+    self as grpc_payment_types, recipient_account::AccountType as RecipientAccountType,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType, AuthenticationType,
+    ConnectorState, DisputeResponse, DisputeServiceAcceptResponse, DisputeServiceDefendRequest,
+    DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -13704,57 +13705,159 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientBankAccount>
 {
     type Error = IntegrationError;
 
+    // prost wraps every sub-message field in Option<T> regardless of whether
+    // the field is semantically required, so each leaf must be explicitly unwrapped.
     fn foreign_try_from(
         value: grpc_api_types::payments::RecipientBankAccount,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let missing = |field| {
-            report!(IntegrationError::InvalidDataFormat {
-                field_name: field,
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!("Missing required field: {}", field)),
-                    ..Default::default()
-                },
-            })
-        };
-        use grpc_api_types::payments::recipient_bank_account::BankAccountType;
         match value.bank_account_type {
-            Some(BankAccountType::Iban(v)) => Ok(Self::Iban {
-                iban: v
-                    .iban
-                    .ok_or_else(|| missing("recipient_bank_account.iban"))?,
+            Some(RecipientBankAccountType::Iban(iban_account)) => Ok(Self::Iban {
+                iban: iban_account.iban.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.iban",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "iban is required for the Iban bank account variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid IBAN in recipient_bank_account.iban".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
             }),
-            Some(BankAccountType::RoutingNumber(v)) => Ok(Self::RoutingNumber {
-                account_number: v
-                    .account_number
-                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
-                routing_number: v
-                    .routing_number
-                    .ok_or_else(|| missing("recipient_bank_account.routing_number"))?,
+            Some(RecipientBankAccountType::RoutingNumber(routing_account)) => {
+                Ok(Self::RoutingNumber {
+                    account_number: routing_account.account_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "account_number is required for the RoutingNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the recipient bank account number".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                    routing_number: routing_account.routing_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.routing_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "routing_number is required for the RoutingNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the ABA routing number of the recipient's bank"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
+            }
+            Some(RecipientBankAccountType::Bic(bic_account)) => Ok(Self::Bic {
+                account_number: bic_account.account_number.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.account_number",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "account_number is required for the Bic variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the recipient bank account number".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
+                bic: bic_account.bic.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.bic",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "bic is required for the Bic variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the BIC/SWIFT code of the recipient's bank".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
             }),
-            Some(BankAccountType::Bic(v)) => Ok(Self::Bic {
-                account_number: v
-                    .account_number
-                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
-                bic: v.bic.ok_or_else(|| missing("recipient_bank_account.bic"))?,
-            }),
-            Some(BankAccountType::AccountNumber(v)) => Ok(Self::AccountNumber {
-                account_number: v
-                    .account_number
-                    .ok_or_else(|| missing("recipient_bank_account.account_number"))?,
-            }),
-            Some(BankAccountType::TruncatedPan(v)) => Ok(Self::TruncatedPan {
-                card_isin: v
-                    .card_isin
-                    .ok_or_else(|| missing("recipient_bank_account.card_isin"))?,
-                last4: v
-                    .last4
-                    .ok_or_else(|| missing("recipient_bank_account.last4"))?,
-            }),
+            Some(RecipientBankAccountType::AccountNumber(bare_account)) => {
+                Ok(Self::AccountNumber {
+                    account_number: bare_account.account_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "account_number is required for the AccountNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the recipient bare account number".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
+            }
+            Some(RecipientBankAccountType::TruncatedPan(truncated_pan)) => {
+                Ok(Self::TruncatedPan {
+                    card_isin: truncated_pan.card_isin.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.card_isin",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "card_isin (first 6 PAN digits) is required for the TruncatedPan variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the first 6 digits of the recipient's PAN".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                    last4: truncated_pan.last4.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.last4",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "last4 (final 4 PAN digits) is required for the TruncatedPan variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the last 4 digits of the recipient's PAN".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
+            }
             None => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "recipient_bank_account.bank_account_type",
                 context: IntegrationErrorContext {
-                    additional_context: Some("Missing bank account type".to_string()),
-                    ..Default::default()
+                    additional_context: Some(
+                        "No bank account variant was set; exactly one of iban, routing_number, \
+                         bic, account_number, or truncated_pan must be provided"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set exactly one bank_account_type variant in RecipientBankAccount"
+                            .to_string(),
+                    ),
+                    doc_url: None,
                 },
             })),
         }
@@ -13769,34 +13872,55 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientAccount>
     fn foreign_try_from(
         value: grpc_api_types::payments::RecipientAccount,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        use grpc_api_types::payments::recipient_account::AccountType;
         match value.account_type {
-            Some(AccountType::BankAccount(ba)) => Ok(Self::BankAccount(
-                connector_types::RecipientBankAccount::foreign_try_from(ba)?,
+            Some(RecipientAccountType::BankAccount(bank_account)) => Ok(Self::BankAccount(
+                connector_types::RecipientBankAccount::foreign_try_from(bank_account)?,
             )),
-            Some(AccountType::CardNumber(cn)) => Ok(Self::Card { card_number: cn }),
-            Some(AccountType::WalletId(wi)) => Ok(Self::Wallet { wallet_id: wi }),
-            Some(AccountType::Email(em)) => {
-                let email = Email::try_from(em.expose()).map_err(|_| {
+            Some(RecipientAccountType::CardNumber(card_number_secret)) => Ok(Self::Card {
+                card_number: card_number_secret,
+            }),
+            Some(RecipientAccountType::WalletId(wallet_id_secret)) => Ok(Self::Wallet {
+                wallet_id: wallet_id_secret,
+            }),
+            Some(RecipientAccountType::Email(email_secret)) => {
+                let email = Email::try_from(email_secret.expose()).map_err(|_| {
                     report!(IntegrationError::InvalidDataFormat {
                         field_name: "recipient_account.email",
                         context: IntegrationErrorContext {
-                            additional_context: Some("Invalid email format".to_string()),
-                            ..Default::default()
+                            additional_context: Some(
+                                "The provided value is not a valid RFC 5322 email address"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid email address for the recipient account"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?;
                 Ok(Self::Email { email })
             }
-            Some(AccountType::PhoneNumber(pn)) => Ok(Self::Phone { phone_number: pn }),
-            Some(AccountType::SocialNetworkId(sn)) => Ok(Self::SocialNetwork {
-                social_network_id: sn,
+            Some(RecipientAccountType::PhoneNumber(phone_secret)) => Ok(Self::Phone {
+                phone_number: phone_secret,
             }),
+            Some(RecipientAccountType::SocialNetworkId(network_id_secret)) => {
+                Ok(Self::SocialNetwork {
+                    social_network_id: network_id_secret,
+                })
+            }
             None => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "recipient_account.account_type",
                 context: IntegrationErrorContext {
-                    additional_context: Some("Missing recipient account type".to_string()),
-                    ..Default::default()
+                    additional_context: Some(
+                        "No account variant was set; exactly one of bank_account, card_number, \
+                         wallet_id, email, phone_number, or social_network_id must be provided"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set exactly one account_type variant in RecipientAccount".to_string(),
+                    ),
+                    doc_url: None,
                 },
             })),
         }
@@ -13811,13 +13935,13 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
     fn foreign_try_from(
         value: grpc_api_types::payments::RecipientDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let address = value
-            .address
-            .map(AddressDetails::foreign_try_from)
-            .transpose()?;
         let account = value
             .account
             .map(connector_types::RecipientAccount::foreign_try_from)
+            .transpose()?;
+        let address = value
+            .address
+            .map(AddressDetails::foreign_try_from)
             .transpose()?;
         Ok(Self {
             account,
