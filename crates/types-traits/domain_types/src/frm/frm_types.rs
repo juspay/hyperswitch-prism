@@ -12,11 +12,12 @@ use crate::{
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
 use hyperswitch_masking::Secret;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub connectors: std::sync::Arc<Connectors>,
+    pub connectors: Arc<Connectors>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,

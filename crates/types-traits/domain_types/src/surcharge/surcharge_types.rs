@@ -6,12 +6,13 @@ use common_enums::Currency;
 use common_utils::types::MinorUnit;
 use hyperswitch_masking::Secret;
 use serde::Serialize;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct SurchargeFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_request_reference_id: String,
-    pub connectors: std::sync::Arc<Connectors>,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
