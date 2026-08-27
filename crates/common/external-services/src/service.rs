@@ -374,6 +374,7 @@ where
                     let status_code = body.status_code;
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
+                    tracing::Span::current().record("res_code", u64::from(status_code));
 
                     if all_keys_required.unwrap_or(true) && return_raw {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
@@ -473,8 +474,24 @@ where
                         }
                     }
 
-                    if let Some(evt) = event {
+                    if let Some(evt) = event.as_deref_mut() {
                         evt.set_error_response(&error_response);
+                        if let Some(error_data) = &evt.error {
+                            record_json_fields_on_span(vec![("response.body", error_data.inner().clone())]);
+                        }
+                    }
+                    if let Some(response_headers) = &body.headers {
+                        let headers_json: serde_json::Value = response_headers
+                            .iter()
+                            .map(|(k, v)| {
+                                (
+                                    k.as_str().to_string(),
+                                    serde_json::Value::String(v.to_str().unwrap_or("").to_string()),
+                                )
+                            })
+                            .collect::<serde_json::Map<_, _>>()
+                            .into();
+                        record_json_fields_on_span(vec![("response.headers", headers_json)]);
                     }
                     tracing::Span::current().record(
                         "response.error_message",
@@ -484,6 +501,7 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    tracing::Span::current().record("res_code", u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -602,6 +620,7 @@ pub struct EventProcessingParams<'a> {
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,
+        res_code = Empty,
         message_ = "Golden Log Line (outgoing)",
         // `latency` is the pre-existing human-readable string; `latency_ms` is the same
         // duration as a plain number of milliseconds, for numeric downstream consumers.
