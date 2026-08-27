@@ -937,11 +937,10 @@ connector_base_url = "https://api-platform-sandbox.flywire.com"
 _context_ = { connector = "travelhub", environment = "production" }
 connector_base_url = "https://prod.travel.worldline-solutions.com/travelhub"
 
-# Travelhub Development 
+# Travelhub Development
 [[overrides]]
 _context_ = { connector = "travelhub", environment = "development" }
 connector_base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
-
 
 # Boost Connect (BCPG) Production
 [[overrides]]

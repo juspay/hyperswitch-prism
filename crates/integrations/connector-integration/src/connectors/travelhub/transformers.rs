@@ -10,12 +10,12 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::travelhub::TravelhubRouterData;
@@ -116,11 +116,11 @@ pub struct TravelhubRequest3DS {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TravelhubPaymentCard {
-    pub card_name: String,
-    pub card_number: String,
-    pub expiry_date: String,
-    pub cvc: String,
+pub struct TravelhubPaymentCard<T: PaymentMethodDataTypes> {
+    pub card_name: Secret<String>,
+    pub card_number: RawCardNumber<T>,
+    pub expiry_date: Secret<String>,
+    pub cvc: Secret<String>,
     #[serde(rename = "request3DS", skip_serializing_if = "Option::is_none")]
     pub request3ds: Option<TravelhubRequest3DS>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -134,20 +134,20 @@ pub struct TravelhubPaymentMethod {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TravelhubPayment {
+pub struct TravelhubPayment<T: PaymentMethodDataTypes> {
     pub payment_method: TravelhubPaymentMethod,
-    pub payment_card: TravelhubPaymentCard,
+    pub payment_card: TravelhubPaymentCard<T>,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TravelhubPaymentsRequest {
+pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub merchant_id: String,
     pub order_id: String,
     pub amount: MinorUnit,
     pub currency: String,
     pub capture: bool,
-    pub payment: TravelhubPayment,
+    pub payment: TravelhubPayment<T>,
 }
 
 fn get_card_payment_method_code<T: PaymentMethodDataTypes>(
@@ -183,7 +183,7 @@ fn get_card_payment_method_code<T: PaymentMethodDataTypes>(
 impl<T: PaymentMethodDataTypes>
     TryFrom<
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    > for TravelhubPaymentsRequest
+    > for TravelhubPaymentsRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -236,11 +236,11 @@ impl<T: PaymentMethodDataTypes>
                 },
             })?;
 
-        let expiry_date = format!(
+        let expiry_date = Secret::new(format!(
             "{}{}",
             card_data.card_exp_month.peek(),
             card_data.get_card_expiry_year_2_digit()?.peek()
-        );
+        ));
 
         let payment_method_code = get_card_payment_method_code(card_data)?.to_string();
 
@@ -295,10 +295,10 @@ impl<T: PaymentMethodDataTypes>
                     code: payment_method_code,
                 },
                 payment_card: TravelhubPaymentCard {
-                    card_name: cardholder_name.expose(),
-                    card_number: card_data.card_number.peek().to_string(),
+                    card_name: cardholder_name,
+                    card_number: card_data.card_number.clone(),
                     expiry_date,
-                    cvc: card_data.card_cvc.peek().to_string(),
+                    cvc: card_data.card_cvc.clone(),
                     request3ds,
                     authentication,
                 },
@@ -412,15 +412,15 @@ fn map_travelhub_status(result: &TravelhubResult) -> AttemptStatus {
         TravelhubResult::Redirected => AttemptStatus::AuthenticationPending,
         TravelhubResult::Cancelled => AttemptStatus::Voided,
         TravelhubResult::Pending | TravelhubResult::Unknown => AttemptStatus::Pending,
-        TravelhubResult::Refunded => AttemptStatus::Pending,
+        TravelhubResult::Refunded => AttemptStatus::Charged,
     }
 }
 
 fn map_travelhub_refund_status(result: &TravelhubResult) -> RefundStatus {
     match result {
-        TravelhubResult::Approved
-        | TravelhubResult::Refunded
-        | TravelhubResult::Settled => RefundStatus::Success,
+        TravelhubResult::Approved | TravelhubResult::Refunded | TravelhubResult::Settled => {
+            RefundStatus::Success
+        }
         TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid => {
             RefundStatus::Failure
         }
@@ -884,7 +884,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             >,
             T,
         >,
-    > for TravelhubPaymentsRequest
+    > for TravelhubPaymentsRequest<T>
 {
     type Error = error_stack::Report<IntegrationError>;
 
