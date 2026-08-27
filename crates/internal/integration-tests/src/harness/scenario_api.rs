@@ -24,8 +24,8 @@ use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
         apply_connector_overrides, connector_pre_request_http_hook,
-        normalize_tonic_request_for_connector, transform_response_for_connector,
-        PreRequestHttpHook,
+        loader::scenario_unsupported_reason, normalize_tonic_request_for_connector,
+        transform_response_for_connector, PreRequestHttpHook,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
@@ -3631,10 +3631,26 @@ pub fn run_suite_test_with_options(
     // pass; the only way through is an `assert` override that hides real
     // regressions. Declaring nothing keeps every scenario.
     let supported_methods = load_supported_payment_methods_for_connector(connector)?;
-    let scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
+    let mut scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
         .into_iter()
         .filter(|(_, def)| scenario_matches_supported_payment_methods(def, &supported_methods))
         .collect();
+
+    // A scenario the connector declares it cannot support at all. Skipped with
+    // its stated reason rather than run and failed.
+    let mut unsupported = Vec::new();
+    for name in scenarios.keys().cloned().collect::<Vec<_>>() {
+        if let Some(reason) = scenario_unsupported_reason(connector, suite, &name)? {
+            println!(
+                "[test_ucs] skipping {suite}/{name} for {connector}: unsupported — {reason}"
+            );
+            unsupported.push(name);
+        }
+    }
+    for name in unsupported {
+        scenarios.remove(&name);
+    }
+    let scenarios = scenarios;
 
     let mut results = Vec::new();
     let mut passed = 0usize;

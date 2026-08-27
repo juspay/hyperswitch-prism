@@ -10,7 +10,7 @@ mod default;
 mod glomopay;
 mod helcim;
 mod json_merge;
-mod loader;
+pub mod loader;
 mod redsys;
 
 /// Connector-specific behavior extension points.
