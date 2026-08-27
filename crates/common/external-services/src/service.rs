@@ -477,7 +477,10 @@ where
                     if let Some(evt) = event.as_deref_mut() {
                         evt.set_error_response(&error_response);
                         if let Some(error_data) = &evt.error {
-                            record_json_fields_on_span(vec![("response.body", error_data.inner().clone())]);
+                            record_json_fields_on_span(vec![(
+                                "response.body",
+                                error_data.inner().clone(),
+                            )]);
                         }
                     }
                     if let Some(response_headers) = &body.headers {
@@ -501,7 +504,8 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
-                    tracing::Span::current().record("res_code", u64::from(error_response.status_code));
+                    tracing::Span::current()
+                        .record("res_code", u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
