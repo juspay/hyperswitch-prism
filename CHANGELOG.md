@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.27.1
+
+### Features
+
+- **connector:**
+  - Add moneris wallet payment method ([#2155](https://github.com/juspay/connector-service/pull/2155)) ([`71241a5`](https://github.com/juspay/connector-service/commit/71241a518d15b911fbb878639663fb1aa2bdd073))
+  - [GoTyme] Add gotyme_sanlam payout connector ([#1983](https://github.com/juspay/connector-service/pull/1983)) ([`3df5eb7`](https://github.com/juspay/connector-service/commit/3df5eb702ec8eeaf8222f91a8bd3b0695e697d1c))
+- **framework:** Add `payment_account_reference` field in payment response ([#2186](https://github.com/juspay/connector-service/pull/2186)) ([`2c5afe6`](https://github.com/juspay/connector-service/commit/2c5afe6f3211e71055057461da29d7c77f3c3768))
+
+### Bug Fixes
+
+- **framework:** Arc wrap Connectors config to fix Stripe test stack overflow ([#2185](https://github.com/juspay/connector-service/pull/2185)) ([`a3430ce`](https://github.com/juspay/connector-service/commit/a3430ce7f5088a00fe838ac9701d5025e71caac4))
+- **ucs:** Record res_code as integer and populate response body/headers on error path in outgoing golden log ([#2184](https://github.com/juspay/connector-service/pull/2184)) ([`68ccaa2`](https://github.com/juspay/connector-service/commit/68ccaa2504483f823e2e5a54ad79531cc646225e))
+
+**Full Changelog:** [`2026.08.27.0...2026.08.27.1`](https://github.com/juspay/connector-service/compare/2026.08.27.0...2026.08.27.1)
+
+- - -
+
 ## 2026.08.27.0
 
 ### Features
