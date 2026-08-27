@@ -187,19 +187,17 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
+/// Card tokenization posts to /v1/payment_methods: the card body carries `type` and
+/// `billing_details`, which /v1/tokens rejects with `parameter_unknown` (live-verified;
+/// hyperswitch sends the same shape to /v1/tokens and hits the same rejection). Wallet
+/// payloads keep /v1/tokens, which their decrypted-card bodies require.
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
     matches!(
-        (
-            request.split_payments.as_ref(),
-            &request.payment_method_data
-        ),
-        (
-            Some(SplitPaymentsDetails::StripeSplitPayment(_)),
-            PaymentMethodData::Card(_) | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        )
+        &request.payment_method_data,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
     )
 }
 
