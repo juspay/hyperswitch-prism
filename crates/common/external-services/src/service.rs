@@ -566,7 +566,7 @@ where
                         }
                     }
 
-                    if let Some(evt) = event.as_deref_mut() {
+                    if let Some(evt) = event {
                         evt.set_error_response(&error_response);
                         let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
                         if let Some(error_data) = &evt.error {
