@@ -65,6 +65,10 @@ const STATUS_CANCELED: &str = "CANCELED";
 /// `connector_metadata`, and under which the Refund flow expects to find it in
 /// `RefundsData::refund_connector_metadata`.
 pub const CAPTURE_ID_METADATA_KEY: &str = "capture_id";
+/// Marks which leg of the flow last wrote the metadata blob.
+pub const SAFERPAY_STAGE_METADATA_KEY: &str = "stage";
+/// Stage written by the 3DS `Initialize` leg, while the session token is live.
+pub const STAGE_INITIALIZED: &str = "initialized";
 /// Key under which the 3DS `Initialize` response publishes the Saferpay session
 /// token in `connector_metadata`.
 pub const SAFERPAY_TOKEN_METADATA_KEY: &str = "saferpay_token";
@@ -529,7 +533,7 @@ impl SaferpayPaymentsResponse {
     fn initialize_metadata(&self, token: &str) -> Option<serde_json::Value> {
         Some(serde_json::json!({
             SAFERPAY_TOKEN_METADATA_KEY: token,
-            "stage": "initialized",
+            SAFERPAY_STAGE_METADATA_KEY: STAGE_INITIALIZED,
         }))
     }
 }
@@ -751,7 +755,7 @@ type SyncRouterData = RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, Pay
 /// with no query parameters at all, so it is empty on the one sync that matters
 /// and is never a valid token when it is not.
 pub fn pending_three_ds_token(request: &PaymentsSyncData) -> Option<String> {
-    request
+    let token = request
         .connector_feature_data
         .as_ref()
         .and_then(|metadata| {
@@ -762,7 +766,24 @@ pub fn pending_three_ds_token(request: &PaymentsSyncData) -> Option<String> {
                 .map(str::trim)
                 .filter(|token| !token.is_empty())
                 .map(str::to_string)
-        })
+        })?;
+
+    // The token stays in the stored metadata forever — the caller does not persist
+    // `connector_metadata` from a sync response, so this connector cannot clear it.
+    // What *does* change is the stored transaction id: `Initialize` publishes the
+    // token as the resource id, and the successful second leg replaces it with the
+    // real `Transaction.Id`. So the token is only still pending while the stored id
+    // is that same token.
+    //
+    // Without this check every later sync would replay `Authorize` against a spent
+    // token, which Saferpay rejects with `TRANSACTION_IN_WRONG_STATE`
+    // ("Invalid action") — a bogus error on a healthy, already-authorized payment.
+    let stored_id = request
+        .connector_transaction_id
+        .get_connector_transaction_id()
+        .ok()?;
+
+    (stored_id == token).then_some(token)
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
