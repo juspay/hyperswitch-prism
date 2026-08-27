@@ -324,6 +324,8 @@ pub struct WorldpayxmlBrowser {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub http_accept_language: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_referer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub time_zone: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub browser_language: Option<String>,

@@ -717,6 +717,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
         ConnectorError,
     > {
+        // Fail before rendering the DDC page when the browser data the authorize leg
+        // will need is absent, matching the hyperswitch PreAuthenticate validations.
+        let browser_info =
+            data.request
+                .browser_info
+                .as_ref()
+                .ok_or(utils::response_handling_fail(
+                    res.status_code,
+                    "worldpayxml: browser_info is required for device data collection.",
+                ))?;
+        if browser_info.accept_header.is_none() {
+            return Err(utils::response_handling_fail(
+                res.status_code,
+                "worldpayxml: browser_info.accept_header is required for device data collection.",
+            )
+            .into());
+        }
+        if browser_info.user_agent.is_none() {
+            return Err(utils::response_handling_fail(
+                res.status_code,
+                "worldpayxml: browser_info.user_agent is required for device data collection.",
+            )
+            .into());
+        }
+
         let bin = match &data.request.payment_method_data {
             Some(PaymentMethodData::Card(card)) => {
                 card.card_number.peek().chars().take(6).collect::<String>()
