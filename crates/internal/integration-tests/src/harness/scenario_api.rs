@@ -32,12 +32,12 @@ use crate::harness::{
     scenario_assert::do_assertion as do_assertion_impl,
     scenario_loader::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
-        merge_connector_specific_scenarios, scenario_unsupported_reason,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
         load_scenario, load_suite_scenarios, load_suite_spec,
         load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
-        scenario_matches_supported_payment_methods,
+        merge_connector_specific_scenarios, scenario_matches_supported_payment_methods,
+        scenario_unsupported_reason,
     },
     scenario_types::{
         BrowserAutomationHook, BrowserAutomationPhase, CliPreRequestHookConfig, ContextMap,

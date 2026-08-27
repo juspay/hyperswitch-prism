@@ -272,20 +272,17 @@ pub fn load_connector_specific_scenarios_in(
         path: path.clone(),
         source,
     })?;
-    let by_suite = serde_json::from_str::<BTreeMap<String, Value>>(&content)
-        .map_err(|source| ScenarioError::ScenarioFileParse {
+    let by_suite = serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
+        ScenarioError::ScenarioFileParse {
             path: path.clone(),
             source,
-        })?;
+        }
+    })?;
     let Some(scenarios) = by_suite.get(suite) else {
         return Ok(ScenarioFile::new());
     };
-    serde_json::from_value::<ScenarioFile>(scenarios.clone()).map_err(|source| {
-        ScenarioError::ScenarioFileParse {
-            path,
-            source,
-        }
-    })
+    serde_json::from_value::<ScenarioFile>(scenarios.clone())
+        .map_err(|source| ScenarioError::ScenarioFileParse { path, source })
 }
 
 /// The suite set a connector actually runs: the global baseline plus whatever it
@@ -898,15 +895,25 @@ mod tests {
 
         // Additive: a name the baseline does not have is merged in.
         let mut baseline = ScenarioFile::new();
-        let added = merge_connector_specific_scenarios_in(&temp_root, "tsys", "PaymentService/Authorize", &mut baseline)
-            .expect("a private scenario should merge into an empty baseline");
+        let added = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Authorize",
+            &mut baseline,
+        )
+        .expect("a private scenario should merge into an empty baseline");
         assert_eq!(added, 1);
         assert!(baseline.contains_key("tsys_soft_decline"));
 
         // A suite the connector declares nothing for is left alone.
         let mut other = ScenarioFile::new();
-        let none = merge_connector_specific_scenarios_in(&temp_root, "tsys", "PaymentService/Refund", &mut other)
-            .expect("a suite with no private scenarios should be a no-op");
+        let none = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Refund",
+            &mut other,
+        )
+        .expect("a suite with no private scenarios should be a no-op");
         assert_eq!(none, 0);
         assert!(other.is_empty());
 
@@ -914,10 +921,16 @@ mod tests {
         // scenario silently winning over the baseline would hide a shared
         // regression behind connector-private coverage.
         let mut collides = baseline.clone();
-        let err = merge_connector_specific_scenarios_in(&temp_root, "tsys", "PaymentService/Authorize", &mut collides)
-            .expect_err("a name already in the baseline must be rejected");
+        let err = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Authorize",
+            &mut collides,
+        )
+        .expect_err("a name already in the baseline must be rejected");
         assert!(
-            err.to_string().contains("already exists in the global suite"),
+            err.to_string()
+                .contains("already exists in the global suite"),
             "the error should explain the collision, got: {err}"
         );
 
@@ -929,8 +942,13 @@ mod tests {
         let temp_root = unique_specs_dir();
         fs::create_dir_all(temp_root.join("stripe")).expect("dir should be created");
         let mut baseline = ScenarioFile::new();
-        let added = merge_connector_specific_scenarios_in(&temp_root, "stripe", "PaymentService/Authorize", &mut baseline)
-            .expect("a missing file is not an error");
+        let added = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "stripe",
+            "PaymentService/Authorize",
+            &mut baseline,
+        )
+        .expect("a missing file is not an error");
         assert_eq!(added, 0);
 
         let _ = fs::remove_dir_all(temp_root);
@@ -956,7 +974,10 @@ mod tests {
             spec.unsupported_scenarios["PaymentService/Authorize"]["no3ds_auto_capture_upi_qr"],
             "stripe returns NotImplemented for UPI"
         );
-        assert!(spec.unsupported_scenarios.get("PaymentService/Capture").is_none());
+        assert!(spec
+            .unsupported_scenarios
+            .get("PaymentService/Capture")
+            .is_none());
     }
 
     #[test]
