@@ -641,40 +641,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
 
         // A device-data-collection return submits the full order plus the collected
-        // dfReferenceId so Worldpay can run 3DS authentication.
-        let ddc_return =
-            parse_worldpayxml_ddc_return(router_data.request.redirect_response.as_ref());
-        let (additional_threeds_data, session) = match ddc_return {
-            Some(ddc) => {
-                let shopper_ip_address = router_data
-                    .request
-                    .browser_info
-                    .as_ref()
-                    .and_then(|browser_info| browser_info.ip_address)
-                    .map(|ip| Secret::new(ip.to_string()))
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "browser_info.ip_address",
-                        context: Default::default(),
-                    })?;
-                (
-                    Some(requests::WorldpayxmlAdditionalThreeDSData {
-                        df_reference_id: ddc.session_id,
-                        javascript_enabled: true,
-                        device_channel: "Browser".to_string(),
-                        challenge_preference:
-                            requests::WorldpayxmlChallengePreference::ChallengeMandated,
-                    }),
-                    Some(requests::WorldpayxmlSession {
-                        id: router_data
-                            .resource_common_data
-                            .connector_request_reference_id
-                            .clone(),
-                        shopper_ip_address,
-                    }),
-                )
-            }
-            None => (None, None),
-        };
+        // dfReferenceId so Worldpay can run 3DS authentication. Any redirect return that is
+        // not a challenge completion is treated as the DDC return: when the DDC payload did
+        // not parse (collection failed or timed out), the order still carries
+        // additional3DSData so Worldpay cannot silently skip 3DS.
+        let (additional_threeds_data, session) =
+            match router_data.request.redirect_response.as_ref() {
+                Some(_) => {
+                    let browser_info = router_data.request.browser_info.as_ref().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "browser_info",
+                            context: Default::default(),
+                        },
+                    )?;
+                    browser_info.accept_header.as_ref().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "browser_info.accept_header",
+                            context: Default::default(),
+                        },
+                    )?;
+                    browser_info.user_agent.as_ref().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "browser_info.user_agent",
+                            context: Default::default(),
+                        },
+                    )?;
+                    let shopper_ip_address = browser_info
+                        .ip_address
+                        .map(|ip| Secret::new(ip.to_string()))
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "browser_info.ip_address",
+                            context: Default::default(),
+                        })?;
+                    let ddc_return = parse_worldpayxml_ddc_return(
+                        router_data.request.redirect_response.as_ref(),
+                    );
+                    (
+                        Some(requests::WorldpayxmlAdditionalThreeDSData {
+                            df_reference_id: ddc_return.and_then(|ddc| ddc.session_id),
+                            javascript_enabled: true,
+                            device_channel: "Browser".to_string(),
+                            challenge_preference:
+                                requests::WorldpayxmlChallengePreference::ChallengeMandated,
+                        }),
+                        Some(requests::WorldpayxmlSession {
+                            id: router_data
+                                .resource_common_data
+                                .connector_request_reference_id
+                                .clone(),
+                            shopper_ip_address,
+                        }),
+                    )
+                }
+                None => (None, None),
+            };
 
         // Determine if manual capture
         let is_manual_capture = !router_data.request.is_auto_capture();
