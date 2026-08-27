@@ -903,6 +903,7 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
+  PAYHOUND = 140;
 }
 
 // Payment method types
@@ -5718,6 +5719,12 @@ message WorldpayraftConfig {
   optional string base_url = 50;
 }
 
+message PayhoundConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6042,6 +6049,8 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
+    // PAYHOUND = 140
+    PayhoundConfig payhound = 150;
   }
 }
 

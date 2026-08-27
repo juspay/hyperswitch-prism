@@ -815,5 +815,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: k(),
             base_url: None,
         },
+        ConnectorEnum::Payhound => ConnectorSpecificConfig::Payhound {
+            api_key: k(),
+            api_secret: k(),
+            base_url: None,
+        },
     }
 }

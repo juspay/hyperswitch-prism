@@ -1,0 +1,694 @@
+{
+  "connector": "payhound",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by payhound connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by payhound connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by payhound connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by payhound connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by payhound connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by payhound connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by payhound connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by payhound connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by payhound connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by payhound connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by payhound connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by payhound connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox-api.payhound.com/api/v1/invoices/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "accept": "application/vnd.api+json",
+            "content-type": "application/vnd.api+json",
+            "via": "HyperSwitch",
+            "x-mb-key": "probe_key",
+            "x-mb-nonce": "1000000000000000",
+            "x-mb-signature": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by payhound connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"378d8ec6e305f469b009cb4e2deedf93\",\"status\":\"completed\",\"address\":\"lAeMbkpHia8FVuKczQKUrv9uMzv7uClHZi\",\"merchant_currency\":\"EUR\",\"merchant_amount\":\"266.45\",\"invoice_currency\":\"BTC\",\"invoice_amount\":\"0.88613839\",\"paid_currency\":\"BTC\",\"paid_amount\":\"0.88613839\",\"reference\":\"probe_ref\",\"invoice_url\":\"/invoices/378d8ec6e305f469b009cb4e2deedf93\",\"create_time\":1398871897.0,\"valid_until_time\":1398872497.0}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by payhound connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by payhound connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by payhound connector"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "repeat_payment flow not supported by payhound connector"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by payhound connector"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund flow not supported by payhound connector"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by payhound connector"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by payhound connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by payhound connector"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through Payhound is not supported by Payhound. payhound: Payhound is a hosted crypto invoice gateway and accepts only PaymentMethodData::Crypto; it has no card, wallet or bank rails"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by payhound connector"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by payhound connector"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by payhound connector"
+      }
+    }
+  }
+}
