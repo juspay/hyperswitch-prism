@@ -57,6 +57,7 @@ jobs:
       stripe: ${{ steps.filter.outputs.stripe }}
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
+      certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
       connector-names: ${{ steps.connector-names.outputs.list }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
     steps:
@@ -113,6 +114,16 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
+            # Certification reads these at run time, so a change here can break
+            # every connector while matching no connector path. Listed apart from
+            # rust-core because seven other jobs gate on that filter.
+            certification-inputs:
+              - 'crates/internal/connector-creds/**'
+              - 'crates/internal/integration-tests/src/bin/**'
+              - 'crates/internal/integration-tests/src/webhook_signatures.rs'
+              - 'scripts/**'
+              - 'config/**'
+              - '.github/scripts/**'
       - name: Extract changed connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
@@ -602,7 +613,7 @@ jobs:
       # so both are built once here with the same features the test run above
       # used, and the certification steps reuse them via `--no-build`.
       - name: Build certification binaries
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         shell: bash
         run: |
           cargo build --workspace --bins \
@@ -610,7 +621,7 @@ jobs:
 
       # The test harness shells out to grpcurl to make the actual call.
       - name: Install grpcurl
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         shell: bash
         env:
           GRPCURL_VERSION: "1.9.3"
@@ -638,14 +649,14 @@ jobs:
         run: .github/scripts/verify-new-connectors.sh
 
       - name: Certify selected connectors
-        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true') }}
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
         shell: bash
         env:
           # Git facts only. Which suites and scenarios each connector runs is the
           # framework's to derive from that connector's own specs.json.
           CHANGED_CONNECTORS: ${{ needs.changes.outputs.connector-names }}
           NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
-          SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: .github/scripts/certify-connectors.sh
 
