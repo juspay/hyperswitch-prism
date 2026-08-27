@@ -280,8 +280,11 @@ for name in "${CONNECTORS[@]}"; do
     exit 1
   fi
 
+  # Selected for certification and not listed as unproven, so the only reason
+  # to be here without credentials is a mistake. Warning and exiting 0 would
+  # certify nothing and read as a pass.
   if ! jq -e --arg c "${name}" 'has($c)' "${CONNECTOR_AUTH_FILE_PATH}" >/dev/null; then
-    echo "::warning::No credentials for '${name}' — cannot certify"
+    echo "::error::No credentials in CI for '${name}', so it cannot be certified. Add its credentials, or list it in ${ALPHA_FILE} with a reason."
     NO_CREDS+=("${name}")
     continue
   fi
@@ -407,7 +410,7 @@ fi
 {
   for x in ${PASSED[@]+"${PASSED[@]}"};   do echo "- ✅ **passed** — ${x}"; done
   for x in ${FLAKY[@]+"${FLAKY[@]}"};     do echo "- 🔁 **flaky** — ${x} (failed once, passed on re-check)"; done
-  for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do echo "- ⚠️ **not certified** — ${x}: no credentials in CI"; done
+  for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do echo "- ❌ **could not be certified** — ${x}: no credentials in CI"; done
   for x in ${NOT_ATTRIBUTABLE[@]+"${NOT_ATTRIBUTABLE[@]}"}; do echo "- ⚠️ **not attributable to this PR** — ${x}"; done
   for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do echo "- ❌ **regressed in this PR** — ${x}"; done
 } >> "${SUMMARY}"
@@ -420,6 +423,9 @@ for x in ${NOT_ATTRIBUTABLE[@]+"${NOT_ATTRIBUTABLE[@]}"}; do
 done
 
 blocking=0
+for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do
+  blocking=1
+done
 for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do
   echo "::error::${x} passes at the merge base and fails here — this PR breaks it."
   blocking=1
