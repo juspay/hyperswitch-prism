@@ -24,14 +24,15 @@ use crate::harness::{
     auto_gen::resolve_auto_generate,
     connector_override::{
         apply_connector_overrides, connector_pre_request_http_hook,
-        loader::scenario_unsupported_reason, normalize_tonic_request_for_connector,
-        transform_response_for_connector, PreRequestHttpHook,
+        normalize_tonic_request_for_connector, transform_response_for_connector,
+        PreRequestHttpHook,
     },
     credentials::{creds_file_path, load_connector_config},
     metadata::add_connector_metadata,
     scenario_assert::do_assertion as do_assertion_impl,
     scenario_loader::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
+        scenario_unsupported_reason,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
         load_scenario, load_suite_scenarios, load_suite_spec,
@@ -3333,6 +3334,11 @@ pub struct SuiteRunSummary {
     pub passed: usize,
     pub failed: usize,
     pub skipped: usize,
+    /// Scenarios the connector declares it cannot support. Counted separately
+    /// because they shrink the denominator: without this, declaring five
+    /// scenarios unsupported reads exactly like having five fewer scenarios,
+    /// and `passed` looks like more coverage than it is.
+    pub unsupported: usize,
     pub results: Vec<SuiteScenarioResult>,
 }
 
@@ -3436,6 +3442,7 @@ pub fn run_scenario_test_with_options(
             passed,
             failed,
             skipped: 0,
+            unsupported: 0,
             results,
         });
     };
@@ -3537,6 +3544,9 @@ pub fn run_scenario_test_with_options(
             .iter()
             .filter(|r| r.skipped && !r.is_dependency)
             .count(),
+        // This path runs a named scenario the caller asked for, so nothing was
+        // filtered out as unsupported before reaching it.
+        unsupported: 0,
         results,
     })
 }
@@ -3645,6 +3655,7 @@ pub fn run_suite_test_with_options(
             unsupported.push(name);
         }
     }
+    let unsupported_count = unsupported.len();
     for name in unsupported {
         scenarios.remove(&name);
     }
@@ -3680,6 +3691,7 @@ pub fn run_suite_test_with_options(
                     passed,
                     failed,
                     skipped,
+                    unsupported: unsupported_count,
                     results,
                 });
             };
@@ -3813,6 +3825,7 @@ pub fn run_suite_test_with_options(
                         passed,
                         failed,
                         skipped,
+                        unsupported: unsupported_count,
                         results,
                     });
                 };
@@ -3928,6 +3941,7 @@ pub fn run_suite_test_with_options(
         passed,
         failed,
         skipped,
+        unsupported: unsupported_count,
         results,
     })
 }

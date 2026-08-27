@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, fs, path::PathBuf};
 
-use serde::{de::Error as _, Deserialize};
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::harness::{scenario_loader::connector_specs_root, scenario_types::ScenarioError};
@@ -20,17 +20,6 @@ pub struct ScenarioOverridePatch {
     /// sync returns `CHARGED` without browser automation.
     #[serde(default)]
     pub pre_request_http: Option<PreRequestHttpHook>,
-    /// The connector cannot support this scenario at all. It is skipped rather
-    /// than run and failed.
-    ///
-    /// The alternative people reach for is an `assert` override that expects
-    /// the failure. That passes, says nothing about why, and turns a future
-    /// real regression green. `reason` is mandatory so the declaration carries
-    /// its own justification.
-    #[serde(default)]
-    pub unsupported: bool,
-    #[serde(default)]
-    pub reason: Option<String>,
 }
 
 /// Fire-and-forget HTTP call issued before the scenario's gRPC request.
@@ -111,32 +100,6 @@ pub fn load_scenario_override_patch(
     }
 
     Ok(None)
-}
-
-/// Why this connector declares the scenario unsupported, if it does.
-///
-/// A declaration without a reason is rejected rather than honoured: the whole
-/// point of the field is that a skipped scenario says why it is skipped.
-pub fn scenario_unsupported_reason(
-    connector: &str,
-    suite: &str,
-    scenario: &str,
-) -> Result<Option<String>, ScenarioError> {
-    let Some(patch) = load_scenario_override_patch(connector, suite, scenario)? else {
-        return Ok(None);
-    };
-    if !patch.unsupported {
-        return Ok(None);
-    }
-    match patch.reason.as_deref().map(str::trim) {
-        Some(reason) if !reason.is_empty() => Ok(Some(reason.to_string())),
-        _ => Err(ScenarioError::ConnectorSpecParse {
-            path: connector_override_file_path(connector),
-            source: serde::de::Error::custom(format!(
-                "{connector} declares {suite}/{scenario} unsupported with no \"reason\".                  State why the connector cannot support it."
-            )),
-        }),
-    }
 }
 
 /// Loads the optional `pre_request_http` hook for a scenario override.
@@ -265,8 +228,7 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        connector_override_file_path, load_scenario_override_patch, scenario_unsupported_reason,
-        ScenarioOverridePatch,
+        connector_override_file_path, load_scenario_override_patch, ScenarioOverridePatch,
     };
 
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
@@ -319,62 +281,6 @@ mod tests {
             err.to_string().contains("unsuported"),
             "the error should name the offending field, got: {err}"
         );
-    }
-
-    #[test]
-    fn unsupported_needs_a_reason() {
-        let env_lock = ENV_LOCK.lock().expect("env lock should acquire");
-        let temp_root = unique_temp_dir();
-        let connector_dir = temp_root.join("stripe");
-        fs::create_dir_all(&connector_dir).expect("connector dir should be created");
-        fs::write(
-            connector_dir.join("override.json"),
-            json!({
-                "PaymentService/Authorize": {
-                    "with_reason": {
-                        "unsupported": true,
-                        "reason": "stripe returns NotImplemented for UPI"
-                    },
-                    "no_reason": { "unsupported": true },
-                    "not_declared": { "assert": { "status": { "one_of": ["CHARGED"] } } }
-                }
-            })
-            .to_string(),
-        )
-        .expect("override file should be written");
-
-        let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
-        std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
-
-        let declared =
-            scenario_unsupported_reason("stripe", "PaymentService/Authorize", "with_reason")
-                .expect("a declaration with a reason should load");
-        assert_eq!(
-            declared.as_deref(),
-            Some("stripe returns NotImplemented for UPI")
-        );
-
-        // Skipping a scenario without saying why is the thing this field exists
-        // to prevent, so it is an error rather than a silent skip.
-        let err = scenario_unsupported_reason("stripe", "PaymentService/Authorize", "no_reason")
-            .expect_err("unsupported with no reason must fail");
-        assert!(
-            err.to_string().contains("reason"),
-            "the error should ask for a reason, got: {err}"
-        );
-
-        // An ordinary patch is untouched: it still runs.
-        let plain =
-            scenario_unsupported_reason("stripe", "PaymentService/Authorize", "not_declared")
-                .expect("an ordinary patch should load");
-        assert!(plain.is_none());
-
-        match previous {
-            Some(value) => std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", value),
-            None => std::env::remove_var("UCS_CONNECTOR_OVERRIDE_ROOT"),
-        }
-        drop(env_lock);
-        let _ = fs::remove_dir_all(temp_root);
     }
 
     #[test]

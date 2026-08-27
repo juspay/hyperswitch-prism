@@ -237,6 +237,38 @@ pub fn load_supported_payment_methods_for_connector(
     Ok(spec.supported_payment_methods)
 }
 
+/// Why this connector declares the scenario unsupported, if it does.
+///
+/// Declared in `specs.json` next to the rest of the connector's capabilities, so
+/// what a connector cannot do is answered by one small file. The reason is the
+/// map value, so a declaration without one cannot be expressed.
+pub fn scenario_unsupported_reason(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<String>, ScenarioError> {
+    let path = connector_spec_file_path(connector);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let spec = serde_json::from_str::<ConnectorSuiteSpec>(&content).map_err(|source| {
+        ScenarioError::ConnectorSpecParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    Ok(spec
+        .unsupported_scenarios
+        .get(suite)
+        .and_then(|scenarios| scenarios.get(scenario))
+        .map(|reason| reason.trim().to_string())
+        .filter(|reason| !reason.is_empty()))
+}
+
 /// The `payment_method` oneof variant a scenario populates, if it names one.
 ///
 /// Scenarios that name none act on a payment their dependency already made and
@@ -460,7 +492,7 @@ pub fn get_the_assertion(
 mod tests {
     use std::fs;
 
-    use crate::harness::scenario_types::DependencyScope;
+    use crate::harness::scenario_types::{ConnectorSuiteSpec, DependencyScope};
 
     use serde_json::json;
 
@@ -737,6 +769,39 @@ mod tests {
             .any(|connector| connector == "authorizedotnet"));
         assert!(connectors.iter().any(|connector| connector == "paypal"));
         assert!(!connectors.is_empty());
+    }
+
+    #[test]
+    fn unsupported_scenarios_are_read_from_the_spec() {
+        // The reason is the map value, so "declared unsupported with no reason"
+        // is not expressible — the case the override-based version needed a
+        // runtime error and a test to catch.
+        let spec: ConnectorSuiteSpec = serde_json::from_value(serde_json::json!({
+            "connector": "stripe",
+            "supported_suites": ["PaymentService/Authorize"],
+            "unsupported_scenarios": {
+                "PaymentService/Authorize": {
+                    "no3ds_auto_capture_upi_qr": "stripe returns NotImplemented for UPI"
+                }
+            }
+        }))
+        .expect("spec with unsupported_scenarios should parse");
+
+        assert_eq!(
+            spec.unsupported_scenarios["PaymentService/Authorize"]["no3ds_auto_capture_upi_qr"],
+            "stripe returns NotImplemented for UPI"
+        );
+        assert!(spec.unsupported_scenarios.get("PaymentService/Capture").is_none());
+    }
+
+    #[test]
+    fn a_spec_without_unsupported_scenarios_still_parses() {
+        let spec: ConnectorSuiteSpec = serde_json::from_value(serde_json::json!({
+            "connector": "tsys",
+            "supported_suites": ["PaymentService/Authorize"]
+        }))
+        .expect("the field is optional");
+        assert!(spec.unsupported_scenarios.is_empty());
     }
 
     #[test]

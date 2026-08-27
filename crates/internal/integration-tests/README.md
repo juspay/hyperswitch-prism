@@ -159,6 +159,17 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
     "PaymentMethodAuthenticationService/PreAuthenticate": "merchant_order_id"
   },
 
+  // Scenarios this connector cannot support, as suite -> scenario -> reason.
+  // They are skipped instead of run and failed. Lives here rather than in
+  // override.json because it states a capability, not a test-data delta: what
+  // a connector cannot do is answered by this one file. The reason is the map
+  // value, so a declaration without one cannot be written.
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_upi_qr": "redsys has no UPI support"
+    }
+  },
+
   // For Get / sync flows: re-poll until status reaches a terminal value
   // or this budget elapses. Set when the sandbox auto-settles after a delay.
   "sync_poll_until_terminal_seconds": 30,

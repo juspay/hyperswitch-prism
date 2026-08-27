@@ -8,7 +8,7 @@ This harness supports connector-specific scenario overrides through a trait-base
 - Let connectors override only what differs.
 - Allow connector-side extra keys in request/assert payloads.
 - Restrict overrides to existing scenarios (no connector-only scenario creation).
-- Let a connector declare a scenario it cannot support at all, with a reason.
+- Keep capability statements out of this file; they live in `specs.json`.
 
 ## When to use override
 
@@ -115,27 +115,12 @@ Example: remove one baseline assertion rule
 
 ## Declaring a scenario unsupported
 
-When the connector genuinely cannot do what the scenario asks, say so:
-
-```json
-{
-  "PaymentService/Authorize": {
-    "no3ds_auto_capture_upi_qr": {
-      "unsupported": true,
-      "reason": "stripe returns NotImplemented for every UPI payment method"
-    }
-  }
-}
-```
-
-The scenario is skipped, not run and failed. `reason` is mandatory — a skip that
-does not say why is the thing this field exists to avoid.
+Not an override. Use `unsupported_scenarios` in `connector_specs/<connector>/specs.json`
+— it states a capability, so it belongs with `supported_suites` and
+`supported_payment_methods` rather than in this file.
 
 Do not reach for an `assert` override that expects the failure instead. It passes,
 carries no reason, and turns a future real regression green.
-
-Use `supported_payment_methods` in `specs.json` when a whole payment method is out
-of scope; use this when one scenario is.
 
 ## Trait and registry
 
