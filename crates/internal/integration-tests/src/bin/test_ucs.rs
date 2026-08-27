@@ -754,22 +754,40 @@ fn compact_error_for_console(error: Option<&str>) -> String {
         }
     }
 
+    // No `Message:` means grpcurl never got a response — the call was refused,
+    // hung until it was killed, or the request could not be built. What is left
+    // is its verbose preamble, and the method descriptor it prints carries the
+    // proto's own doc comments. Those read like a sentence, so without skipping
+    // them every such failure is reported as "// Authorize a payment amount on a
+    // payment method…" and the real cause never reaches the log.
     for line in error.lines() {
         let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed == "ERROR:"
-            || trimmed.starts_with("Resolved method descriptor:")
-            || trimmed.starts_with("Request metadata to send:")
-            || trimmed.starts_with("Response headers received:")
-            || trimmed.starts_with("Response trailers received:")
-            || trimmed.starts_with("Sent ")
-        {
+        if is_grpcurl_preamble(trimmed) {
             continue;
         }
         return truncate_for_console(trimmed, 220);
     }
 
+    // Everything was preamble. The whole text beats a proto comment, and the
+    // caller can still see it is a no-response failure.
     truncate_for_console(error.trim(), 220)
+}
+
+/// Lines grpcurl prints around a call rather than about its outcome.
+fn is_grpcurl_preamble(trimmed: &str) -> bool {
+    trimmed.is_empty()
+        || trimmed == "ERROR:"
+        || trimmed.starts_with("Resolved method descriptor:")
+        || trimmed.starts_with("Request metadata to send:")
+        || trimmed.starts_with("Response headers received:")
+        || trimmed.starts_with("Response trailers received:")
+        || trimmed.starts_with("Sent ")
+        // The descriptor body: the proto comments above the rpc, and the rpc
+        // signature itself.
+        || trimmed.starts_with("//")
+        || trimmed.starts_with("rpc ")
+        // Header lines grpcurl emits under the metadata sections.
+        || trimmed.starts_with("(empty)")
 }
 
 fn truncate_for_console(text: &str, max_chars: usize) -> String {
@@ -978,7 +996,55 @@ enum ScenarioSelection {
 
 #[cfg(test)]
 mod tests {
-    use super::{run_outcome, ScenarioSelection};
+    use super::{compact_error_for_console, run_outcome, ScenarioSelection};
+
+    /// grpcurl's verbose output when the call itself produced no response. The
+    /// method descriptor it echoes carries the proto's leading doc comments.
+    const NO_RESPONSE: &str = "\n\
+Resolved method descriptor:\n\
+// Authorize a payment amount on a payment method. This reserves funds\n\
+// without capturing them, essential for verifying availability before finalizing.\n\
+rpc Authorize ( .ucs.v2.PaymentServiceAuthorizeRequest ) returns ( .ucs.v2.PaymentServiceAuthorizeResponse );\n\
+\n\
+Request metadata to send:\n\
+x-connector: fiserv\n";
+
+    #[test]
+    fn a_proto_doc_comment_is_never_reported_as_the_error() {
+        // Every fiserv scenario in CI reported "// Authorize a payment amount on
+        // a payment method. This reserves funds" — the proto's own comment, not
+        // an error. The failures all looked identical and said nothing, which is
+        // why the real cause stayed invisible across several runs.
+        let shown = compact_error_for_console(Some(NO_RESPONSE));
+        assert!(
+            !shown.starts_with("//"),
+            "a proto doc comment was reported as the error: {shown}"
+        );
+        assert!(
+            !shown.starts_with("rpc "),
+            "the rpc signature was reported as the error: {shown}"
+        );
+    }
+
+    #[test]
+    fn the_real_message_still_wins_when_there_is_one() {
+        let with_message = format!("{NO_RESPONSE}\nERROR:\n  Code: Internal\n  Message: connector returned 401 Unauthorized\n");
+        assert_eq!(
+            compact_error_for_console(Some(&with_message)),
+            "connector returned 401 Unauthorized"
+        );
+    }
+
+    #[test]
+    fn a_metadata_line_is_preferred_over_nothing() {
+        // All preamble except the one line that names the connector: better to
+        // show that than a proto comment.
+        let shown = compact_error_for_console(Some(NO_RESPONSE));
+        assert!(
+            shown.contains("fiserv"),
+            "expected the surviving metadata line, got: {shown}"
+        );
+    }
 
     #[test]
     fn a_failure_is_always_a_failure() {
