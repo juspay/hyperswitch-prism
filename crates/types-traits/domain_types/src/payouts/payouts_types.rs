@@ -16,7 +16,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 pub struct PayoutFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub payout_id: String,
-    pub connectors: Connectors,
+    pub connectors: std::sync::Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,

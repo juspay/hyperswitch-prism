@@ -987,7 +987,7 @@ async fn verify_webhook_source_external(
     service_name: &str,
 ) -> Result<bool, error_stack::Report<ucs_env::error::GrpcError>> {
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {
-        connectors: config.connectors.clone(),
+        connectors: config.connectors.clone().into(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
         raw_connector_request: None,

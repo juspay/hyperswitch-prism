@@ -16,7 +16,7 @@ use hyperswitch_masking::Secret;
 #[derive(Debug, Clone)]
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
-    pub connectors: Connectors,
+    pub connectors: std::sync::Arc<Connectors>,
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,

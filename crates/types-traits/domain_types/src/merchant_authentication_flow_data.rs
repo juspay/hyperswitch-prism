@@ -23,7 +23,7 @@ pub struct MerchantAuthenticationFlowData {
 
     /// Resolved connector base URLs — required by every connector impl
     /// to build the target endpoint (e.g. `connectors.paypal.base_url`).
-    pub connectors: Connectors,
+    pub connectors: std::sync::Arc<Connectors>,
 
     /// Idempotency / tracing key forwarded to the connector in the request.
     pub connector_request_reference_id: String,

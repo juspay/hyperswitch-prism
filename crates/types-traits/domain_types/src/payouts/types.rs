@@ -32,7 +32,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1650,7 +1650,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1693,7 +1693,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1736,7 +1736,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1779,7 +1779,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_quote_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_quote_id,
             ),
@@ -1822,7 +1822,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1865,7 +1865,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -1908,7 +1908,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
@@ -2364,7 +2364,7 @@ impl
         Ok(Self {
             merchant_id,
             payout_id: value.merchant_payout_id.clone().unwrap_or_default(),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),

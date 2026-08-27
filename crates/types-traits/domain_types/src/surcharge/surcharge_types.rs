@@ -11,7 +11,7 @@ use serde::Serialize;
 pub struct SurchargeFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connector_request_reference_id: String,
-    pub connectors: Connectors,
+    pub connectors: std::sync::Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
