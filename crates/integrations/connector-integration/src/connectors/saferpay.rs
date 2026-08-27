@@ -39,11 +39,14 @@
 //! `Capture` is issued from **RSync** while the refund is still `Pending`. Refund
 //! therefore reports `Pending`, and the first RSync settles it to `Success`.
 //!
-//! **Capture method.** Saferpay has no auto-capture request field on
-//! `AuthorizeDirect` / `Initialize` — settlement behaviour is a terminal-level
-//! Backoffice setting and this interface always answers `AUTHORIZED`. `Manual` is
-//! therefore the supported path; `Automatic` is accepted and reported honestly as
-//! `Authorized`, leaving the caller to issue the explicit Capture.
+//! **Manual capture only.** Saferpay has no sale mode: no capture field on
+//! `AuthorizeDirect` / `Initialize`, no combined authorize+capture endpoint, and no
+//! terminal-level capture setting (a terminal's only "auto" switch is
+//! `AutoCloseDailyStatement`, which closes the daily batch of *already captured*
+//! transactions). An authorization must be settled with an explicit `Capture`.
+//! `Automatic` and `SequentialAutomatic` are therefore rejected at authorize time —
+//! accepting them would report `requires_capture` and leave the money unmoved with no
+//! error until the authorization expired.
 //!
 //! **Webhooks are not supported.** Saferpay offers no signed webhook for the
 //! Transaction interface — only unauthenticated, bodyless `NotifyUrl` GET pings that

@@ -92,6 +92,23 @@ fn not_supported(message: String) -> error_stack::Report<IntegrationError> {
     })
 }
 
+fn capture_method_not_supported(method: CaptureMethod) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::CaptureMethodNotSupported {
+        context: IntegrationErrorContext {
+            // The framework renders this as "<context> is not implemented", so keep it
+            // a noun phrase.
+            additional_context: Some(format!(
+                "{method} capture on saferpay, whose Transaction interface has no sale \
+                 mode — an authorization is always settled by an explicit Capture —"
+            )),
+            suggested_action: Some(
+                "Set capture_method = manual and issue the Capture explicitly".to_string(),
+            ),
+            doc_url: None,
+        },
+    })
+}
+
 /// Saferpay `OrderId` is limited to 80 characters; UCS references can be longer.
 fn truncate_order_id(reference: &str) -> Option<String> {
     if reference.is_empty() {
@@ -391,6 +408,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(not_supported(
                 "External/merchant-provided 3DS authentication data".to_string(),
             ));
+        }
+
+        // Saferpay has no sale mode. There is no capture field on `AuthorizeDirect` or
+        // `Initialize`, no combined authorize+capture endpoint anywhere in the Payment
+        // API, and no terminal-level capture setting — the only "auto" switch on a
+        // terminal is `AutoCloseDailyStatement`, which closes the daily batch of
+        // *already captured* transactions. Saferpay also ignores unknown request fields
+        // silently, so there is nothing to send speculatively either.
+        //
+        // Accepting `Automatic` would therefore mean reporting `requires_capture` and
+        // leaving the money unmoved with no error, until the authorization expires.
+        // Refuse it instead, so the caller finds out at authorize time.
+        if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
+            &request.capture_method
+        {
+            return Err(capture_method_not_supported(*method));
         }
 
         // Mandates, MIT and tokenization are out of scope: Saferpay expresses them
@@ -855,6 +888,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         if request.mandate_reference.is_some() {
             return Err(not_supported("Mandates / stored credentials".to_string()));
+        }
+
+        // Same reasoning as the Authorize leg: Saferpay has no sale mode, so an
+        // authorization opened here still has to be settled by an explicit Capture.
+        // Refuse at the opening leg rather than after the shopper has completed 3DS.
+        if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
+            &request.capture_method
+        {
+            return Err(capture_method_not_supported(*method));
         }
 
         let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
