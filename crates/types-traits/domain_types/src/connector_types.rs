@@ -2001,6 +2001,7 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
+        payment_account_reference: Option<String>,
     },
     ClientAuthenticationTokenResponse {
         session_data: ClientAuthenticationTokenData,

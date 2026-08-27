@@ -580,6 +580,7 @@ impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPayments
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -623,6 +624,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -666,6 +668,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -709,6 +712,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -975,6 +979,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1159,6 +1164,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 

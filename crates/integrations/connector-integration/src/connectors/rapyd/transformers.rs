@@ -156,6 +156,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
                                 splits: None,
+                                payment_account_reference: None,
                             }),
                         )
                     }
@@ -1323,6 +1324,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         incremental_authorization_allowed: None,
                                         status_code: item.http_code,
                                         splits: None,
+                                        payment_account_reference: None,
                                     }),
                                 )
                             }
@@ -1577,6 +1579,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                     ),
                 }

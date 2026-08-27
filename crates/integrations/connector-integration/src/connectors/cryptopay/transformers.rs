@@ -235,6 +235,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
@@ -384,6 +385,7 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {

@@ -2043,6 +2043,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }
             }
             // Redirect APM (v1/paymenthandles): Skrill, Interac e-Transfer, paysafecard.
@@ -2087,6 +2088,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }
             }
         };
@@ -2547,6 +2549,7 @@ impl<
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2623,6 +2626,7 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2685,6 +2689,7 @@ impl TryFrom<ResponseRouterData<PaysafeCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -2759,6 +2764,7 @@ impl TryFrom<ResponseRouterData<PaysafeVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })

@@ -6827,6 +6827,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -6892,6 +6893,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
+                    payment_account_reference,
                 }
             }
             _ => {
@@ -6958,6 +6960,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }
         }
     };
@@ -7859,6 +7862,7 @@ pub fn generate_payment_void_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -7916,6 +7920,7 @@ pub fn generate_payment_void_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7979,6 +7984,7 @@ pub fn generate_payment_void_response(
                 incremental_authorization_allowed: None,
                 connector_feature_data: None,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -8046,6 +8052,7 @@ pub fn generate_payment_void_post_capture_response(
                 mandate_reference: _,
                 status_code,
                 splits: _,
+                payment_account_reference: _,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8326,6 +8333,7 @@ pub fn generate_payment_sync_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8440,6 +8448,7 @@ pub fn generate_payment_sync_response(
                             })
                             .ok()
                         }),
+                    payment_account_reference,
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -8553,6 +8562,7 @@ pub fn generate_payment_sync_response(
                     ),
                     connector_feature_data: None,
                     connector_returned_payment_method_details: None,
+                    payment_account_reference: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8652,6 +8662,7 @@ pub fn generate_payment_sync_response(
                 settlement_status: None,
                 connector_feature_data: None,
                 connector_returned_payment_method_details: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -9629,6 +9640,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             settlement_status: None,
             connector_feature_data: None,
             connector_returned_payment_method_details: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -11737,6 +11749,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -11791,6 +11804,7 @@ pub fn generate_payment_capture_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -11852,6 +11866,7 @@ pub fn generate_payment_capture_response(
                 connector_feature_data: None,
                 connector_response,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -12836,6 +12851,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -12960,6 +12976,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 }
             }
             _ => {
@@ -13023,6 +13040,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 connector_feature_data: None,
                 captured_amount: None,
                 splits: None,
+                payment_account_reference: None,
             }
         }
     };
@@ -15283,6 +15301,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 status_code,
                 incremental_authorization_allowed,
                 splits,
+                payment_account_reference,
                 ..
             } => {
                 let mandate_reference_details = mandate_reference
@@ -15342,6 +15361,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                                 split_response,
                             )
                         }),
+                        payment_account_reference,
                     },
                 )
             }
@@ -15405,6 +15425,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     captured_amount: None,
                     incremental_authorization_allowed: None,
                     splits: None,
+                    payment_account_reference: None,
                 },
             )
         }
