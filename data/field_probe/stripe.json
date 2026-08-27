@@ -2177,7 +2177,7 @@
           }
         },
         "sample": {
-          "url": "https://api.stripe.com/v1/tokens",
+          "url": "https://api.stripe.com/v1/payment_methods",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
