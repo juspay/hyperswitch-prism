@@ -124,6 +124,13 @@ jobs:
               - 'scripts/**'
               - 'config/**'
               - '.github/scripts/**'
+              # The ten shared files directly under src/ — utils, types,
+              # default_implementations and friends — are called by every
+              # connector but carry no connector name in their path, so the
+              # extractor below finds none and nothing is certified. A single
+              # `*` stops at the slash, so src/connectors/<name>.rs still
+              # selects only that connector.
+              - 'crates/integrations/connector-integration/src/*.rs'
       - name: Extract changed connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
