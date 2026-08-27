@@ -658,7 +658,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayAuthorizeResp
 
         // 3DS (`Initialize`): only a `Token` exists. It is published as the
         // resource id, in `connector_metadata` and — via the caller round-tripping
-        // it as `encoded_data` — is what PSync uses to issue the second leg
+        // it as `connector_feature_data` — is what PSync uses for the second leg
         // (`POST /Transaction/Authorize` with `{ "Token": ... }`).
         let token = response.token.clone().ok_or_else(|| {
             error_stack::report!(crate::utils::unexpected_response_fail(
@@ -713,8 +713,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayAuthorizeResp
 ///   would answer `TRANSACTION_NOT_FOUND` here, because no transaction exists yet.
 /// * a real `Transaction.Id` ⇒ `POST /Transaction/Inquire`.
 ///
-/// The token is carried by `PaymentsSyncData::encoded_data`, the standard UCS
-/// carrier for redirect-resume state.
+/// The token is carried by `PaymentsSyncData::connector_feature_data` — the
+/// `connector_metadata` published by `Initialize` and round-tripped by the
+/// caller. See `pending_three_ds_token` for why `encoded_data` is not used.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum SaferpayPSyncRequest {
@@ -737,13 +738,31 @@ pub enum SaferpayPSyncRequest {
 type SyncRouterData = RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>;
 
 /// The Saferpay session token to finalise, if this sync is the 3DS second leg.
+///
+/// The token is carried by `connector_feature_data` — the `connector_metadata`
+/// this connector published from `Initialize`, which the caller persists on the
+/// attempt and hands back on every subsequent sync. Once the second leg
+/// succeeds the sync response replaces that metadata with the capture-id blob
+/// (see `SaferpayTransaction::connector_metadata`), so the token disappears and
+/// later syncs correctly fall through to `Inquire`.
+///
+/// `encoded_data` is deliberately NOT used: hyperswitch fills it with the raw
+/// query string of the redirect return URL, and Saferpay calls the return URL
+/// with no query parameters at all, so it is empty on the one sync that matters
+/// and is never a valid token when it is not.
 pub fn pending_three_ds_token(request: &PaymentsSyncData) -> Option<String> {
     request
-        .encoded_data
-        .as_deref()
-        .map(str::trim)
-        .filter(|token| !token.is_empty())
-        .map(str::to_string)
+        .connector_feature_data
+        .as_ref()
+        .and_then(|metadata| {
+            metadata
+                .peek()
+                .get(SAFERPAY_TOKEN_METADATA_KEY)
+                .and_then(serde_json::Value::as_str)
+                .map(str::trim)
+                .filter(|token| !token.is_empty())
+                .map(str::to_string)
+        })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>

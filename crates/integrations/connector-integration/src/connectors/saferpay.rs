@@ -22,7 +22,7 @@
 //! **3DS second leg.** UCS has no `CompleteAuthorize` flow, so the token-based
 //! `Authorize` that finalises a redirect transaction is issued from **PSync**, which
 //! branches on whether the held handle is an `Initialize` session token (carried in
-//! `PaymentsSyncData::encoded_data`) or a real `Transaction.Id`.
+//! `PaymentsSyncData::connector_feature_data`) or a real `Transaction.Id`.
 //!
 //! **Capture method.** Saferpay has no auto-capture request field on
 //! `AuthorizeDirect` / `Initialize` — settlement behaviour is a terminal-level
