@@ -3641,9 +3641,7 @@ pub fn run_suite_test_with_options(
     let mut unsupported = Vec::new();
     for name in scenarios.keys().cloned().collect::<Vec<_>>() {
         if let Some(reason) = scenario_unsupported_reason(connector, suite, &name)? {
-            println!(
-                "[test_ucs] skipping {suite}/{name} for {connector}: unsupported — {reason}"
-            );
+            println!("[test_ucs] skipping {suite}/{name} for {connector}: unsupported — {reason}");
             unsupported.push(name);
         }
     }
