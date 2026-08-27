@@ -9,6 +9,7 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 
 // Request message for composite authorize flow.
 message CompositeAuthorizeRequest {
+  reserved 60;
   // Payment Identification
   optional string merchant_transaction_id = 1; // Reference ID for tracking
 
@@ -656,6 +657,7 @@ message CompositePaymentMethodEligibilityResponse {
 
 // Request message for composite verify redirect response flow.
 message CompositeVerifyRedirectResponseRequest {
+  reserved 56;
   // Identification
   optional string merchant_order_id = 1;
   optional string merchant_transaction_id = 2;

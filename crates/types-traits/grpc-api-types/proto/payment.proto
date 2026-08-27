@@ -2378,6 +2378,8 @@ message SecretInfoToInitiateSdk {
 
 // Request message for authorizing a payment
 message PaymentServiceAuthorizeRequest {
+  // Removed: payment_method_token (moved into TokenPaymentMethodType.payment_method_type).
+  reserved 53;
   // Identification
   optional string merchant_transaction_id = 1;
 
