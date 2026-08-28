@@ -22,7 +22,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime, UtcOffset};
+use time::{format_description::well_known::Rfc3339, Date, Duration, OffsetDateTime, UtcOffset};
 
 use super::IlixiumRouterData;
 
@@ -266,8 +266,8 @@ pub struct IlixiumCustomer {
     #[serde(rename = "firstName")]
     pub first_name: Secret<String>,
     pub surname: Secret<String>,
-    /// `ddmmyyyy`. Schema-mandatory but absent from the UCS payment model — see
-    /// [`extract_date_of_birth`] for how it is sourced and why it may be omitted.
+    /// `ddmmyyyy`. Schema-mandatory — see [`resolve_date_of_birth`] for how it is sourced
+    /// and why it may still be omitted.
     #[serde(rename = "dateOfBirth", skip_serializing_if = "Option::is_none")]
     pub date_of_birth: Option<Secret<String>>,
     pub address: IlixiumAddress,
@@ -383,13 +383,26 @@ pub fn is_three_ds_completion<T: PaymentMethodDataTypes>(
     request.redirect_response.is_some()
 }
 
-/// `customer.dateOfBirth` is schema-mandatory (`ddmmyyyy`) but has no home in the UCS payment
-/// model (tech spec UNDECIDED #1). Rather than fabricate a placeholder date — which would be
-/// sent to the issuer and could distort Ilixium's own fraud checks — it is read from the
-/// merchant-supplied `metadata` object under `ilixium_date_of_birth` (or `date_of_birth`) and
-/// simply omitted when absent. Accounts that enforce the field will answer `VA8`, which
-/// surfaces as a normal `REJECTED` error rather than a silently wrong value.
-fn extract_date_of_birth(
+/// Ilixium wants `customer.dateOfBirth` as `ddmmyyyy` — eight digits, no separators, so
+/// 3 April 1970 is `03041970`. The rest of the stack carries a real `Date`; this is the only
+/// place that knows Ilixium's shape.
+fn format_date_of_birth(date_of_birth: &Secret<Date>) -> Secret<String> {
+    let date = date_of_birth.peek();
+    Secret::new(format!(
+        "{:02}{:02}{:04}",
+        date.day(),
+        u8::from(date.month()),
+        date.year(),
+    ))
+}
+
+/// Deprecated path: before `customer.date_of_birth` existed in the UCS payment model, the only
+/// way to reach Ilixium's schema-mandatory `dateOfBirth` was the merchant-supplied `metadata`
+/// object. Merchants integrated against that, so it stays as a fallback for one release; the
+/// value is passed through verbatim because it was already in Ilixium's `ddmmyyyy` shape.
+///
+/// Remove once merchants have moved to `customer.date_of_birth`.
+fn extract_date_of_birth_from_metadata(
     metadata: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Option<Secret<String>> {
     let value = metadata?.clone().expose();
@@ -397,6 +410,27 @@ fn extract_date_of_birth(
         .iter()
         .find_map(|key| value.get(key).and_then(|v| v.as_str()).map(String::from))
         .map(Secret::new)
+}
+
+/// Resolves `customer.dateOfBirth`, preferring the structured field over the deprecated metadata
+/// key. Absent from both, it is omitted rather than filled with a placeholder: a fabricated date
+/// would reach the issuer and could distort Ilixium's own fraud checks. Accounts that enforce the
+/// field answer `VA8`, which surfaces as a normal `REJECTED` error rather than a silently wrong
+/// value.
+fn resolve_date_of_birth(
+    customer_date_of_birth: Option<&Secret<Date>>,
+    metadata: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    if let Some(date_of_birth) = customer_date_of_birth {
+        return Some(format_date_of_birth(date_of_birth));
+    }
+    extract_date_of_birth_from_metadata(metadata).inspect(|_| {
+        tracing::warn!(
+            connector = "ilixium",
+            "Reading customer.dateOfBirth from connector metadata is deprecated and will be \
+             removed; send customer.date_of_birth on the payment or customer instead."
+        );
+    })
 }
 
 /// Ilixium accepts only the colour depths in [`ACCEPTED_COLOR_DEPTHS`], while browsers report
@@ -530,7 +564,10 @@ pub(super) struct IlixiumAuthBodyInputs<'a, T: PaymentMethodDataTypes> {
     /// `None` on the PreAuthenticate leg — `PaymentsPreAuthenticateData` has no `customer_name`,
     /// so the billing address is the only name source there.
     pub customer_name: Option<&'a str>,
-    /// `None` on the PreAuthenticate leg — see [`extract_date_of_birth`].
+    /// Available on both legs — `PaymentsPreAuthenticateData` carries it too.
+    pub customer_date_of_birth: Option<&'a Secret<Date>>,
+    /// Only still read for the deprecated `ilixium_date_of_birth` fallback — see
+    /// [`resolve_date_of_birth`].
     pub metadata: Option<&'a common_utils::pii::SecretSerdeValue>,
     pub browser_info: Option<&'a BrowserInformation>,
     pub is_auto_capture: bool,
@@ -679,7 +716,7 @@ pub(super) fn build_ilixium_payments_request<T: PaymentMethodDataTypes + std::fm
             email,
             first_name,
             surname,
-            date_of_birth: extract_date_of_birth(inputs.metadata),
+            date_of_birth: resolve_date_of_birth(inputs.customer_date_of_birth, inputs.metadata),
             address: IlixiumAddress {
                 address_line1: common.get_optional_billing_line1(),
                 city: common.get_optional_billing_city(),
@@ -748,6 +785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency: request.currency,
                 email: request.email.clone(),
                 customer_name: request.customer_name.as_deref(),
+                customer_date_of_birth: request.customer_date_of_birth.as_ref(),
                 metadata: request.metadata.as_ref(),
                 browser_info: request.browser_info.as_ref(),
                 is_auto_capture: request.is_auto_capture(),
@@ -770,9 +808,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ///   a bare `bool`.
 ///
 /// One input is unavailable on this leg: `customer_name`, so the billing address is the only
-/// name source (which [`split_customer_name`] already handles). `metadata` *is* available —
-/// `PaymentsPreAuthenticateData` carries it so `customer.dateOfBirth` resolves here exactly as
-/// it does on Authorize.
+/// name source (which [`split_customer_name`] already handles). `customer_date_of_birth` and
+/// `metadata` are both carried by `PaymentsPreAuthenticateData`, so `customer.dateOfBirth`
+/// resolves here exactly as it does on Authorize.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         IlixiumRouterData<
@@ -849,6 +887,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency,
                 email: request.email.clone(),
                 customer_name: None,
+                customer_date_of_birth: request.customer_date_of_birth.as_ref(),
                 metadata: request.metadata.as_ref(),
                 browser_info: request.browser_info.as_ref(),
                 is_auto_capture: request.is_auto_capture()?,
@@ -3785,5 +3824,55 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod date_of_birth_tests {
+    use hyperswitch_masking::{ExposeInterface, Secret};
+    use time::macros::date;
+
+    use super::{format_date_of_birth, resolve_date_of_birth};
+
+    #[test]
+    fn formats_as_ddmmyyyy_with_zero_padding() {
+        // Single-digit day and month are where the padding matters: Ilixium reads the string
+        // positionally, so "341970" would be a VC8 rather than a short date.
+        assert_eq!(
+            format_date_of_birth(&Secret::new(date!(1970 - 04 - 03))).expose(),
+            "03041970"
+        );
+        assert_eq!(
+            format_date_of_birth(&Secret::new(date!(2000 - 12 - 25))).expose(),
+            "25122000"
+        );
+    }
+
+    #[test]
+    fn structured_field_wins_over_deprecated_metadata() {
+        let metadata = Secret::new(serde_json::json!({ "ilixium_date_of_birth": "01011999" }));
+        let resolved =
+            resolve_date_of_birth(Some(&Secret::new(date!(1970 - 04 - 03))), Some(&metadata))
+                .expect("a date of birth was supplied");
+        assert_eq!(resolved.expose(), "03041970");
+    }
+
+    #[test]
+    fn falls_back_to_metadata_under_either_key() {
+        for key in ["ilixium_date_of_birth", "date_of_birth"] {
+            let metadata = Secret::new(serde_json::json!({ key: "01011999" }));
+            let resolved = resolve_date_of_birth(None, Some(&metadata))
+                .unwrap_or_else(|| panic!("expected the {key} fallback to resolve"));
+            assert_eq!(resolved.expose(), "01011999");
+        }
+    }
+
+    #[test]
+    fn omitted_when_neither_source_has_one() {
+        assert!(resolve_date_of_birth(None, None).is_none());
+        let metadata = Secret::new(serde_json::json!({ "unrelated": "value" }));
+        assert!(resolve_date_of_birth(None, Some(&metadata)).is_none());
     }
 }

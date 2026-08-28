@@ -15,7 +15,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumIter, EnumString};
-use time::PrimitiveDateTime;
+use time::{Date, PrimitiveDateTime};
 
 use crate::{
     errors::{IntegrationError, IntegrationErrorContext, WebhookError},
@@ -1675,6 +1675,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub surcharge_amount: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// Customer's date of birth. Sourced from the gRPC `Customer.date_of_birth`
+    /// (ISO-8601); connectors that need another shape format it themselves.
+    pub customer_date_of_birth: Option<Secret<Date>>,
     pub customer_name: Option<String>,
     pub currency: Currency,
     pub confirm: bool,
@@ -1770,6 +1773,14 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
         self.customer_document_details
             .clone()
             .ok_or_else(missing_field_err("customer_document_details"))
+    }
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    pub fn get_customer_date_of_birth(&self) -> Result<Secret<Date>, Error> {
+        self.customer_date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
@@ -2245,6 +2256,9 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
     pub amount: MinorUnit,
     pub email: Option<Email>,
+    /// Customer's date of birth. Sourced from the gRPC `Customer.date_of_birth`
+    /// (ISO-8601); connectors that need another shape format it themselves.
+    pub customer_date_of_birth: Option<Secret<Date>>,
     pub currency: Option<Currency>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub router_return_url: Option<Url>,
@@ -2261,12 +2275,19 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     /// The gRPC request has always carried this (`PaymentMethodAuthenticationService
     /// PreAuthenticateRequest.metadata`) but it was previously dropped on the floor here, so a
     /// connector whose PreAuthenticate leg sends a full authorisation could not reach
-    /// merchant-supplied fields that have no home in the UCS payment model — Ilixium's
-    /// schema-mandatory `customer.dateOfBirth`, for one.
+    /// merchant-supplied fields that have no home in the UCS payment model.
     pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    pub fn get_customer_date_of_birth(&self) -> Result<Secret<Date>, Error> {
+        self.customer_date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
+    }
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(common_enums::CaptureMethod::Automatic)
@@ -3590,6 +3611,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// Customer's date of birth. Sourced from the gRPC `Customer.date_of_birth`
+    /// (ISO-8601); connectors that need another shape format it themselves.
+    pub customer_date_of_birth: Option<Secret<Date>>,
     pub customer_name: Option<String>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
@@ -3644,6 +3668,14 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
             .clone()
             .ok_or_else(missing_field_err("customer_document_details"))
     }
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    pub fn get_customer_date_of_birth(&self) -> Result<Secret<Date>, Error> {
+        self.customer_date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
+    }
     pub fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
     }
@@ -3690,6 +3722,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// Customer's date of birth. Sourced from the gRPC `Customer.date_of_birth`
+    /// (ISO-8601); connectors that need another shape format it themselves.
+    pub customer_date_of_birth: Option<Secret<Date>>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
@@ -3767,6 +3802,14 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
         self.customer_document_details
             .clone()
             .ok_or_else(missing_field_err("customer_document_details"))
+    }
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<Date>> {
+        self.customer_date_of_birth.clone()
+    }
+    pub fn get_customer_date_of_birth(&self) -> Result<Secret<Date>, Error> {
+        self.customer_date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
     pub fn get_recurring_mandate_payment_data(
         &self,

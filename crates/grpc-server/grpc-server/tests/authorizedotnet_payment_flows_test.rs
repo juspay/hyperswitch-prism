@@ -303,6 +303,7 @@ fn create_payment_authorize_request(
     });
 
     request.customer = Some(grpc_api_types::payments::Customer {
+        date_of_birth: None,
         customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: None,
@@ -547,6 +548,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
 
     // Set customer information with unique email
     request.customer = Some(grpc_api_types::payments::Customer {
+        date_of_birth: None,
         customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: Some(TEST_CARD_HOLDER.to_string()),

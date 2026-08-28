@@ -221,6 +221,9 @@ message Customer {
   optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
   optional CustomerDocumentDetails customer_document_details =
       10; // Customer identification document
+  // Customer's date of birth as an ISO-8601 calendar date (YYYY-MM-DD).
+  // Connectors that need another shape (Ilixium wants `ddmmyyyy`) format it themselves.
+  optional SecretString date_of_birth = 11;
 }
 
 // Type of customer identification document.
@@ -3740,6 +3743,10 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
+
+  // Customer's date of birth as an ISO-8601 calendar date (YYYY-MM-DD). Flat here, next
+  // to customer_document_details, because this request carries no `Customer` message.
+  optional SecretString customer_date_of_birth = 40;
 }
 
 // Response message for repeat payment operation

@@ -4105,6 +4105,35 @@ fn map_customer_document_details(
         })
 }
 
+/// Parses the optional gRPC `Customer.date_of_birth` (ISO-8601 `YYYY-MM-DD`) into the domain
+/// `Secret<Date>`. Unlike [`map_customer_document_details`], a value that is present but
+/// unparseable is an error rather than a silent `None`: the caller asked for a date of birth to
+/// be sent, and dropping it would surface later as an opaque connector rejection (Ilixium
+/// answers `VB8`/`VC8`) instead of a field-level error here. Shared by the Authorize,
+/// SetupMandate (CIT), RepeatPayment (MIT) and PreAuthenticate request conversions.
+fn map_customer_date_of_birth(
+    date_of_birth: Option<Secret<String>>,
+) -> Result<Option<Secret<time::Date>>, error_stack::Report<IntegrationError>> {
+    date_of_birth
+        .map(|dob| {
+            Secret::<time::Date>::foreign_try_from(dob.expose()).change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "customer.date_of_birth",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected an ISO-8601 date of birth, e.g. 1970-04-03".to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Send customer.date_of_birth as YYYY-MM-DD".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                },
+            )
+        })
+        .transpose()
+}
+
 // ---- proto DomainData / AirlineData -> domain types (all fields optional) ----
 
 impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainData {
@@ -4515,6 +4544,12 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
+        let customer_date_of_birth = map_customer_date_of_birth(
+            value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone()),
+        )?;
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
         let connector_feature_data = value
@@ -4627,6 +4662,7 @@ impl<
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             email,
             customer_document_details,
+            customer_date_of_birth,
             customer_name: value
                 .customer
                 .as_ref()
@@ -4765,6 +4801,12 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
+        let customer_date_of_birth = map_customer_date_of_birth(
+            value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone()),
+        )?;
         let amount = value.amount.ok_or_else(|| {
             report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
@@ -4822,6 +4864,7 @@ impl<
                 .transpose()?,
             email,
             customer_document_details,
+            customer_date_of_birth,
             customer_name: value
                 .customer
                 .as_ref()
@@ -12157,6 +12200,12 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
+        let customer_date_of_birth = map_customer_date_of_birth(
+            value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone()),
+        )?;
         let customer_acceptance = value.customer_acceptance.clone().ok_or_else(|| {
             error_stack::Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "unknown",
@@ -12235,6 +12284,7 @@ impl<
                 .transpose()?,
             email,
             customer_document_details,
+            customer_date_of_birth,
             customer_name: value
                 .customer
                 .as_ref()
@@ -15117,6 +15167,8 @@ impl<
             .customer_document_details
             .as_ref()
             .and_then(map_customer_document_details);
+        let customer_date_of_birth =
+            map_customer_date_of_birth(value.customer_date_of_birth.clone())?;
 
         // Extract mandate reference_id
         let mandate_ref = value
@@ -15185,6 +15237,7 @@ impl<
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
             customer_document_details,
+            customer_date_of_birth,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)
@@ -17989,6 +18042,14 @@ impl<
             Option<PaymentMethodData<T>>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read before the `email` binding below, which moves `value.customer`.
+        let customer_date_of_birth = map_customer_date_of_birth(
+            value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone()),
+        )?;
+
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
@@ -18028,6 +18089,7 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
+            customer_date_of_birth,
             // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
             // proto-default (empty oneof) payment_method yields `None`, while a populated but
             // invalid value still fails the conversion.
