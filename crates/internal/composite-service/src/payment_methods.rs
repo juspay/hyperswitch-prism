@@ -2,8 +2,9 @@ use common_enums;
 use connector_integration::types::{AuthenticatorConnectorData, ConnectorData};
 use domain_types::{connector_types::ConnectorVariant, utils::ForeignTryFrom as _};
 use grpc_api_types::payments::{
-    composite_payment_method_service_server::CompositePaymentMethodService,
-    merchant_authentication_service_server::MerchantAuthenticationService,
+    apple_wallet, composite_payment_method_service_server::CompositePaymentMethodService,
+    google_wallet, merchant_authentication_service_server::MerchantAuthenticationService,
+    payment_method::PaymentMethod as GrpcPaymentMethod,
     payment_method_service_server::PaymentMethodService, CompositePaymentMethodCreateRequest,
     CompositePaymentMethodCreateResponse, CompositePaymentMethodEligibilityRequest,
     CompositePaymentMethodEligibilityResponse, CompositePaymentMethodGetRequest,
@@ -25,10 +26,8 @@ use crate::utils::{
 fn is_wallet_payload_decrypted_network_token(
     payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
 ) -> bool {
-    use grpc_api_types::payments::{apple_wallet, google_wallet, payment_method::PaymentMethod};
-
     match payment_method.and_then(|pm| pm.payment_method.as_ref()) {
-        Some(PaymentMethod::GooglePaySdk(google_wallet)) => matches!(
+        Some(GrpcPaymentMethod::GooglePaySdk(google_wallet)) => matches!(
             google_wallet
                 .tokenization_data
                 .as_ref()
@@ -36,7 +35,7 @@ fn is_wallet_payload_decrypted_network_token(
             Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(decrypted))
                 if decrypted.cryptogram.is_some()
         ),
-        Some(PaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
+        Some(GrpcPaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
             apple_wallet
                 .payment_data
                 .as_ref()
