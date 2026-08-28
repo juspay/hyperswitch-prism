@@ -1035,7 +1035,6 @@ x-connector: fiserv\n";
         );
     }
 
-
     #[test]
     fn a_failure_is_always_a_failure() {
         for selection in [

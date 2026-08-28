@@ -271,12 +271,13 @@ pub fn load_connector_specific_scenarios_in(
         path: path.clone(),
         source,
     })?;
-    let mut by_suite = serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
-        ScenarioError::ScenarioFileParse {
-            path: path.clone(),
-            source,
-        }
-    })?;
+    let mut by_suite =
+        serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
+            ScenarioError::ScenarioFileParse {
+                path: path.clone(),
+                source,
+            }
+        })?;
     let Some(scenarios) = by_suite.remove(suite) else {
         return Ok(ScenarioFile::new());
     };
@@ -936,9 +937,6 @@ mod tests {
 
         let _ = fs::remove_dir_all(temp_root);
     }
-
-
-
 
     #[test]
     fn configured_connectors_supports_env_override() {
