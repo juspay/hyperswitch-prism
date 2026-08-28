@@ -20,9 +20,13 @@ grpc_server_start() {
     return 1
   fi
 
+  # Sandboxes fail slowly: fiserv holds a dead call for 23s before returning 504.
+  # A healthy call there is ~2s, so 10s is ample and stops one bad connector
+  # eating the whole sweep budget. Override with CS__PROXY__CONNECTOR_REQUEST_TIMEOUT.
   CS__SERVER__HOST="${host}" \
   CS__SERVER__PORT="${port}" \
   CS__COMMON__ENVIRONMENT=development \
+  CS__PROXY__CONNECTOR_REQUEST_TIMEOUT="${CS__PROXY__CONNECTOR_REQUEST_TIMEOUT:-10}" \
   RUST_LOG=error \
     "${binary}" > /dev/null 2>&1 &
   GRPC_SERVER_PID=$!

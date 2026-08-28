@@ -8,5 +8,13 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/Void"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "fiserv returns NOT_IMPLEMENTED for Cards 3DS"
+    }
+  }
 }
