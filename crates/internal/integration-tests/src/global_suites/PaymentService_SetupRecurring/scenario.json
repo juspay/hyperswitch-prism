@@ -32,6 +32,7 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
+        "connector_customer_id": null,
         "phone_number": {
           "value": "auto_generate"
         }
@@ -144,6 +145,7 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
+        "connector_customer_id": null,
         "phone_number": {
           "value": "auto_generate"
         }
@@ -255,6 +257,7 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
+        "connector_customer_id": null,
         "phone_number": {
           "value": "auto_generate"
         }
@@ -368,6 +371,7 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
+        "connector_customer_id": null,
         "phone_number": {
           "value": "auto_generate"
         }

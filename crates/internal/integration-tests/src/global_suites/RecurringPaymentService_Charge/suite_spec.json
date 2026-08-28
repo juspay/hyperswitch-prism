@@ -3,12 +3,7 @@
   "suite_type": "dependent",
   "depends_on": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
-    {
-      "suite": "CustomerService/Create",
-      "context_map": {
-        "connector_customer_id": "res.connector_customer_id"
-      }
-    },
+    "CustomerService/Create",
     {
       "suite": "PaymentService/SetupRecurring",
       "context_map": {

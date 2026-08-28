@@ -14,6 +14,8 @@ use std::{
     time::Duration,
 };
 
+use base64::Engine;
+use prost::Message;
 use reqwest::{blocking::Client, Url};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -1973,8 +1975,15 @@ fn execute_grpcurl_from_request(
     let stderr_output = String::from_utf8_lossy(&output.stderr).trim().to_string();
     let response_output = build_grpc_response_output(&stdout_output, &stderr_output);
 
-    let response_body = extract_json_body_from_grpc_output(&stdout_output, &stderr_output)
-        .or_else(|| error_body_from_grpc_output(&stdout_output, &stderr_output))
+    // error_body_from_grpc_output runs first: a failed call's grpcurl output
+    // can contain a syntactically valid JSON blob that is not the response
+    // (e.g. the {"code":13,"message":"grpc-status-details-bin mismatch: ..."}
+    // diagnostic -format-error prints when it cannot resolve non-standard
+    // status details). extract_json_body_from_grpc_output's generic "find any
+    // JSON value" fallback would otherwise grab that diagnostic and return it
+    // as if it were the response body, hiding the real error content.
+    let response_body = error_body_from_grpc_output(&stdout_output, &stderr_output)
+        .or_else(|| extract_json_body_from_grpc_output(&stdout_output, &stderr_output))
         .unwrap_or_else(|| stdout_output.clone());
 
     Ok(GrpcExecutionResult {
@@ -2009,6 +2018,40 @@ fn error_body_from_grpc_output(stdout_output: &str, stderr_output: &str) -> Opti
                 }
             }
         }
+    }
+    // UCS encodes ConnectorError/IntegrationError as raw protobuf bytes via
+    // Status::with_details (ucs_env/src/error.rs), not wrapped in a
+    // google.rpc.Status/Any envelope, so grpcurl's reflection can't resolve
+    // it and -format-error falls back to a "grpc-status-details-bin
+    // mismatch" diagnostic with no `details` array. Decode the
+    // grpc-status-details-bin trailer directly with the same generated proto
+    // types the server encoded it with.
+    for text in [stdout_output, stderr_output] {
+        if let Some(error) = error_json_from_details_bin(text) {
+            return Some(error);
+        }
+    }
+    None
+}
+
+/// Extracts the `grpc-status-details-bin` trailer grpcurl prints and decodes
+/// it as whichever of `ConnectorError` / `IntegrationError` it parses as —
+/// the same generated prost types `ucs_env::error::ToGrpcStatus` encodes with
+/// — returning the `{"error": ...}` shape assertions read as `error.*`.
+fn error_json_from_details_bin(text: &str) -> Option<String> {
+    let b64 = text
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("grpc-status-details-bin:"))?
+        .trim();
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64).ok()?;
+
+    if let Ok(err) = grpc_api_types::payments::ConnectorError::decode(bytes.as_slice()) {
+        if let Some(info) = err.error_info {
+            return Some(serde_json::json!({ "error": info }).to_string());
+        }
+    }
+    if let Ok(err) = grpc_api_types::payments::IntegrationError::decode(bytes.as_slice()) {
+        return Some(serde_json::json!({ "error": err }).to_string());
     }
     None
 }
@@ -4028,6 +4071,11 @@ fn execute_dependency_chain(
         };
         let current_label = dependency_label(dependency_suite, &dependency_scenario);
 
+        // Earlier siblings' context_map entries, not just their raw req/res,
+        // must reach a nested dependency too — otherwise a dependency several
+        // levels deep never receives context (e.g. an already-created
+        // customer ID) from earlier siblings in the same chain and either
+        // goes unattached or creates its own duplicate resource.
         let dep_result = execute_single_scenario_with_context(
             dependency_suite,
             &dependency_scenario,
@@ -4035,7 +4083,7 @@ fn execute_dependency_chain(
             options,
             &dependency_reqs,
             &dependency_res,
-            &[],
+            &explicit_context_entries,
             &dependency_entries,
         );
 
@@ -4730,14 +4778,29 @@ fn execute_single_scenario_with_context(
                 options.plaintext,
             )?;
 
-            if !trace.success {
+            // grpcurl exits non-zero on every gRPC error status, including an
+            // expected decline, so !trace.success alone does not mean there is
+            // nothing to assert on. error_body_from_grpc_output (behind
+            // trace.response_body) already recovers a structured `error` object
+            // for a connector decline; only when that recovery genuinely found
+            // nothing (a transport/infra failure, or a status shape this
+            // harness cannot decode) is the call reported as an execution
+            // failure instead of being handed to do_assertion like any other
+            // response.
+            let parsed_response_json = (!trace.success)
+                .then(|| serde_json::from_str::<Value>(&trace.response_body).ok())
+                .flatten();
+            let has_error_to_assert = parsed_response_json
+                .as_ref()
+                .is_some_and(|json| json.get("error").is_some());
+
+            if !trace.success && !has_error_to_assert {
                 let response_output = trace.response_output;
-                let response_json = serde_json::from_str::<Value>(&trace.response_body)
-                    .unwrap_or_else(|_| {
-                        serde_json::json!({
-                            "raw_response": response_output.clone(),
-                        })
-                    });
+                let response_json = parsed_response_json.unwrap_or_else(|| {
+                    serde_json::json!({
+                        "raw_response": response_output.clone(),
+                    })
+                });
 
                 return Ok(ExecutedScenario {
                     effective_req,

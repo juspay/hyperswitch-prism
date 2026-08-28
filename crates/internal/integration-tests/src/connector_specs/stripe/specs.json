@@ -8,7 +8,6 @@
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Get",
     "EventService/HandleEvent",
-    "PaymentService/IncrementalAuthorization",
     "PaymentService/ProxyAuthorize",
     "PaymentService/ProxySetupRecurring",
     "RecurringPaymentService/Charge",
@@ -45,6 +44,15 @@
     "PaymentService/Authorize": {
       "no3ds_auto_capture_bacs_bank_transfer": "connector code bug, not a test-data issue: the transformer routes bacs_bank_transfer through Stripe's customer_balance payment type (EUR/USD only) while also setting bank_transfer[type]=gb_bank_transfer (GBP only) — Stripe rejects every currency because the two nested constraints it validates are mutually exclusive. Needs a fix in connectors/stripe/transformers.rs's BacsBankTransfer arm, tracked separately.",
       "no3ds_manual_capture_incremental_auth": "Stripe sandbox account limitation, not a code or test-data issue: Stripe rejects the request with payment_intent_invalid_parameter — \"This account is not eligible for the requested card features\" — incremental authorization must be enabled on the Stripe account by Stripe support before this can be certified."
+    },
+    "PaymentService/TokenSetupRecurring": {
+      "token_setup_mandate": "connector code gap, not a test-data issue: stripe's SetupMandate transformer has no arm for a payment method sourced from a connector token — the server returns NOT_IMPLEMENTED (\"Selected payment method through stripe\") before any request reaches Stripe. Plain-card PaymentService/SetupRecurring is fully implemented and passes; only the token-sourced variant is missing. Needs a fix in connectors/stripe/transformers.rs's SetupMandate arm, tracked separately."
+    },
+    "PaymentService/ProxyAuthorize": {
+      "proxy_auto_capture_card": "connector code bug, not a test-data or framework issue: Stripe returns a valid HTTP response but the ProxyAuthorize response transformer fails with RESPONSE_DESERIALIZATION_FAILED (\"response body did not match the expected format\"). Needs a fix in connectors/stripe/transformers.rs's ProxyAuthorize response arm, tracked separately."
+    },
+    "PaymentService/ProxySetupRecurring": {
+      "proxy_setup_mandate": "connector code bug, not a test-data or framework issue: same RESPONSE_DESERIALIZATION_FAILED as ProxyAuthorize's proxy_auto_capture_card — Stripe returns a valid HTTP response but the ProxySetupRecurring response transformer fails to deserialize it. Needs a fix in connectors/stripe/transformers.rs, tracked separately."
     }
   }
 }
