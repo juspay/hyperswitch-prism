@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use common_utils::Method;
 use grpc_api_types::payments::Money;
+use hyperswitch_masking::Secret;
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RedirectForm {
@@ -15,6 +16,13 @@ pub enum RedirectForm {
     },
     BlueSnap {
         payment_fields_token: String, // payment-field-token
+    },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: Secret<String>,
+    },
+    WorldpayxmlRedirectForm {
+        jwt: Secret<String>,
     },
     CybersourceAuthSetup {
         access_token: String,

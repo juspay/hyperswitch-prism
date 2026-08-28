@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine};
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
@@ -12,11 +12,14 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_address::AddressDetails,
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -28,12 +31,7 @@ use super::{
     WorldpayxmlRouterData,
 };
 use crate::{types::ResponseRouterData, utils};
-use common_utils::{pii::SecretSerdeValue, request::Method};
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
-use domain_types::errors::IntegrationErrorContext;
-use domain_types::payment_address::AddressDetails;
-use domain_types::router_response_types::RedirectForm;
+use common_utils::pii::SecretSerdeValue;
 
 const API_VERSION: &str = "1.4";
 
@@ -427,67 +425,18 @@ pub(crate) fn get_worldpayxml_cookie(
         .map(|cookie| cookie.to_string())
         .ok_or(IntegrationError::MissingRequiredField {
             field_name: "connector_feature_data.cookie",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "the machine cookie captured on the challenge leg was not persisted"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "replay the connector metadata from the challenge response on the completion call"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
-}
-
-/// Device-data-collection page: a hidden iframe posts Bin+JWT to Cardinal Collect, the
-/// postMessage listener relays the SessionId back to the payment's redirect-complete
-/// endpoint. Mirrors the page hyperswitch renders for its native worldpayxml DDC flow;
-/// the relative-path form action works because hyperswitch serves this page on the
-/// payment's redirect path.
-pub(crate) fn build_worldpayxml_ddc_page(collect_url: &str, bin: &str, jwt: &str) -> String {
-    format!(
-        r#"<!DOCTYPE html>
-<html>
-<head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;">
-<h3 style="text-align: center;">Please wait while we perform Device Data Collection ...</h3>
-<iframe id="ddcFrame" height="1" width="1" style="display: none;"></iframe>
-<script>
-    window.onload = function() {{
-        var iframe = document.getElementById('ddcFrame');
-        var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        var formHtml = '<form id="collectionForm" method="POST" action="{collect_url}">' +
-            '<input type="hidden" name="Bin" value="{bin}" />' +
-            '<input type="hidden" name="JWT" value="{jwt}" />' +
-            '</form>';
-        iframeDoc.open();
-        iframeDoc.write(formHtml);
-        iframeDoc.close();
-        iframeDoc.getElementById('collectionForm').submit();
-    }};
-    window.addEventListener("message", function(event) {{
-        var sessionId = null;
-        var actionCode = "FAILURE";
-        try {{
-            var data = JSON.parse(event.data);
-            sessionId = data.Payload.SessionId;
-            actionCode = data.Payload.ActionCode;
-        }} catch (e) {{}}
-        var responseForm = document.createElement('form');
-        responseForm.action = window.location.pathname.replace(
-            new RegExp("payments/redirect/([^/]+)/([^/]+)/[^/]+"),
-            "payments/$1/$2/redirect/complete/worldpayxml"
-        );
-        responseForm.method = 'POST';
-        var item1 = document.createElement('input');
-        item1.type = 'hidden';
-        item1.name = 'SessionId';
-        item1.value = sessionId;
-        responseForm.appendChild(item1);
-        var item2 = document.createElement('input');
-        item2.type = 'hidden';
-        item2.name = 'ActionCode';
-        item2.value = actionCode;
-        responseForm.appendChild(item2);
-        document.body.appendChild(responseForm);
-        responseForm.submit();
-    }}, false);
-</script>
-</body>
-</html>"#
-    )
 }
 
 pub(crate) fn sign_worldpayxml_jwt<C: Serialize>(
@@ -1625,22 +1574,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 &jwt_mac_key,
                 item.http_code,
             )?;
-            let step_up_base = router_data
-                .resource_common_data
-                .connectors
-                .worldpayxml
-                .secondary_base_url
-                .as_deref()
-                .ok_or_else(|| {
-                    utils::response_handling_fail(
-                        item.http_code,
-                        "worldpayxml: secondary_base_url must be configured for the 3ds challenge redirect.",
-                    )
-                })?;
-            let redirection_data = RedirectForm::Form {
-                endpoint: format!("{}/V2/Cruise/StepUp", step_up_base.trim_end_matches('/')),
-                method: Method::Post,
-                form_fields: HashMap::from([("JWT".to_string(), jwt)]),
+            let redirection_data = RedirectForm::WorldpayxmlRedirectForm {
+                jwt: Secret::new(jwt),
             };
             let cookie = router_data
                 .resource_common_data

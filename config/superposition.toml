@@ -175,7 +175,6 @@ connector_secondary_base_url = "https://onlinessr.vantivprelive.com"
 [[overrides]]
 _context_ = { connector = "worldpayxml" }
 connector_base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-connector_secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 
 # Cybersource
 [[overrides]]
@@ -631,7 +630,6 @@ connector_secondary_base_url = "https://onlinessr.vantivcnp.com"
 [[overrides]]
 _context_ = { connector = "worldpayxml", environment = "production" }
 connector_base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-connector_secondary_base_url = "https://centinelapi.cardinalcommerce.com"
 
 # Cybersource Production
 [[overrides]]

@@ -27,7 +27,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -826,28 +826,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             res.status_code,
         )?;
 
-        let collect_base = data
-            .resource_common_data
-            .connectors
-            .worldpayxml
-            .secondary_base_url
-            .as_deref()
-            .ok_or_else(|| {
-                utils::response_handling_fail(
-                    res.status_code,
-                    "worldpayxml: secondary_base_url must be configured for device data collection.",
-                )
-            })?;
-        let collect_url = format!("{}/V2/Cruise/Collect", collect_base.trim_end_matches('/'));
-        let html_data = worldpayxml::build_worldpayxml_ddc_page(&collect_url, &bin, &jwt);
-
         let mut router_data = data.clone();
         router_data.resource_common_data.status =
             common_enums::AttemptStatus::DeviceDataCollectionPending;
         router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
             resource_id: None,
             authentication_data: None,
-            redirection_data: Some(Box::new(RedirectForm::Html { html_data })),
+            redirection_data: Some(Box::new(RedirectForm::WorldpayxmlDDCForm {
+                bin,
+                jwt: Secret::new(jwt),
+            })),
             connector_response_reference_id: Some(
                 data.resource_common_data
                     .connector_request_reference_id

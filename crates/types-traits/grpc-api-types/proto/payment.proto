@@ -1619,7 +1619,29 @@ message RedirectForm {
     // A standalone script snippet (e.g. a device-data-collection script), when
     // the connector returns script content instead of a full HTML document.
     ScriptData script = 8;
+
+    // Worldpay WPG (worldpayxml) Cardinal device-data-collection data; the caller
+    // renders the collection page.
+    WorldpayxmlDdcData worldpayxml_ddc = 9;
+
+    // Worldpay WPG (worldpayxml) Cardinal challenge data; the caller renders the
+    // StepUp page.
+    WorldpayxmlChallengeData worldpayxml_challenge = 10;
   }
+}
+
+// Cardinal device-data-collection data for worldpayxml.
+message WorldpayxmlDdcData {
+  // First six digits of the card number.
+  string bin = 1;
+  // Signed DDC JWT.
+  SecretString jwt = 2;
+}
+
+// Cardinal challenge data for worldpayxml.
+message WorldpayxmlChallengeData {
+  // Signed challenge JWT.
+  SecretString jwt = 1;
 }
 
 // Represents data for an HTML form to be submitted
