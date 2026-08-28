@@ -1091,9 +1091,13 @@ x-connector: fiserv\n";
     fn unrecognisable_output_never_dumps_the_raw_text() {
         // The raw text carries request metadata, and with it the API key. Saying
         // nothing is better than saying that.
-        let out = "Request metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
+        let out =
+            "Request metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
         let shown = compact_error_for_console(Some(out));
-        assert!(!shown.contains("sk_test"), "a credential reached the log: {shown}");
+        assert!(
+            !shown.contains("sk_test"),
+            "a credential reached the log: {shown}"
+        );
         assert_eq!(shown, "no error message in the connector response");
     }
 
