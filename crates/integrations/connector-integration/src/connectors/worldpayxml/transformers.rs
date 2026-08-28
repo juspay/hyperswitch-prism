@@ -1678,7 +1678,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -1824,7 +1824,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -1966,7 +1966,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -2310,7 +2310,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
-                    payment_account_reference: None,
+                    payment_account_reference: payment.card_p_a_r.clone(),
                 };
 
                 Ok(Self {

@@ -75,6 +75,7 @@ pub struct WorldpayxmlPayment {
     pub last_event: WorldpayxmlLastEvent,
     #[serde(rename = "AuthorisationId")]
     pub authorisation_id: Option<WorldpayxmlAuthorisationId>,
+    pub card_p_a_r: Option<String>,
     #[serde(rename = "ISO8583ReturnCode")]
     pub iso8583_return_code: Option<WorldpayxmlISO8583ReturnCode>,
     // Additional fields from XML response (optional, not used in processing)
