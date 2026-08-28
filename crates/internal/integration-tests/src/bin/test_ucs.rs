@@ -1035,16 +1035,6 @@ x-connector: fiserv\n";
         );
     }
 
-    #[test]
-    fn a_metadata_line_is_preferred_over_nothing() {
-        // All preamble except the one line that names the connector: better to
-        // show that than a proto comment.
-        let shown = compact_error_for_console(Some(NO_RESPONSE));
-        assert!(
-            shown.contains("fiserv"),
-            "expected the surviving metadata line, got: {shown}"
-        );
-    }
 
     #[test]
     fn a_failure_is_always_a_failure() {

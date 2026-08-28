@@ -114,9 +114,8 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
-            # Certification reads these at run time, so a change here can break
-            # every connector while matching no connector path. Listed apart from
-            # rust-core because seven other jobs gate on that filter.
+            # Read at run time by certification; they match no connector path.
+            # Separate from rust-core, which seven other jobs also gate on.
             certification-inputs:
               - 'crates/internal/connector-creds/**'
               - 'crates/internal/integration-tests/src/bin/**'
@@ -124,12 +123,8 @@ jobs:
               - 'scripts/**'
               - 'config/**'
               - '.github/scripts/**'
-              # The ten shared files directly under src/ — utils, types,
-              # default_implementations and friends — are called by every
-              # connector but carry no connector name in their path, so the
-              # extractor below finds none and nothing is certified. A single
-              # `*` stops at the slash, so src/connectors/<name>.rs still
-              # selects only that connector.
+              # Shared connector code: no connector name in the path, so nothing
+              # would be selected. `*` stops at the slash, sparing connectors/.
               - 'crates/integrations/connector-integration/src/*.rs'
       - name: Extract changed connector names
         id: connector-names

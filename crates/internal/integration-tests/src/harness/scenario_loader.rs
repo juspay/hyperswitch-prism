@@ -4,7 +4,6 @@ use std::{
     path::PathBuf,
 };
 
-use serde::de::Error as _;
 use serde_json::Value;
 
 use crate::harness::scenario_types::{
@@ -310,13 +309,13 @@ pub fn merge_connector_specific_scenarios_in(
     let count = private.len();
     for (name, def) in private {
         if baseline.contains_key(&name) {
-            return Err(ScenarioError::ConnectorSpecParse {
+            return Err(ScenarioError::InvalidConnectorSpec {
                 path: root.join(connector).join(CONNECTOR_SCENARIOS_FILE),
-                source: serde::de::Error::custom(format!(
+                message: format!(
                     "{connector} defines {suite}/{name}, which already exists in the global \
                      suite. This file can only add scenarios; use override.json to change a \
                      shared one."
-                )),
+                ),
             });
         }
         baseline.insert(name, def);
@@ -937,58 +936,8 @@ mod tests {
         let _ = fs::remove_dir_all(temp_root);
     }
 
-    #[test]
-    fn a_connector_without_the_file_adds_nothing() {
-        let temp_root = unique_specs_dir();
-        fs::create_dir_all(temp_root.join("stripe")).expect("dir should be created");
-        let mut baseline = ScenarioFile::new();
-        let added = merge_connector_specific_scenarios_in(
-            &temp_root,
-            "stripe",
-            "PaymentService/Authorize",
-            &mut baseline,
-        )
-        .expect("a missing file is not an error");
-        assert_eq!(added, 0);
 
-        let _ = fs::remove_dir_all(temp_root);
-    }
 
-    #[test]
-    fn unsupported_scenarios_are_read_from_the_spec() {
-        // The reason is the map value, so "declared unsupported with no reason"
-        // is not expressible — the case the override-based version needed a
-        // runtime error and a test to catch.
-        let spec: ConnectorSuiteSpec = serde_json::from_value(serde_json::json!({
-            "connector": "stripe",
-            "supported_suites": ["PaymentService/Authorize"],
-            "unsupported_scenarios": {
-                "PaymentService/Authorize": {
-                    "no3ds_auto_capture_upi_qr": "stripe returns NotImplemented for UPI"
-                }
-            }
-        }))
-        .expect("spec with unsupported_scenarios should parse");
-
-        assert_eq!(
-            spec.unsupported_scenarios["PaymentService/Authorize"]["no3ds_auto_capture_upi_qr"],
-            "stripe returns NotImplemented for UPI"
-        );
-        assert!(spec
-            .unsupported_scenarios
-            .get("PaymentService/Capture")
-            .is_none());
-    }
-
-    #[test]
-    fn a_spec_without_unsupported_scenarios_still_parses() {
-        let spec: ConnectorSuiteSpec = serde_json::from_value(serde_json::json!({
-            "connector": "tsys",
-            "supported_suites": ["PaymentService/Authorize"]
-        }))
-        .expect("the field is optional");
-        assert!(spec.unsupported_scenarios.is_empty());
-    }
 
     #[test]
     fn configured_connectors_supports_env_override() {

@@ -360,6 +360,8 @@ pub enum ScenarioError {
         path: PathBuf,
         source: serde_json::Error,
     },
+    #[error("connector spec '{path}' is invalid: {message}")]
+    InvalidConnectorSpec { path: PathBuf, message: String },
     #[error("scenario skipped: {reason}")]
     Skipped { reason: String },
 }
