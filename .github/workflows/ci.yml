@@ -686,6 +686,17 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: .github/scripts/certify-connectors.sh
 
+      # Every request and response is already recorded per scenario; without this
+      # the file dies with the runner and only the assertion text survives.
+      - name: Upload certification reports
+        if: ${{ always() && env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: certification-reports
+          path: ${{ runner.temp }}/certify-*.json
+          if-no-files-found: ignore
+          retention-days: 2
+
       # A connector whose connector_specs/<name>/ directory did not exist at this
       # PR's base commit must prove itself on its own PR. Its specs.json states
       # what it supports in `supported_suites`.

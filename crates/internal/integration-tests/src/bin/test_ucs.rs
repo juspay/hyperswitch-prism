@@ -35,7 +35,7 @@ use inquire::{list_option::ListOption, validator::Validation, Confirm, MultiSele
 use integration_tests::harness::{
     credentials::load_connector_config,
     report::{append_report_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
-    scenario_api::{
+    scenario_api::{SuiteScenarioResult, 
         get_the_grpc_req_for_connector, run_all_suites_with_options,
         run_scenario_test_with_options, run_suite_test_with_options, ExecutionBackend,
         SuiteRunOptions, SuiteRunSummary, DEFAULT_ENDPOINT,
@@ -662,6 +662,9 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
         return;
     }
 
+    println!("\n[test_ucs] {}  {}", summary.suite, summary.connector);
+    let mut failures: Vec<&SuiteScenarioResult> = Vec::new();
+
     for result in &summary.results {
         let template_req =
             get_the_grpc_req_for_connector(&result.suite, &result.scenario, &summary.connector)
@@ -702,35 +705,57 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
         }
 
         if result.passed {
-            println!(
-                "[test_ucs] assertion result for '{}': PASS",
-                result.scenario
-            );
+            println!("  PASS  {}", result.scenario);
         } else if result.skipped {
             println!(
-                "[test_ucs] assertion result for '{}': SKIP ({})",
+                "  SKIP  {}  ({})",
                 result.scenario,
                 result.error.as_deref().unwrap_or("no reason given")
             );
         } else {
-            println!(
-                "[test_ucs] assertion result for '{}': FAIL ({})",
-                result.scenario,
-                compact_error_for_console(result.error.as_deref())
-            );
+            println!("  FAIL  {}", result.scenario);
+            failures.push(result);
         }
     }
 
     println!(
-        "[test_ucs] summary suite={} connector={} passed={} failed={} skipped={} unsupported={} connector_specific={}",
-        summary.suite,
-        summary.connector,
+        "\n  {} passed  {} failed  {} skipped  {} unsupported  {} connector-specific",
         summary.passed,
         summary.failed,
         summary.skipped,
         summary.unsupported,
         summary.connector_specific
     );
+
+    // Repeated here with their detail: a failure two hundred lines up, between
+    // thirty-five passes, is one nobody finds. Order and per-scenario identity
+    // are preserved — nothing is counted or merged.
+    if !failures.is_empty() {
+        println!("\n  FAILURES");
+        for result in failures {
+            println!("  {}", result.scenario);
+            println!(
+                "    assertion: {}",
+                compact_error_for_console(result.error.as_deref())
+            );
+            if let Some(detail) = connector_error_for_console(result.res_body.as_ref()) {
+                println!("    connector: {detail}");
+            }
+        }
+    }
+}
+
+/// The connector's own error from the response, when it carried one.
+///
+/// Printed verbatim and untruncated: it is the line someone reads first, and a
+/// code cut off mid-word is worth nothing.
+fn connector_error_for_console(res_body: Option<&Value>) -> Option<String> {
+    let details = res_body?.pointer("/error/connectorDetails")?;
+    let message = details.get("message").and_then(|v| v.as_str())?;
+    Some(match details.get("code").and_then(|v| v.as_str()) {
+        Some(code) if !code.is_empty() => format!("{code} — {message}"),
+        _ => message.to_string(),
+    })
 }
 
 fn compact_error_for_console(error: Option<&str>) -> String {
@@ -990,7 +1015,9 @@ enum ScenarioSelection {
 
 #[cfg(test)]
 mod tests {
-    use super::{compact_error_for_console, run_outcome, ScenarioSelection};
+    use super::{
+        compact_error_for_console, connector_error_for_console, run_outcome, ScenarioSelection,
+    };
 
     /// grpcurl's verbose output when the call itself produced no response. The
     /// method descriptor it echoes carries the proto's leading doc comments.
@@ -1027,6 +1054,28 @@ x-connector: fiserv\n";
             compact_error_for_console(Some(&with_message)),
             "connector returned 401 Unauthorized"
         );
+    }
+
+    #[test]
+    fn the_connectors_own_error_is_surfaced() {
+        // tsys returned this on 51 scenarios while every line read only
+        // "expected field to exist" — the cause appeared nowhere.
+        let body = serde_json::json!({
+            "error": { "connectorDetails": {
+                "code": "F9901",
+                "message": "The value of element 'transactionKey' is not valid." } }
+        });
+        assert_eq!(
+            connector_error_for_console(Some(&body)).as_deref(),
+            Some("F9901 — The value of element 'transactionKey' is not valid.")
+        );
+    }
+
+    #[test]
+    fn a_response_without_a_connector_error_prints_nothing() {
+        assert!(connector_error_for_console(None).is_none());
+        let ok = serde_json::json!({ "status": "CHARGED" });
+        assert!(connector_error_for_console(Some(&ok)).is_none());
     }
 
     #[test]
