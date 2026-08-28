@@ -8392,6 +8392,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.55",
  "tokio",
+ "toml 0.8.23",
  "tonic 0.14.5",
  "tonic-reflection",
  "tracing",

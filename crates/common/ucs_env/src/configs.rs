@@ -5,6 +5,9 @@ use std::sync::Arc;
 
 use common_utils::{
     connector_request_kafka::{ConnectorRequestKafkaConfig, ConnectorRequestKafkaConfigPatch},
+    connector_response_masking::{
+        CompiledMaskingKeys, ConnectorResponseMaskingConfig, ConnectorResponseMaskingConfigPatch,
+    },
     consts,
     events::{
         CompiledLogFieldsConfig, EventConfig, EventConfigPatch, RuntimeMetadata,
@@ -14,7 +17,10 @@ use common_utils::{
     SuperpositionConfig,
 };
 use domain_types::{
-    connector_types::ConnectorEnum,
+    connector_types::{
+        AuthenticatorConnectorEnum, ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
+    },
     types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
@@ -37,6 +43,8 @@ pub struct Config {
     pub lineage: LineageConfig,
     #[serde(default)]
     pub unmasked_headers: HeaderMaskingConfig,
+    #[serde(default)]
+    pub connector_response_masking: ConnectorResponseMaskingConfig,
     #[serde(default)]
     pub test: TestConfig,
     #[serde(default)]
@@ -62,6 +70,9 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub log_fields: Arc<CompiledLogFieldsConfig>,
+    #[serde(skip)]
+    #[patch(ignore)]
+    pub masking_keys: Arc<CompiledMaskingKeys>,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -336,6 +347,14 @@ impl WebhookSourceVerificationCall {
     }
 }
 
+fn is_known_connector(name: &str) -> bool {
+    ConnectorEnum::from_str(name).is_ok()
+        || SurchargeConnectorEnum::from_str(name).is_ok()
+        || PayoutConnectorEnum::from_str(name).is_ok()
+        || FrmConnectorEnum::from_str(name).is_ok()
+        || AuthenticatorConnectorEnum::from_str(name).is_ok()
+}
+
 impl Config {
     /// Recompute derived / cached fields from the raw config values.
     ///
@@ -349,6 +368,9 @@ impl Config {
                 self.log.fields.enabled,
                 &self.log.fields.incoming,
                 &self.log.fields.outgoing,
+            ));
+            self.masking_keys = Arc::new(CompiledMaskingKeys::compile(
+                &self.connector_response_masking,
             ));
         }
     }
@@ -411,6 +433,16 @@ impl Config {
                     ))
                 })?;
             }
+        }
+
+        let unknown = config
+            .connector_response_masking
+            .unknown_connectors(is_known_connector);
+        if !unknown.is_empty() {
+            return Err(config::ConfigError::Message(format!(
+                "connector_response_masking.connector_keys: unknown connector(s) `{}`",
+                unknown.join("`, `")
+            )));
         }
 
         Ok(config)
