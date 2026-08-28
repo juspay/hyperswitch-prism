@@ -360,7 +360,7 @@ pub fn log_after_initialization<T>(
     // Apply unified log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
     if log_fields_enabled {
-        apply_log_fields(log_fields);
+        apply_log_fields(log_fields, None);
     }
     #[cfg(not(feature = "log-transformations"))]
     {
@@ -772,6 +772,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
@@ -1138,6 +1139,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,

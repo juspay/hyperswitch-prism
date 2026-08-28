@@ -3,7 +3,6 @@ name = "ucs_env"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
@@ -63,6 +62,9 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc
     "vergen-gix-build",
     "framework-libs-members-env",
 ] }
+
+[dev-dependencies]
+toml = "0.8"
 
 [features]
 default = []

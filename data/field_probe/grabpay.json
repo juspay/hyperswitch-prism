@@ -3666,12 +3666,6 @@
         "error": "setup_mandate flow not supported by grabpay connector"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for grabpay"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "supported"

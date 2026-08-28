@@ -1491,6 +1491,15 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
+                        token_payment_method_type: match token.token_payment_method_type() {
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
+                                Some(payment_method_data::TokenPaymentMethod::ApplePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
+                                Some(payment_method_data::TokenPaymentMethod::GooglePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
+                        },
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -15722,7 +15731,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     merchant_charge_id: err.connector_transaction_id,
                     connector_feature_data: None,
                     mandate_reference_details: None,
-                    raw_connector_response: None,
+                    raw_connector_response,
                     status_code: err.status_code as u32,
                     response_headers: router_data_v2
                         .resource_common_data
@@ -19702,6 +19711,7 @@ pub fn tokenized_authorize_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    token_payment_method_type: None,
                 },
             )),
         }),
@@ -19797,6 +19807,7 @@ pub fn tokenized_setup_recurring_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    token_payment_method_type: None,
                 },
             )),
         }),

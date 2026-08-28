@@ -246,3 +246,8 @@ enqueue_timeout_ms = 5000
 
 [unmasked_headers]
 keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
+
+[connector_response_masking]
+enabled = false
+
+[connector_response_masking.connector_keys]
