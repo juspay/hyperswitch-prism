@@ -187,6 +187,9 @@ impl From<common_enums::AuthenticationType> for Auth3ds {
     }
 }
 
+const GOOGLE_PAY_TOKENIZATION_METHOD: &str = "android_pay";
+const GOOGLE_PAY_WALLET_NAME: &str = "Google Pay";
+
 pub fn tokenize_mints_payment_method<T>(request: &PaymentMethodTokenizationData<T>) -> bool
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
@@ -1943,7 +1946,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .get_four_digit_expiry_year()
                     .change_context(IntegrationError::InvalidDataFormat {
                         field_name: "google_pay_decrypted_data.card_exp_year",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "the decrypted google pay expiry year could not be normalized to four digits"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "send card_exp_year as a two or four digit year".to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })?;
 
                 match google_pay_decrypted_data.cryptogram.clone() {
@@ -1956,7 +1968,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             exp_month: google_pay_decrypted_data.card_exp_month.clone(),
                             cryptogram,
                             eci: google_pay_decrypted_data.eci_indicator.clone(),
-                            tokenization_method: "android_pay".to_string(),
+                            tokenization_method: GOOGLE_PAY_TOKENIZATION_METHOD.to_string(),
                         }),
                     ))),
                     None => Ok(Self::CardNetworkTransactionId(
@@ -1985,13 +1997,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             .get_encrypted_google_pay_token()
                             .change_context(IntegrationError::MissingRequiredField {
                                 field_name: "gpay wallet_token",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "encrypted google pay data carried no tokenization token"
+                                            .to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "pass the google pay tokenization_data token from the wallet sdk"
+                                            .to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
                             })?
                             .as_bytes()
                             .parse_struct::<StripeGpayToken>("StripeGpayToken")
                             .change_context(IntegrationError::InvalidWalletToken {
-                                wallet_name: "Google Pay".to_string(),
-                                context: Default::default(),
+                                wallet_name: GOOGLE_PAY_WALLET_NAME.to_string(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "the google pay token did not parse as a stripe gateway token"
+                                            .to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "configure the google pay gateway as stripe so the sdk mints a stripe-shaped token"
+                                            .to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
                             })?
                             .id,
                     ),
@@ -2042,12 +2074,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
         let (card_token, payment_method_id) = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => match t.token_payment_method_type {
+            PaymentMethodData::PaymentMethodToken(pmt) => match pmt.token_payment_method_type {
                 Some(
                     payment_method_data::TokenPaymentMethod::ApplePay
                     | payment_method_data::TokenPaymentMethod::GooglePay,
-                ) => (Some(t.token.clone()), None),
-                None => (None, Some(t.token.clone())),
+                ) => (Some(pmt.token.clone()), None),
+                None => (None, Some(pmt.token.clone())),
             },
             _ => (None, None),
         };
