@@ -14,6 +14,9 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 
+/// Flows probed once per payment method through dedicated generators.
+const PAYMENT_METHOD_ITERATED_FLOWS: &[&str] = &["authorize", "tokenize"];
+
 fn main() {
     println!("cargo:rerun-if-changed=../../ffi/ffi/src/services/payments.rs");
     println!("cargo:rerun-if-changed=../../types-traits/grpc-api-types/proto/services.proto");
@@ -64,8 +67,9 @@ fn discover_flows_from_ffi() -> Vec<FlowInfo> {
             }
 
             if let (Some(fn_name), Some(request_type)) = (fn_name, request_type) {
-                // Skip authorize - it's handled specially with payment methods
-                if fn_name == "authorize_req_transformer" {
+                if PAYMENT_METHOD_ITERATED_FLOWS
+                    .contains(&fn_name.trim_end_matches("_req_transformer"))
+                {
                     continue;
                 }
                 // Skip req_handler and res_handler variants - they're handled by the base transformer
@@ -220,7 +224,7 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
     writeln!(f).unwrap();
 
     for flow in flows {
-        if flow.key != "tokenize" {
+        if !PAYMENT_METHOD_ITERATED_FLOWS.contains(&flow.key.as_str()) {
             generate_probe_function(&mut f, flow);
         }
     }

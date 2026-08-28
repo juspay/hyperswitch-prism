@@ -32,6 +32,9 @@ pub fn probe_flow_by_definition(
     if def.has_payment_methods {
         let mut results = BTreeMap::new();
         for (pm_name, pm) in pm_variants {
+            if def.key == "tokenize" && !crate::registry::is_tokenize_pm_variant(pm_name) {
+                continue;
+            }
             let auth = crate::auth::dummy_auth(connector);
             let result = match def.key {
                 "tokenize" => {
