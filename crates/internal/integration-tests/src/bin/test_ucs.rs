@@ -763,6 +763,18 @@ fn compact_error_for_console(error: Option<&str>) -> String {
         return "unknown error".to_string();
     };
 
+    // `-format-error` makes grpcurl print the status as JSON, so the message is
+    // a field rather than a line to find. Preferred over any text scraping.
+    for chunk in error.split("\n\n") {
+        if let Ok(status) = serde_json::from_str::<Value>(chunk.trim()) {
+            if let Some(message) = status.get("message").and_then(Value::as_str) {
+                if !message.is_empty() {
+                    return truncate_for_console(message, 220);
+                }
+            }
+        }
+    }
+
     for line in error.lines() {
         let trimmed = line.trim();
         if let Some(message) = trimmed.strip_prefix("Message:") {
@@ -795,17 +807,10 @@ fn compact_error_for_console(error: Option<&str>) -> String {
     // proto's own doc comments. Those read like a sentence, so without skipping
     // them every such failure is reported as "// Authorize a payment amount on a
     // payment method…" and the real cause never reaches the log.
-    for line in error.lines() {
-        let trimmed = line.trim();
-        if is_grpcurl_preamble(trimmed) {
-            continue;
-        }
-        return truncate_for_console(trimmed, 220);
-    }
 
-    // Everything was preamble. The whole text beats a proto comment, and the
-    // caller can still see it is a no-response failure.
-    truncate_for_console(error.trim(), 220)
+    // Nothing identifiable. Say so rather than dumping the raw output, which
+    // carries the request metadata and with it the connector's API key.
+    "no error message in the connector response".to_string()
 }
 
 /// Lines grpcurl prints around a call rather than about its outcome.
@@ -1070,6 +1075,26 @@ x-connector: fiserv\n";
             compact_error_for_console(Some(&with_message)),
             "connector returned 401 Unauthorized"
         );
+    }
+
+    #[test]
+    fn the_json_status_message_is_preferred() {
+        // With -format-error grpcurl prints the status as JSON, so there is no
+        // "ERROR:" block to anchor on.
+        let out = "{\"code\":3,\"message\":\"Your card was declined.\"}\n\nRequest metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
+        let shown = compact_error_for_console(Some(out));
+        assert_eq!(shown, "Your card was declined.");
+        assert!(!shown.contains("sk_test"));
+    }
+
+    #[test]
+    fn unrecognisable_output_never_dumps_the_raw_text() {
+        // The raw text carries request metadata, and with it the API key. Saying
+        // nothing is better than saying that.
+        let out = "Request metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
+        let shown = compact_error_for_console(Some(out));
+        assert!(!shown.contains("sk_test"), "a credential reached the log: {shown}");
+        assert_eq!(shown, "no error message in the connector response");
     }
 
     #[test]
