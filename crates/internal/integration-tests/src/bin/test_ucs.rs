@@ -787,7 +787,7 @@ fn is_grpcurl_preamble(trimmed: &str) -> bool {
         || trimmed.starts_with("//")
         || trimmed.starts_with("rpc ")
         // Header lines grpcurl emits under the metadata sections.
-        || trimmed.starts_with("(empty)")
+        || trimmed == "(empty)"
 }
 
 fn truncate_for_console(text: &str, max_chars: usize) -> String {

@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use serde_json::Value;
@@ -259,7 +259,7 @@ pub fn load_connector_specific_scenarios(
 /// `UCS_CONNECTOR_SPECS_ROOT`, which is process-wide and races every other test
 /// that discovers connectors from that directory.
 pub fn load_connector_specific_scenarios_in(
-    root: &std::path::Path,
+    root: &Path,
     connector: &str,
     suite: &str,
 ) -> Result<ScenarioFile, ScenarioError> {
@@ -271,16 +271,16 @@ pub fn load_connector_specific_scenarios_in(
         path: path.clone(),
         source,
     })?;
-    let by_suite = serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
+    let mut by_suite = serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
         ScenarioError::ScenarioFileParse {
             path: path.clone(),
             source,
         }
     })?;
-    let Some(scenarios) = by_suite.get(suite) else {
+    let Some(scenarios) = by_suite.remove(suite) else {
         return Ok(ScenarioFile::new());
     };
-    serde_json::from_value::<ScenarioFile>(scenarios.clone())
+    serde_json::from_value::<ScenarioFile>(scenarios)
         .map_err(|source| ScenarioError::ScenarioFileParse { path, source })
 }
 
@@ -300,17 +300,18 @@ pub fn merge_connector_specific_scenarios(
 
 /// Same, against an explicit specs root.
 pub fn merge_connector_specific_scenarios_in(
-    root: &std::path::Path,
+    root: &Path,
     connector: &str,
     suite: &str,
     baseline: &mut ScenarioFile,
 ) -> Result<usize, ScenarioError> {
     let private = load_connector_specific_scenarios_in(root, connector, suite)?;
     let count = private.len();
+    let path = root.join(connector).join(CONNECTOR_SCENARIOS_FILE);
     for (name, def) in private {
         if baseline.contains_key(&name) {
             return Err(ScenarioError::InvalidConnectorSpec {
-                path: root.join(connector).join(CONNECTOR_SCENARIOS_FILE),
+                path,
                 message: format!(
                     "{connector} defines {suite}/{name}, which already exists in the global \
                      suite. This file can only add scenarios; use override.json to change a \
@@ -573,7 +574,7 @@ pub fn get_the_grpc_req(suite: &str, scenario: &str) -> Result<Value, ScenarioEr
 pub fn get_the_assertion(
     suite: &str,
     scenario: &str,
-) -> Result<std::collections::BTreeMap<String, FieldAssert>, ScenarioError> {
+) -> Result<BTreeMap<String, FieldAssert>, ScenarioError> {
     Ok(load_scenario(suite, scenario)?.assert_rules)
 }
 
@@ -586,7 +587,7 @@ mod tests {
     };
 
     use super::{merge_connector_specific_scenarios_in, CONNECTOR_SCENARIOS_FILE};
-    use crate::harness::scenario_types::{ConnectorSuiteSpec, DependencyScope, ScenarioFile};
+    use crate::harness::scenario_types::{DependencyScope, ScenarioFile};
 
     fn unique_specs_dir() -> PathBuf {
         let nanos = SystemTime::now()

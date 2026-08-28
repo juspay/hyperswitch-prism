@@ -6120,7 +6120,7 @@ grpc-status: 0
                 // as the baseline; a private file is not a way around it. This
                 // also surfaces a name that collides with a global scenario.
                 if let Err(error) =
-                    merge_connector_specific_scenarios(&connector, &suite, &mut suite_scenarios)
+                    merge_connector_specific_scenarios(connector, &suite, &mut suite_scenarios)
                 {
                     failures.push(format!(
                         "{connector}/{suite}: connector-specific scenarios rejected: {error}"
