@@ -36,5 +36,13 @@
     "klarna",
     "przelewy24",
     "sepa_bank_transfer"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "invalid_signature": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "payment_failed": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "payment_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "refund_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here"
+    }
+  }
 }
