@@ -139,13 +139,14 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
+          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
 
           touched=$(echo "${CONNECTOR_FILES}" | \
             jq -r '.[]' | \
             grep -oE '(connectors|connector_specs)/[^/]+' | \
             sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
-            grep -v '^alpha_connectors.json$')
+            grep -v -E '^(alpha_connectors|live_connectors)\.json$')
 
           # Taking a connector off the alpha list is what starts certifying it,
           # but the edit touches only that shared file. Names present at the
@@ -157,7 +158,17 @@ jobs:
               <(jq -r '.connectors | keys[]' "$alpha"))
           fi
 
-          names=$(printf '%s\n%s\n' "$touched" "$promoted" | sed '/^$/d' | sort -u | paste -sd ',' -)
+          # Same idea for live_connectors.json: a connector added there starts
+          # being swept in on every shared-code change, but the edit touches
+          # only that shared file, not the connector's own spec_dir.
+          newly_live=""
+          if [ -f "$live" ]; then
+            newly_live=$(comm -13 \
+              <(git show "$base_ref:$live" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$live"))
+          fi
+
+          names=$(printf '%s\n%s\n%s\n' "$touched" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT
           echo "Changed connectors: $names"
 
@@ -193,8 +204,34 @@ jobs:
           CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
           BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
+          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
           modified_list=""
+
+          # Promoted off the alpha list, or newly added to the live list: the
+          # edit lives in a shared file, not the connector's own spec_dir, so
+          # a content diff on specs.json/override.json below would find
+          # nothing — the connector is newly exposed to certification (or, for
+          # the live list, to the shared-code sweep) regardless of whether its
+          # own files changed at all.
+          if [ -f "$alpha" ]; then
+            while IFS= read -r c; do
+              [ -n "$c" ] || continue
+              modified_list="${modified_list}${modified_list:+,}${c}"
+            done < <(comm -23 \
+              <(git show "$base_ref:$alpha" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$alpha"))
+          fi
+          if [ -f "$live" ]; then
+            while IFS= read -r c; do
+              [ -n "$c" ] || continue
+              modified_list="${modified_list}${modified_list:+,}${c}"
+            done < <(comm -13 \
+              <(git show "$base_ref:$live" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$live"))
+          fi
+
           IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
             spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
@@ -219,8 +256,10 @@ jobs:
               fi
             done
           done
+
+          modified_list=$(echo "$modified_list" | tr ',' '\n' | sed '/^$/d' | sort -u | paste -sd ',' -)
           echo "list=$modified_list" >> $GITHUB_OUTPUT
-          echo "Connectors with a modified specs.json/override.json: $modified_list"
+          echo "Connectors with a modified specs.json/override.json, promoted off alpha, or newly live: $modified_list"
 
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
