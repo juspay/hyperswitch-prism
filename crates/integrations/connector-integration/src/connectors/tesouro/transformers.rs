@@ -1313,6 +1313,7 @@ fn success_transaction_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     }
 }
 

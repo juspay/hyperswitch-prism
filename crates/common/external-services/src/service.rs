@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 use base64::Engine;
 use common_enums::ApiClientError;
 #[cfg(all(feature = "injector-client", feature = "log-transformations"))]
-use common_utils::events::apply_log_fields;
+use common_utils::events::{apply_log_fields, ConnectorResponseForLogging};
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
@@ -344,7 +344,29 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
         FlowStatus::Payment(status) => format!("payment_{status}"),
         FlowStatus::Refund(status) => format!("refund_{status}"),
         FlowStatus::Dispute(status) => format!("dispute_{status}"),
+        FlowStatus::Payout(status) => format!("payout_{status}"),
     }
+}
+
+#[cfg(feature = "log-transformations")]
+fn capture_connector_reply<E>(
+    response: &Result<Result<Response, Response>, E>,
+    masking_keys: &common_utils::connector_response_masking::CompiledMaskingKeys,
+) -> Option<(bytes::Bytes, Option<String>)> {
+    if !masking_keys.enabled {
+        return None;
+    }
+
+    response.as_ref().ok().map(|result| match result {
+        Ok(body) | Err(body) => (
+            body.response.clone(),
+            body.headers
+                .as_ref()
+                .and_then(|headers| headers.get("content-type"))
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned),
+        ),
+    })
 }
 
 /// Handles the connector response, processing both successful and error responses
@@ -374,6 +396,7 @@ where
                     let status_code = body.status_code;
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
+                    tracing::Span::current().record("res_code", u64::from(status_code));
 
                     if all_keys_required.unwrap_or(true) && return_raw {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
@@ -475,6 +498,17 @@ where
 
                     if let Some(evt) = event {
                         evt.set_error_response(&error_response);
+                        let mut json_fields: Vec<(&'static str, serde_json::Value)> = Vec::new();
+                        if let Some(error_data) = &evt.error {
+                            json_fields.push(("response.body", error_data.inner().clone()));
+                        }
+                        // Use event headers (already masked) — consistent with success path
+                        if let Ok(headers_json) = serde_json::to_value(&evt.headers) {
+                            json_fields.push(("response.headers", headers_json));
+                        }
+                        if !json_fields.is_empty() {
+                            record_json_fields_on_span(json_fields);
+                        }
                     }
                     tracing::Span::current().record(
                         "response.error_message",
@@ -484,6 +518,8 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    tracing::Span::current()
+                        .record("res_code", u64::from(error_response.status_code));
                     // Additive: record the connector flow outcome (FlowStatus) so a
                     // decline is visible even though the gRPC call "succeeded".
                     #[cfg(feature = "otel")]
@@ -580,7 +616,9 @@ pub struct EventProcessingParams<'a> {
     pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
+    pub org_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
     pub log_fields_enabled: bool,
@@ -598,11 +636,16 @@ pub struct EventProcessingParams<'a> {
         request.url = Empty,
         request.method = Empty,
         response.body = Empty,
+        response.masked_body = Empty,
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,
+        res_code = Empty,
         message_ = "Golden Log Line (outgoing)",
+        // `latency` is the pre-existing human-readable string; `latency_ms` is the same
+        // duration as a plain number of milliseconds, for numeric downstream consumers.
         latency = Empty,
+        latency_ms = Empty,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -633,6 +676,8 @@ where
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
+    #[cfg(feature = "log-transformations")]
+    let mut connector_reply: Option<(bytes::Bytes, Option<String>)> = None;
     let result = match (call_connector_action, transport_type) {
         (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
             let response = Response {
@@ -659,7 +704,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Http) => {
             let mut connector_request = connector
-                .build_request_v2(&router_data.clone())
+                .build_request_v2(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             let mut updated_router_data = router_data.clone();
@@ -716,6 +761,12 @@ where
                         consts::X_MERCHANT_ID,
                         Maskable::Masked(Secret::new(event_params.merchant_id.to_string())),
                     );
+                    if !event_params.org_id.is_empty() {
+                        req.add_header(
+                            consts::X_ORG_ID,
+                            Maskable::Masked(Secret::new(event_params.org_id.to_string())),
+                        );
+                    }
                     if let Some(payment_method) =
                         router_data.resource_common_data.get_payment_method_header()
                     {
@@ -954,6 +1005,12 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
+
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
@@ -991,7 +1048,7 @@ where
         }
         (common_enums::CallConnectorAction::Trigger, TransportType::Kafka) => {
             let kafka_record = connector
-                .build_kafka_record(&router_data.clone())
+                .build_kafka_record(&router_data)
                 .map_err(report_connector_request_to_flow)?;
 
             match kafka_record {
@@ -1066,12 +1123,16 @@ where
                         },
                         external_service_elapsed.as_secs_f64(),
                     );
-                    tracing::info!(?response, "response from connector");
-
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
+
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
 
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
@@ -1140,18 +1201,29 @@ where
                             connector_transaction_id: err.connector_transaction_id,
                         }
                     ))
-                })?;
-            Ok(data)
+                })
+                .map(|()| data)
         }
         Err(err) => Err(err),
     };
 
     let elapsed = start.elapsed().as_millis();
     tracing::Span::current().record("latency", elapsed);
-    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
+    // Additive numeric latency alongside the existing string `latency`.
+    tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled {
-        apply_log_fields(event_params.log_fields);
+    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+        apply_log_fields(
+            event_params.log_fields,
+            connector_reply
+                .as_ref()
+                .map(|(body, content_type)| ConnectorResponseForLogging {
+                    body,
+                    content_type: content_type.as_deref(),
+                    connector_name: event_params.connector_name,
+                    masking_keys: event_params.masking_keys,
+                }),
+        );
     }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
@@ -1389,7 +1461,7 @@ pub async fn call_connector_api(
             };
             info_log(
                 "REQUEST_FAILURE",
-                &json!(format!("Unable to send request to connector.",)),
+                &json!("Unable to send request to connector."),
             );
             report!(api_error)
         })
@@ -1724,14 +1796,8 @@ async fn handle_response(
 
 /// Helper function to remove BOM from response bytes and convert to string
 fn strip_bom_and_convert_to_string(response_bytes: &[u8]) -> Option<String> {
-    String::from_utf8(response_bytes.to_vec()).ok().map(|s| {
-        // Remove BOM if present (UTF-8 BOM is 0xEF, 0xBB, 0xBF)
-        if s.starts_with('\u{FEFF}') {
-            s.trim_start_matches('\u{FEFF}').to_string()
-        } else {
-            s
-        }
-    })
+    let stripped = common_utils::bytes_utils::strip_utf8_bom(response_bytes);
+    String::from_utf8(stripped.to_vec()).ok()
 }
 
 #[cfg(feature = "injector-client")]

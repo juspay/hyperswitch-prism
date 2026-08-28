@@ -116,5 +116,35 @@
     "https://docs.tamara.co/docs/postman-collection",
     "https://docs.tamara.co/docs/testing-checklist",
     "https://docs.tamara.co/docs/online-go-live-testing-checklist"
+  ],
+  "Checkout": [
+    "https://www.checkout.com/docs/payments/add-payment-methods/apple-pay/unified-payments-api",
+    "https://www.checkout.com/docs/payments/add-payment-methods/google-pay/unified-payments-api",
+    "https://api-reference.checkout.com/",
+    "https://api-reference.checkout.com/v1/swagger.json",
+    "https://www.checkout.com/docs/payments/accept-payments/accept-a-payment-using-the-payments-api",
+    "https://www.checkout.com/docs/developer-resources/api/api-endpoints",
+    "https://www.checkout.com/docs/developer-resources/api/manage-api-keys/api-keys",
+    "https://www.checkout.com/docs/developer-resources/api/idempotency",
+    "https://www.checkout.com/docs/developer-resources/event-notifications/receive-webhooks",
+    "https://www.checkout.com/docs/developer-resources/event-notifications/receive-webhooks/configure-your-webhook-server",
+    "https://www.checkout.com/docs/developer-resources/event-notifications/event-types",
+    "https://www.checkout.com/docs/developer-resources/codes/api-response-codes",
+    "https://www.checkout.com/docs/developer-resources/codes/error-codes",
+    "https://www.checkout.com/docs/developer-resources/codes/eci-values",
+    "https://www.checkout.com/docs/payments/store-and-manage-credentials/store-credentials/network-tokens",
+    "https://www.checkout.com/docs/developer-resources/testing/test-cards",
+    "https://www.checkout.com/docs/developer-resources/testing/payments-testing"
+  ],
+  "Ilixium": [
+    "https://docs.ilixium.com/docs/api/authorisation",
+    "https://docs.ilixium.com/docs/api/threedcomplete",
+    "https://docs.ilixium.com/docs/direct/3dsecure",
+    "https://docs.ilixium.com/docs/direct/digest",
+    "https://docs.ilixium.com/docs/direct/introduction",
+    "https://docs.ilixium.com/docs/direct/optional-address",
+    "https://docs.ilixium.com/docs/api/api",
+    "https://docs.ilixium.com/docs/response-codes/",
+    "https://docs.ilixium.com/docs/sandbox/"
   ]
 }

@@ -297,6 +297,10 @@ jobs:
             target/x86_64-unknown-linux-gnu/release-fast/uniffi-bindgen
           key: docs-binaries-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', 'crates/**/Cargo.toml', 'crates/**/*.rs', 'crates/**/*.proto') }}
 
+      - name: Generate Java protobuf stubs
+        if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
+        run: make -C sdk/java generate-proto
+
       - name: Generate UniFFI Kotlin bindings
         if: needs.changes.outputs.docs-trigger == 'true' || needs.changes.outputs.ci == 'true'
         env:
@@ -530,6 +534,9 @@ jobs:
       - name: Run Tests
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
+        env:
+          # Debug test binaries overflow the 2 MiB default thread stack.
+          RUST_MIN_STACK: "8388608"
         run: |
           CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"
           CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"

@@ -2,15 +2,18 @@ use common_enums;
 use connector_integration::types::{AuthenticatorConnectorData, ConnectorData};
 use domain_types::{connector_types::ConnectorVariant, utils::ForeignTryFrom as _};
 use grpc_api_types::payments::{
-    composite_payment_method_service_server::CompositePaymentMethodService,
-    merchant_authentication_service_server::MerchantAuthenticationService,
+    apple_wallet, composite_payment_method_service_server::CompositePaymentMethodService,
+    google_wallet, merchant_authentication_service_server::MerchantAuthenticationService,
+    payment_method::PaymentMethod as GrpcPaymentMethod,
     payment_method_service_server::PaymentMethodService, CompositePaymentMethodCreateRequest,
-    CompositePaymentMethodCreateResponse, CompositePaymentMethodGetRequest,
+    CompositePaymentMethodCreateResponse, CompositePaymentMethodEligibilityRequest,
+    CompositePaymentMethodEligibilityResponse, CompositePaymentMethodGetRequest,
     CompositePaymentMethodGetResponse, CompositePaymentMethodRechargeRequest,
     CompositePaymentMethodRechargeResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-    PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
-    PaymentMethodServiceRechargeRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodServiceCreateRequest, PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceTokenizeRequest,
 };
 use ucs_env::error::ResultExtGrpc;
 
@@ -19,6 +22,29 @@ use crate::transformers::ForeignFrom;
 use crate::utils::{
     connector_from_composite_authorize_metadata, connector_variant_from_composite_metadata,
 };
+
+fn is_wallet_payload_decrypted_network_token(
+    payment_method: Option<&grpc_api_types::payments::PaymentMethod>,
+) -> bool {
+    match payment_method.and_then(|pm| pm.payment_method.as_ref()) {
+        Some(GrpcPaymentMethod::GooglePaySdk(google_wallet)) => matches!(
+            google_wallet
+                .tokenization_data
+                .as_ref()
+                .and_then(|data| data.tokenization_data.as_ref()),
+            Some(google_wallet::tokenization_data::TokenizationData::DecryptedData(decrypted))
+                if decrypted.cryptogram.is_some()
+        ),
+        Some(GrpcPaymentMethod::ApplePaySdk(apple_wallet)) => matches!(
+            apple_wallet
+                .payment_data
+                .as_ref()
+                .and_then(|data| data.payment_data.as_ref()),
+            Some(apple_wallet::payment_data::PaymentData::DecryptedData(_))
+        ),
+        _ => false,
+    }
+}
 
 /// Implementation of CompositeAccessTokenRequest for payment method requests.
 /// These requests don't have a specific payment_method field since payment-method-management
@@ -64,6 +90,26 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
 }
 
 impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
+    }
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+    {
+        grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeAccessTokenRequest for CompositePaymentMethodEligibilityRequest {
     fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
     }
@@ -200,16 +246,26 @@ where
                     payload.payment_method_type(),
                 )
                 .ok();
+                let is_wallet_decrypted_network_token =
+                    is_wallet_payload_decrypted_network_token(payload.payment_method.as_ref());
                 match connector {
                     ConnectorVariant::Payment(c) => ConnectorData::<
                         domain_types::payment_method_data::DefaultPCIHolder,
                     >::get_connector_by_name(c)
                     .connector
-                    .should_do_payment_method_token(payment_method, payment_method_type),
+                    .should_do_payment_method_token(
+                        payment_method,
+                        payment_method_type,
+                        is_wallet_decrypted_network_token,
+                    ),
                     ConnectorVariant::Authenticator(c) => {
                         AuthenticatorConnectorData::get_connector_by_name(c)
                             .connector
-                            .should_do_payment_method_token(payment_method, payment_method_type)
+                            .should_do_payment_method_token(
+                                payment_method,
+                                payment_method_type,
+                                is_wallet_decrypted_network_token,
+                            )
                     }
                     _ => false,
                 }
@@ -335,6 +391,38 @@ where
             tokenize_response,
         }))
     }
+
+    async fn process_eligibility(
+        &self,
+        request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+
+        let inner = PaymentMethodServiceEligibilityRequest::foreign_from((
+            &payload,
+            access_token_response.as_ref(),
+        ));
+        let mut inner_request = tonic::Request::new(inner);
+        *inner_request.metadata_mut() = metadata;
+        *inner_request.extensions_mut() = extensions;
+
+        let eligibility_response = self
+            .payment_method_service
+            .eligibility(inner_request)
+            .await?
+            .into_inner();
+
+        Ok(tonic::Response::new(
+            CompositePaymentMethodEligibilityResponse {
+                access_token_response,
+                eligibility_response: Some(eligibility_response),
+            },
+        ))
+    }
 }
 
 #[tonic::async_trait]
@@ -368,5 +456,14 @@ where
         request: tonic::Request<CompositePaymentMethodRechargeRequest>,
     ) -> Result<tonic::Response<CompositePaymentMethodRechargeResponse>, tonic::Status> {
         self.process_recharge(request).await
+    }
+
+    /// Check payment method eligibility (e.g. gift-card/wallet status, performing the same
+    /// connector call as `get`). Same bootstrap + forward pattern.
+    async fn eligibility(
+        &self,
+        request: tonic::Request<CompositePaymentMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<CompositePaymentMethodEligibilityResponse>, tonic::Status> {
+        self.process_eligibility(request).await
     }
 }

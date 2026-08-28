@@ -1,5 +1,6 @@
 use common_utils::pii::SecretSerdeValue;
 use hyperswitch_masking::Secret;
+use std::sync::Arc;
 
 use crate::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -23,7 +24,7 @@ pub struct MerchantAuthenticationFlowData {
 
     /// Resolved connector base URLs — required by every connector impl
     /// to build the target endpoint (e.g. `connectors.paypal.base_url`).
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
 
     /// Idempotency / tracing key forwarded to the connector in the request.
     pub connector_request_reference_id: String,

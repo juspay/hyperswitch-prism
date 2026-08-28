@@ -82,7 +82,7 @@
       },
       "Bluecode": {
         "status": "error",
-        "error": "Invalid connector configuration: Deserializing CalidaMetadataObject from connector_meta_data value"
+        "error": "Stuck on field: shop_name — Missing required field: shop_name"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -668,12 +668,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for calida"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for calida"
       }
     },
     "verify_redirect": {

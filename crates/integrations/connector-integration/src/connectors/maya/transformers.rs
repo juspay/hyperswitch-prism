@@ -1,4 +1,7 @@
-use common_utils::{types::FloatMajorUnit, Method};
+use common_utils::{
+    types::{AmountConvertor, FloatMajorUnit, StringMajorUnit, StringMajorUnitForConnector},
+    Method,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, Void},
     connector_types::{
@@ -10,10 +13,11 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_request_types::{PaymentSynIntegrityObject, RefundIntegrityObject},
     router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -86,8 +90,6 @@ pub struct MayaPaymentsRequest {
     pub total_amount: MayaTotalAmount,
     pub redirect_url: MayaRedirectUrl,
     pub request_reference_number: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
 }
 
 /// `totalAmount` object carried by most Maya request bodies (`value` + `currency`,
@@ -251,6 +253,27 @@ pub struct MayaWebhookBody {
     pub can_void: Option<bool>,
     #[serde(default)]
     pub can_refund: Option<bool>,
+    /// Whether Maya has captured funds for this payment. Present on the
+    /// payment-inquiry response but not on every webhook event, so optional.
+    #[serde(default)]
+    pub can_capture: Option<bool>,
+    /// Whether the payment has been paid. Returned by the payment-inquiry
+    /// endpoint; absent on some webhook events, so optional.
+    #[serde(default)]
+    pub is_paid: Option<bool>,
+    /// Processed amount returned by Maya. The API reference documents this as a
+    /// JSON number, but Maya's live payment response actually serializes it as a
+    /// decimal string (e.g. `"100"`), so it is modeled as `StringMajorUnit` and
+    /// fed through the money framework into the PSync integrity check.
+    #[serde(default)]
+    pub amount: Option<StringMajorUnit>,
+    /// ISO 4217 currency echoed by Maya on the payment object.
+    #[serde(default)]
+    pub currency: Option<common_enums::Currency>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
 }
@@ -446,12 +469,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
 
-        let user_id = router_data
-            .request
-            .email
-            .clone()
-            .map(|email| email.peek().to_string());
-
         Ok(Self {
             total_amount: MayaTotalAmount {
                 value,
@@ -466,7 +483,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            user_id,
         })
     }
 }
@@ -477,6 +493,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaPaymentsResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let redirect_url = Url::parse(&item.response.redirect_url).change_context(
             ConnectorError::response_deserialization_failed_with_context(
                 item.http_code,
@@ -509,10 +527,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MayaPaymentsResponse,
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_status: None,
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -526,6 +546,8 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaWebhookBody, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let connector_request_reference_id = item
             .router_data
             .resource_common_data
@@ -533,6 +555,22 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
             .clone();
 
         let payment = item.response;
+
+        // Maya returns the processed amount/currency on the payment object. Run them
+        // through the money framework and hand them to the PSync integrity check,
+        // but only when both are present (Maya omits them for e.g. expired payments).
+        let integrity_object = match (payment.amount.clone(), payment.currency) {
+            (Some(amount), Some(currency)) => {
+                let amount = StringMajorUnitForConnector
+                    .convert_back(amount, currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "maya",
+                    ))?;
+                Some(PaymentSynIntegrityObject { amount, currency })
+            }
+            _ => None,
+        };
 
         let settlement_status = maya_settlement_status(payment.can_void, payment.can_refund);
 
@@ -566,11 +604,17 @@ impl TryFrom<ResponseRouterData<MayaWebhookBody, Self>>
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
+            request: PaymentsSyncData {
+                integrity_object,
+                ..item.router_data.request
+            },
             resource_common_data: PaymentFlowData {
                 status,
                 settlement_status,
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -584,6 +628,8 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaVoidResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let status = common_enums::AttemptStatus::from(item.response.status.clone());
         let void_id = item.response.id;
         let payment_id = item.response.payment;
@@ -600,6 +646,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                 network_txn_link_id: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -608,6 +655,7 @@ impl TryFrom<ResponseRouterData<MayaVoidResponse, Self>>
                     message: None,
                     reason: None,
                 }),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -658,6 +706,14 @@ pub struct MayaRefundResponse {
     pub status: MayaRefundStatus,
     #[serde(default)]
     pub reason: Option<String>,
+    /// Refunded amount echoed by Maya. Unlike the payment object's numeric
+    /// `amount`, Maya's refund response serializes it as a JSON string, so it is
+    /// modeled as `StringMajorUnit` and fed through the money framework.
+    #[serde(default)]
+    pub amount: Option<StringMajorUnit>,
+    /// ISO 4217 currency echoed by Maya on the refund response.
+    #[serde(default)]
+    pub currency: Option<common_enums::Currency>,
     #[serde(default)]
     pub request_reference_number: Option<String>,
     #[serde(default)]
@@ -726,12 +782,32 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MayaRefundResponse, Self>) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
             code: Some(item.response.status.to_string()),
             message: None,
             reason: None,
+        };
+
+        // Feed Maya's echoed refund amount/currency through the money framework into
+        // the refund integrity check, but only when Maya returns both.
+        let integrity_object = match (item.response.amount.clone(), item.response.currency) {
+            (Some(amount), Some(currency)) => {
+                let refund_amount = StringMajorUnitForConnector
+                    .convert_back(amount, currency)
+                    .change_context(crate::utils::response_handling_fail_for_connector(
+                        item.http_code,
+                        "maya",
+                    ))?;
+                Some(RefundIntegrityObject {
+                    refund_amount,
+                    currency,
+                })
+            }
+            _ => None,
         };
 
         Ok(Self {
@@ -741,8 +817,13 @@ impl TryFrom<ResponseRouterData<MayaRefundResponse, Self>>
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+            request: RefundsData {
+                integrity_object,
+                ..item.router_data.request
+            },
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -758,6 +839,8 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<MayaRefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
+
         let refund_status = common_enums::RefundStatus::from(item.response.status.clone());
 
         let raw_connector_status = RawConnectorStatus {
@@ -775,6 +858,7 @@ impl TryFrom<ResponseRouterData<MayaRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 raw_connector_status: Some(raw_connector_status),
+                raw_connector_response,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

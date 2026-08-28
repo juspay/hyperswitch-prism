@@ -101,7 +101,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -735,7 +735,7 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking"
+        "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -1443,19 +1443,13 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
+        "error": "This feature is not implemented: Juspay Authorize does not support payment method variant PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None }); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for juspay"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for juspay"
       }
     },
     "verify_redirect": {

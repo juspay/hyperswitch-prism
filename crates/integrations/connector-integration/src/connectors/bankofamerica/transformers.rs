@@ -571,6 +571,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -2345,6 +2346,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaSetupMandatesResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                     },
                     ..item.router_data
@@ -2546,6 +2548,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                             incremental_authorization_allowed,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         ..item.router_data
                     })
@@ -2563,6 +2566,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),

@@ -109,7 +109,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -120,6 +121,7 @@ mod tests {
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -129,6 +131,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -316,7 +319,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -328,6 +332,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -338,6 +343,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -476,7 +482,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -488,6 +495,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -498,6 +506,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -658,7 +667,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -671,6 +681,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -680,6 +691,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -1043,7 +1055,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1054,6 +1067,7 @@ mod tests {
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,
@@ -1064,6 +1078,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                split_settlement: None,
                 customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
@@ -1259,7 +1274,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1271,6 +1287,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 typed_connector_response: None,
             },
@@ -1280,6 +1297,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                split_settlement: None,
                 customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
@@ -1478,7 +1496,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1488,6 +1507,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -1609,7 +1629,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1620,6 +1641,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -1743,7 +1765,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1753,6 +1776,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -1763,6 +1787,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
@@ -1923,7 +1948,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1935,6 +1961,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 typed_connector_response: None,
             },
@@ -2067,7 +2094,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2077,6 +2105,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,
@@ -2199,7 +2228,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2209,6 +2239,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,

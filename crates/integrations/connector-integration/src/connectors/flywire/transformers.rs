@@ -521,6 +521,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -632,6 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 // HTTP 200 from /confirm only means Flywire accepted the form.

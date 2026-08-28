@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_enums::{
     AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
@@ -22,7 +22,8 @@ use crate::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{
-        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+        self, Card, CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData,
+        PaymentMethodDataTypes,
     },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
@@ -120,6 +121,7 @@ pub enum ConnectorEnum {
     Barclaycard,
     Nexixpay,
     Mollie,
+    Moneris,
     Airwallex,
     Tsys,
     Bankofamerica,
@@ -162,6 +164,9 @@ pub enum ConnectorEnum {
     Grabpay,
     Tesouro,
     Boost,
+    Citigate,
+    Ilixium,
+    Worldpayraft,
 }
 
 // snake case for enum variants
@@ -244,6 +249,9 @@ pub enum PayoutConnectorEnum {
     Worldpayxml,
     Cybersource,
     Santander,
+    Truelayer,
+    Trustly,
+    GotymeSanlam,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -256,6 +264,8 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
             ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
             ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
+            ConnectorEnum::Trustly => Ok(Self::Trustly),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -297,6 +307,9 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
             AuthType::Cybersource(_) => Ok(Self::Cybersource),
             AuthType::Santander(_) => Ok(Self::Santander),
+            AuthType::Truelayer(_) => Ok(Self::Truelayer),
+            AuthType::Trustly(_) => Ok(Self::Trustly),
+            AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -494,6 +507,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Hyperpg => Ok(Self::Hyperpg),
             grpc_api_types::payments::Connector::Zift => Ok(Self::Zift),
             grpc_api_types::payments::Connector::Revolv3 => Ok(Self::Revolv3),
+            grpc_api_types::payments::Connector::Moneris => Ok(Self::Moneris),
             grpc_api_types::payments::Connector::Ppro => Ok(Self::Ppro),
             grpc_api_types::payments::Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
@@ -519,7 +533,10 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
+            grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
+            grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
+            grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -800,7 +817,7 @@ pub struct PaymentFlowData {
     pub connector_http_status_code: Option<u16>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub external_latency: Option<u128>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -818,6 +835,7 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
     /// Settlement phase reported by the connector.
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
@@ -1586,6 +1604,10 @@ pub struct PaymentMethodEligibilityData {
     pub amount: common_utils::types::Money,
     /// Customer details (phone, email, name, etc.) for eligibility check.
     pub customer: Option<CustomerInfo>,
+    /// Connector-issued payment method ID (e.g. wallet number) being checked,
+    /// when known. Mirrors `GetPaymentMethodData`'s identifier so connectors
+    /// can reuse the same lookup as `GetPaymentMethod`.
+    pub connector_payment_method_id: Option<String>,
     /// Market/country the eligibility check is for. BNPL eligibility is
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the
@@ -1607,6 +1629,10 @@ pub struct PaymentMethodEligibilityData {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
     pub eligibility: common_enums::EligibilityStatus,
+    /// Payment method details resolved as part of the eligibility check (e.g.
+    /// wallet/gift-card balance and items), when the connector call that
+    /// determines eligibility also returns them.
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
     pub status_code: u32,
 }
 
@@ -1675,6 +1701,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -1974,6 +2003,7 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
+        payment_account_reference: Option<String>,
     },
     ClientAuthenticationTokenResponse {
         session_data: ClientAuthenticationTokenData,
@@ -2226,6 +2256,14 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub mandate_reference: Option<MandateReferenceId>,
     /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
     pub merchant_transaction_id: Option<String>,
+    /// Merchant-supplied connector metadata, mirroring `PaymentsAuthorizeData::metadata`.
+    ///
+    /// The gRPC request has always carried this (`PaymentMethodAuthenticationService
+    /// PreAuthenticateRequest.metadata`) but it was previously dropped on the floor here, so a
+    /// connector whose PreAuthenticate leg sends a full authorisation could not reach
+    /// merchant-supplied fields that have no home in the UCS payment model — Ilixium's
+    /// schema-mandatory `customer.dateOfBirth`, for one.
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
@@ -2703,7 +2741,7 @@ pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3420,6 +3458,9 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsDetails>,
+    /// Unified split settlement for the refund (supersedes split_refunds). Boxed to keep
+    /// the enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement_refund: Option<Box<SplitSettlementRefund>>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3492,6 +3533,9 @@ pub struct PaymentsCaptureData {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
 }
 
 impl PaymentsCaptureData {
@@ -3572,6 +3616,14 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+        )
+    }
+
     pub fn get_connector_testing_data(&self) -> Option<SecretSerdeValue> {
         self.connector_testing_data.clone()
     }
@@ -3646,6 +3698,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
     pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub payment_channel: Option<PaymentChannel>,
@@ -3761,7 +3816,7 @@ pub struct AcceptDisputeData {
 pub struct DisputeFlowData {
     pub dispute_id: Option<String>,
     pub connector_dispute_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
@@ -3817,7 +3872,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3872,7 +3927,7 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefreshPaymentMethodFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
@@ -4163,7 +4218,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::LocalBankRedirect
                 }
                 payment_method_data::BankRedirectData::Eft { .. } => Self::Eft,
-                payment_method_data::BankRedirectData::OpenBanking {} => Self::OpenBanking,
+                payment_method_data::BankRedirectData::OpenBanking { .. } => Self::OpenBanking,
                 payment_method_data::BankRedirectData::Netbanking { .. } => Self::Netbanking,
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
@@ -4428,6 +4483,83 @@ pub struct DirectChargeRefund {
 pub struct DestinationChargeRefund {
     pub revert_platform_fee: bool,
     pub revert_transfer: bool,
+}
+
+// ============================================================================
+// SPLIT SETTLEMENT — unified, connector-agnostic split contract (domain mirror
+// of proto SplitSettlement / SplitSettlementRefund). Supersedes SplitPaymentsDetails.
+// ============================================================================
+
+/// A split share expressed as an absolute amount OR a percentage (exactly one).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitValue {
+    /// Absolute amount (with currency) for this split line. Mirrors the proto `Money`
+    /// so the currency travels with the amount and the type stays consistent across
+    /// the proto and domain contracts.
+    Amount(Money),
+    /// Percentage of the payment for this split line.
+    Percentage(f64),
+}
+
+/// Split settlement across a marketplace (the platform's own cut) + N vendors (request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlement {
+    pub marketplace_split_details: Option<SplitSettlementMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementVendor>,
+}
+
+/// Marketplace / platform share (the merchant's own cut).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementMarketplace {
+    pub split_value: SplitValue,
+    /// Connector's own id for the marketplace/platform account this settles to.
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementVendor {
+    pub split_value: SplitValue,
+    /// Connector's own id for the payee (vendor) account this line settles to.
+    pub connector_sub_account_id: Option<String>,
+    /// Commission retained by the merchant from this vendor's share.
+    pub merchant_commission: Option<MinorUnit>,
+    /// Per-split description forwarded to the connector.
+    pub description: Option<String>,
+    /// Merchant's own per-split reference; forwarded to the connector as its per-split
+    /// reference (e.g. Adyen split item `reference`) and echoed on the response.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
+}
+
+/// Split settlement (refund request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefund {
+    pub marketplace_split_details: Option<SplitSettlementRefundMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementRefundVendor>,
+}
+
+/// Marketplace / platform refund share.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundMarketplace {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor refund split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundVendor {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+    pub merchant_commission: Option<MinorUnit>,
+    /// The merchant's OWN reference for this refund split.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -5565,6 +5697,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
             AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
+            AuthType::GotymeSanlam(_) => Ok(Self::Payout(PayoutConnectorEnum::GotymeSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
@@ -5656,6 +5789,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Authorizedotnet(_) => Ok(Self::Payment(ConnectorEnum::Authorizedotnet)),
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
+            AuthType::Moneris(_) => Ok(Self::Payment(ConnectorEnum::Moneris)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
@@ -5667,6 +5801,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Maya(_) => Ok(Self::Payment(ConnectorEnum::Maya)),
             AuthType::Tesouro(_) => Ok(Self::Payment(ConnectorEnum::Tesouro)),
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
+            AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
+            AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

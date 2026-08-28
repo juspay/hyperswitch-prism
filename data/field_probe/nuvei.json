@@ -511,7 +511,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Bank redirect method OpenBanking not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } not supported by Nuvei is not supported by nuvei"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -995,12 +995,6 @@
       "default": {
         "status": "not_supported",
         "error": "Payment method not supported for SetupMandate is not supported by nuvei"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for nuvei"
       }
     },
     "verify_redirect": {

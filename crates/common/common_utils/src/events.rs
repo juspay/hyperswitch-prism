@@ -475,6 +475,18 @@ impl EventStage {
 pub struct KafkaTopicConfig {
     pub topic: String,
     pub partition_key_field: String,
+    #[serde(default)]
+    pub payload_format: EventPayloadFormat,
+}
+
+#[derive(
+    Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum EventPayloadFormat {
+    #[default]
+    Json,
+    JsonString,
 }
 
 /// Controls whether transformations copy or replace the original source fields.
@@ -535,10 +547,16 @@ impl CompiledLogFields {
         let rules = raw
             .iter()
             .filter_map(|(target_path, field_entry)| {
-                let segments: Vec<String> = target_path.split('.').map(String::from).collect();
+                let decoded_target = crate::consts::decode_dot(target_path);
+                let segments: Vec<String> = decoded_target.split('.').map(String::from).collect();
                 let root_key = segments.first()?.clone();
                 let entry = match field_entry {
-                    LogFieldEntry::Source { source } => CompiledFieldEntry::Source(source.clone()),
+                    LogFieldEntry::Source { source } => {
+                        // In prod infra, `.` cannot be used in config keys, so
+                        // fields are specified as `request_DOT_body`. Decode
+                        // `_DOT_` back to `.` at compile time for correct lookups.
+                        CompiledFieldEntry::Source(crate::consts::decode_dot(source))
+                    }
                     LogFieldEntry::Value { value } => {
                         CompiledFieldEntry::Value(serde_json::Value::String(value.clone()))
                     }
@@ -583,6 +601,17 @@ impl CompiledLogFieldsConfig {
     }
 }
 
+#[cfg(feature = "log-transformations")]
+const MASKED_BODY_KEY: &str = "response.masked_body";
+
+#[cfg(feature = "log-transformations")]
+pub struct ConnectorResponseForLogging<'a> {
+    pub body: &'a [u8],
+    pub content_type: Option<&'a str>,
+    pub connector_name: &'a str,
+    pub masking_keys: &'a crate::connector_response_masking::CompiledMaskingKeys,
+}
+
 /// Apply compiled log field rules to the current span's storage.
 ///
 /// For each rule:
@@ -592,17 +621,42 @@ impl CompiledLogFieldsConfig {
 /// Dotted target paths build nested JSON objects. When writing a nested object,
 /// it is deep-merged with any existing value for the same root key in the span.
 #[cfg(feature = "log-transformations")]
-pub fn apply_log_fields(compiled: &CompiledLogFields) {
-    if compiled.is_empty() {
+pub fn apply_log_fields(
+    compiled: &CompiledLogFields,
+    connector_response: Option<ConnectorResponseForLogging<'_>>,
+) {
+    if compiled.is_empty() && connector_response.is_none() {
         return;
     }
 
-    // Snapshot span storage (needed for Source entries to read current values).
-    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> =
-        log_utils::Storage::with_current_span(|storage| storage.values().clone());
-
     // Build writes: for each rule, resolve the value and group by root key.
     let mut writes: HashMap<String, serde_json::Value> = HashMap::new();
+
+    if let Some(masked) = connector_response.and_then(|response| {
+        let masked = crate::connector_response_masking::mask_connector_response(
+            response.body,
+            response.content_type,
+            response.connector_name,
+            response.masking_keys,
+        )?;
+        tracing::debug!(
+            connector = response.connector_name,
+            content_type = response.content_type.unwrap_or("<none>"),
+            response_bytes = response.body.len(),
+            "built masked connector response"
+        );
+        Some(masked)
+    }) {
+        writes.insert(MASKED_BODY_KEY.to_string(), masked);
+    }
+
+    let snapshot: Option<HashMap<Cow<'static, str>, serde_json::Value>> = compiled
+        .rules
+        .iter()
+        .any(|rule| matches!(rule.entry, CompiledFieldEntry::Source(_)))
+        .then(|| log_utils::Storage::with_current_span(|storage| storage.values().clone()))
+        .flatten();
+
     for rule in &compiled.rules {
         let resolved_value = match &rule.entry {
             CompiledFieldEntry::Value(v) => v.clone(),
@@ -637,13 +691,14 @@ pub fn apply_log_fields(compiled: &CompiledLogFields) {
     // the subscriber and deadlocks when called inside `with_current_span_mut`.
     let writes: Vec<_> = writes
         .into_iter()
-        .filter(|(key, _)| {
+        .filter(|(key, value)| {
             if log_utils::Storage::is_reserved(key) {
                 tracing::warn!(
                     "Log field target key `{key}` is reserved by the logging infrastructure, skipping"
                 );
                 false
             } else {
+                tracing::info!(%value, "{key}");
                 true
             }
         })
@@ -698,16 +753,20 @@ pub fn maskable_headers_to_json<'a>(
 /// All reserved-key filtering happens **outside** the span lock to avoid
 /// deadlocks (the storage layer logs a warning for reserved keys, which would
 /// re-enter the subscriber).
+#[cfg(feature = "logging")]
 pub fn record_json_fields_on_span(fields: Vec<(&'static str, serde_json::Value)>) {
+    // Filter reserved keys and log fields outside the span lock to avoid deadlocks
+    // (tracing::info!/warn! re-enters the subscriber).
     let fields: Vec<_> = fields
         .into_iter()
-        .filter(|(key, _)| {
+        .filter(|(key, value)| {
             if log_utils::Storage::is_reserved(key) {
                 tracing::warn!(
                     "Span field `{key}` is reserved by the logging infrastructure, skipping"
                 );
                 false
             } else {
+                tracing::info!(%value, "{key}");
                 true
             }
         })
@@ -928,7 +987,27 @@ pub(crate) fn process_event_with_config(
         }
     }
 
+    if config.topic_config(&event.stage).payload_format == EventPayloadFormat::JsonString {
+        stringify_event_payloads(&mut result);
+    }
+
     Ok(result)
+}
+
+fn stringify_event_payloads(result: &mut serde_json::Value) {
+    let Some(obj) = result.as_object_mut() else {
+        return;
+    };
+
+    for field in ["request_data", "response_data", "error"] {
+        let Some(value) = obj.get_mut(field) else {
+            continue;
+        };
+
+        if !value.is_null() && !value.is_string() {
+            *value = serde_json::Value::String(value.to_string());
+        }
+    }
 }
 
 pub(crate) fn extract_from_request(

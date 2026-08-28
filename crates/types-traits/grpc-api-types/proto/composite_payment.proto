@@ -112,8 +112,10 @@ message CompositeAuthorizeRequest {
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 52;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 53;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 53 [deprecated = true];
+  // Unified split settlement (supersedes split_payments); forwarded to Authorize.
+  optional SplitSettlement split_settlement = 59;
 
   // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category. For
   // CIT this signals the future intended MIT type; for Authorize-as-MIT it
@@ -273,8 +275,8 @@ message CompositeGetRequest {
   // sync (e.g. Adyen, to build connector_response) can populate it.
   optional PaymentMethodType payment_method_type = 18;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 19;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 19 [deprecated = true];
 
   optional ConnectorMandateReferenceId mandate_reference = 20;
 }
@@ -334,6 +336,8 @@ message CompositeRefundRequest {
 
   // Split refund data for platform fee reversals and transfers
   optional SplitRefundsDetails split_refunds = 21;
+  // Unified split settlement refund (supersedes split_refunds); forwarded to Refund.
+  optional SplitSettlementRefund split_settlement_refund = 22;
 }
 
 // Response message for composite refund flow.
@@ -437,8 +441,8 @@ message CompositeVoidRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 14;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 15;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
 }
 
 // Response message for composite void flow.
@@ -491,8 +495,9 @@ message CompositeCaptureRequest {
   // Order-level tax amount.
   optional Money order_tax_amount = 15;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 16;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 16 [deprecated = true];
+  optional SplitSettlement split_settlement = 17;
 }
 
 // Response message for composite capture flow.
@@ -580,7 +585,7 @@ message CompositePaymentMethodGetRequest {
   optional Money amount = 12;
   optional PaymentAddress address = 13;
   optional string return_url = 14;
-  optional SplitPaymentsDetails split_payments = 15;
+  optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
   optional PaymentMethod payment_method = 16;
 }
 
@@ -619,6 +624,34 @@ message CompositePaymentMethodRechargeRequest {
 message CompositePaymentMethodRechargeResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token generation result
   optional PaymentMethodServiceRechargeResponse recharge_response = 2; // Recharge operation result
+}
+
+// Request message for composite payment method eligibility flow.
+message CompositePaymentMethodEligibilityRequest {
+  Money amount = 1; // Order amount and currency
+  optional Customer customer = 2; // Customer details (phone, email, name, etc.)
+  optional PaymentAddress address = 3; // Billing and shipping address
+  repeated OrderDetailsWithAmount order_details = 4; // Order line items
+  optional CountryAlpha2 country = 5; // Market/country the eligibility check is for
+  optional PaymentMethodType payment_method_type = 6; // The specific payment method eligibility is being checked for
+  optional string description = 7; // Description for connector-rendered eligibility messaging
+  optional SecretString connector_feature_data = 8; // Connector-specific feature data for the transaction
+  optional bool test_mode = 9; // Sandbox/test mode flag
+  optional string connector_payment_method_id = 10; // Connector-issued payment method ID (e.g. wallet number) being checked, when known
+
+  // State Information (for access token)
+  optional ConnectorState state = 11;
+
+  // Access Token Request fields
+  optional SecretString metadata = 12;
+  optional string merchant_access_token_id = 13;
+  optional string merchant_request_id = 14; // Per-request idempotency / correlation token forwarded to the bootstrap call
+}
+
+// Response message for composite payment method eligibility flow.
+message CompositePaymentMethodEligibilityResponse {
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1;
+  optional PaymentMethodServiceEligibilityResponse eligibility_response = 2;
 }
 
 // Request message for composite verify redirect response flow.
@@ -740,8 +773,9 @@ message CompositeVerifyRedirectResponseRequest {
   // Connector-agnostic domain-specific data (airline, lodging, etc.).
   optional DomainData domain_data = 49;
 
-  // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsDetails split_payments = 50;
+  // Deprecated: use split_settlement instead. Legacy split payment configuration.
+  optional SplitPaymentsDetails split_payments = 50 [deprecated = true];
+  optional SplitSettlement split_settlement = 55;
 
   // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category.
   optional MitCategory mit_category = 51;

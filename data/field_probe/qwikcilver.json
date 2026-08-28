@@ -526,8 +526,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_supported",
-        "error": "eligibility flow not supported by qwikcilver connector"
+        "status": "error",
+        "error": "Stuck on field: connector_payment_method_id | customer.phone_number. Qwikcilver's wallet lookup accepts either the wallet number — Missing required field: connector_payment_method_id | customer.phone_number. Qwikcilver's wallet lookup accepts either the wallet number (preferred) or the customer's phone number as a fallback. Neither was supplied, so there's no way to identify which wallet to fetch."
       }
     },
     "get": {
@@ -632,12 +632,6 @@
       "default": {
         "status": "not_supported",
         "error": "setup_mandate flow not supported by qwikcilver connector"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_supported",
-        "error": "payment_method_token flow not supported by qwikcilver connector"
       }
     },
     "verify_redirect": {

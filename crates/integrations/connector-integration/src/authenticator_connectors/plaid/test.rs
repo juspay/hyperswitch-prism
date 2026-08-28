@@ -42,7 +42,7 @@ mod tests {
                 flow: PhantomData,
                 resource_common_data: MerchantAuthenticationFlowData {
                     merchant_id: common_utils::id_type::MerchantId::default(),
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     return_url: None,
@@ -231,7 +231,7 @@ mod tests {
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -247,6 +247,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
                     typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {
@@ -392,7 +393,7 @@ mod tests {
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
                     connector_http_status_code: None,
-                    connectors: Connectors::default(),
+                    connectors: Connectors::default().into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -408,6 +409,7 @@ mod tests {
                     sender_payment_instrument_id: None,
                     settlement_status: None,
                     raw_connector_status: None,
+                    connector_returned_payment_method_details: None,
                     typed_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Plaid {

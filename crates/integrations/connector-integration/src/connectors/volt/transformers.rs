@@ -190,7 +190,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(OpenBankingUk { transaction_type }),
                         None,
                     )),
-                    BankRedirectData::OpenBanking {} => {
+                    BankRedirectData::OpenBanking { .. } => {
                         if matches!(currency, common_enums::Currency::GBP) {
                             Ok((
                                 PaymentSystem::OpenBankingUk,
@@ -494,6 +494,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -589,6 +590,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         })
                     },
                     ..item.router_data
@@ -642,6 +644,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         })
                     },
                     ..item.router_data
