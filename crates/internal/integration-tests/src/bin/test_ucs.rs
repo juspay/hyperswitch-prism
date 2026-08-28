@@ -35,10 +35,10 @@ use inquire::{list_option::ListOption, validator::Validation, Confirm, MultiSele
 use integration_tests::harness::{
     credentials::load_connector_config,
     report::{append_report_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
-    scenario_api::{SuiteScenarioResult, 
+    scenario_api::{
         get_the_grpc_req_for_connector, run_all_suites_with_options,
         run_scenario_test_with_options, run_suite_test_with_options, ExecutionBackend,
-        SuiteRunOptions, SuiteRunSummary, DEFAULT_ENDPOINT,
+        SuiteRunOptions, SuiteRunSummary, SuiteScenarioResult, DEFAULT_ENDPOINT,
     },
     scenario_loader::{
         configured_all_connectors, discover_all_connectors, is_suite_supported_for_connector,
@@ -1079,8 +1079,14 @@ x-connector: fiserv\n";
         // key into a public CI log, and telling nobody what actually failed.
         let out = "\nRequest metadata to send:\nx-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"sk_test_SECRET\"}}}\n\nERROR:\n  Code: Internal\n  Message: connector returned no response\n";
         let shown = compact_error_for_console(Some(out));
-        assert!(!shown.contains("api_key"), "a credential reached the log: {shown}");
-        assert!(!shown.contains("sk_test"), "a credential reached the log: {shown}");
+        assert!(
+            !shown.contains("api_key"),
+            "a credential reached the log: {shown}"
+        );
+        assert!(
+            !shown.contains("sk_test"),
+            "a credential reached the log: {shown}"
+        );
         assert_eq!(shown, "connector returned no response");
     }
 
