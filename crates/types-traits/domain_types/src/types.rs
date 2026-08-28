@@ -16134,6 +16134,7 @@ impl ForeignTryFrom<ConnectorEnum> for grpc_api_types::payments::Connector {
             ConnectorEnum::Barclaycard => Ok(Self::Barclaycard),
             ConnectorEnum::Nexixpay => Ok(Self::Nexixpay),
             ConnectorEnum::Mollie => Ok(Self::Mollie),
+            ConnectorEnum::Moneris => Ok(Self::Moneris),
             ConnectorEnum::Airwallex => Ok(Self::Airwallex),
             ConnectorEnum::Tsys => Ok(Self::Tsys),
             ConnectorEnum::Bankofamerica => Ok(Self::Bankofamerica),
@@ -16175,6 +16176,9 @@ impl ForeignTryFrom<ConnectorEnum> for grpc_api_types::payments::Connector {
             ConnectorEnum::Grabpay => Ok(Self::Grabpay),
             ConnectorEnum::Tesouro => Ok(Self::Tesouro),
             ConnectorEnum::Boost => Ok(Self::Boost),
+            ConnectorEnum::Citigate => Ok(Self::Citigate),
+            ConnectorEnum::Ilixium => Ok(Self::Ilixium),
+            ConnectorEnum::Worldpayraft => Ok(Self::Worldpayraft),
             // The proto `Connector` enum has no variant for these two yet. They are listed
             // rather than swept up by a wildcard so that the match stays exhaustive: a new
             // `ConnectorEnum` variant fails to compile until it is either mapped above or
