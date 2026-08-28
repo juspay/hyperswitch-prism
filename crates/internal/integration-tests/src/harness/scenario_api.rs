@@ -1984,11 +1984,14 @@ fn execute_grpcurl_from_request(
 
 /// Builds the `error` object a failed call would have carried in its body.
 ///
-/// A connector that declines with 2xx returns `ConnectorError` inside the
-/// response; one that declines with 4xx returns the same content in the gRPC
-/// status instead, and the body is empty. Without this, the second kind can only
-/// pass a decline scenario by deleting the assertion — which is how fiserv ended
-/// up accepting CHARGED for a test named "fail payment".
+/// A connector that declines with 2xx returns `ErrorInfo` inside the response;
+/// one that declines with 4xx returns the same content in the gRPC status
+/// instead, and the body is empty. Without this, the second kind can only pass a
+/// decline scenario by deleting the assertion — which is how fiserv ended up
+/// accepting CHARGED for a test named "fail payment".
+///
+/// Built from the generated proto types rather than hand-written JSON keys, so a
+/// field rename moves both the real response and this one together.
 fn error_body_from_grpc_output(stderr_output: &str) -> Option<String> {
     let mut code = None;
     let mut message = None;
@@ -2000,18 +2003,17 @@ fn error_body_from_grpc_output(stderr_output: &str) -> Option<String> {
             message = Some(rest.trim().to_string());
         }
     }
-    let message = message?;
-    Some(
-        serde_json::json!({
-            "error": {
-                "connector_details": {
-                    "message": message,
-                    "code": code.unwrap_or_default(),
-                }
-            }
-        })
-        .to_string(),
-    )
+
+    let error = grpc_api_types::payments::ErrorInfo {
+        connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+            code,
+            message: Some(message?),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let body = serde_json::json!({ "error": serde_json::to_value(error).ok()? });
+    Some(body.to_string())
 }
 
 fn build_grpc_response_output(stdout_output: &str, stderr_output: &str) -> String {
