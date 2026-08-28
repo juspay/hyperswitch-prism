@@ -773,6 +773,22 @@ fn compact_error_for_console(error: Option<&str>) -> String {
         }
     }
 
+    // grpcurl prints request metadata before the outcome, and those lines carry
+    // credentials — x-connector-config holds the connector's API key. Anything
+    // before `ERROR:` is context, not the failure, so it is never displayed.
+    if let Some(rest) = error.split_once("ERROR:").map(|(_, rest)| rest) {
+        for line in rest.lines() {
+            let trimmed = line.trim();
+            if is_grpcurl_preamble(trimmed) || trimmed.starts_with("Code:") {
+                continue;
+            }
+            return truncate_for_console(
+                trimmed.strip_prefix("Message:").unwrap_or(trimmed).trim(),
+                220,
+            );
+        }
+    }
+
     // No `Message:` means grpcurl never got a response — the call was refused,
     // hung until it was killed, or the request could not be built. What is left
     // is its verbose preamble, and the method descriptor it prints carries the
@@ -1054,6 +1070,18 @@ x-connector: fiserv\n";
             compact_error_for_console(Some(&with_message)),
             "connector returned 401 Unauthorized"
         );
+    }
+
+    #[test]
+    fn request_metadata_is_never_shown_as_the_failure() {
+        // proxy_setup_mandate and token_setup_mandate reported the echoed
+        // x-connector-config header as their error — printing stripe's live API
+        // key into a public CI log, and telling nobody what actually failed.
+        let out = "\nRequest metadata to send:\nx-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"sk_test_SECRET\"}}}\n\nERROR:\n  Code: Internal\n  Message: connector returned no response\n";
+        let shown = compact_error_for_console(Some(out));
+        assert!(!shown.contains("api_key"), "a credential reached the log: {shown}");
+        assert!(!shown.contains("sk_test"), "a credential reached the log: {shown}");
+        assert_eq!(shown, "connector returned no response");
     }
 
     #[test]
