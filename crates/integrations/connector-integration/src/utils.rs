@@ -684,6 +684,29 @@ pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
     domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
 
+pub fn format_card_expiry_mmyy<T: PaymentMethodDataTypes>(
+    card: &domain_types::payment_method_data::Card<T>,
+) -> Result<Secret<String>, IntegrationError> {
+    let month = card.get_card_expiry_month_2_digit()?;
+    let year = card.get_card_expiry_year_2_digit()?;
+    Ok(Secret::new(format!(
+        "{}{}",
+        month.peek(),
+        year.peek()
+    )))
+}
+
+pub fn cavv_algorithm_to_str(algorithm: common_enums::CavvAlgorithm) -> &'static str {
+    match algorithm {
+        common_enums::CavvAlgorithm::Zero => "0",
+        common_enums::CavvAlgorithm::One => "1",
+        common_enums::CavvAlgorithm::Two => "2",
+        common_enums::CavvAlgorithm::Three => "3",
+        common_enums::CavvAlgorithm::Four => "4",
+        common_enums::CavvAlgorithm::A => "A",
+    }
+}
+
 /// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
 pub trait CardTypeCode {
     fn type_code(&self) -> Option<&'static str>;

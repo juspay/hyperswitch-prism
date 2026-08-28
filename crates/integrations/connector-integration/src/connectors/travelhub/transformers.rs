@@ -145,7 +145,7 @@ pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub merchant_id: String,
     pub order_id: String,
     pub amount: MinorUnit,
-    pub currency: String,
+    pub currency: Currency,
     pub capture: bool,
     pub payment: TravelhubPayment<T>,
 }
@@ -216,16 +216,16 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        let cardholder_name = item
-            .resource_common_data
-            .get_optional_billing_first_name()
+        let cardholder_name = card_data
+            .card_holder_name
+            .clone()
+            .or_else(|| item.resource_common_data.get_optional_billing_first_name())
             .or_else(|| item.resource_common_data.get_optional_shipping_first_name())
-            .or_else(|| card_data.card_holder_name.clone())
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "billing.first_name or shipping.first_name or card.card_holder_name",
+                field_name: "card.card_holder_name or billing.first_name or shipping.first_name",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Provide the cardholder name via billing.first_name, shipping.first_name, or card.card_holder_name"
+                        "Provide the cardholder name via card.card_holder_name, billing.first_name, or shipping.first_name"
                             .to_string(),
                     ),
                     doc_url: None,
@@ -236,11 +236,7 @@ impl<T: PaymentMethodDataTypes>
                 },
             })?;
 
-        let expiry_date = Secret::new(format!(
-            "{}{}",
-            card_data.card_exp_month.peek(),
-            card_data.get_card_expiry_year_2_digit()?.peek()
-        ));
+        let expiry_date = crate::utils::format_card_expiry_mmyy(card_data)?;
 
         let payment_method_code = get_card_payment_method_code(card_data)?.to_string();
 
@@ -261,18 +257,10 @@ impl<T: PaymentMethodDataTypes>
                 .network_params
                 .as_ref()
                 .and_then(|np| np.cartes_bancaires.as_ref())
-                .map(|cb| match cb.cavv_algorithm {
-                    common_enums::CavvAlgorithm::Zero => "0",
-                    common_enums::CavvAlgorithm::One => "1",
-                    common_enums::CavvAlgorithm::Two => "2",
-                    common_enums::CavvAlgorithm::Three => "3",
-                    common_enums::CavvAlgorithm::Four => "4",
-                    common_enums::CavvAlgorithm::A => "A",
-                })
-                .unwrap_or("1");
+                .map(|cb| crate::utils::cavv_algorithm_to_str(cb.cavv_algorithm.clone()).to_string());
             TravelhubRequest3DS {
                 cavv: auth_data.cavv.as_ref().map(|c| c.peek().to_string()),
-                cavv_algorithm: Some(cavv_algorithm.to_string()),
+                cavv_algorithm,
                 eci: auth_data.eci.clone(),
                 xid: None,
                 ds_transaction_id: auth_data.ds_trans_id.clone(),
@@ -288,7 +276,7 @@ impl<T: PaymentMethodDataTypes>
                 .connector_request_reference_id
                 .clone(),
             amount: item.request.minor_amount,
-            currency: item.request.currency.to_string(),
+            currency: item.request.currency,
             capture: is_auto_capture,
             payment: TravelhubPayment {
                 payment_method: TravelhubPaymentMethod {
@@ -512,8 +500,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
 pub struct TravelhubCaptureRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: i64,
-    pub currency: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
 }
 
 impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>
@@ -532,8 +520,8 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_amount_to_capture.get_amount_as_i64(),
-            currency: item.request.currency.to_string(),
+            amount: item.request.minor_amount_to_capture,
+            currency: item.request.currency,
         })
     }
 }
@@ -745,8 +733,8 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
 pub struct TravelhubRefundRequest {
     pub merchant_id: String,
     pub order_id: String,
-    pub amount: i64,
-    pub currency: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
 }
 
 impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>
@@ -765,8 +753,8 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.request.minor_refund_amount.get_amount_as_i64(),
-            currency: item.request.currency.to_string(),
+            amount: item.request.minor_refund_amount,
+            currency: item.request.currency,
         })
     }
 }
@@ -788,12 +776,12 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
             .unwrap_or(&TravelhubResult::Pending);
         let refund_status = map_travelhub_refund_status(result);
 
-        let connector_refund_id = item.response.transaction_id.clone().unwrap_or_else(|| {
-            item.router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone()
-        });
+        let connector_refund_id = item.response.transaction_id.clone().ok_or_else(|| {
+            ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("transaction_id missing in travelhub refund response".to_string()),
+            )
+        })?;
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -853,11 +841,12 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
             .unwrap_or(&TravelhubResult::Pending);
         let refund_status = map_travelhub_refund_status(result);
 
-        let connector_refund_id = item
-            .response
-            .transaction_id
-            .clone()
-            .unwrap_or_else(|| item.router_data.request.connector_refund_id.clone());
+        let connector_refund_id = item.response.transaction_id.clone().ok_or_else(|| {
+            ConnectorError::response_handling_failed_with_context(
+                item.http_code,
+                Some("transaction_id missing in travelhub refund sync response".to_string()),
+            )
+        })?;
 
         Ok(Self {
             response: Ok(RefundsResponseData {
