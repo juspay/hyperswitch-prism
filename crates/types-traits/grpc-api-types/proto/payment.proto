@@ -3743,10 +3743,6 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
-
-  // Customer's date of birth as an ISO-8601 calendar date (YYYY-MM-DD). Flat here, next
-  // to customer_document_details, because this request carries no `Customer` message.
-  optional SecretString customer_date_of_birth = 40;
 }
 
 // Response message for repeat payment operation

@@ -15167,8 +15167,12 @@ impl<
             .customer_document_details
             .as_ref()
             .and_then(map_customer_document_details);
-        let customer_date_of_birth =
-            map_customer_date_of_birth(value.customer_date_of_birth.clone())?;
+        let customer_date_of_birth = map_customer_date_of_birth(
+            value
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone()),
+        )?;
 
         // Extract mandate reference_id
         let mandate_ref = value
