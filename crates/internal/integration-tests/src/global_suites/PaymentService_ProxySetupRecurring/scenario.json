@@ -47,7 +47,77 @@
         "acceptance_type": "ONLINE",
         "accepted_at": 1704067200
       },
-      "auth_type": "NO_THREE_DS"
+      "auth_type": "NO_THREE_DS",
+      "address": {
+        "shipping_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        },
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "line2": {
+            "value": "auto_generate"
+          },
+          "line3": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US",
+          "email": {
+            "value": "auto_generate"
+          },
+          "phone_number": {
+            "value": "auto_generate"
+          },
+          "phone_country_code": "+91"
+        }
+      }
     },
     "assert": {
       "status": {
