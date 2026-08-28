@@ -2941,7 +2941,37 @@ pub fn normalize_grpcurl_request_json(
     // grpcurl expects the raw proto field name (`"payment"` lowercase).
     convert_prost_oneofs_to_grpcurl(&mut value);
 
+    // Scenario templates place a `null` on a scalar field (e.g.
+    // customer.connector_customer_id) as a placeholder for add_context to
+    // fill from a dependency's response. proto3 JSON only allows `null` for
+    // message-typed fields — grpcurl rejects it on any scalar field
+    // ("cannot set field ... to null: it is not a message type"). When
+    // nothing fills a placeholder, drop the key instead of sending `null`;
+    // an absent key is the valid proto3 JSON form of "not provided" for a
+    // scalar field. Array elements are left alone: remove_json_path uses
+    // `null` there deliberately, to delete without reindexing.
+    strip_null_object_leaves(&mut value);
+
     value
+}
+
+/// Recursively removes any object key whose value is JSON `null`. Does not
+/// touch `null` entries inside arrays.
+fn strip_null_object_leaves(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.retain(|_, v| !v.is_null());
+            for v in map.values_mut() {
+                strip_null_object_leaves(v);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                strip_null_object_leaves(item);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Shared normalisation logic used by both tonic and grpcurl paths.
@@ -4081,6 +4111,22 @@ fn execute_dependency_chain(
         } else {
             load_default_scenario_name(dependency_suite)?
         };
+
+        // The dependency's own suite being supported does not mean this
+        // specific scenario is: e.g. PaymentService/Authorize is fully
+        // supported for stripe, but its no3ds_manual_capture_incremental_auth
+        // scenario is separately marked unsupported (a sandbox account
+        // limitation). Without this check, a suite that depends on that exact
+        // scenario by name (PaymentService/IncrementalAuthorization) would
+        // run it anyway and report a hard failure, even though the standalone
+        // suite run correctly skips it.
+        if let Some(reason) =
+            scenario_unsupported_reason(connector, dependency_suite, &dependency_scenario)?
+        {
+            report_unsupported(dependency_suite, &dependency_scenario, connector, &reason);
+            continue;
+        }
+
         let current_label = dependency_label(dependency_suite, &dependency_scenario);
 
         // Earlier siblings' context_map entries, not just their raw req/res,

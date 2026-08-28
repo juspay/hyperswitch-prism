@@ -28,6 +28,7 @@ grpc_server_start() {
   CS__COMMON__ENVIRONMENT=development \
   CS__PROXY__CONNECTOR_REQUEST_TIMEOUT="${CS__PROXY__CONNECTOR_REQUEST_TIMEOUT:-10}" \
   RUST_LOG=error \
+  RUST_MIN_STACK="${RUST_MIN_STACK:-16777216}" \
     "${binary}" > /dev/null 2>&1 &
   GRPC_SERVER_PID=$!
 
