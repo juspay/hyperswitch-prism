@@ -1064,12 +1064,6 @@
         "error": "This feature is not implemented: Payment method not supported for SetupMandate"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for globalpay"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

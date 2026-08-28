@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 use base64::Engine;
 use common_enums::ApiClientError;
 #[cfg(all(feature = "injector-client", feature = "log-transformations"))]
-use common_utils::events::apply_log_fields;
+use common_utils::events::{apply_log_fields, ConnectorResponseForLogging};
 #[cfg(feature = "injector-client")]
 use common_utils::{
     consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
@@ -348,6 +348,27 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
     }
 }
 
+#[cfg(feature = "log-transformations")]
+fn capture_connector_reply<E>(
+    response: &Result<Result<Response, Response>, E>,
+    masking_keys: &common_utils::connector_response_masking::CompiledMaskingKeys,
+) -> Option<(bytes::Bytes, Option<String>)> {
+    if !masking_keys.enabled {
+        return None;
+    }
+
+    response.as_ref().ok().map(|result| match result {
+        Ok(body) | Err(body) => (
+            body.response.clone(),
+            body.headers
+                .as_ref()
+                .and_then(|headers| headers.get("content-type"))
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned),
+        ),
+    })
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -605,6 +626,7 @@ pub struct EventProcessingParams<'a> {
     pub merchant_id: &'a str,
     pub org_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub masking_keys: &'a common_utils::connector_response_masking::CompiledMaskingKeys,
     pub connector_latency: ConnectorLatencyTracker,
     /// Runtime kill-switch for log field application.
     pub log_fields_enabled: bool,
@@ -622,6 +644,7 @@ pub struct EventProcessingParams<'a> {
         request.url = Empty,
         request.method = Empty,
         response.body = Empty,
+        response.masked_body = Empty,
         response.headers = Empty,
         response.error_message = Empty,
         response.status_code = Empty,
@@ -661,6 +684,8 @@ where
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
+    #[cfg(feature = "log-transformations")]
+    let mut connector_reply: Option<(bytes::Bytes, Option<String>)> = None;
     let result = match (call_connector_action, transport_type) {
         (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
             let response = Response {
@@ -988,6 +1013,12 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
+
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
@@ -1105,6 +1136,12 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
 
+                    #[cfg(feature = "log-transformations")]
+                    {
+                        connector_reply =
+                            capture_connector_reply(&response, event_params.masking_keys);
+                    }
+
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
 
@@ -1172,8 +1209,8 @@ where
                             connector_transaction_id: err.connector_transaction_id,
                         }
                     ))
-                })?;
-            Ok(data)
+                })
+                .map(|()| data)
         }
         Err(err) => Err(err),
     };
@@ -1182,10 +1219,19 @@ where
     tracing::Span::current().record("latency", elapsed);
     // Additive numeric latency alongside the existing string `latency`.
     tracing::Span::current().record("latency_ms", u64::try_from(elapsed).unwrap_or_default());
-    // Apply outgoing log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
-    if event_params.log_fields_enabled {
-        apply_log_fields(event_params.log_fields);
+    if event_params.log_fields_enabled || event_params.masking_keys.enabled {
+        apply_log_fields(
+            event_params.log_fields,
+            connector_reply
+                .as_ref()
+                .map(|(body, content_type)| ConnectorResponseForLogging {
+                    body,
+                    content_type: content_type.as_deref(),
+                    connector_name: event_params.connector_name,
+                    masking_keys: event_params.masking_keys,
+                }),
+        );
     }
     tracing::info!(tag = ?Tag::OutgoingApi, log_type = "api", "Outgoing Request completed");
     result_with_integrity_check
@@ -1758,14 +1804,8 @@ async fn handle_response(
 
 /// Helper function to remove BOM from response bytes and convert to string
 fn strip_bom_and_convert_to_string(response_bytes: &[u8]) -> Option<String> {
-    String::from_utf8(response_bytes.to_vec()).ok().map(|s| {
-        // Remove BOM if present (UTF-8 BOM is 0xEF, 0xBB, 0xBF)
-        if s.starts_with('\u{FEFF}') {
-            s.trim_start_matches('\u{FEFF}').to_string()
-        } else {
-            s
-        }
-    })
+    let stripped = common_utils::bytes_utils::strip_utf8_bom(response_bytes);
+    String::from_utf8(stripped.to_vec()).ok()
 }
 
 #[cfg(feature = "injector-client")]

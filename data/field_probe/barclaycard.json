@@ -1227,12 +1227,6 @@
         "error": "This feature is not implemented: Only card payments are supported for mandate setup"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for barclaycard"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

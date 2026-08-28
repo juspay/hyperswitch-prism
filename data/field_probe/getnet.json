@@ -733,12 +733,6 @@
         "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
