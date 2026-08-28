@@ -34,7 +34,7 @@ use std::{collections::BTreeSet, fs, path::PathBuf};
 use inquire::{list_option::ListOption, validator::Validation, Confirm, MultiSelect, Select, Text};
 use integration_tests::harness::{
     credentials::load_connector_config,
-    report::{append_report_batch_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
+    report::{append_report_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
     scenario_api::{
         get_the_grpc_req_for_connector, run_all_suites_with_options,
         run_scenario_test_with_options, run_suite_test_with_options, ExecutionBackend,
@@ -662,8 +662,6 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
         return;
     }
 
-    let mut batch: Vec<ReportEntry> = Vec::new();
-
     for result in &summary.results {
         let template_req =
             get_the_grpc_req_for_connector(&result.suite, &result.scenario, &summary.connector)
@@ -677,7 +675,7 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
                 .and_then(|scenarios| scenarios.get(&result.scenario).cloned())
                 .and_then(|scenario_def| scenario_def.display_name);
 
-            batch.push(build_report_entry(
+            append_report_best_effort(build_report_entry(
                 &result.suite,
                 &result.scenario,
                 scenario_display_name,
@@ -721,10 +719,6 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
                 compact_error_for_console(result.error.as_deref())
             );
         }
-    }
-
-    if !batch.is_empty() {
-        append_report_batch_best_effort(batch);
     }
 
     println!(

@@ -17,13 +17,17 @@
 #   SPECS_ROOT                override for the connector_specs directory (tests)
 #   BASE_SHA                  merge base to arbitrate against; empty disables arbitration
 #   CONNECTOR_AUTH_FILE_PATH  decrypted connector credentials
-#   ATTEMPT_TIMEOUT           per-attempt timeout in seconds (default 300)
+#   ATTEMPT_TIMEOUT           whole-connector sweep timeout in seconds (default 300)
+#   SCENARIO_TIMEOUT          single-scenario timeout in seconds (default 90)
 #
 # Exit status: 0 unless at least one scenario is proven to regress at HEAD.
 
 set -uo pipefail
 
 ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
+# One scenario plus its dependency chain is at most 7 calls, each bounded by the
+# server's 10s per-call timeout. 300s was the whole-connector budget reused here.
+SCENARIO_TIMEOUT="${SCENARIO_TIMEOUT:-90}"
 SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
 ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
 BASE_SHA="${BASE_SHA:-}"
@@ -144,7 +148,7 @@ run_scenario() {
               --interface grpc --report)
 
   UCS_RUN_TEST_REPORT_PATH="${report}" \
-    timeout --kill-after=30s "${ATTEMPT_TIMEOUT}" ./scripts/run-tests "${args[@]}"
+    timeout --kill-after=30s "${SCENARIO_TIMEOUT}" ./scripts/run-tests "${args[@]}"
   LAST_RC=$?
 
   LAST_ERROR=""
