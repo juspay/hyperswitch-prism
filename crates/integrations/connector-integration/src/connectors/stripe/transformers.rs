@@ -2042,12 +2042,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let (transfer_account_id, charge_type, application_fees) = (None, None, None);
 
         let (card_token, payment_method_id) = match &item.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => match t.payment_method_type {
+            PaymentMethodData::PaymentMethodToken(t) => match t.token_payment_method_type {
                 Some(
-                    common_enums::PaymentMethodType::ApplePay
-                    | common_enums::PaymentMethodType::GooglePay,
+                    payment_method_data::TokenPaymentMethod::ApplePay
+                    | payment_method_data::TokenPaymentMethod::GooglePay,
                 ) => (Some(t.token.clone()), None),
-                _ => (None, Some(t.token.clone())),
+                None => (None, Some(t.token.clone())),
             },
             _ => (None, None),
         };

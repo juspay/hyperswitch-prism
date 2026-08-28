@@ -2699,7 +2699,7 @@ impl PaymentMethod {
         // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
-                payment_method_type: None,
+                token_payment_method_type: None,
                 token: Secret::new(String::new()),
             },
         );

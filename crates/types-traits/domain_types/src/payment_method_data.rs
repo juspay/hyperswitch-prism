@@ -494,7 +494,14 @@ pub struct GiftCardDetails {
 pub struct PaymentMethodToken {
     pub token: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    pub token_payment_method_type: Option<TokenPaymentMethod>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPaymentMethod {
+    ApplePay,
+    GooglePay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]

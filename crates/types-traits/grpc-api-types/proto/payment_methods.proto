@@ -254,12 +254,12 @@ message TokenPaymentMethodType {
   // The token string representing a payment method.
   SecretString token = 1;
   // The payment method this token was created from.
-  enum PaymentMethodType {
-    PAYMENT_METHOD_TYPE_UNSPECIFIED = 0;
+  enum TokenPaymentMethod {
+    TOKEN_PAYMENT_METHOD_UNSPECIFIED = 0;
     APPLE_PAY = 1;
     GOOGLE_PAY = 2;
   }
-  optional PaymentMethodType payment_method_type = 2;
+  optional TokenPaymentMethod token_payment_method_type = 2;
 }
 
 // Details of a payment card where CVC is not required for the selected connector flow.
