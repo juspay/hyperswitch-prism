@@ -1937,6 +1937,9 @@ fn execute_grpcurl_from_request(
     let request_command = request.to_command_string();
     let mut args = Vec::new();
     args.push("-v".to_string());
+    // Render a non-OK status as JSON too, so its details arrive proto-decoded by
+    // grpcurl rather than as text we would have to parse.
+    args.push("-format-error".to_string());
     if request.plaintext {
         args.push("-plaintext".to_string());
     }
@@ -1971,7 +1974,7 @@ fn execute_grpcurl_from_request(
     let response_output = build_grpc_response_output(&stdout_output, &stderr_output);
 
     let response_body = extract_json_body_from_grpc_output(&stdout_output, &stderr_output)
-        .or_else(|| error_body_from_grpc_output(&stderr_output))
+        .or_else(|| error_body_from_grpc_output(&stdout_output, &stderr_output))
         .unwrap_or_else(|| stdout_output.clone());
 
     Ok(GrpcExecutionResult {
@@ -1982,7 +1985,7 @@ fn execute_grpcurl_from_request(
     })
 }
 
-/// Builds the `error` object a failed call would have carried in its body.
+/// Lifts the `error` object out of a failed call's status.
 ///
 /// A connector that declines with 2xx returns `ErrorInfo` inside the response;
 /// one that declines with 4xx returns the same content in the gRPC status
@@ -1990,30 +1993,24 @@ fn execute_grpcurl_from_request(
 /// decline scenario by deleting the assertion — which is how fiserv ended up
 /// accepting CHARGED for a test named "fail payment".
 ///
-/// Built from the generated proto types rather than hand-written JSON keys, so a
-/// field rename moves both the real response and this one together.
-fn error_body_from_grpc_output(stderr_output: &str) -> Option<String> {
-    let mut code = None;
-    let mut message = None;
-    for line in stderr_output.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("Code:") {
-            code = Some(rest.trim().to_string());
-        } else if let Some(rest) = trimmed.strip_prefix("Message:") {
-            message = Some(rest.trim().to_string());
+/// `-format-error` makes grpcurl print the status as JSON, decoded through the
+/// same descriptors as a normal response, so the field names here are the proto's
+/// and not a copy of them.
+fn error_body_from_grpc_output(stdout_output: &str, stderr_output: &str) -> Option<String> {
+    for text in [stdout_output, stderr_output] {
+        let Ok(status) = serde_json::from_str::<Value>(text.trim()) else {
+            continue;
+        };
+        // google.rpc.Status: the connector's ErrorInfo rides in details.
+        if let Some(details) = status.get("details").and_then(Value::as_array) {
+            for detail in details {
+                if let Some(info) = detail.get("errorInfo").or_else(|| detail.get("error_info")) {
+                    return Some(serde_json::json!({ "error": info }).to_string());
+                }
+            }
         }
     }
-
-    let error = grpc_api_types::payments::ErrorInfo {
-        connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-            code,
-            message: Some(message?),
-            ..Default::default()
-        }),
-        ..Default::default()
-    };
-    let body = serde_json::json!({ "error": serde_json::to_value(error).ok()? });
-    Some(body.to_string())
+    None
 }
 
 fn build_grpc_response_output(stdout_output: &str, stderr_output: &str) -> String {
@@ -6124,18 +6121,28 @@ grpc-status: 0
 
     #[test]
     fn a_failed_call_still_carries_an_error_to_assert_on() {
-        // grpcurl's verbose output when the connector declined with a 4xx: the
-        // status carries the detail and the body is empty.
-        let stderr = "Resolved method descriptor:\nrpc Authorize (...);\n\nERROR:\n  Code: InvalidArgument\n  Message: Your card was declined.\n";
-        let body = error_body_from_grpc_output(stderr).expect("an error body");
+        // grpcurl -format-error output for a 4xx decline: the status is JSON and
+        // its details carry the same ErrorInfo a 2xx response puts in the body.
+        let out = r#"{
+          "code": 3,
+          "message": "Your card was declined.",
+          "details": [{
+            "@type": "type.googleapis.com/ucs.v2.ConnectorError",
+            "errorInfo": { "connectorDetails": { "code": "card_declined",
+                                                 "message": "Your card was declined." } }
+          }]
+        }"#;
+        let body = error_body_from_grpc_output(out, "").expect("an error body");
         let v: Value = serde_json::from_str(&body).expect("valid json");
-        assert_eq!(v["error"]["connector_details"]["message"], "Your card was declined.");
-        assert_eq!(v["error"]["connector_details"]["code"], "InvalidArgument");
+        assert_eq!(v["error"]["connectorDetails"]["message"], "Your card was declined.");
     }
 
     #[test]
-    fn output_without_an_error_block_yields_no_body() {
-        assert!(error_body_from_grpc_output("Resolved method descriptor:\n").is_none());
+    fn a_status_without_error_details_yields_no_body() {
+        // A transport failure carries no ErrorInfo; inventing one would let a
+        // decline scenario pass on an outage.
+        assert!(error_body_from_grpc_output(r#"{"code":14,"message":"unavailable"}"#, "").is_none());
+        assert!(error_body_from_grpc_output("Resolved method descriptor:", "").is_none());
     }
 
     #[test]
