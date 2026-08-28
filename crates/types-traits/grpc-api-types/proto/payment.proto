@@ -2540,7 +2540,7 @@ message RecipientBankAccount {
 message RecipientAccount {
   oneof account_type {
     RecipientBankAccount bank_account = 1; // Funds credited to a bank account
-    SecretString card_number = 2;          // Funds credited to a card
+    CardNumberType card_number = 2;         // Funds credited to a card
     SecretString wallet_id = 3;            // Funds credited to a wallet
     SecretString email = 4;               // Account identified by email
     SecretString phone_number = 5;        // Account identified by phone

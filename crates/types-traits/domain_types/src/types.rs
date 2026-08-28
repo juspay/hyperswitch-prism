@@ -13893,25 +13893,7 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientAccount>
             Some(RecipientAccountType::BankAccount(bank_account)) => Ok(Self::BankAccount(
                 connector_types::RecipientBankAccount::foreign_try_from(bank_account)?,
             )),
-            Some(RecipientAccountType::CardNumber(card_number_secret)) => {
-                let card_number = cards::CardNumber::try_from(card_number_secret.expose())
-                    .map_err(|_| {
-                        report!(IntegrationError::InvalidDataFormat {
-                            field_name: "recipient_account.card_number",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "The provided value is not a valid card number".to_string(),
-                                ),
-                                suggested_action: Some(
-                                    "Provide a valid card number for the recipient account"
-                                        .to_string(),
-                                ),
-                                doc_url: None,
-                            },
-                        })
-                    })?;
-                Ok(Self::Card { card_number })
-            }
+            Some(RecipientAccountType::CardNumber(card_number)) => Ok(Self::Card { card_number }),
             Some(RecipientAccountType::WalletId(wallet_id_secret)) => Ok(Self::Wallet {
                 wallet_id: wallet_id_secret,
             }),
