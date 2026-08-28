@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/aci/aci.py#L196) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L116) · [Rust](../../examples/aci/aci.rs#L245)
+**Examples:** [Python](../../examples/aci/aci.py#L196) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L116) · [Rust](../../examples/aci/aci.rs#L246)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/aci/aci.py#L215) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L132) · [Rust](../../examples/aci/aci.rs#L261)
+**Examples:** [Python](../../examples/aci/aci.py#L215) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L132) · [Rust](../../examples/aci/aci.rs#L262)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/aci/aci.py#L240) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L154) · [Rust](../../examples/aci/aci.rs#L284)
+**Examples:** [Python](../../examples/aci/aci.py#L240) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L154) · [Rust](../../examples/aci/aci.rs#L285)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/aci/aci.py#L265) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L176) · [Rust](../../examples/aci/aci.rs#L307)
+**Examples:** [Python](../../examples/aci/aci.py#L265) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L176) · [Rust](../../examples/aci/aci.rs#L308)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/aci/aci.py#L287) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L195) · [Rust](../../examples/aci/aci.rs#L326)
+**Examples:** [Python](../../examples/aci/aci.py#L287) · [JavaScript](../../examples/aci/aci.js) · [Kotlin](../../examples/aci/aci.kt#L195) · [Rust](../../examples/aci/aci.rs#L327)
 
 ## API Reference
 

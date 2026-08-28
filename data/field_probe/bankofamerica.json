@@ -976,12 +976,6 @@
         "error": "This feature is not implemented: Selected payment method through BankOfAmerica"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for bankofamerica"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
