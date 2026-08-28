@@ -35,9 +35,11 @@
       },
       "setup_mandate_details": {
         "mandate_type": {
-          "multi_use": {
-            "amount": 10000,
-            "currency": "USD"
+          "mandate_type": {
+            "MultiUse": {
+              "amount": 10000,
+              "currency": "USD"
+            }
           }
         }
       },

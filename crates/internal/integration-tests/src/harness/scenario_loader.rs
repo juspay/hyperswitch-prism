@@ -480,6 +480,11 @@ pub fn load_connector_spec(connector: &str) -> Option<ConnectorSuiteSpec> {
 /// CI policy, not a connector. See `.github/scripts/certify-connectors.sh`.
 pub const ALPHA_CONNECTORS_FILE: &str = "alpha_connectors.json";
 
+/// Sits in `connector_specs/` beside the per-connector directories but lists
+/// which connectors carry live production traffic — not a connector spec.
+/// See `.github/scripts/certify-connectors.sh`.
+pub const LIVE_CONNECTORS_FILE: &str = "live_connectors.json";
+
 /// Scenarios that exist only for one connector, beside its `specs.json`.
 pub const CONNECTOR_SCENARIOS_FILE: &str = "connector_specific_scenarios.json";
 
@@ -515,10 +520,14 @@ pub fn discover_all_connectors() -> Result<Vec<String>, ScenarioError> {
             continue;
         }
 
-        // Records which connectors CI does not certify — not a connector spec.
-        // The flat-layout branch below would otherwise read it as a connector
-        // named "alpha_connectors" and fail to parse it as one.
-        if path.file_name().and_then(|s| s.to_str()) == Some(ALPHA_CONNECTORS_FILE) {
+        // Records which connectors CI does not certify, or which carry live
+        // production traffic — neither is a connector spec. The flat-layout
+        // branch below would otherwise read them as connectors named
+        // "alpha_connectors"/"live_connectors" and fail to parse them as one.
+        if matches!(
+            path.file_name().and_then(|s| s.to_str()),
+            Some(ALPHA_CONNECTORS_FILE) | Some(LIVE_CONNECTORS_FILE)
+        ) {
             continue;
         }
 

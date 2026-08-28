@@ -3111,6 +3111,18 @@ pub fn convert_prost_oneofs_to_grpcurl(value: &mut Value) {
             }
         }
 
+        // mandate_type oneof inside setup_mandate_details:
+        // Prost: {"mandate_type": {"mandate_type": {"MultiUse": {...}}}}
+        // grpcurl: {"mandate_type": {"multi_use": {...}}}
+        if let Some(Value::Object(mt_outer)) = map.get_mut("mandate_type") {
+            if let Some(Value::Object(inner_map)) = mt_outer.remove("mandate_type") {
+                for (variant_name, variant_value) in inner_map {
+                    let field_name = pascal_to_snake_case(&variant_name);
+                    mt_outer.entry(field_name).or_insert(variant_value);
+                }
+            }
+        }
+
         // mandate_id_type oneof inside connector_recurring_payment_id:
         // Prost: {"connector_recurring_payment_id": {"mandate_id_type": {"ConnectorMandateId": {...}}}}
         // grpcurl: {"connector_recurring_payment_id": {"connector_mandate_id": {...}}}
