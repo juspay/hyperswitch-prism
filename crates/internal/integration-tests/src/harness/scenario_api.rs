@@ -1971,6 +1971,7 @@ fn execute_grpcurl_from_request(
     let response_output = build_grpc_response_output(&stdout_output, &stderr_output);
 
     let response_body = extract_json_body_from_grpc_output(&stdout_output, &stderr_output)
+        .or_else(|| error_body_from_grpc_output(&stderr_output))
         .unwrap_or_else(|| stdout_output.clone());
 
     Ok(GrpcExecutionResult {
@@ -1979,6 +1980,38 @@ fn execute_grpcurl_from_request(
         response_output,
         success: output.status.success(),
     })
+}
+
+/// Builds the `error` object a failed call would have carried in its body.
+///
+/// A connector that declines with 2xx returns `ConnectorError` inside the
+/// response; one that declines with 4xx returns the same content in the gRPC
+/// status instead, and the body is empty. Without this, the second kind can only
+/// pass a decline scenario by deleting the assertion — which is how fiserv ended
+/// up accepting CHARGED for a test named "fail payment".
+fn error_body_from_grpc_output(stderr_output: &str) -> Option<String> {
+    let mut code = None;
+    let mut message = None;
+    for line in stderr_output.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("Code:") {
+            code = Some(rest.trim().to_string());
+        } else if let Some(rest) = trimmed.strip_prefix("Message:") {
+            message = Some(rest.trim().to_string());
+        }
+    }
+    let message = message?;
+    Some(
+        serde_json::json!({
+            "error": {
+                "connector_details": {
+                    "message": message,
+                    "code": code.unwrap_or_default(),
+                }
+            }
+        })
+        .to_string(),
+    )
 }
 
 fn build_grpc_response_output(stdout_output: &str, stderr_output: &str) -> String {
@@ -4877,6 +4910,7 @@ mod tests {
         DEFAULT_SUITE,
     };
     use crate::harness::auto_gen::resolve_auto_generate;
+    use super::error_body_from_grpc_output;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
         load_supported_suites_for_connector, merge_connector_specific_scenarios,
@@ -5073,7 +5107,10 @@ mod tests {
             FieldAssert::Contains { contains }
                 if contains == "declin"
         ));
-        assert!(base_assertions.contains_key("status"));
+        // `status` is deliberately absent from the base assertions: a connector
+        // that declines with a 4xx returns a gRPC status and no body, so there is
+        // no payment status to compare.
+        assert!(!base_assertions.contains_key("status"));
         assert!(!overridden_assertions.contains_key("status"));
     }
 
@@ -6081,6 +6118,22 @@ grpc-status: 0
             req["state"]["access_token"]["token"]["value"],
             json!("explicit_tok")
         );
+    }
+
+    #[test]
+    fn a_failed_call_still_carries_an_error_to_assert_on() {
+        // grpcurl's verbose output when the connector declined with a 4xx: the
+        // status carries the detail and the body is empty.
+        let stderr = "Resolved method descriptor:\nrpc Authorize (...);\n\nERROR:\n  Code: InvalidArgument\n  Message: Your card was declined.\n";
+        let body = error_body_from_grpc_output(stderr).expect("an error body");
+        let v: Value = serde_json::from_str(&body).expect("valid json");
+        assert_eq!(v["error"]["connector_details"]["message"], "Your card was declined.");
+        assert_eq!(v["error"]["connector_details"]["code"], "InvalidArgument");
+    }
+
+    #[test]
+    fn output_without_an_error_block_yields_no_body() {
+        assert!(error_body_from_grpc_output("Resolved method descriptor:\n").is_none());
     }
 
     #[test]

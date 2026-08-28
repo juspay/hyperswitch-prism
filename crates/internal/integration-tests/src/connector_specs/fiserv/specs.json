@@ -14,7 +14,8 @@
   ],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
-      "threeds_manual_capture_credit_card": "fiserv returns NOT_IMPLEMENTED for Cards 3DS"
+      "threeds_manual_capture_credit_card": "fiserv returns NOT_IMPLEMENTED for Cards 3DS",
+      "no3ds_fail_payment": "fiserv cert approves card 4000000000000002 (HTTP 201, CAPTURED) — no decline trigger available"
     }
   }
 }

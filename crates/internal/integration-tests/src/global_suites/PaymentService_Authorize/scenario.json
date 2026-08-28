@@ -1996,14 +1996,6 @@
       "session_token": ""
     },
     "assert": {
-      "status": {
-        "one_of": [
-          "FAILURE",
-          "AUTHORIZATION_FAILED",
-          "ROUTER_DECLINED",
-          "UNRESOLVED"
-        ]
-      },
       "error": {
         "must_exist": true
       },
