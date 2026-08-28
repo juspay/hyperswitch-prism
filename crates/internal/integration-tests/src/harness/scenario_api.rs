@@ -4655,7 +4655,13 @@ fn execute_single_scenario_with_context(
     // Connector overrides apply last, so they are the final, most specific
     // word on the request — nothing after this point may change a field the
     // override deliberately set.
-    apply_connector_overrides(connector, suite, scenario, &mut effective_req, &mut assertions)?;
+    apply_connector_overrides(
+        connector,
+        suite,
+        scenario,
+        &mut effective_req,
+        &mut assertions,
+    )?;
 
     // Drop connector_feature_data if it still carries an unresolved
     // "auto_generate" sentinel; this check must see the sentinel intact,
