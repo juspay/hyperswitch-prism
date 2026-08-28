@@ -91,6 +91,7 @@ mod tests {
                 customer_phone_number: None,
                 customer_phone_country_code: None,
                 salutation: None,
+                date_of_birth: None,
             }
         }
 

@@ -34,7 +34,6 @@ fn full_address() -> grpc_api_types::payments::Address {
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),
         phone_country_code: Some("+1".to_string()),
-        date_of_birth: None,
     }
 }
 
@@ -51,6 +50,7 @@ fn full_customer() -> grpc_api_types::payments::Customer {
         last_name: Some("Doe".to_string()),
         salutation: None,
         customer_document_details: None,
+        date_of_birth: Some(Secret::new("1990-01-01".to_string())),
     }
 }
 

@@ -148,6 +148,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         // browser_info: TODO - BrowserInfo type not available in grpc_api_types
         capture_method: Some(i32::from(capture_method)),

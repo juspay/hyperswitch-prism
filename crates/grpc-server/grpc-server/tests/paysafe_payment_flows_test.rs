@@ -227,6 +227,7 @@ fn create_payment_authorize_request(
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress {
             billing_address: Some(grpc_api_types::payments::Address {
@@ -242,7 +243,6 @@ fn create_payment_authorize_request(
                 email: None,
                 phone_number: None,
                 phone_country_code: None,
-                date_of_birth: None,
             }),
             shipping_address: None,
         }),

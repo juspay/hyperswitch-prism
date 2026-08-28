@@ -1395,7 +1395,6 @@ fn convert_payouts_address_to_domain(
         email: addr.email,
         phone_number: addr.phone_number,
         phone_country_code: addr.phone_country_code,
-        date_of_birth: None,
     };
     crate::payment_address::Address::foreign_try_from(payments_addr)
 }

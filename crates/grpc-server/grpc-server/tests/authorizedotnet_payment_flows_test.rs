@@ -313,6 +313,7 @@ fn create_payment_authorize_request(
         first_name: None,
         last_name: None,
         salutation: None,
+        date_of_birth: None,
     });
     // Generate random names for billing to prevent duplicate transaction errors
     let billing_first_name = random_name();
@@ -333,7 +334,6 @@ fn create_payment_authorize_request(
             phone_number: None,
             phone_country_code: None,
             email: None,
-            date_of_birth: None,
         }),
         shipping_address: None, // Minimal address - no shipping for working grpcurl
     });
@@ -558,6 +558,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
         first_name: None,
         last_name: None,
         salutation: None,
+        date_of_birth: None,
     });
 
     // Add customer acceptance as required by the server (matching your JSON: "acceptance_type": "OFFLINE")
@@ -582,7 +583,6 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
             phone_number: None,
             phone_country_code: None,
             email: Some(generate_unique_email().into()),
-            date_of_birth: None,
         }),
         shipping_address: None,
     });

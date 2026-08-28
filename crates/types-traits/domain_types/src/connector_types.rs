@@ -4812,6 +4812,7 @@ pub struct CustomerInfo {
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
     pub salutation: Option<String>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerInfo {
@@ -4857,6 +4858,12 @@ impl CustomerInfo {
         self.customer_email
             .clone()
             .ok_or_else(missing_field_err("customer.email"))
+    }
+
+    pub fn get_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
+        self.date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
 }
 
@@ -5869,7 +5876,7 @@ pub enum RecipientBankAccount {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RecipientAccount {
     BankAccount(RecipientBankAccount),
-    Card { card_number: Secret<String> },
+    Card { card_number: cards::CardNumber },
     Wallet { wallet_id: Secret<String> },
     Email { email: Email },
     Phone { phone_number: Secret<String> },

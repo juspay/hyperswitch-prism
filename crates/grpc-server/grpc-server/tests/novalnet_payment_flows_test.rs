@@ -140,6 +140,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),

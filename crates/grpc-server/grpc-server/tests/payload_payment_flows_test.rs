@@ -155,6 +155,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -336,6 +337,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         customer_acceptance: Some(CustomerAcceptance {
             acceptance_type: i32::from(AcceptanceType::Offline),
@@ -356,7 +358,6 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                 phone_number: None,
                 phone_country_code: None,
                 email: Some(unique_email.into()),
-                date_of_birth: None,
             }),
             shipping_address: None,
         }),

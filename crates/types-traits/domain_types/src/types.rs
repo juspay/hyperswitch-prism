@@ -5282,11 +5282,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             Some(CountryAlpha2::foreign_try_from(country_code)?)
         };
 
-        let date_of_birth = value
-            .date_of_birth
-            .map(|s| Secret::<time::Date>::foreign_try_from(s.expose()))
-            .transpose()?;
-
         Ok(Self {
             country,
             city: value.city,
@@ -5298,7 +5293,6 @@ impl ForeignTryFrom<grpc_api_types::payments::Address> for AddressDetails {
             first_name: value.first_name,
             last_name: value.last_name,
             origin_zip: None,
-            date_of_birth,
         })
     }
 }
@@ -12584,6 +12578,12 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             None => None,
         };
 
+        let date_of_birth = value
+            .date_of_birth
+            .clone()
+            .map(|s| Secret::<time::Date>::foreign_try_from(s.expose()))
+            .transpose()?;
+
         Ok(Self {
             customer_id,
             customer_email,
@@ -12593,6 +12593,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number.clone(),
             customer_phone_country_code: value.phone_country_code.clone(),
             salutation: value.salutation.clone(),
+            date_of_birth,
         })
     }
 }
@@ -12610,6 +12611,13 @@ impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Cu
             phone_number: info.customer_phone_number,
             phone_country_code: info.customer_phone_country_code,
             salutation: info.salutation,
+            date_of_birth: info.date_of_birth.map(|dob| {
+                Secret::new(
+                    dob.expose()
+                        .format(&time::format_description::well_known::Iso8601::DATE)
+                        .expect("formatting a valid time::Date with Iso8601::DATE is infallible"),
+                )
+            }),
             ..Default::default()
         }
     }
@@ -13885,9 +13893,25 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientAccount>
             Some(RecipientAccountType::BankAccount(bank_account)) => Ok(Self::BankAccount(
                 connector_types::RecipientBankAccount::foreign_try_from(bank_account)?,
             )),
-            Some(RecipientAccountType::CardNumber(card_number_secret)) => Ok(Self::Card {
-                card_number: card_number_secret,
-            }),
+            Some(RecipientAccountType::CardNumber(card_number_secret)) => {
+                let card_number = cards::CardNumber::try_from(card_number_secret.expose())
+                    .map_err(|_| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_account.card_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "The provided value is not a valid card number".to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide a valid card number for the recipient account"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?;
+                Ok(Self::Card { card_number })
+            }
             Some(RecipientAccountType::WalletId(wallet_id_secret)) => Ok(Self::Wallet {
                 wallet_id: wallet_id_secret,
             }),
