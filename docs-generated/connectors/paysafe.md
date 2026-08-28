@@ -124,7 +124,6 @@ let config = ConnectorConfig {
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.TokenAuthorize](#paymentservicetokenauthorize) | Payments | `PaymentServiceTokenAuthorizeRequest` |
-| [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -288,122 +287,6 @@ Authorize using a connector-issued payment method token.
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
 **Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L220) · [Kotlin](../../examples/paysafe/paysafe.kt#L198) · [Rust](../../examples/paysafe/paysafe.rs)
-
-#### PaymentMethodService.Tokenize
-
-Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodServiceTokenizeRequest` |
-| **Response** | `PaymentMethodServiceTokenizeResponse` |
-
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ✓ |
-| Bancontact | ⚠ |
-| Apple Pay | ? |
-| Apple Pay Dec | ? |
-| Apple Pay SDK | ⚠ |
-| Google Pay | ✓ |
-| Google Pay Dec | ✓ |
-| Google Pay SDK | ⚠ |
-| PayPal SDK | ⚠ |
-| Amazon Pay | ⚠ |
-| Cash App | ⚠ |
-| PayPal | ⚠ |
-| WeChat Pay | ⚠ |
-| Alipay | ⚠ |
-| Revolut Pay | ⚠ |
-| MiFinity | ⚠ |
-| Bluecode | ⚠ |
-| Paze | x |
-| Samsung Pay | ⚠ |
-| MB Way | ⚠ |
-| Satispay | ⚠ |
-| Wero | ⚠ |
-| GoPay | ⚠ |
-| GCash | ⚠ |
-| Momo | ⚠ |
-| Dana | ⚠ |
-| Kakao Pay | ⚠ |
-| Touch 'n Go | ⚠ |
-| Twint | ⚠ |
-| Vipps | ⚠ |
-| Swish | ⚠ |
-| Affirm | ⚠ |
-| Afterpay | ⚠ |
-| Klarna | ⚠ |
-| UPI Collect | ⚠ |
-| UPI Intent | ⚠ |
-| UPI QR | ⚠ |
-| Thailand | ⚠ |
-| Czech | ⚠ |
-| Finland | ⚠ |
-| FPX | ⚠ |
-| Poland | ⚠ |
-| Slovakia | ⚠ |
-| UK | ⚠ |
-| PIS | x |
-| Generic | ⚠ |
-| Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
-| Trustly | ⚠ |
-| Giropay | ⚠ |
-| EPS | ⚠ |
-| Przelewy24 | ⚠ |
-| PSE | ⚠ |
-| BLIK | ⚠ |
-| Interac | ? |
-| Bizum | ⚠ |
-| EFT | ⚠ |
-| DuitNow | x |
-| ACH | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| Multibanco | ⚠ |
-| Instant | ⚠ |
-| Instant FI | ⚠ |
-| Instant PL | ⚠ |
-| Pix | ⚠ |
-| Permata | ⚠ |
-| BCA | ⚠ |
-| BNI VA | ⚠ |
-| BRI VA | ⚠ |
-| CIMB VA | ⚠ |
-| Danamon VA | ⚠ |
-| Mandiri VA | ⚠ |
-| Local | ⚠ |
-| Indonesian | ⚠ |
-| ACH | ? |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| BECS | ⚠ |
-| SEPA Guaranteed | ⚠ |
-| Crypto | x |
-| Reward | ⚠ |
-| Givex | x |
-| PaySafeCard | ? |
-| E-Voucher | ⚠ |
-| Boleto | ⚠ |
-| Efecty | ⚠ |
-| Pago Efectivo | ⚠ |
-| Red Compra | ⚠ |
-| Red Pagos | ⚠ |
-| Alfamart | ⚠ |
-| Indomaret | ⚠ |
-| Oxxo | ⚠ |
-| 7-Eleven | ⚠ |
-| Lawson | ⚠ |
-| Mini Stop | ⚠ |
-| Family Mart | ⚠ |
-| Seicomart | ⚠ |
-| Pay Easy | ⚠ |
-
-**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Void
 

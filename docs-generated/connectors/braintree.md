@@ -169,7 +169,6 @@ let config = ConnectorConfig {
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
 | [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
-| [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -355,122 +354,6 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
 **Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L258) · [Kotlin](../../examples/braintree/braintree.kt#L221) · [Rust](../../examples/braintree/braintree.rs)
-
-#### PaymentMethodService.Tokenize
-
-Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodServiceTokenizeRequest` |
-| **Response** | `PaymentMethodServiceTokenizeResponse` |
-
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | ✓ |
-| Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
-| Google Pay | x |
-| Google Pay Dec | x |
-| Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
-| Cash App | x |
-| PayPal | x |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
-| Paze | x |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| GoPay | x |
-| GCash | x |
-| Momo | x |
-| Dana | x |
-| Kakao Pay | x |
-| Touch 'n Go | x |
-| Twint | x |
-| Vipps | x |
-| Swish | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
-| UPI Collect | x |
-| UPI Intent | x |
-| UPI QR | x |
-| Thailand | x |
-| Czech | x |
-| Finland | x |
-| FPX | x |
-| Poland | x |
-| Slovakia | x |
-| UK | x |
-| PIS | x |
-| Generic | x |
-| Local | x |
-| iDEAL | x |
-| Sofort | x |
-| Trustly | x |
-| Giropay | x |
-| EPS | x |
-| Przelewy24 | x |
-| PSE | x |
-| BLIK | x |
-| Interac | x |
-| Bizum | x |
-| EFT | x |
-| DuitNow | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| Multibanco | x |
-| Instant | x |
-| Instant FI | x |
-| Instant PL | x |
-| Pix | x |
-| Permata | x |
-| BCA | x |
-| BNI VA | x |
-| BRI VA | x |
-| CIMB VA | x |
-| Danamon VA | x |
-| Mandiri VA | x |
-| Local | x |
-| Indonesian | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| BECS | x |
-| SEPA Guaranteed | x |
-| Crypto | x |
-| Reward | x |
-| Givex | x |
-| PaySafeCard | x |
-| E-Voucher | x |
-| Boleto | x |
-| Efecty | x |
-| Pago Efectivo | x |
-| Red Compra | x |
-| Red Pagos | x |
-| Alfamart | x |
-| Indomaret | x |
-| Oxxo | x |
-| 7-Eleven | x |
-| Lawson | x |
-| Mini Stop | x |
-| Family Mart | x |
-| Seicomart | x |
-| Pay Easy | x |
-
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Void
 
