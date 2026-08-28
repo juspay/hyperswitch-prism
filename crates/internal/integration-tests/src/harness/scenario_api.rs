@@ -4900,6 +4900,7 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use super::error_body_from_grpc_output;
     use super::{
         add_context, apply_context_map, build_grpcurl_command, build_grpcurl_request,
         contains_primitive_leaf, deep_set_json_path, extract_json_body_from_grpc_output,
@@ -4909,7 +4910,6 @@ mod tests {
         DEFAULT_SUITE,
     };
     use crate::harness::auto_gen::resolve_auto_generate;
-    use super::error_body_from_grpc_output;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
         load_supported_suites_for_connector, merge_connector_specific_scenarios,
@@ -6134,14 +6134,19 @@ grpc-status: 0
         }"#;
         let body = error_body_from_grpc_output(out, "").expect("an error body");
         let v: Value = serde_json::from_str(&body).expect("valid json");
-        assert_eq!(v["error"]["connectorDetails"]["message"], "Your card was declined.");
+        assert_eq!(
+            v["error"]["connectorDetails"]["message"],
+            "Your card was declined."
+        );
     }
 
     #[test]
     fn a_status_without_error_details_yields_no_body() {
         // A transport failure carries no ErrorInfo; inventing one would let a
         // decline scenario pass on an outage.
-        assert!(error_body_from_grpc_output(r#"{"code":14,"message":"unavailable"}"#, "").is_none());
+        assert!(
+            error_body_from_grpc_output(r#"{"code":14,"message":"unavailable"}"#, "").is_none()
+        );
         assert!(error_body_from_grpc_output("Resolved method descriptor:", "").is_none());
     }
 
