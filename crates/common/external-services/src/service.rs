@@ -415,8 +415,9 @@ where
                     }
 
                     let mut handled_router_data = handle_response_result?;
-                    // Headers are set for response transformers; they are only surfaced to
-                    // clients when raw connector data was requested.
+                    // Headers always reach response transformers; they stay on the
+                    // response only when the deployment returns raw connector data,
+                    // matching the exposure before headers were always captured.
                     if !(all_keys_required.unwrap_or(true) && return_raw) {
                         handled_router_data
                             .resource_common_data
