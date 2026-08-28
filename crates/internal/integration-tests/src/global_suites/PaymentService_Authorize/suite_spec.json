@@ -4,7 +4,12 @@
   "depends_on": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
-    "CustomerService/Create"
+    {
+      "suite": "CustomerService/Create",
+      "context_map": {
+        "customer.connector_customer_id": "res.connector_customer_id"
+      }
+    }
   ],
   "dependency_scope": "scenario",
   "strict_dependencies": false
