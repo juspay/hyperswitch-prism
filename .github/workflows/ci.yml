@@ -60,6 +60,7 @@ jobs:
       certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
       connector-names: ${{ steps.connector-names.outputs.list }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
+      spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -183,6 +184,43 @@ jobs:
           done
           echo "list=$new_list" >> $GITHUB_OUTPUT
           echo "Newly added connectors: $new_list"
+
+      - name: Detect connectors with a modified specs.json or override.json
+        id: spec-modified-connectors
+        if: steps.connector-names.outputs.list != ''
+        shell: bash
+        env:
+          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          base_ref="${BASE_REF}"
+          modified_list=""
+          IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
+          for c in "${CONNECTORS[@]}"; do
+            spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+            # A newly added connector has no merge-base content to diff against
+            # and is already held to a stricter bar by verify-new-connectors.sh
+            # (every failure attributable, no arbitration at all) — skip it here
+            # so certify-connectors.sh does not have to reconcile two different
+            # "no escape hatch" reasons for the same connector.
+            if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null; then
+              continue
+            fi
+            for f in specs.json override.json; do
+              path="${spec_dir}/${f}"
+              [ -f "${path}" ] || continue
+              # Compares file content, not merely "did this path appear in the
+              # diff" — a connector's specs.json can be untouched even though
+              # the connector name is in CHANGED_LIST because a *different*
+              # file for the same connector (e.g. a transformer .rs) changed.
+              if ! git diff --quiet "${base_ref}" HEAD -- "${path}" 2>/dev/null; then
+                modified_list="${modified_list}${modified_list:+,}${c}"
+                break
+              fi
+            done
+          done
+          echo "list=$modified_list" >> $GITHUB_OUTPUT
+          echo "Connectors with a modified specs.json/override.json: $modified_list"
 
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
@@ -555,7 +593,7 @@ jobs:
           # connector-service report pipeline reads. Both consumers now expect
           # it: the harness loader, and the grpc-server tests via
           # credential_utils, which forward it as x-connector-config.
-          S3_SOURCE_FILE_NAME: "725e990a-9aa6-46eb-baca-a6ec8d2269b8.json.gpg"
+          S3_SOURCE_FILE_NAME: "15fb06c9-f577-491e-b231-09cb1cba817c.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -682,6 +720,7 @@ jobs:
           # framework's to derive from that connector's own specs.json.
           CHANGED_CONNECTORS: ${{ needs.changes.outputs.connector-names }}
           NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+          SPEC_MODIFIED_CONNECTORS: ${{ needs.changes.outputs.spec-modified-connectors }}
           SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: .github/scripts/certify-connectors.sh

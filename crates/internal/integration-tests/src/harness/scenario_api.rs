@@ -4633,17 +4633,29 @@ fn execute_single_scenario_with_context(
 ) -> Result<ExecutedScenario, ScenarioError> {
     run_test(Some(suite), Some(scenario), Some(connector))?;
 
-    let (mut effective_req, assertions) =
-        load_effective_scenario_for_connector(suite, scenario, connector)?;
+    let base_scenario = load_scenario(suite, scenario)?;
+    let mut effective_req = base_scenario.grpc_req;
+    let mut assertions = base_scenario.assert_rules;
 
     // Normalize legacy empty placeholders to auto_generate sentinels where needed.
     prepare_context_placeholders(suite, connector, &mut effective_req);
 
-    // Context first — fill fields from dependency responses.
+    // Context first — fill fields from dependency responses. Runs on the
+    // unmodified base request, before the connector override, so a field the
+    // override deliberately sets (e.g. billing country for a payment method
+    // that requires a specific one) cannot be silently clobbered by a
+    // same-named field carried over from an unrelated dependency request —
+    // this is how a SEPA scenario's overridden "DE" billing country was
+    // getting replaced with the create-customer dependency's own "US".
     add_context(dependency_reqs, dependency_res, &mut effective_req);
 
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
+
+    // Connector overrides apply last, so they are the final, most specific
+    // word on the request — nothing after this point may change a field the
+    // override deliberately set.
+    apply_connector_overrides(connector, suite, scenario, &mut effective_req, &mut assertions)?;
 
     // Drop connector_feature_data if it still carries an unresolved
     // "auto_generate" sentinel; this check must see the sentinel intact,
@@ -4652,8 +4664,9 @@ fn execute_single_scenario_with_context(
 
     // Generate values for any remaining "auto_generate" sentinels and resolve
     // "connector_name" placeholders to the uppercase connector enum name.
-    // Since context has already been applied, dependency-carried fields are
-    // already filled and won't be touched.
+    // Since context and the override have already been applied,
+    // dependency-carried and override-set fields are already filled and
+    // won't be touched.
     resolve_auto_generate(&mut effective_req, connector)?;
 
     // Clean up wrappers whose primitive leaves are all defaults (0, null,

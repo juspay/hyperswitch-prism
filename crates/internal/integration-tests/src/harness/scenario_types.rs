@@ -240,10 +240,6 @@ pub struct ConnectorSuiteSpec {
     pub connector: String,
     /// Suites explicitly supported for this connector.
     pub supported_suites: Vec<String>,
-    /// True when this connector carries real production traffic. A change to
-    /// shared code certifies these connectors; the full sweep is the nightly's.
-    #[serde(default)]
-    pub live_in_production: bool,
     /// Payment methods supported, as the `payment_method` oneof variant a
     /// scenario populates (`card`, `klarna`, `upi_intent`).
     ///

@@ -51,6 +51,7 @@
     },
     "no3ds_auto_capture_sepa_bank_transfer": {
       "grpc_req": {
+        "setup_future_usage": null,
         "address": {
           "billing_address": {
             "country_alpha2_code": "DE"
@@ -68,9 +69,7 @@
     },
     "no3ds_auto_capture_bacs_bank_transfer": {
       "grpc_req": {
-        "amount": {
-          "currency": "EUR"
-        }
+        "setup_future_usage": null
       }
     },
     "no3ds_fail_payment": {

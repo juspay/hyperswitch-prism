@@ -13,6 +13,11 @@
 # Inputs (environment):
 #   CHANGED_CONNECTORS        comma-separated connector names touched by this PR
 #   NEW_CONNECTORS            comma-separated names added by this PR (gated elsewhere)
+#   SPEC_MODIFIED_CONNECTORS  comma-separated names whose specs.json/override.json
+#                             this PR edited — no arbitration escape hatch: a
+#                             scenario newly exposed by that edit never ran at
+#                             the merge base, so any confirmed failure blocks
+#                             directly instead of being compared away
 #   SHARED_CHANGED            "true" when core, proto or harness sources changed
 #   SPECS_ROOT                override for the connector_specs directory (tests)
 #   BASE_SHA                  merge base to arbitrate against; empty disables arbitration
@@ -30,6 +35,7 @@ ATTEMPT_TIMEOUT="${ATTEMPT_TIMEOUT:-300}"
 SCENARIO_TIMEOUT="${SCENARIO_TIMEOUT:-90}"
 SPECS_ROOT="${SPECS_ROOT:-crates/internal/integration-tests/src/connector_specs}"
 ALPHA_FILE="${SPECS_ROOT}/alpha_connectors.json"
+LIVE_FILE="${SPECS_ROOT}/live_connectors.json"
 BASE_SHA="${BASE_SHA:-}"
 SUMMARY="${GITHUB_STEP_SUMMARY:-/dev/null}"
 
@@ -47,6 +53,20 @@ source "scripts/grpc-server.sh"
 is_alpha() {
   [[ -f "${ALPHA_FILE}" ]] || return 1
   jq -e --arg n "$1" '.connectors | has($n)' "${ALPHA_FILE}" >/dev/null 2>&1
+}
+
+# This PR edited the connector's specs.json or override.json — the file that
+# decides which scenarios ever get exercised. A scenario excluded before and
+# included now (a payment method added, an unsupported_scenarios entry
+# removed, alpha status dropped) never ran at the merge base, so "also fails
+# at the merge base" cannot be asked about it — the base was never given the
+# chance to fail it. Arbitration would read that silence as "not
+# attributable" and let a PR merge a scenario that has never once passed.
+# The author making the edit is the one positioned to fix it or re-exclude it
+# with a reason, same as a brand-new connector is held to no-escape-hatch by
+# verify-new-connectors.sh.
+is_spec_modified() {
+  [[ ",${SPEC_MODIFIED_CONNECTORS:-}," == *",$1,"* ]]
 }
 
 # Names are only ever read from the manifest, but they end up in `jq --arg`
@@ -213,15 +233,19 @@ prepare_base() {
 declare -a CONNECTORS=()
 
 if [[ "${SHARED_CHANGED:-}" == "true" ]]; then
-  # All 100+ is the nightly's job; a PR clears the ones carrying real traffic.
+  # All 100+ is the nightly's job; a PR clears the ones carrying real traffic,
+  # as declared centrally in live_connectors.json — a connector goes live only
+  # by a deliberate, separately-raised PR editing that one file, so keeping
+  # the list there (rather than a per-connector flag) is just as deliberate
+  # and far easier to review at a glance.
   echo "Shared code changed — certifying connectors live in production"
-  for specs in "${SPECS_ROOT}"/*/specs.json; do
-    [[ -f "${specs}" ]] || continue
-    [[ "$(jq -r '.live_in_production // false' "${specs}")" == "true" ]] || continue
-    CONNECTORS+=("$(basename "$(dirname "${specs}")")")
-  done
+  if [[ ! -f "${LIVE_FILE}" ]]; then
+    echo "::error::Shared code changed but ${LIVE_FILE} is missing — nothing would be certified."
+    exit 1
+  fi
+  mapfile -t CONNECTORS < <(jq -r '.connectors | keys[]' "${LIVE_FILE}")
   if [[ ${#CONNECTORS[@]} -eq 0 ]]; then
-    echo "::error::Shared code changed but no connector declares live_in_production — nothing would be certified."
+    echo "::error::Shared code changed but ${LIVE_FILE} lists no connectors — nothing would be certified."
     exit 1
   fi
 else
@@ -352,6 +376,7 @@ done
 # Passing at the base and failing here is the only proof of a regression, so it
 # is the only verdict that blocks. Everything else is reported with both errors.
 declare -a REGRESSIONS=()
+declare -a SPEC_MODIFIED_FAILURES=()
 declare -a NOT_ATTRIBUTABLE=()
 
 # "<label> — <why no baseline>" for a failure the merge base could not judge.
@@ -382,6 +407,17 @@ if [[ ${#CONFIRMED[@]} -gt 0 ]]; then
       suite=$(jq -r '.suite' <<< "${target}")
       scenario=$(jq -r '.scenario' <<< "${target}")
       label="${name} (${suite} / ${scenario})"
+
+      # This PR edited ${name}'s specs.json/override.json: no merge-base
+      # comparison, since the merge base was never asked whether this
+      # scenario passes — it may not have been reachable there at all. The
+      # failure is this PR's regardless of whether the connector's code
+      # itself changed.
+      if is_spec_modified "${name}"; then
+        echo "${label}: specs.json/override.json changed in this PR — no arbitration escape, failure blocks directly."
+        SPEC_MODIFIED_FAILURES+=("${label}")
+        continue
+      fi
 
       # No scenario to compare, so the whole connector runs at the base.
       if [[ "${suite}" == "-" ]]; then
@@ -417,6 +453,7 @@ fi
   for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do echo "- ❌ **could not be certified** — ${x}: no credentials in CI"; done
   for x in ${NOT_ATTRIBUTABLE[@]+"${NOT_ATTRIBUTABLE[@]}"}; do echo "- ⚠️ **not attributable to this PR** — ${x}"; done
   for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do echo "- ❌ **regressed in this PR** — ${x}"; done
+  for x in ${SPEC_MODIFIED_FAILURES[@]+"${SPEC_MODIFIED_FAILURES[@]}"}; do echo "- ❌ **fails, and this PR edited its specs.json/override.json** — ${x}: no merge-base comparison is possible for a scenario this PR may have newly exposed"; done
 } >> "${SUMMARY}"
 
 # These stay broken in main until someone fixes them; the nightly gate is what
@@ -432,6 +469,10 @@ for x in ${NO_CREDS[@]+"${NO_CREDS[@]}"}; do
 done
 for x in ${REGRESSIONS[@]+"${REGRESSIONS[@]}"}; do
   echo "::error::${x} passes at the merge base and fails here — this PR breaks it."
+  blocking=1
+done
+for x in ${SPEC_MODIFIED_FAILURES[@]+"${SPEC_MODIFIED_FAILURES[@]}"}; do
+  echo "::error::${x} fails, and this PR edited its specs.json/override.json — fix it or exclude it with a reason, no merge-base comparison applies."
   blocking=1
 done
 

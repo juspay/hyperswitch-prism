@@ -1,6 +1,5 @@
 {
   "connector": "stripe",
-  "live_in_production": true,
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
@@ -30,7 +29,6 @@
     "bacs_bank_transfer",
     "bancontact_card",
     "eps",
-    "giropay",
     "google_pay_sdk",
     "ideal",
     "klarna",
@@ -43,6 +41,10 @@
       "payment_failed": "stripe webhooks are not used in production, so signature verification is not certified here",
       "payment_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here",
       "refund_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here"
+    },
+    "PaymentService/Authorize": {
+      "no3ds_auto_capture_bacs_bank_transfer": "connector code bug, not a test-data issue: the transformer routes bacs_bank_transfer through Stripe's customer_balance payment type (EUR/USD only) while also setting bank_transfer[type]=gb_bank_transfer (GBP only) — Stripe rejects every currency because the two nested constraints it validates are mutually exclusive. Needs a fix in connectors/stripe/transformers.rs's BacsBankTransfer arm, tracked separately.",
+      "no3ds_manual_capture_incremental_auth": "Stripe sandbox account limitation, not a code or test-data issue: Stripe rejects the request with payment_intent_invalid_parameter — \"This account is not eligible for the requested card features\" — incremental authorization must be enabled on the Stripe account by Stripe support before this can be certified."
     }
   }
 }
