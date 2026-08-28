@@ -4107,7 +4107,7 @@ fn map_customer_document_details(
 
 /// Parses the optional gRPC `Customer.date_of_birth` (ISO-8601 `YYYY-MM-DD`) into the domain
 /// `Secret<Date>`. Unlike [`map_customer_document_details`], a value that is present but
-/// unparseable is an error rather than a silent `None`: the caller asked for a date of birth to
+/// unparsable is an error rather than a silent `None`: the caller asked for a date of birth to
 /// be sent, and dropping it would surface later as an opaque connector rejection (Ilixium
 /// answers `VB8`/`VC8`) instead of a field-level error here. Shared by the Authorize,
 /// SetupMandate (CIT), RepeatPayment (MIT) and PreAuthenticate request conversions.
