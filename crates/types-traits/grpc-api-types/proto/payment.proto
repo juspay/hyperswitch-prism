@@ -2494,7 +2494,7 @@ message SecretInfoToInitiateSdk {
 }
 
 // ============================================================================
-// RECIPIENT / ACCOUNT-FUNDED TRANSACTION TYPES
+// RECIPIENT TYPES
 // ============================================================================
 
 // Recipient bank account identified by IBAN.
@@ -2536,7 +2536,7 @@ message RecipientBankAccount {
   }
 }
 
-// The account that receives the funds in an account-funded transaction.
+// The account that receives the funds.
 message RecipientAccount {
   oneof account_type {
     RecipientBankAccount bank_account = 1; // Funds credited to a bank account
@@ -2548,7 +2548,7 @@ message RecipientAccount {
   }
 }
 
-// Details about the recipient of funds in an account-funded transaction.
+// Details about the recipient of funds.
 message RecipientDetails {
   // The account the funds are credited to.
   optional RecipientAccount account = 1;
@@ -2699,7 +2699,7 @@ message PaymentServiceAuthorizeRequest {
   // where funds are pulled from a pre-funded account rather than a card.
   optional bool is_account_funded_transaction = 53;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds.
   optional RecipientDetails recipient_details = 54;
 }
 
@@ -3656,7 +3656,7 @@ message PaymentServiceSetupRecurringRequest {
   // Indicates whether this payment is an account funded transaction (AFT).
   optional bool is_account_funded_transaction = 38;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds.
   optional RecipientDetails recipient_details = 39;
 }
 
@@ -3825,7 +3825,7 @@ message RecurringPaymentServiceChargeRequest {
   // Indicates whether this payment is an account funded transaction (AFT).
   optional bool is_account_funded_transaction = 40;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds.
   optional RecipientDetails recipient_details = 41;
 }
 
