@@ -50,6 +50,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1736,6 +1737,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1779,6 +1781,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1822,6 +1825,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1865,6 +1869,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1908,6 +1913,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1951,6 +1957,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -1994,6 +2001,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
@@ -2562,6 +2570,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            merchant_request_id: value.merchant_request_id.clone(),
         })
     }
 }
