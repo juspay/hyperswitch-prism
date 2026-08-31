@@ -3650,6 +3650,10 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             }
         }
 
+        if new_router_data.response.is_err() {
+            new_router_data.resource_common_data.status = AttemptStatus::Failure;
+        }
+
         Ok(new_router_data)
     }
 }
