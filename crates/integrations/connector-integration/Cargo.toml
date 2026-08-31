@@ -19,7 +19,7 @@ serde_with = "3.7.0"
 uuid = { version = "1", features = ["v4", "v5"] }
 error-stack = "0.4.0"
 strum = { version = "0.26", features = ["derive"] }
-time = "0.3.35"
+time = { version = "0.3.35", features = ["macros"] }
 unidecode = "0.3.0"
 url = "2.5.0"
 urlencoding = "2.1.3"

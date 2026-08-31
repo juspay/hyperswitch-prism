@@ -130,6 +130,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://hyperswitch.io/".to_string()),
         webhook_url: Some("https://hyperswitch.io/".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            date_of_birth: None,
             customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,

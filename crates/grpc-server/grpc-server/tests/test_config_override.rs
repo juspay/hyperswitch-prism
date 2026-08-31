@@ -33,6 +33,7 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
                 currency: Currency::Inr as i32,
             }),
             customer: Some(grpc_api_types::payments::Customer {
+                date_of_birth: None,
                 customer_document_details: None,
                 email: Some(Secret::new("example@gmail.com".to_string())),
                 name: None,

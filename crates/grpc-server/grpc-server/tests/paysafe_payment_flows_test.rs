@@ -217,6 +217,7 @@ fn create_payment_authorize_request(
         }),
         return_url: Some("https://duck.com".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            date_of_birth: None,
             customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,

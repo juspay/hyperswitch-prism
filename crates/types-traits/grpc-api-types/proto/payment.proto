@@ -221,6 +221,9 @@ message Customer {
   optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
   optional CustomerDocumentDetails customer_document_details =
       10; // Customer identification document
+  // Customer's date of birth as an ISO-8601 calendar date (YYYY-MM-DD).
+  // Connectors that need another shape (Ilixium wants `ddmmyyyy`) format it themselves.
+  optional SecretString date_of_birth = 11;
 }
 
 // Type of customer identification document.
