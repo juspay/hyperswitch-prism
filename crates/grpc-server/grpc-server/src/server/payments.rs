@@ -1618,7 +1618,7 @@ impl PaymentService for Payments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1724,7 +1724,7 @@ impl PaymentService for Payments {
                 Ok(tonic::Response::new(setup_mandate_response))
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -3455,7 +3455,7 @@ impl RecurringPaymentService for RecurringPayments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -3650,7 +3650,7 @@ impl RecurringPaymentService for RecurringPayments {
                     Ok(tonic::Response::new(repeat_payment_response))
                 })
             },
-        )
+        ))
         .await
     }
 

@@ -86,6 +86,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         return_url: Some("https://hyperswitch.io/connector-service".to_string()),
         webhook_url: Some("https://hyperswitch.io/connector-service".to_string()),

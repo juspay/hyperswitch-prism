@@ -221,6 +221,7 @@ message Customer {
   optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
   optional CustomerDocumentDetails customer_document_details =
       10; // Customer identification document
+  optional SecretString date_of_birth = 11; // Date of birth (ISO 8601: yyyy-MM-dd)
 }
 
 // Type of customer identification document.
@@ -2493,6 +2494,73 @@ message SecretInfoToInitiateSdk {
 }
 
 // ============================================================================
+// RECIPIENT TYPES
+// ============================================================================
+
+// Recipient bank account identified by IBAN.
+message RecipientBankAccountIban {
+  SecretString iban = 1;
+}
+
+// Recipient bank account identified by account number + routing number.
+message RecipientBankAccountRoutingNumber {
+  SecretString account_number = 1;
+  SecretString routing_number = 2;
+}
+
+// Recipient bank account identified by account number + BIC.
+message RecipientBankAccountBic {
+  SecretString account_number = 1;
+  SecretString bic = 2;
+}
+
+// Recipient bank account identified by a bare account number only (no bank identifier required by the scheme).
+message RecipientBareAccountNumber {
+  SecretString account_number = 1;
+}
+
+// Recipient bank account identified by truncated PAN (first 6 + last 4 digits).
+message RecipientBankAccountTruncatedPan {
+  SecretString card_isin = 1; // First 6 digits of the PAN
+  SecretString last4 = 2;     // Last 4 digits of the PAN
+}
+
+// The account a recipient holds at a bank — discriminated by scheme.
+message RecipientBankAccount {
+  oneof bank_account_type {
+    RecipientBankAccountIban iban = 1;
+    RecipientBankAccountRoutingNumber routing_number = 2;
+    RecipientBankAccountBic bic = 3;
+    RecipientBareAccountNumber account_number = 4;
+    RecipientBankAccountTruncatedPan truncated_pan = 5;
+  }
+}
+
+// The account that receives the funds.
+message RecipientAccount {
+  oneof account_type {
+    RecipientBankAccount bank_account = 1; // Funds credited to a bank account
+    CardNumberType card_number = 2;         // Funds credited to a card
+    SecretString wallet_id = 3;            // Funds credited to a wallet
+    SecretString email = 4;               // Account identified by email
+    SecretString phone_number = 5;        // Account identified by phone
+    SecretString social_network_id = 6;   // Account identified by social network handle
+  }
+}
+
+// Details about the recipient of funds.
+message RecipientDetails {
+  // The account the funds are credited to.
+  optional RecipientAccount account = 1;
+  // The recipient's phone number.
+  optional SecretString phone_number = 2;
+  // The recipient's tax identifier (e.g. CPF/CNPJ for Brazil, CUIT for Argentina).
+  optional SecretString tax_id = 3;
+  // The recipient's address.
+  optional Address address = 4;
+}
+
+// ============================================================================
 // PAYMENT SERVICE REQUESTS
 // ============================================================================
 
@@ -2626,6 +2694,14 @@ message PaymentServiceAuthorizeRequest {
   // Currency conversion quote and decision data passed through the
   // authorization flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 51;
+
+  // Indicates whether this payment is an account funding transaction (AFT),
+  // where funds are pulled from a pre-funded account rather than a card.
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 53;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 54;
 }
 
 // Partner / external-platform application details.
@@ -3582,6 +3658,13 @@ message PaymentServiceSetupRecurringRequest {
 
   // Partner / merchant application identifiers initiating the request.
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 37;
+
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 38;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 39;
 }
 
 // Response message for a mandate setup operation
@@ -3745,6 +3828,13 @@ message RecurringPaymentServiceChargeRequest {
 
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
+
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 40;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 41;
 }
 
 // Response message for repeat payment operation

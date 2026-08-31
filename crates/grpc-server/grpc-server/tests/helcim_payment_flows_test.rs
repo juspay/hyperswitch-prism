@@ -236,6 +236,7 @@ fn create_payment_authorize_request_with_amount(
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         address: Some(create_test_billing_address()),
         browser_info: Some(create_test_browser_info()),

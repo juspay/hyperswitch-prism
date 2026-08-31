@@ -302,6 +302,7 @@ fn create_payment_authorize_request(
         first_name: None,
         last_name: None,
         salutation: None,
+        date_of_birth: None,
     });
     // Generate random names for billing to prevent duplicate transaction errors
     let billing_first_name = random_name();
@@ -546,6 +547,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
         first_name: None,
         last_name: None,
         salutation: None,
+        date_of_birth: None,
     });
 
     // Add customer acceptance as required by the server (matching your JSON: "acceptance_type": "OFFLINE")
