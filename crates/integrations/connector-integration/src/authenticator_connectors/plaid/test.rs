@@ -74,6 +74,8 @@ mod tests {
                     country_codes,
                     locale: None,
                     permissions: None,
+                    browser_info: None,
+                    native_app_identifier: None,
                 },
                 response: Err(ErrorResponse::default()),
             }
@@ -167,6 +169,76 @@ mod tests {
 
             let result = integration.build_request_v2(&req);
             assert!(result.is_err(), "expected error for empty country_codes");
+        }
+
+        fn make_req_with_platform(
+            os_type: Option<&str>,
+            native_app_identifier: Option<&str>,
+        ) -> RouterDataV2<
+            ClientAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        > {
+            let mut req = make_req(Some("My App"), Some(customer()), vec![CountryAlpha2::US]);
+            req.request.browser_info =
+                os_type.map(
+                    |os| domain_types::router_request_types::BrowserInformation {
+                        os_type: Some(os.to_owned()),
+                        ..Default::default()
+                    },
+                );
+            req.request.native_app_identifier = native_app_identifier.map(str::to_owned);
+            req
+        }
+
+        fn link_token_body(
+            req: &RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+        ) -> serde_json::Value {
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(req).unwrap();
+            request
+                .as_ref()
+                .map(|r| match r.body.as_ref() {
+                    Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                    _ => json!({}),
+                })
+                .unwrap()
+        }
+
+        #[test]
+        fn test_build_request_android_sends_package_name() {
+            let req = make_req_with_platform(Some("Android"), Some("com.merchant.app"));
+            let body = link_token_body(&req);
+            assert_eq!(body["android_package_name"], "com.merchant.app");
+            assert!(
+                body.get("redirect_uri").is_none(),
+                "redirect_uri must be omitted for Android"
+            );
+        }
+
+        #[test]
+        fn test_build_request_ios_sends_redirect_uri() {
+            let req = make_req_with_platform(Some("iOS"), Some("https://merchant.example/oauth"));
+            let body = link_token_body(&req);
+            assert_eq!(body["redirect_uri"], "https://merchant.example/oauth");
+            assert!(
+                body.get("android_package_name").is_none(),
+                "android_package_name must be omitted for non-Android"
+            );
         }
     }
 
