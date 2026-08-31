@@ -840,6 +840,7 @@ impl Connectors {
             PayoutConnectorEnum::Loonio => patched.loonio.apply(params_patch),
             PayoutConnectorEnum::Paypal => patched.paypal.apply(params_patch),
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
+            PayoutConnectorEnum::Stripe => patched.stripe.apply(params_patch),
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),

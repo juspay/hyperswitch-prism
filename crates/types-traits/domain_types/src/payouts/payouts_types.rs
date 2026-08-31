@@ -109,6 +109,7 @@ pub struct PayoutCreateRequest {
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
+    pub customer: Option<PayoutCustomer>,
 }
 
 #[derive(Debug, Clone)]
@@ -322,6 +323,8 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    pub connector_payout_method_id: Option<String>,
+    pub customer: Option<PayoutCustomer>,
     /// Source (debtor) bank data — required by connectors (e.g. Deutsche Bank)
     /// that need the debtor account to perform a status enquiry.
     pub source_bank_data: Option<Bank>,
@@ -394,9 +397,42 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
-    pub customer: Option<PayoutCustomer>,
+
     pub address: Option<PayoutAddress>,
+
+    pub customer: Option<PayoutCustomer>,
+
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorAccountDetails {
+    pub vendor_details: Option<PayoutVendorDetails>,
+    pub individual_details: Option<PayoutIndividualDetails>,
+}
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorDetails {
+    pub account_type: Option<String>,
+    pub business_profile_mcc: Option<String>,
+    pub business_profile_url: Option<Secret<String>>,
+    pub business_profile_name: Option<Secret<String>>,
+    pub statement_descriptor: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutIndividualDetails {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub ssn_last_4: Option<Secret<String>>,
+    pub id_number: Option<Secret<String>>,
+    pub dob_day: Option<Secret<String>>,
+    pub dob_month: Option<Secret<String>>,
+    pub dob_year: Option<Secret<String>>,
+    pub tos_acceptance_ip: Option<Secret<String>>,
+}
+
+pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
 
 impl PayoutCreateRecipientRequest {
     /// Navigate to the billing `AddressDetails`; per-field accessors live on
@@ -406,6 +442,144 @@ impl PayoutCreateRecipientRequest {
             .as_ref()
             .and_then(|a| a.billing_address.as_ref())
             .and_then(|b| b.address.as_ref())
+    }
+
+    fn vendor_details(&self) -> Option<&PayoutVendorDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.vendor_details.as_ref())
+    }
+
+    fn individual_details(&self) -> Option<&PayoutIndividualDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.individual_details.as_ref())
+    }
+
+    pub fn get_phone(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.phone.clone())
+            .ok_or_else(missing_field_err("phone"))
+    }
+
+    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.first_name.clone())
+            .ok_or_else(missing_field_err("first_name"))
+    }
+
+    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.last_name.clone())
+            .ok_or_else(missing_field_err("last_name"))
+    }
+
+    pub fn get_dob_day(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.dob_day.clone())
+            .ok_or_else(missing_field_err("dob_day"))
+    }
+
+    pub fn get_dob_month(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.dob_month.clone())
+            .ok_or_else(missing_field_err("dob_month"))
+    }
+
+    pub fn get_dob_year(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.dob_year.clone())
+            .ok_or_else(missing_field_err("dob_year"))
+    }
+
+    pub fn get_account_type(&self) -> Result<String, Error> {
+        self.vendor_details()
+            .and_then(|v| v.account_type.clone())
+            .ok_or_else(missing_field_err("account_type"))
+    }
+
+    pub fn get_business_profile_url(&self) -> Result<Secret<String>, Error> {
+        self.vendor_details()
+            .and_then(|v| v.business_profile_url.clone())
+            .ok_or_else(missing_field_err("business_profile_url"))
+    }
+
+    pub fn get_business_profile_name(&self) -> Result<Secret<String>, Error> {
+        self.vendor_details()
+            .and_then(|v| v.business_profile_name.clone())
+            .ok_or_else(missing_field_err("business_profile_name"))
+    }
+
+    pub fn get_statement_descriptor(&self) -> Result<Secret<String>, Error> {
+        self.vendor_details()
+            .and_then(|v| v.statement_descriptor.clone())
+            .ok_or_else(missing_field_err("statement_descriptor"))
+    }
+
+    pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
+        self.individual_details()
+            .and_then(|i| i.tos_acceptance_ip.clone())
+            .ok_or_else(missing_field_err("tos_acceptance_ip"))
+    }
+
+    pub fn get_business_profile_mcc_i32(&self) -> Result<i32, Error> {
+        let raw = self
+            .vendor_details()
+            .and_then(|v| v.business_profile_mcc.as_deref())
+            .ok_or_else(missing_field_err("business_profile_mcc"))?;
+        raw.parse::<i32>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "business_profile_mcc",
+                context: crate::errors::IntegrationErrorContext::default(),
+            })
+        })
+    }
+
+    pub fn get_id_number_or_ssn_last_4(&self) -> Result<IdNumberOrSsnLast4, Error> {
+        let individual = self.individual_details();
+        match individual.and_then(|i| i.id_number.clone()) {
+            Some(id) => Ok((Some(id), None)),
+            None => {
+                let ssn = individual
+                    .and_then(|i| i.ssn_last_4.clone())
+                    .ok_or_else(missing_field_err("ssn_last_4 or id_number"))?;
+                Ok((None, Some(ssn)))
+            }
+        }
+    }
+
+    pub fn get_email_with_fallback(&self) -> Option<common_utils::pii::Email> {
+        self.customer
+            .as_ref()
+            .and_then(|c| c.email.clone())
+            .or_else(|| {
+                self.address
+                    .as_ref()
+                    .and_then(|a| a.billing_address.as_ref())
+                    .and_then(|b| b.email.clone())
+            })
+    }
+
+    pub fn is_company(&self) -> bool {
+        matches!(
+            self.recipient_type,
+            common_enums::PayoutRecipientType::Company
+        )
+    }
+}
+
+impl PayoutEnrollDisburseAccountRequest {
+    pub fn get_payout_method_data(&self) -> Result<&PayoutMethodData, Error> {
+        self.payout_method_data
+            .as_ref()
+            .ok_or_else(missing_field_err("payout_method_data"))
+    }
+
+    pub fn get_customer_name(&self) -> Option<Secret<String>> {
+        self.customer
+            .as_ref()
+            .and_then(|c| c.name.clone())
+            .map(Secret::new)
     }
 }
 
@@ -421,9 +595,12 @@ pub struct PayoutCreateRecipientResponse {
 #[derive(Debug, Clone)]
 pub struct PayoutEnrollDisburseAccountRequest {
     pub merchant_payout_id: Option<String>,
+    pub connector_payout_id: Option<String>,
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
+
+    pub customer: Option<PayoutCustomer>,
 }
 
 #[derive(Debug, Clone)]

@@ -441,6 +441,11 @@ message PayoutServiceGetRequest {
   // debtor account details to perform a status enquiry, so they must be carried
   // on the Get request rather than smuggled inside connector_payout_id.
   optional SourceBankData source_bank_data = 4;
+  // Connector Payout Method ID representing the Payout Method
+  optional string connector_payout_method_id = 5;
+  // Customer Details (carries the connector customer / account id used by Connect-style
+  // retrieves, e.g. the Stripe `acct_…` for the Stripe-Account header)
+  optional Customer customer = 6;
 }
 
 // Response message for fetching a payout
@@ -551,6 +556,53 @@ message PayoutServiceCreateRecipientRequest {
   optional Customer customer = 6;
   // access token
   optional SecretString access_token = 7;
+  // Vendor (business) and individual (KYC) onboarding details, e.g. Stripe Connect
+  optional PayoutVendorAccountDetails vendor_account_details = 8;
+}
+
+// Vendor account details required to onboard a recipient with a connector
+// (e.g. Stripe Connect). Mirrors hyperswitch's PayoutVendorAccountDetails.
+message PayoutVendorAccountDetails {
+  // Business / vendor details
+  optional VendorDetails vendor_details = 1;
+  // Individual / KYC details
+  optional IndividualDetails individual_details = 2;
+}
+
+// Business profile details for the connected account
+message VendorDetails {
+  // Account type for Stripe Connect
+  optional string account_type = 1;
+  // Business profile MCC (4-digit code)
+  optional string business_profile_mcc = 2;
+  // Business profile URL
+  optional SecretString business_profile_url = 3;
+  // Business profile name
+  optional SecretString business_profile_name = 4;
+  // Statement descriptor for payments
+  optional SecretString statement_descriptor = 5;
+}
+
+// Individual / KYC details for the connected account
+message IndividualDetails {
+  // Individual first name
+  optional SecretString first_name = 1;
+  // Individual last name
+  optional SecretString last_name = 2;
+  // Phone number for the recipient (Stripe Connect)
+  optional SecretString phone = 3;
+  // Last 4 digits of SSN
+  optional SecretString ssn_last_4 = 4;
+  // Full SSN for Stripe
+  optional SecretString id_number = 5;
+  // DOB day (1-31)
+  optional SecretString dob_day = 6;
+  // DOB month (1-12)
+  optional SecretString dob_month = 7;
+  // DOB year (YYYY)
+  optional SecretString dob_year = 8;
+  // TOS acceptance IP address
+  optional SecretString tos_acceptance_ip = 9;
 }
 
 // Response message for creating recipient account
@@ -584,6 +636,8 @@ message PayoutServiceEnrollDisburseAccountRequest {
   optional Customer customer = 5;
   // access token
   optional SecretString access_token = 6;
+  // Connector Payout ID (e.g., Stripe account ID "acct_xxx")
+  optional string connector_payout_id = 7;
 }
 
 // Response message for enrolling disburse account
