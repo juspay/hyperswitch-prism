@@ -5517,7 +5517,7 @@ pub struct ApplepayClientAuthenticationResponse {
     /// Payment request object for Apple Pay
     pub payment_request_data: Option<ApplePayPaymentRequest>,
     /// The session token is w.r.t this connector
-    pub connector: String,
+    pub connector: ConnectorEnum,
     /// Identifier for the delayed session response
     pub delayed_session_token: bool,
     /// The next action for the sdk (ex: calling confirm or sync call)

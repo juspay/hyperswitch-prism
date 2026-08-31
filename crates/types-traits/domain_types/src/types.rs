@@ -16168,7 +16168,7 @@ pub fn generate_payment_sdk_session_token_response(
                         let apple_pay_response = grpc_api_types::payments::ApplepayClientAuthenticationResponse {
                             session_response: apple_pay_token.session_response.map(grpc_api_types::payments::ApplePaySessionResponse::foreign_try_from).transpose()?,
                             payment_request_data: apple_pay_token.payment_request_data.map(grpc_api_types::payments::ApplePayPaymentRequest::foreign_try_from).transpose()?,
-                            connector: apple_pay_token.connector,
+                            connector: grpc_api_types::payments::Connector::foreign_try_from(apple_pay_token.connector)?.into(),
                             delayed_session_token: apple_pay_token.delayed_session_token,
                             sdk_next_action: grpc_api_types::payments::SdkNextAction::from(apple_pay_token.sdk_next_action.next_action).into(),
                             connector_reference_id: apple_pay_token.connector_reference_id,
@@ -16366,6 +16366,137 @@ impl From<GpayBillingAddressFormat> for grpc_api_types::payments::GpayBillingAdd
     }
 }
 
+impl ForeignTryFrom<ConnectorEnum> for grpc_api_types::payments::Connector {
+    type Error = ConnectorError;
+
+    fn foreign_try_from(
+        connector: ConnectorEnum,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match connector {
+            ConnectorEnum::Adyen => Ok(Self::Adyen),
+            ConnectorEnum::Forte => Ok(Self::Forte),
+            ConnectorEnum::Razorpay => Ok(Self::Razorpay),
+            ConnectorEnum::Fiserv => Ok(Self::Fiserv),
+            ConnectorEnum::Elavon => Ok(Self::Elavon),
+            ConnectorEnum::Xendit => Ok(Self::Xendit),
+            ConnectorEnum::Checkout => Ok(Self::Checkout),
+            ConnectorEnum::Authorizedotnet => Ok(Self::Authorizedotnet),
+            ConnectorEnum::Bamboraapac => Ok(Self::Bamboraapac),
+            ConnectorEnum::Mifinity => Ok(Self::Mifinity),
+            ConnectorEnum::Phonepe => Ok(Self::Phonepe),
+            ConnectorEnum::Cashfree => Ok(Self::Cashfree),
+            ConnectorEnum::Paytm => Ok(Self::Paytm),
+            ConnectorEnum::Fiuu => Ok(Self::Fiuu),
+            ConnectorEnum::Payu => Ok(Self::Payu),
+            ConnectorEnum::Cashtocode => Ok(Self::Cashtocode),
+            ConnectorEnum::Novalnet => Ok(Self::Novalnet),
+            ConnectorEnum::Netcetera => Ok(Self::Netcetera),
+            ConnectorEnum::Nexinets => Ok(Self::Nexinets),
+            ConnectorEnum::Noon => Ok(Self::Noon),
+            ConnectorEnum::Braintree => Ok(Self::Braintree),
+            ConnectorEnum::Volt => Ok(Self::Volt),
+            ConnectorEnum::Calida => Ok(Self::Calida),
+            ConnectorEnum::Cryptopay => Ok(Self::Cryptopay),
+            ConnectorEnum::Helcim => Ok(Self::Helcim),
+            ConnectorEnum::Dlocal => Ok(Self::Dlocal),
+            ConnectorEnum::Placetopay => Ok(Self::Placetopay),
+            ConnectorEnum::Rapyd => Ok(Self::Rapyd),
+            ConnectorEnum::Aci => Ok(Self::Aci),
+            ConnectorEnum::Trustpay => Ok(Self::Trustpay),
+            ConnectorEnum::Stripe => Ok(Self::Stripe),
+            ConnectorEnum::Cybersource => Ok(Self::Cybersource),
+            ConnectorEnum::Worldpay => Ok(Self::Worldpay),
+            ConnectorEnum::Worldpayvantiv => Ok(Self::Worldpayvantiv),
+            ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
+            ConnectorEnum::Multisafepay => Ok(Self::Multisafepay),
+            ConnectorEnum::Payload => Ok(Self::Payload),
+            ConnectorEnum::Fiservemea => Ok(Self::Fiservemea),
+            ConnectorEnum::Paysafe => Ok(Self::Paysafe),
+            ConnectorEnum::Datatrans => Ok(Self::Datatrans),
+            ConnectorEnum::Bluesnap => Ok(Self::Bluesnap),
+            ConnectorEnum::Authipay => Ok(Self::Authipay),
+            ConnectorEnum::Silverflow => Ok(Self::Silverflow),
+            ConnectorEnum::Celero => Ok(Self::Celero),
+            ConnectorEnum::Paypal => Ok(Self::Paypal),
+            ConnectorEnum::Stax => Ok(Self::Stax),
+            ConnectorEnum::Billwerk => Ok(Self::Billwerk),
+            ConnectorEnum::Hipay => Ok(Self::Hipay),
+            ConnectorEnum::Trustpayments => Ok(Self::Trustpayments),
+            ConnectorEnum::Redsys => Ok(Self::Redsys),
+            ConnectorEnum::Globalpay => Ok(Self::Globalpay),
+            ConnectorEnum::Nuvei => Ok(Self::Nuvei),
+            ConnectorEnum::Iatapay => Ok(Self::Iatapay),
+            ConnectorEnum::Imerchantsolutions => Ok(Self::Imerchantsolutions),
+            ConnectorEnum::Nmi => Ok(Self::Nmi),
+            ConnectorEnum::Shift4 => Ok(Self::Shift4),
+            ConnectorEnum::Paybox => Ok(Self::Paybox),
+            ConnectorEnum::Barclaycard => Ok(Self::Barclaycard),
+            ConnectorEnum::Nexixpay => Ok(Self::Nexixpay),
+            ConnectorEnum::Mollie => Ok(Self::Mollie),
+            ConnectorEnum::Moneris => Ok(Self::Moneris),
+            ConnectorEnum::Airwallex => Ok(Self::Airwallex),
+            ConnectorEnum::Tsys => Ok(Self::Tsys),
+            ConnectorEnum::Bankofamerica => Ok(Self::Bankofamerica),
+            ConnectorEnum::Powertranz => Ok(Self::Powertranz),
+            ConnectorEnum::Getnet => Ok(Self::Getnet),
+            ConnectorEnum::Jpmorgan => Ok(Self::Jpmorgan),
+            ConnectorEnum::Bambora => Ok(Self::Bambora),
+            ConnectorEnum::Payme => Ok(Self::Payme),
+            ConnectorEnum::Revolut => Ok(Self::Revolut),
+            ConnectorEnum::Gigadat => Ok(Self::Gigadat),
+            ConnectorEnum::Loonio => Ok(Self::Loonio),
+            ConnectorEnum::Wellsfargo => Ok(Self::Wellsfargo),
+            ConnectorEnum::Hyperpg => Ok(Self::Hyperpg),
+            ConnectorEnum::Zift => Ok(Self::Zift),
+            ConnectorEnum::Revolv3 => Ok(Self::Revolv3),
+            ConnectorEnum::Ppro => Ok(Self::Ppro),
+            ConnectorEnum::Fiservcommercehub => Ok(Self::Fiservcommercehub),
+            ConnectorEnum::Truelayer => Ok(Self::Truelayer),
+            ConnectorEnum::Peachpayments => Ok(Self::Peachpayments),
+            ConnectorEnum::Finix => Ok(Self::Finix),
+            ConnectorEnum::Trustly => Ok(Self::Trustly),
+            ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            ConnectorEnum::AbsaSanlam => Ok(Self::AbsaSanlam),
+            ConnectorEnum::PinelabsOnline => Ok(Self::PinelabsOnline),
+            ConnectorEnum::Easebuzz => Ok(Self::Easebuzz),
+            ConnectorEnum::Axisbank => Ok(Self::Axisbank),
+            ConnectorEnum::Maya => Ok(Self::Maya),
+            ConnectorEnum::TsysTransit => Ok(Self::TsysTransit),
+            ConnectorEnum::TwocTwopPaco => Ok(Self::TwocTwopPaco),
+            ConnectorEnum::Juspay => Ok(Self::Juspay),
+            ConnectorEnum::Glomopay => Ok(Self::Glomopay),
+            ConnectorEnum::Payconex => Ok(Self::Payconex),
+            ConnectorEnum::Tamara => Ok(Self::Tamara),
+            ConnectorEnum::Hyperswitch => Ok(Self::Hyperswitch),
+            ConnectorEnum::Qwikcilver => Ok(Self::Qwikcilver),
+            ConnectorEnum::Flywire => Ok(Self::Flywire),
+            ConnectorEnum::Kount => Ok(Self::Kount),
+            ConnectorEnum::Givepayments => Ok(Self::Givepayments),
+            ConnectorEnum::Grabpay => Ok(Self::Grabpay),
+            ConnectorEnum::Tesouro => Ok(Self::Tesouro),
+            ConnectorEnum::Boost => Ok(Self::Boost),
+            ConnectorEnum::Citigate => Ok(Self::Citigate),
+            ConnectorEnum::Ilixium => Ok(Self::Ilixium),
+            ConnectorEnum::Worldpayraft => Ok(Self::Worldpayraft),
+            // The proto `Connector` enum has no variant for these two yet. They are listed
+            // rather than swept up by a wildcard so that the match stays exhaustive: a new
+            // `ConnectorEnum` variant fails to compile until it is either mapped above or
+            // named here deliberately.
+            ConnectorEnum::RazorpayV2 | ConnectorEnum::Affirm => {
+                Err(ConnectorError::UnexpectedResponseError {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(format!(
+                            "Connector {connector} has no proto Connector variant"
+                        )),
+                    },
+                }
+                .into())
+            }
+        }
+    }
+}
+
 impl ForeignTryFrom<ApplePaySessionResponse> for grpc_api_types::payments::ApplePaySessionResponse {
     type Error = ConnectorError;
 
@@ -16493,7 +16624,10 @@ impl ForeignTryFrom<ClientAuthenticationTokenData>
                             .payment_request_data
                             .map(grpc_api_types::payments::ApplePayPaymentRequest::foreign_try_from)
                             .transpose()?,
-                        connector: apple_pay_token.connector,
+                        connector: grpc_api_types::payments::Connector::foreign_try_from(
+                            apple_pay_token.connector,
+                        )?
+                        .into(),
                         delayed_session_token: apple_pay_token.delayed_session_token,
                         sdk_next_action: grpc_api_types::payments::SdkNextAction::from(
                             apple_pay_token.sdk_next_action.next_action,
@@ -20766,6 +20900,35 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                     merchant_payout_id,
                 })),
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `ApplepayClientAuthenticationResponse.connector` is a proto `Connector` rather than a
+    /// free-form string, so the two connectors that build an Apple Pay session token have to
+    /// land on the right proto variant. Exhaustiveness is checked by the compiler; what it
+    /// cannot catch is an arm pointing at the wrong variant, which is what this pins.
+    #[test]
+    fn apple_pay_session_connectors_map_to_their_proto_variants() {
+        for (connector, expected) in [
+            (
+                ConnectorEnum::Braintree,
+                grpc_api_types::payments::Connector::Braintree,
+            ),
+            (
+                ConnectorEnum::Trustpay,
+                grpc_api_types::payments::Connector::Trustpay,
+            ),
+        ] {
+            assert_eq!(
+                grpc_api_types::payments::Connector::foreign_try_from(connector).ok(),
+                Some(expected),
+                "{connector} does not map onto its proto Connector variant"
+            );
         }
     }
 }

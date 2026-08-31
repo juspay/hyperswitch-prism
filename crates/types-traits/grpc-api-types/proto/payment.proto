@@ -2371,7 +2371,7 @@ message GpayTransactionInfo {
 message ApplepayClientAuthenticationResponse {
   optional ApplePaySessionResponse session_response = 1;
   ApplePayPaymentRequest payment_request_data = 2;
-  string connector = 3;
+  Connector connector = 3;
   bool delayed_session_token = 4;
   SdkNextAction sdk_next_action = 5;
   optional string connector_reference_id = 6;
