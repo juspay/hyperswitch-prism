@@ -268,7 +268,7 @@ pub struct HelcimPaymentsResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelcimMetaData {
-    pub preauth_transaction_id: String,
+    pub preauth_transaction_id: u64,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -293,7 +293,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let connector_metadata = if !is_auto_capture {
             Some(serde_json::json!(HelcimMetaData {
-                preauth_transaction_id: item.response.transaction_id.to_string()
+                preauth_transaction_id: item.response.transaction_id
             }))
         } else {
             None
