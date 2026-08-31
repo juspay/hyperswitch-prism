@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GRACE Custom Prompt Configuration Schema",
+  "description": "Schema for defining custom prompts in the GRACE framework",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Version of the prompt configuration schema",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "defaults": {
+      "type": "object",
+      "description": "Default prompts applied to all tasks",
+      "properties": {
+        "system_context": {
+          "type": "string",
+          "description": "Default system context prompt"
+        },
+        "code_style": {
+          "type": "string",
+          "description": "Default code style guidelines"
+        }
+      }
+    },
+    "task_prompts": {
+      "type": "object",
+      "description": "Task-specific prompt overrides",
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "$ref": "#/definitions/taskPrompt"
+        }
+      },
+      "additionalProperties": false
+    },
+    "connector_prompts": {
+      "type": "object",
+      "description": "Connector-specific prompts",
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "$ref": "#/definitions/connectorPrompt"
+        }
+      },
+      "additionalProperties": false
+    },
+    "validation": {
+      "type": "object",
+      "description": "Validation rules for custom prompts",
+      "properties": {
+        "max_prompt_length": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 50000
+        },
+        "required_fields": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["name", "description", "prompt"]
+          }
+        },
+        "allowed_variables": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_]+$"
+          }
+        }
+      }
+    },
+    "injection_points": {
+      "type": "array",
+      "description": "Where custom prompts can be injected",
+      "items": {
+        "$ref": "#/definitions/injectionPoint"
+      }
+    }
+  },
+  "definitions": {
+    "taskPrompt": {
+      "type": "object",
+      "required": ["name", "description", "prompt"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "applicable_flows": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of flow names this prompt applies to"
+        },
+        "applicable_payment_methods": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of payment methods this prompt applies to"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 50,
+          "maxLength": 10000
+        }
+      }
+    },
+    "connectorPrompt": {
+      "type": "object",
+      "required": ["name", "description", "prompt"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 50,
+          "maxLength": 10000
+        }
+      }
+    },
+    "injectionPoint": {
+      "type": "object",
+      "required": ["name", "description", "applicable_to"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "applicable_to": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[\\w./_-]+\\.md$|all$"
+          }
+        }
+      }
+    }
+  }
+}
