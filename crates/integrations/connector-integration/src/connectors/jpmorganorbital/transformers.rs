@@ -439,7 +439,6 @@ fn looks_base64(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
 }
 
-
 fn map_eci(eci: &str, brand: OrbitalBrand) -> Option<&'static str> {
     let trimmed = eci.trim();
     let unpadded = trimmed.trim_start_matches('0');
