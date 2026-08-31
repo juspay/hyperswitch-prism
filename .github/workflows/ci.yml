@@ -58,7 +58,8 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
-      connector-names: ${{ steps.connector-names.outputs.list }}
+      payment-connector-names: ${{ steps.connector-names.outputs.list }}
+      all-connector-names: ${{ steps.connector-names.outputs.all-list }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
       spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
@@ -127,7 +128,7 @@ jobs:
               # Shared connector code: no connector name in the path, so nothing
               # would be selected. `*` stops at the slash, sparing connectors/.
               - 'crates/integrations/connector-integration/src/*.rs'
-      - name: Extract changed connector names
+      - name: Extract changed payment connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
         shell: bash
@@ -149,11 +150,50 @@ jobs:
             exit 1
           fi
 
-          touched=$(echo "${CONNECTOR_FILES}" | \
-            jq -r '.[]' | \
-            grep -oE '(connectors|connector_specs)/[^/]+' | \
-            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
-            grep -v -E '^(alpha_connectors|live_connectors)\.json$')
+          # Enumerate real directories instead of grepping diff paths, so a
+          # name can only ever be one that actually exists.
+          names_in_dir() {
+            local dir="$1"
+            [ -d "${dir}" ] || return 0
+            find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
+              sed 's|\.rs$||' | sort -u
+          }
+
+          touched_under() {
+            local dir_prefix="$1"
+            local name="$2"
+            echo "${CONNECTOR_FILES}" | jq -r '.[]' | \
+              grep -qE "^${dir_prefix}/${name}(\.rs)?(/|$)"
+          }
+
+          payment_touched=""
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors)
+
+          # A connector's specs.json/override.json can change without any of
+          # its own Rust files changing, so specs-only edits need their own
+          # pass against the same real, known list.
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/internal/integration-tests/src/connector_specs" "${name}" && \
+               ! echo ",${payment_touched}," | grep -q ",${name},"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(names_in_dir crates/internal/integration-tests/src/connector_specs)
+
+          other_touched=""
+          for dir in authenticator_connectors payout_connectors surcharge_connectors; do
+            while IFS= read -r name; do
+              [ -n "${name}" ] || continue
+              if touched_under "crates/integrations/connector-integration/src/${dir}" "${name}"; then
+                other_touched="${other_touched}${other_touched:+,}${name}"
+              fi
+            done < <(names_in_dir "crates/integrations/connector-integration/src/${dir}")
+          done
 
           # Taking a connector off the alpha list is what starts certifying it,
           # but the edit touches only that shared file. Names present at the
@@ -175,9 +215,14 @@ jobs:
               <(jq -r '.connectors | keys[]' "$live"))
           fi
 
-          names=$(printf '%s\n%s\n%s\n' "$touched" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
-          echo "list=$names" >> $GITHUB_OUTPUT
-          echo "Changed connectors: $names"
+          payment_names=$(printf '%s\n%s\n%s\n' "$(echo "$payment_touched" | tr ',' '\n')" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
+          other_names=$(echo "$other_touched" | tr ',' '\n' | sed '/^$/d' | sort -u | paste -sd ',' -)
+          all_names=$(printf '%s\n%s\n' "$(echo "$payment_names" | tr ',' '\n')" "$(echo "$other_names" | tr ',' '\n')" | sed '/^$/d' | sort -u | paste -sd ',' -)
+
+          echo "list=$payment_names" >> $GITHUB_OUTPUT
+          echo "all-list=$all_names" >> $GITHUB_OUTPUT
+          echo "Changed payment connectors (drives regression + nextest scoping): $payment_names"
+          echo "Changed non-payment connectors (drives nextest scoping only): $other_names"
 
       - name: Detect newly added connectors
         id: new-connectors
@@ -705,7 +750,9 @@ jobs:
           # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
         run: |
-          CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"
+          # Includes non-payment connector types too — this only scopes a
+          # Rust test-name filter, not certification.
+          CONNECTOR_NAMES="${{ needs.changes.outputs.all-connector-names }}"
           CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
           PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
           CI_CHANGED="${{ needs.changes.outputs.ci }}"
@@ -785,7 +832,7 @@ jobs:
         env:
           # Git facts only. Which suites and scenarios each connector runs is the
           # framework's to derive from that connector's own specs.json.
-          CHANGED_CONNECTORS: ${{ needs.changes.outputs.connector-names }}
+          CHANGED_CONNECTORS: ${{ needs.changes.outputs.payment-connector-names }}
           NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
           SPEC_MODIFIED_CONNECTORS: ${{ needs.changes.outputs.spec-modified-connectors }}
           SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
