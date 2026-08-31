@@ -42,6 +42,7 @@ pub enum MandateOccurrence {
 pub enum PaysafeStoredCredentialType {
     Adhoc,
     Topup,
+    Recurring,
 }
 
 /// CreateConnectorCustomer request body (`POST v1/customers`).
@@ -560,10 +561,11 @@ pub enum PaysafeAuthorizeRequest<T: PaymentMethodDataTypes> {
 /// only mint SINGLE_USE handles this way (the vault endpoint rejects raw
 /// applePay/googlePay objects with 5068 "CARD object must be present").
 ///
-/// `VaultFromHandle`: wallet recurring leg 2 — convert an existing single-use
-/// wallet handle into a customer-vaulted MULTI_USE (paymentType CARD) handle
-/// via `POST v1/customers/{id}/paymenthandles {paymentHandleTokenFrom}`,
-/// mirroring Paysafe's documented Apple Pay / Google Pay recurring flow.
+/// `VaultFromHandle`: after a successful wallet CIT, convert its spent
+/// SINGLE_USE handle into a customer-vaulted MULTI_USE (paymentType CARD)
+/// handle via `POST v1/customers/{id}/paymenthandles
+/// {paymentHandleTokenFrom}`, mirroring Paysafe's documented Apple Pay /
+/// Google Pay recurring flow.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaysafePaymentMethodTokenRequest<T: PaymentMethodDataTypes> {
