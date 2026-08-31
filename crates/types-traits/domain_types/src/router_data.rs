@@ -3983,6 +3983,20 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Gigadat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Gigadat {
+                        security_token: api_secret.clone(),
+                        access_token: api_key.clone(),
+                        campaign_id: key1.clone(),
+                        base_url: None,
+                        site: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Santander => Err(err().into()),
                 PayoutConnectorEnum::GotymeSanlam => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {

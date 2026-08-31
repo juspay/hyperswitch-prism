@@ -4,7 +4,7 @@ use crate::{
         ConnectorResponseHeaders, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
-    errors::IntegrationError,
+    errors::{IntegrationError, IntegrationErrorContext},
     payment_address::Address,
     types::Connectors,
     utils::{missing_field_err, Error},
@@ -109,6 +109,7 @@ pub struct PayoutCreateRequest {
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
+    pub payout_connector_metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -310,6 +311,35 @@ pub struct PayoutCustomer {
     pub phone_country_code: Option<String>,
 }
 
+impl PayoutCustomer {
+    pub fn get_merchant_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        let id = self
+            .merchant_customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer.merchant_customer_id"))?;
+        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id)).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "customer.merchant_customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to parse customer id as a valid CustomerId".to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure the customer id is a valid non-empty string".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            },
+        )
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PayoutTransferResponse {
     pub merchant_payout_id: Option<String>,
@@ -341,6 +371,25 @@ pub struct PayoutStageRequest {
     pub amount: common_utils::types::MinorUnit,
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
+    pub customer: Option<PayoutCustomer>,
+    pub browser_info: Option<crate::router_request_types::BrowserInformation>,
+    pub address: Option<PayoutAddress>,
+}
+
+impl PayoutStageRequest {
+    pub fn get_customer(&self) -> Result<&PayoutCustomer, Error> {
+        self.customer
+            .as_ref()
+            .ok_or_else(missing_field_err("customer"))
+    }
+
+    pub fn get_browser_info(
+        &self,
+    ) -> Result<&crate::router_request_types::BrowserInformation, Error> {
+        self.browser_info
+            .as_ref()
+            .ok_or_else(missing_field_err("browser_info"))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -349,6 +398,7 @@ pub struct PayoutStageResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
+    pub connector_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]

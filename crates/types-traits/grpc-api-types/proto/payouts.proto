@@ -327,6 +327,9 @@ message PayoutServiceCreateRequest {
   optional SourceBankData source_bank_data = 15;
   // Description of the payout
   optional string description = 16;
+  // Connector metadata carried over from a preceding flow (e.g. the staged-payout
+  // token returned by PayoutStage).
+  optional SecretString payout_connector_metadata = 17;
 }
 
 // Response message for creating a payout
@@ -379,7 +382,8 @@ message PayoutServiceTransferRequest {
   // requires it to authorise the transfer.
   optional string connector_eligibility_reference_id = 16;
   // Connector metadata carried over from a preceding flow (e.g. the recipient
-  // account id returned by create_recipient).
+  // account id returned by create_recipient, or the staged-payout token
+  // returned by PayoutStage).
   optional SecretString payout_connector_metadata = 17;
 }
 
@@ -427,6 +431,8 @@ message PayoutServiceStageResponse {
   optional ErrorInfo error = 4;
   // HTTP status code from the connector
   uint32 status_code = 5;
+  // Connector metadata (contains token for subsequent PayoutCreate)
+  optional SecretString connector_metadata = 6;
 }
 
 // Request message for fetching a payout

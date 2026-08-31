@@ -134,6 +134,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
                 .transpose()?,
+            payout_connector_metadata: value
+                .payout_connector_metadata
+                .map(|m| {
+                    common_utils::pii::SecretSerdeValue::foreign_try_from((
+                        m,
+                        "payout_connector_metadata",
+                    ))
+                })
+                .transpose()?,
         })
     }
 }
@@ -1480,11 +1489,30 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             common_enums::Currency::foreign_try_from(curr)?
         };
 
+        let customer = value
+            .customer
+            .clone()
+            .map(convert_payouts_customer_to_domain)
+            .transpose()?;
+        let browser_info = value
+            .browser_info
+            .clone()
+            .map(crate::router_request_types::BrowserInformation::foreign_try_from)
+            .transpose()?;
+        let address = value
+            .address
+            .clone()
+            .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_quote_id: value.merchant_quote_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
+            customer,
+            browser_info,
+            address,
         })
     }
 }
@@ -2259,6 +2287,7 @@ pub fn generate_payout_stage_response(
                 connector_payout_id: response.connector_payout_id,
                 error: None,
                 status_code: u32::from(response.status_code),
+                connector_metadata: response.connector_metadata,
             })
         }
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceStageResponse {
@@ -2295,6 +2324,7 @@ pub fn generate_payout_stage_response(
                 }),
             }),
             status_code: u32::from(err.status_code),
+            connector_metadata: None,
         }),
     }
 }

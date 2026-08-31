@@ -842,6 +842,7 @@ impl Connectors {
             PayoutConnectorEnum::Itaubank => patched.itaubank.apply(params_patch),
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
+            PayoutConnectorEnum::Gigadat => patched.gigadat.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
             PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
             PayoutConnectorEnum::GotymeSanlam => patched.gotyme_sanlam.apply(params_patch),
