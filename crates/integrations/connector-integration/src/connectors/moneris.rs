@@ -27,8 +27,11 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    decode::BodyDecoding, verification::SourceVerification,
+    api::ConnectorCommon,
+    connector_integration_v2::ConnectorIntegrationV2,
+    connector_types::{self, AuthenticationStep, RedirectState},
+    decode::BodyDecoding,
+    verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
@@ -105,18 +108,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         auth_type: common_enums::AuthenticationType,
         payment_method: common_enums::PaymentMethod,
-        _redirect_state: connector_types::RedirectState,
-        completed_step: Option<connector_types::AuthenticationStep>,
-    ) -> connector_types::AuthenticationStep {
-        use connector_types::AuthenticationStep;
-
+        redirect_state: RedirectState,
+        completed_step: Option<AuthenticationStep>,
+    ) -> AuthenticationStep {
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && matches!(payment_method, common_enums::PaymentMethod::Card)
         {
-            match completed_step {
-                None => AuthenticationStep::PreAuthenticate,
-                Some(AuthenticationStep::PreAuthenticate) => AuthenticationStep::Authorize,
-                Some(AuthenticationStep::PostAuthenticate) => AuthenticationStep::Authorize,
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                // Frictionless: PreAuthenticate completed with no redirect → go straight to Authorize
+                (RedirectState::InitialRequest, Some(AuthenticationStep::PreAuthenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+                // Challenge: ACS posted cres back → run PostAuthenticate (auth value lookup)
+                (RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams, _) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+                // After PostAuthenticate → Authorize
+                (_, Some(AuthenticationStep::PostAuthenticate)) => AuthenticationStep::Authorize,
                 _ => AuthenticationStep::Authorize,
             }
         } else {

@@ -2119,10 +2119,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | Some(MonerisThreeDSecureTransactionStatus::Rejected) => {
                 common_enums::AttemptStatus::AuthenticationFailed
             }
-            Some(MonerisThreeDSecureTransactionStatus::Decoupled) => {
+            Some(MonerisThreeDSecureTransactionStatus::Decoupled)
+            | Some(MonerisThreeDSecureTransactionStatus::ChallengeAuthenticationRequired) => {
                 common_enums::AttemptStatus::AuthenticationPending
             }
-            _ => common_enums::AttemptStatus::AuthenticationSuccessful,
+            None => common_enums::AttemptStatus::AuthenticationFailed,
         };
 
         let authentication_data = Some(AuthenticationData {
