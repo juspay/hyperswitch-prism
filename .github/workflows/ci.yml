@@ -150,20 +150,13 @@ jobs:
             exit 1
           fi
 
-          # Names come from real directory listings, never from pattern-matching
-          # diff paths: a regex on "connectors/<name>" also matches inside an
-          # unrelated sibling directory that merely ends with that word, e.g.
-          # authenticator_connectors/plaid/ — inventing a "plaid" connector that
-          # has no specs.json and never did, and failing the newly-added-connector
-          # check for a PR that never touched a real connector. Enumerating each
-          # root's actual children makes an invented name structurally impossible.
+          # Names come from real directory listings, not from pattern-matching
+          # diff paths, so a name can only ever be one that actually exists.
           #
-          # Regression certification (below) only understands payment connectors
-          # today — connector_specs/ has no authenticator/payout/surcharge
-          # entries — so only payment names feed it. The other three are kept
-          # separately, for nextest scoping only (see "Run Tests"), so a PR that
-          # touches only e.g. authenticator_connectors/ still gets a fast, scoped
-          # run instead of falling back to the full suite.
+          # Regression certification (below) only covers payment connectors —
+          # connector_specs/ has no authenticator/payout/surcharge entries —
+          # so only payment names feed it. The other three types are kept
+          # separately, for nextest scoping only (see "Run Tests").
           names_in_dir() {
             local dir="$1"
             [ -d "${dir}" ] || return 0
@@ -186,9 +179,9 @@ jobs:
             fi
           done < <(names_in_dir crates/integrations/connector-integration/src/connectors)
 
-          # A connector's specs.json/override.json can change without any of its
-          # own Rust files changing, so specs-only edits need their own pass
-          # against the same real, known list — not a path-shape guess either.
+          # A connector's specs.json/override.json can change without any of
+          # its own Rust files changing, so specs-only edits need their own
+          # pass against the same real, known list.
           while IFS= read -r name; do
             [ -n "${name}" ] || continue
             if touched_under "crates/internal/integration-tests/src/connector_specs" "${name}" && \
@@ -762,10 +755,8 @@ jobs:
           # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
         run: |
-          # All real, touched connector names (payment + authenticator + payout
-          # + surcharge) — nextest scoping only needs a Rust test-name filter,
-          # not certification, so the non-payment types are fine here even
-          # though they don't feed the regression pipeline below.
+          # Includes non-payment connector types too — this only scopes a
+          # Rust test-name filter, not certification.
           CONNECTOR_NAMES="${{ needs.changes.outputs.all-connector-names }}"
           CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
           PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
