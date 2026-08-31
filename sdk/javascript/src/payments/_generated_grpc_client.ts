@@ -521,7 +521,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   BankAccount: { "balance": "Money", "availableBalance": "Money", "ach": "BankAccountDetailsAch", "bacs": "BankAccountDetailsBacs", "sepa": "BankAccountDetailsSepa" },
   PaymentMethodServiceRechargeRequest: { "amount": "Money", "state": "ConnectorState" },
   PaymentMethodServiceRechargeResponse: { "paymentMethodDetails": "PaymentMethodDetails", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
-  CustomerServiceCreateRequest: { "address": "PaymentAddress", "splitPayments": "SplitPaymentsDetails" },
+  CustomerServiceCreateRequest: { "address": "PaymentAddress", "splitPayments": "SplitPaymentsDetails", "customerAcceptance": "CustomerAcceptance" },
   CustomerServiceCreateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceGetResponse: { "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceUpdateRequest: { "address": "PaymentAddress" },

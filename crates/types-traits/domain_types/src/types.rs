@@ -14121,6 +14121,11 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
                     .and_then(|billing| billing.first_name.clone())
             });
 
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            other => Some(FutureUsage::foreign_try_from(other)?),
+        };
+
         Ok(Self {
             customer_id: value
                 .customer
@@ -14135,6 +14140,15 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
                 .transpose()?,
             phone: None,
             preprocessing_id: None,
+            setup_future_usage,
+            customer_acceptance: value
+                .customer_acceptance
+                .map(mandates::CustomerAcceptance::foreign_try_from)
+                .transpose()?,
+            metadata: value
+                .metadata
+                .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
@@ -14268,6 +14282,18 @@ impl ForeignTryFrom<PaymentServiceSetupRecurringRequest> for ConnectorCustomerDa
     fn foreign_try_from(
         value: PaymentServiceSetupRecurringRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            other => Some(FutureUsage::foreign_try_from(other)?),
+        };
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let metadata = value
+            .metadata
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
+            .transpose()?;
         match value.customer {
             Some(customer) => {
                 let email = customer
@@ -14281,6 +14307,9 @@ impl ForeignTryFrom<PaymentServiceSetupRecurringRequest> for ConnectorCustomerDa
                     phone: None,
                     preprocessing_id: None,
                     split_payments: None,
+                    setup_future_usage,
+                    customer_acceptance,
+                    metadata,
                 })
             }
             None => Ok(Self {
@@ -14291,6 +14320,9 @@ impl ForeignTryFrom<PaymentServiceSetupRecurringRequest> for ConnectorCustomerDa
                 split_payments: None,
                 phone: None,
                 preprocessing_id: None,
+                setup_future_usage,
+                customer_acceptance,
+                metadata,
             }),
         }
     }
@@ -15068,9 +15100,25 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
     fn foreign_try_from(
         value: grpc_api_types::payments::CustomerServiceCreateRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Compute before consuming any field of `value`: the generated enum accessor
+        // borrows `&value`, which a partial move (e.g. of `value.email`) would block.
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            other => Some(FutureUsage::foreign_try_from(other)?),
+        };
+
         let email = value
             .email
             .and_then(|email_str| Email::try_from(email_str.expose()).ok());
+
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let metadata = value
+            .metadata
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
+            .transpose()?;
 
         Ok(Self {
             customer_id: value.merchant_customer_id.map(Secret::new),
@@ -15083,6 +15131,9 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
                 .transpose()?,
             phone: None,
             preprocessing_id: None,
+            setup_future_usage,
+            customer_acceptance,
+            metadata,
         })
     }
 }

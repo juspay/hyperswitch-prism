@@ -2657,6 +2657,12 @@ pub struct ConnectorCustomerData {
     pub phone: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    // Mandate-related fields. Some connectors (e.g. Payload) build their customer
+    // request differently for mandate setups and read connector config from request
+    // metadata, so these must be carried through from the originating payment request.
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub customer_acceptance: Option<CustomerAcceptance>,
+    pub metadata: Option<SecretSerdeValue>,
 }
 
 impl ConnectorCustomerData {
@@ -2669,6 +2675,13 @@ impl ConnectorCustomerData {
 
     pub fn get_name(&self) -> Result<Secret<String>, Error> {
         self.name.clone().ok_or_else(missing_field_err("name"))
+    }
+
+    /// Mirrors HS `ConnectorCustomerData::is_mandate_payment`: a customer-initiated
+    /// mandate setup is signalled by customer acceptance plus off-session usage.
+    pub fn is_mandate_payment(&self) -> bool {
+        self.customer_acceptance.is_some()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
     }
 }
 

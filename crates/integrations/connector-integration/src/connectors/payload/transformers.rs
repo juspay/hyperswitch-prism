@@ -30,7 +30,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -1234,16 +1234,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let email = router_data.request.get_email()?;
         let name = router_data.request.get_name()?;
 
-        let primary_processing_id =
-            PayloadAuthType::try_from(&router_data.connector_config)?.primary_processing_id();
+        // Mirror HS: metadata `processing_account_id` takes precedence over the
+        // connector auth-config processing id.
+        let primary_processing_id = get_processing_account_id_from_metadata(
+            router_data.request.metadata.as_ref().map(|m| m.peek()),
+        )
+        .or(PayloadAuthType::try_from(&router_data.connector_config)?.primary_processing_id());
 
         Ok(Self {
-            // `keep_active` controls whether the saved payment methods on this
-            // customer stay active. UCS calls CreateConnectorCustomer ahead of
-            // Authorize before we know if this is a mandate, so default to
-            // false (one-time). Subsequent Authorize-time `keep_active` is set
-            // independently on the transaction request.
-            keep_active: false,
+            // `keep_active` keeps the saved payment method on this customer active
+            // for future (mandate) use. HS sets it from `is_mandate_payment()`, so
+            // mirror that here to keep the connector request identical.
+            keep_active: router_data.request.is_mandate_payment(),
             email,
             name,
             primary_processing_id,
