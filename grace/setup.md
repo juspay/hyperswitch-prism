@@ -76,6 +76,20 @@ AI_BASE_URL=https://api.anthropic.com/v1
 AI_MODEL_ID=anthropic/claude-sonnet-4-20250514
 ```
 
+### Using OrcaRouter
+
+```env
+AI_API_KEY=sk-orca-...
+AI_BASE_URL=https://api.orcarouter.ai/v1
+AI_MODEL_ID=openai/openai/gpt-4o
+AI_VISION_MODEL_ID=openai/openai/gpt-4o
+```
+
+> **Note:** OrcaRouter model ids carry their own provider prefix (e.g.
+> `openai/gpt-4o`). Because Grace routes through LiteLLM, the leading `openai/`
+> is repeated so LiteLLM forwards the full `openai/gpt-4o` id to OrcaRouter.
+> Get a key at https://www.orcarouter.ai/console (keys start with `sk-orca-`).
+
 ### For URL Scraping
 
 Set one of:
