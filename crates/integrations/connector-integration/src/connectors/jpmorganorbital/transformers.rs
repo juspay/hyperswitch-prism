@@ -1,29 +1,3 @@
-//! JP Morgan Orbital (Chase Paymentech "Orbital Gateway" JSON API v4) transformers.
-//!
-//! **This is not the `jpmorgan` connector.** `jpmorgan` integrates the JPMorgan
-//! Payments API v2 (`api-ms.payments.jpmorgan.com`, OAuth2 bearer tokens). Orbital is
-//! the legacy Chase Paymentech gateway at `*.chasepaymentech.com`, authenticated with
-//! three plain HTTP headers and speaking a flat `merchant` / `order` /
-//! `paymentInstrument` JSON dialect. Nothing is shared between the two.
-//!
-//! Scope of this module: Card one-time payments only — Authorize (`POST /payments`,
-//! non-3DS **and** external-3DS passthrough) and PSync (`POST /inquiry`, recovery
-//! only). Mandates/MIT, wallets, bank transfers/debits, BNPL, Capture, Void, Refund
-//! and RSync are deliberately absent.
-//!
-//! Three facts drive most of the code below:
-//!
-//! 1. `order.amount` carries **two implied decimals for every currency**, including
-//!    zero-exponent ones — ¥100 and $100.00 are both `"10000"`. Currency itself is
-//!    never transmitted; it is a property of the Merchant ID.
-//! 2. Orbital 3-D Secure is **external passthrough only**. There is no gateway-hosted
-//!    challenge, no ACS redirect and no URL anywhere in `paymentsResponse`: the 3DS
-//!    variant of Authorize is the same single synchronous call with two extra body
-//!    objects (`cryptogram`, `additionalAuthInfo`).
-//! 3. `order.retryTrace` is both the idempotency key and the **only** key `/inquiry`
-//!    accepts, so it is always sent and is derived deterministically from the attempt
-//!    reference rather than randomly.
-
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
 use common_utils::types::MinorUnit;
 use domain_types::{
@@ -78,14 +52,6 @@ const MAX_AMOUNT_LEN: usize = 12;
 // AUTH
 // =============================================================================
 
-/// Orbital's five configured values.
-///
-/// `username` / `password` / `merchant_id` are the three secrets that travel as
-/// plain HTTP headers (`orbitalConnectionUsername`, `orbitalConnectionPassword`,
-/// `merchantID`) — Orbital uses no `Authorization` header, no OAuth and no request
-/// signing. `bin` and `terminal_id` are **not** secrets: they select the back-end
-/// authorization host (Stratus vs Tandem) and the merchant terminal, travel in the
-/// request body, and cannot be derived by the connector.
 #[derive(Debug, Clone)]
 pub struct JpmorganOrbitalAuthType {
     pub username: Secret<String>,
@@ -108,9 +74,6 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                 terminal_id,
                 ..
             } => {
-                // `bin` and `terminal_id` are merchant provisioning facts. Guessing
-                // them would silently route a Tandem (Canadian) merchant at the
-                // Stratus host, so fail loudly instead.
                 let bin = bin
                     .clone()
                     .filter(|value| !value.trim().is_empty())
@@ -173,16 +136,6 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
 // AMOUNT — two implied decimals for EVERY currency
 // =============================================================================
 
-/// Render `order.amount` the way Orbital defines it.
-///
-/// > *"Implied decimal, including those currencies that are a zero exponent. For
-/// > example, both $100.00 (an exponent of 2) and ¥100 (an exponent of 0) should be
-/// > sent as `amount=10000`."*
-///
-/// That is **not** the usual minor-unit convention: `StringMinorUnit` would emit
-/// `"100"` for ¥100 and under-charge by 100×. The correct transform is
-/// *major units × 100*, so this converts to a major-unit string first and then
-/// shifts the decimal point two places right exactly.
 pub fn orbital_amount(
     minor_amount: MinorUnit,
     currency: Currency,
@@ -222,9 +175,6 @@ fn shift_two_decimal_places(major: &str) -> Result<String, error_stack::Report<I
         return Err(invalid("non-numeric characters"));
     }
 
-    // Three- and four-decimal currencies (KWD, BHD, CLF …) cannot be expressed with
-    // Orbital's two implied decimals. Trailing zeros are safe to drop; anything else
-    // would silently truncate real money, so reject it instead.
     let mut cents = fractional.to_string();
     if cents.len() > 2 {
         if cents[2..].bytes().any(|b| b != b'0') {
@@ -257,14 +207,6 @@ fn shift_two_decimal_places(major: &str) -> Result<String, error_stack::Report<I
 // ORDER ID + RETRY TRACE
 // =============================================================================
 
-/// Sanitize a UCS reference into an `order.orderID`.
-///
-/// Orbital allows `a-z A-Z 0-9 - , $ @ &` and space, forbids a leading space, caps
-/// the field at 22 characters and requires the **first 8** to be unique per
-/// transaction. UCS reference ids routinely contain `_` and share a long common
-/// prefix, so disallowed characters are mapped to `-` and an over-long reference is
-/// truncated from the **left** — the tail is where UCS ids actually differ, so
-/// keeping it preserves the first-8-unique property that keeping the head destroys.
 fn build_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
     let sanitized: String = reference
         .chars()
@@ -304,17 +246,6 @@ fn build_order_id(reference: &str) -> Result<String, error_stack::Report<Integra
     Ok(order_id)
 }
 
-/// Derive `order.retryTrace` from a stable attempt reference.
-///
-/// Orbital's retry trace is numeric and capped at 16 characters, so a UUID does not
-/// fit. It must also be **deterministic per payment attempt**: a transport-level
-/// retry has to re-send the same value to get the original response echoed back
-/// instead of double-charging, and `/inquiry` looks the payment up by exactly this
-/// value (`order.inquiryRetryNumber`). Deriving it from the attempt reference with a
-/// fixed hash therefore also means PSync can recompute it without a stored value.
-///
-/// FNV-1a/64 folded into `[1_000_000_000_000_000, 9_999_999_999_999_999]` — always
-/// 16 digits, never a leading zero.
 pub fn build_retry_trace(reference: &str) -> String {
     const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
     const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
@@ -328,17 +259,6 @@ pub fn build_retry_trace(reference: &str) -> String {
     trace.to_string()
 }
 
-// =============================================================================
-// CARD BRAND (used only to route the 3DS cryptogram to the right field)
-// =============================================================================
-
-/// The card brands Orbital's 3-D Secure chapter distinguishes.
-///
-/// This is **not** serialized: `card.cardBrand` is documented optional for a clear
-/// PAN and is deliberately not sent, so Orbital derives the brand itself and a whole
-/// class of mismapping bugs disappears. The brand is still needed locally, because
-/// the CAVV goes into a *different* `cryptogram` field per brand and Mastercard uses
-/// an inverted ECI scale.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OrbitalBrand {
     Visa,
@@ -511,9 +431,6 @@ fn trans_type_for(
     }
 }
 
-/// Orbital rejects a non-Base64 CAVV/XID with respCode 37 / 245 rather than an
-/// error, so an XID that is not already Base64 is dropped instead of being mangled.
-/// (In 3DS 2.x there is no XID at all; the nearest analogue is a UUID.)
 fn looks_base64(value: &str) -> bool {
     !value.is_empty()
         && value.len().is_multiple_of(4)
@@ -522,13 +439,7 @@ fn looks_base64(value: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'/' || b == b'=')
 }
 
-/// Translate a UCS ECI into Orbital's `authenticationECIInd`.
-///
-/// UCS carries the ECI zero-padded (`"05"`, `"02"`, …). Orbital's enum is unpadded
-/// `2 | 5 | 6 | 7 | 20`. Crucially **Mastercard uses the inverted scale**: MC ECI
-/// `02` means fully authenticated while Visa/Discover/Amex use `05`. Forwarding a
-/// Mastercard `"2"` unchanged would tell Orbital "recurring CDPT", a completely
-/// different transaction type.
+
 fn map_eci(eci: &str, brand: OrbitalBrand) -> Option<&'static str> {
     let trimmed = eci.trim();
     let unpadded = trimmed.trim_start_matches('0');
@@ -789,9 +700,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             order: JpmorganOrbitalInquiryOrder {
                 order_id: Some(build_order_id(reference)?),
-                // Recomputed rather than read back from connector_metadata: the
-                // derivation is a pure function of the attempt reference, so it
-                // cannot drift, and PSync still works if the metadata was lost.
                 inquiry_retry_number: build_retry_trace(reference),
             },
         })
@@ -804,10 +712,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JpmorganOrbitalStatus {
-    /// **Check this first.** `"0"` means the request passed every Gateway edit check;
-    /// anything else is a gateway/validation failure and no authorization was
-    /// attempted. Treated as an opaque string — the exhaustive code table is not
-    /// published in any machine-readable form.
     #[serde(rename = "procStatus")]
     pub proc_status: Option<String>,
     #[serde(rename = "procStatusMessage")]
