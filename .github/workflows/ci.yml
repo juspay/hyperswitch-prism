@@ -59,6 +59,7 @@ jobs:
       ci: ${{ steps.filter.outputs.ci }}
       certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
       connector-names: ${{ steps.connector-names.outputs.list }}
+      all-connector-names: ${{ steps.connector-names.outputs.all-list }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
       spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
@@ -149,11 +150,62 @@ jobs:
             exit 1
           fi
 
-          touched=$(echo "${CONNECTOR_FILES}" | \
-            jq -r '.[]' | \
-            grep -oE '(connectors|connector_specs)/[^/]+' | \
-            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
-            grep -v -E '^(alpha_connectors|live_connectors)\.json$')
+          # Names come from real directory listings, never from pattern-matching
+          # diff paths: a regex on "connectors/<name>" also matches inside an
+          # unrelated sibling directory that merely ends with that word, e.g.
+          # authenticator_connectors/plaid/ — inventing a "plaid" connector that
+          # has no specs.json and never did, and failing the newly-added-connector
+          # check for a PR that never touched a real connector. Enumerating each
+          # root's actual children makes an invented name structurally impossible.
+          #
+          # Regression certification (below) only understands payment connectors
+          # today — connector_specs/ has no authenticator/payout/surcharge
+          # entries — so only payment names feed it. The other three are kept
+          # separately, for nextest scoping only (see "Run Tests"), so a PR that
+          # touches only e.g. authenticator_connectors/ still gets a fast, scoped
+          # run instead of falling back to the full suite.
+          names_in_dir() {
+            local dir="$1"
+            [ -d "${dir}" ] || return 0
+            find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
+              sed 's|\.rs$||' | sort -u
+          }
+
+          touched_under() {
+            local dir_prefix="$1"
+            local name="$2"
+            echo "${CONNECTOR_FILES}" | jq -r '.[]' | \
+              grep -qE "^${dir_prefix}/${name}(\.rs)?(/|$)"
+          }
+
+          payment_touched=""
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors)
+
+          # A connector's specs.json/override.json can change without any of its
+          # own Rust files changing, so specs-only edits need their own pass
+          # against the same real, known list — not a path-shape guess either.
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/internal/integration-tests/src/connector_specs" "${name}" && \
+               ! echo ",${payment_touched}," | grep -q ",${name},"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(names_in_dir crates/internal/integration-tests/src/connector_specs)
+
+          other_touched=""
+          for dir in authenticator_connectors payout_connectors surcharge_connectors; do
+            while IFS= read -r name; do
+              [ -n "${name}" ] || continue
+              if touched_under "crates/integrations/connector-integration/src/${dir}" "${name}"; then
+                other_touched="${other_touched}${other_touched:+,}${name}"
+              fi
+            done < <(names_in_dir "crates/integrations/connector-integration/src/${dir}")
+          done
 
           # Taking a connector off the alpha list is what starts certifying it,
           # but the edit touches only that shared file. Names present at the
@@ -175,9 +227,14 @@ jobs:
               <(jq -r '.connectors | keys[]' "$live"))
           fi
 
-          names=$(printf '%s\n%s\n%s\n' "$touched" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
-          echo "list=$names" >> $GITHUB_OUTPUT
-          echo "Changed connectors: $names"
+          payment_names=$(printf '%s\n%s\n%s\n' "$(echo "$payment_touched" | tr ',' '\n')" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
+          other_names=$(echo "$other_touched" | tr ',' '\n' | sed '/^$/d' | sort -u | paste -sd ',' -)
+          all_names=$(printf '%s\n%s\n' "$(echo "$payment_names" | tr ',' '\n')" "$(echo "$other_names" | tr ',' '\n')" | sed '/^$/d' | sort -u | paste -sd ',' -)
+
+          echo "list=$payment_names" >> $GITHUB_OUTPUT
+          echo "all-list=$all_names" >> $GITHUB_OUTPUT
+          echo "Changed payment connectors (drives regression + nextest scoping): $payment_names"
+          echo "Changed non-payment connectors (drives nextest scoping only): $other_names"
 
       - name: Detect newly added connectors
         id: new-connectors
@@ -705,7 +762,11 @@ jobs:
           # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
         run: |
-          CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"
+          # All real, touched connector names (payment + authenticator + payout
+          # + surcharge) — nextest scoping only needs a Rust test-name filter,
+          # not certification, so the non-payment types are fine here even
+          # though they don't feed the regression pipeline below.
+          CONNECTOR_NAMES="${{ needs.changes.outputs.all-connector-names }}"
           CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
           PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
           CI_CHANGED="${{ needs.changes.outputs.ci }}"
