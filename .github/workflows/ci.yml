@@ -136,11 +136,18 @@ jobs:
         # and one apostrophe in a path would end the quoting and run the rest.
         env:
           CONNECTOR_FILES: ${{ steps.filter.outputs.connector_files }}
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
           live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
 
           touched=$(echo "${CONNECTOR_FILES}" | \
             jq -r '.[]' | \
@@ -178,9 +185,16 @@ jobs:
         shell: bash
         env:
           CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
           new_list=""
           IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
           for c in "${CONNECTORS[@]}"; do
@@ -202,11 +216,18 @@ jobs:
         shell: bash
         env:
           CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
-          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
           alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
           live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
           base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
           modified_list=""
 
           # Promoted off the alpha list, or newly added to the live list: the
