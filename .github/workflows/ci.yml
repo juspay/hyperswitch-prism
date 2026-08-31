@@ -58,8 +58,8 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
-      connector-names: ${{ steps.connector-names.outputs.list }}
-      all-connector-names: ${{ steps.connector-names.outputs.all-list }}
+      payment-connector-names: ${{ steps.payment-connector-names.outputs.list }}
+      all-connector-names: ${{ steps.payment-connector-names.outputs.all-list }}
       new-connectors: ${{ steps.new-connectors.outputs.list }}
       spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
@@ -128,8 +128,8 @@ jobs:
               # Shared connector code: no connector name in the path, so nothing
               # would be selected. `*` stops at the slash, sparing connectors/.
               - 'crates/integrations/connector-integration/src/*.rs'
-      - name: Extract changed connector names
-        id: connector-names
+      - name: Extract changed payment connector names
+        id: payment-connector-names
         if: steps.filter.outputs.connector == 'true'
         shell: bash
         # Expressions reach bash through the environment, never spliced into the
@@ -231,10 +231,10 @@ jobs:
 
       - name: Detect newly added connectors
         id: new-connectors
-        if: steps.connector-names.outputs.list != ''
+        if: steps.payment-connector-names.outputs.list != ''
         shell: bash
         env:
-          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          CHANGED_LIST: ${{ steps.payment-connector-names.outputs.list }}
           # merge_group has no pull_request and no `before` — it diffs a
           # synthetic batch commit, so its own base_sha (the target branch's
           # tip before the queued batch) is the only correct base here.
@@ -262,10 +262,10 @@ jobs:
 
       - name: Detect connectors with a modified specs.json or override.json
         id: spec-modified-connectors
-        if: steps.connector-names.outputs.list != ''
+        if: steps.payment-connector-names.outputs.list != ''
         shell: bash
         env:
-          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          CHANGED_LIST: ${{ steps.payment-connector-names.outputs.list }}
           # merge_group has no pull_request and no `before` — it diffs a
           # synthetic batch commit, so its own base_sha (the target branch's
           # tip before the queued batch) is the only correct base here.
@@ -837,7 +837,7 @@ jobs:
         env:
           # Git facts only. Which suites and scenarios each connector runs is the
           # framework's to derive from that connector's own specs.json.
-          CHANGED_CONNECTORS: ${{ needs.changes.outputs.connector-names }}
+          CHANGED_CONNECTORS: ${{ needs.changes.outputs.payment-connector-names }}
           NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
           SPEC_MODIFIED_CONNECTORS: ${{ needs.changes.outputs.spec-modified-connectors }}
           SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
