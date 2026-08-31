@@ -721,10 +721,10 @@ examples_python: examples/revolv3/revolv3.py
 ## Saferpay
 connector_id: saferpay
 doc: docs/connectors/saferpay.md
-scenarios: checkout_autocapture, checkout_card, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund_get, void
-examples_python: examples/saferpay/saferpay.py
+scenarios: none
+payment_methods: none
+flows: capture, get, pre_authenticate, refund_get, void
+examples_python: none
 
 ## Shift4
 connector_id: shift4

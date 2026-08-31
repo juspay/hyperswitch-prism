@@ -97,40 +97,8 @@
         "error": "This feature is not implemented: Only card payments are supported by saferpay"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"OrderId\":\"probe_txn_001\",\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}}}"
-        }
+        "status": "not_supported",
+        "error": "Capture method not supported. automatic capture on saferpay, whose Transaction interface has no sale mode — an authorization is always settled by an explicit Capture —"
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -623,36 +591,29 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for saferpay"
-      }
-    },
-    "proxy_authorize": {
-      "default": {
         "status": "supported",
         "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
           },
           "address": {
             "billing_address": {}
           },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
         },
         "sample": {
-          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/Initialize",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -660,8 +621,14 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"OrderId\":\"probe_proxy_txn_001\",\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"{{$card_number}}\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"{{$card_cvc}}\",\"HolderName\":\"John Doe\"}}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}},\"ReturnUrl\":{\"Url\":\"https://example.com/3ds-return\"},\"Authentication\":{\"ThreeDsChallenge\":\"FORCE\"}}"
         }
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Capture method not supported. automatic capture on saferpay, whose Transaction interface has no sale mode — an authorization is always settled by an explicit Capture —"
       }
     },
     "proxy_setup_recurring": {
@@ -736,12 +703,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for saferpay"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for saferpay"
       }
     },
     "verify_redirect": {
