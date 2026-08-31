@@ -3102,6 +3102,11 @@ message AuthenticatorClientAuthenticationContext {
   optional string locale = 4;               // Locale/language preference (e.g., "en", "es", "en-US")
   optional Customer customer = 5;           // User/customer context
   optional string metadata = 6;             // Additional provider-specific config as JSON
+
+  // Native app identifier for returning control to the client app after the
+  // hosted flow completes (e.g. an Android package name). Sent by merchants
+  // integrating from a native app instead of return_url.
+  optional string native_app_identifier = 7;
 }
 
 // Response message for SDK session

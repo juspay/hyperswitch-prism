@@ -11315,6 +11315,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country_codes,
                     locale: auth_ctx.locale,
                     permissions,
+                    native_app_identifier: auth_ctx.native_app_identifier,
                 })
             }
             Some(DomainContext::Payment(payment_ctx)) => {
@@ -11368,6 +11369,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     webhook_url: None,
                     country_codes: vec![],
                     locale: None,
+                    native_app_identifier: None,
                 })
             }
             _ => Err(report!(IntegrationError::InvalidDataFormat {

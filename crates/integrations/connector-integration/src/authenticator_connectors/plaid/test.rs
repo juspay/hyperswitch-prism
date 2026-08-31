@@ -74,6 +74,7 @@ mod tests {
                     country_codes,
                     locale: None,
                     permissions: None,
+                    native_app_identifier: None,
                 },
                 response: Err(ErrorResponse::default()),
             }
