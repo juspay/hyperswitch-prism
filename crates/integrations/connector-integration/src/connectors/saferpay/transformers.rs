@@ -744,6 +744,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayAuthorizeResp
                     incremental_authorization_allowed: None,
                     splits: None,
                     status_code: item.http_code,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,
@@ -831,6 +832,7 @@ impl TryFrom<ResponseRouterData<SaferpayPSyncResponse, Self>> for SyncRouterData
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: transaction.attempt_status(),
@@ -1150,6 +1152,7 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1230,6 +1233,7 @@ impl TryFrom<ResponseRouterData<SaferpayVoidResponse, Self>> for VoidRouterData 
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Voided,
