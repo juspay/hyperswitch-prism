@@ -1739,7 +1739,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Connectors that support DCC can consume this when building their request.
     pub currency_conversion_data: Option<CurrencyConversionData>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }
@@ -2407,6 +2407,10 @@ pub struct ClientAuthenticationTokenRequestData {
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
+    /// Native app identifier for returning to the client app after the hosted
+    /// flow completes (e.g. an Android package name). Sent instead of a return
+    /// URL when the merchant integrates from a native app.
+    pub native_app_identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3618,7 +3622,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }
@@ -3725,7 +3729,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }

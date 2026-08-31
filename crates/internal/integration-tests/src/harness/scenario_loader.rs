@@ -1,4 +1,8 @@
-use std::{collections::BTreeSet, fs, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde_json::Value;
 
@@ -214,6 +218,173 @@ pub fn is_suite_supported_for_connector(
 
 /// Lists all suites supported by a connector, preserving order from connector
 /// spec and removing duplicates.
+/// Payment methods this connector declares support for, as `payment_method`
+/// oneof variant names. Empty means it has not declared any, which is read as
+/// "run everything" rather than "supports nothing".
+pub fn load_supported_payment_methods_for_connector(
+    connector: &str,
+) -> Result<Vec<String>, ScenarioError> {
+    let path = connector_spec_file_path(connector);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let spec = serde_json::from_str::<ConnectorSuiteSpec>(&content).map_err(|source| {
+        ScenarioError::ConnectorSpecParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    Ok(spec.supported_payment_methods)
+}
+
+/// Scenarios that exist only for one connector, keyed by suite.
+///
+/// Held apart from `global_suites/` on purpose: the global file stays the single
+/// baseline every connector is measured against, and this covers the cases that
+/// cannot exist elsewhere — a sandbox-specific trigger, or a production bug
+/// pinned as a permanent test. Additive only; shadowing a global scenario is an
+/// error, since changing a shared scenario is what `override.json` is for.
+pub fn load_connector_specific_scenarios(
+    connector: &str,
+    suite: &str,
+) -> Result<ScenarioFile, ScenarioError> {
+    load_connector_specific_scenarios_in(&connector_specs_root(), connector, suite)
+}
+
+/// Same, against an explicit specs root. Tests use this rather than rewriting
+/// `UCS_CONNECTOR_SPECS_ROOT`, which is process-wide and races every other test
+/// that discovers connectors from that directory.
+pub fn load_connector_specific_scenarios_in(
+    root: &Path,
+    connector: &str,
+    suite: &str,
+) -> Result<ScenarioFile, ScenarioError> {
+    let path = root.join(connector).join(CONNECTOR_SCENARIOS_FILE);
+    if !path.exists() {
+        return Ok(ScenarioFile::new());
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ScenarioFileRead {
+        path: path.clone(),
+        source,
+    })?;
+    let mut by_suite =
+        serde_json::from_str::<BTreeMap<String, Value>>(&content).map_err(|source| {
+            ScenarioError::ScenarioFileParse {
+                path: path.clone(),
+                source,
+            }
+        })?;
+    let Some(scenarios) = by_suite.remove(suite) else {
+        return Ok(ScenarioFile::new());
+    };
+    serde_json::from_value::<ScenarioFile>(scenarios)
+        .map_err(|source| ScenarioError::ScenarioFileParse { path, source })
+}
+
+/// The suite set a connector actually runs: the global baseline plus whatever it
+/// declares privately.
+///
+/// A private name that already exists globally is rejected rather than merged —
+/// silently winning over the baseline is exactly how connector-private coverage
+/// would start hiding shared regressions.
+pub fn merge_connector_specific_scenarios(
+    connector: &str,
+    suite: &str,
+    baseline: &mut ScenarioFile,
+) -> Result<usize, ScenarioError> {
+    merge_connector_specific_scenarios_in(&connector_specs_root(), connector, suite, baseline)
+}
+
+/// Same, against an explicit specs root.
+pub fn merge_connector_specific_scenarios_in(
+    root: &Path,
+    connector: &str,
+    suite: &str,
+    baseline: &mut ScenarioFile,
+) -> Result<usize, ScenarioError> {
+    let private = load_connector_specific_scenarios_in(root, connector, suite)?;
+    let count = private.len();
+    let path = root.join(connector).join(CONNECTOR_SCENARIOS_FILE);
+    for (name, def) in private {
+        if baseline.contains_key(&name) {
+            return Err(ScenarioError::InvalidConnectorSpec {
+                path,
+                message: format!(
+                    "{connector} defines {suite}/{name}, which already exists in the global \
+                     suite. This file can only add scenarios; use override.json to change a \
+                     shared one."
+                ),
+            });
+        }
+        baseline.insert(name, def);
+    }
+    Ok(count)
+}
+
+/// Why this connector declares the scenario unsupported, if it does.
+///
+/// Declared in `specs.json` next to the rest of the connector's capabilities, so
+/// what a connector cannot do is answered by one small file. The reason is the
+/// map value, so a declaration without one cannot be expressed.
+pub fn scenario_unsupported_reason(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<String>, ScenarioError> {
+    let path = connector_spec_file_path(connector);
+    if !path.exists() {
+        return Ok(None);
+    }
+    let content = fs::read_to_string(&path).map_err(|source| ScenarioError::ConnectorSpecRead {
+        path: path.clone(),
+        source,
+    })?;
+    let spec = serde_json::from_str::<ConnectorSuiteSpec>(&content).map_err(|source| {
+        ScenarioError::ConnectorSpecParse {
+            path: path.clone(),
+            source,
+        }
+    })?;
+    Ok(spec
+        .unsupported_scenarios
+        .get(suite)
+        .and_then(|scenarios| scenarios.get(scenario))
+        .map(|reason| reason.trim().to_string())
+        .filter(|reason| !reason.is_empty()))
+}
+
+/// The `payment_method` oneof variant a scenario populates, if it names one.
+///
+/// Scenarios that name none act on a payment their dependency already made and
+/// inherit its method, so they are never filtered.
+pub fn scenario_payment_method(scenario: &ScenarioDef) -> Option<String> {
+    scenario
+        .grpc_req
+        .get("payment_method")?
+        .as_object()?
+        .keys()
+        .next()
+        .cloned()
+}
+
+/// True when `scenario` should run for a connector declaring `supported`.
+pub fn scenario_matches_supported_payment_methods(
+    scenario: &ScenarioDef,
+    supported: &[String],
+) -> bool {
+    if supported.is_empty() {
+        return true;
+    }
+    match scenario_payment_method(scenario) {
+        Some(method) => supported.iter().any(|m| m == &method),
+        None => true,
+    }
+}
+
 pub fn load_supported_suites_for_connector(connector: &str) -> Result<Vec<String>, ScenarioError> {
     let path = connector_spec_file_path(connector);
     if path.exists() {
@@ -305,6 +476,18 @@ pub fn load_connector_spec(connector: &str) -> Option<ConnectorSuiteSpec> {
 }
 
 /// Discovers connector names by scanning `connector_specs/`.
+/// Sits in `connector_specs/` beside the per-connector directories but describes
+/// CI policy, not a connector. See `.github/scripts/certify-connectors.sh`.
+pub const ALPHA_CONNECTORS_FILE: &str = "alpha_connectors.json";
+
+/// Sits in `connector_specs/` beside the per-connector directories but lists
+/// which connectors carry live production traffic — not a connector spec.
+/// See `.github/scripts/certify-connectors.sh`.
+pub const LIVE_CONNECTORS_FILE: &str = "live_connectors.json";
+
+/// Scenarios that exist only for one connector, beside its `specs.json`.
+pub const CONNECTOR_SCENARIOS_FILE: &str = "connector_specific_scenarios.json";
+
 pub fn discover_all_connectors() -> Result<Vec<String>, ScenarioError> {
     let specs_dir = connector_specs_root();
 
@@ -334,6 +517,17 @@ pub fn discover_all_connectors() -> Result<Vec<String>, ScenarioError> {
         }
 
         if !path.is_file() {
+            continue;
+        }
+
+        // Records which connectors CI does not certify, or which carry live
+        // production traffic — neither is a connector spec. The flat-layout
+        // branch below would otherwise read them as connectors named
+        // "alpha_connectors"/"live_connectors" and fail to parse them as one.
+        if matches!(
+            path.file_name().and_then(|s| s.to_str()),
+            Some(ALPHA_CONNECTORS_FILE) | Some(LIVE_CONNECTORS_FILE)
+        ) {
             continue;
         }
 
@@ -390,21 +584,48 @@ pub fn get_the_grpc_req(suite: &str, scenario: &str) -> Result<Value, ScenarioEr
 pub fn get_the_assertion(
     suite: &str,
     scenario: &str,
-) -> Result<std::collections::BTreeMap<String, FieldAssert>, ScenarioError> {
+) -> Result<BTreeMap<String, FieldAssert>, ScenarioError> {
     Ok(load_scenario(suite, scenario)?.assert_rules)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
 
-    use crate::harness::scenario_types::DependencyScope;
+    use super::{merge_connector_specific_scenarios_in, CONNECTOR_SCENARIOS_FILE};
+    use crate::harness::scenario_types::{DependencyScope, ScenarioFile};
+
+    fn unique_specs_dir() -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        std::env::temp_dir().join(format!("ucs_connector_specs_test_{nanos}"))
+    }
+
+    use serde_json::json;
 
     use crate::harness::scenario_loader::{
         configured_all_connectors, discover_all_connectors, get_the_assertion, get_the_grpc_req,
         load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
-        scenario_root, suite_dir_name_to_suite_name,
+        scenario_matches_supported_payment_methods, scenario_payment_method, scenario_root,
+        suite_dir_name_to_suite_name,
     };
+    use crate::harness::scenario_types::ScenarioDef;
+
+    /// A scenario carrying only the request shape these tests care about.
+    fn def(grpc_req: serde_json::Value) -> ScenarioDef {
+        ScenarioDef {
+            grpc_req,
+            assert_rules: std::collections::BTreeMap::new(),
+            is_default: false,
+            display_name: None,
+        }
+    }
 
     #[test]
     fn suite_dir_name_to_suite_name_splits_at_first_underscore() {
@@ -664,6 +885,69 @@ mod tests {
     }
 
     #[test]
+    fn connector_specific_scenarios_are_added_but_may_not_shadow() {
+        let temp_root = unique_specs_dir();
+        let connector_dir = temp_root.join("tsys");
+        fs::create_dir_all(&connector_dir).expect("connector dir should be created");
+        fs::write(
+            connector_dir.join(CONNECTOR_SCENARIOS_FILE),
+            serde_json::json!({
+                "PaymentService/Authorize": {
+                    "tsys_soft_decline": {
+                        "grpc_req": { "amount": { "minor_amount": 5205 } },
+                        "assert": { "status": { "one_of": ["FAILURE"] } }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("scenario file should be written");
+
+        // Additive: a name the baseline does not have is merged in.
+        let mut baseline = ScenarioFile::new();
+        let added = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Authorize",
+            &mut baseline,
+        )
+        .expect("a private scenario should merge into an empty baseline");
+        assert_eq!(added, 1);
+        assert!(baseline.contains_key("tsys_soft_decline"));
+
+        // A suite the connector declares nothing for is left alone.
+        let mut other = ScenarioFile::new();
+        let none = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Refund",
+            &mut other,
+        )
+        .expect("a suite with no private scenarios should be a no-op");
+        assert_eq!(none, 0);
+        assert!(other.is_empty());
+
+        // Shadowing is the failure mode this file must never enable: a private
+        // scenario silently winning over the baseline would hide a shared
+        // regression behind connector-private coverage.
+        let mut collides = baseline.clone();
+        let err = merge_connector_specific_scenarios_in(
+            &temp_root,
+            "tsys",
+            "PaymentService/Authorize",
+            &mut collides,
+        )
+        .expect_err("a name already in the baseline must be rejected");
+        assert!(
+            err.to_string()
+                .contains("already exists in the global suite"),
+            "the error should explain the collision, got: {err}"
+        );
+
+        let _ = fs::remove_dir_all(temp_root);
+    }
+
+    #[test]
     fn configured_connectors_supports_env_override() {
         let previous = std::env::var("UCS_ALL_CONNECTORS").ok();
         std::env::set_var("UCS_ALL_CONNECTORS", "stripe, adyen, stripe, ,rapyd");
@@ -742,5 +1026,37 @@ mod tests {
                 && paypal.contains(&"RecurringPaymentService/Charge".to_string()),
             "paypal should include token + recurring suites"
         );
+    }
+
+    #[test]
+    fn a_scenario_naming_no_payment_method_always_runs() {
+        // Capture, Void, Get, Refund and the rest act on a payment their
+        // dependency already made, so they carry no method of their own.
+        let scenario = def(json!({ "amount": { "minor_amount": 100 } }));
+        assert!(scenario_payment_method(&scenario).is_none());
+        assert!(scenario_matches_supported_payment_methods(&scenario, &[]));
+        assert!(scenario_matches_supported_payment_methods(
+            &scenario,
+            &["card".to_string()]
+        ));
+    }
+
+    #[test]
+    fn declaring_nothing_keeps_every_scenario() {
+        // The field is opt-in: a connector that has not declared its methods
+        // must behave exactly as it did before the field existed.
+        let upi = def(json!({ "payment_method": { "upi_intent": {} } }));
+        assert!(scenario_matches_supported_payment_methods(&upi, &[]));
+    }
+
+    #[test]
+    fn a_declared_method_runs_and_an_undeclared_one_does_not() {
+        let card = def(json!({ "payment_method": { "card": { "card_number": "4242" } } }));
+        let upi = def(json!({ "payment_method": { "upi_intent": {} } }));
+        let declared = vec!["card".to_string()];
+
+        assert_eq!(scenario_payment_method(&card).as_deref(), Some("card"));
+        assert!(scenario_matches_supported_payment_methods(&card, &declared));
+        assert!(!scenario_matches_supported_payment_methods(&upi, &declared));
     }
 }

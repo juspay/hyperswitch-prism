@@ -222,7 +222,7 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    is_account_funded_transaction: None,
+                    is_account_funding_transaction: None,
                     recipient_details: None,
                 },
                 response: Err(ErrorResponse {
@@ -413,7 +413,7 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    is_account_funded_transaction: None,
+                    is_account_funding_transaction: None,
                     recipient_details: None,
                 },
                 response: Err(ErrorResponse {
@@ -578,7 +578,7 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    is_account_funded_transaction: None,
+                    is_account_funding_transaction: None,
                     recipient_details: None,
                 },
                 response: Err(ErrorResponse {
@@ -788,7 +788,7 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    is_account_funded_transaction: None,
+                    is_account_funding_transaction: None,
                     recipient_details: None,
                 },
                 response: Err(ErrorResponse {
@@ -1173,7 +1173,7 @@ mod tests {
                 mit_category: None,
                 domain_data: None,
                 partner_merchant_identifier_details: None,
-                is_account_funded_transaction: None,
+                is_account_funding_transaction: None,
                 recipient_details: None,
             },
             response: Err(ErrorResponse {
@@ -1394,7 +1394,7 @@ mod tests {
                 mit_category: None,
                 domain_data: None,
                 partner_merchant_identifier_details: None,
-                is_account_funded_transaction: None,
+                is_account_funding_transaction: None,
                 recipient_details: None,
             },
             response: Err(ErrorResponse {
@@ -1867,7 +1867,7 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
-                    is_account_funded_transaction: None,
+                    is_account_funding_transaction: None,
                     recipient_details: None,
                 },
                 response: Err(ErrorResponse {

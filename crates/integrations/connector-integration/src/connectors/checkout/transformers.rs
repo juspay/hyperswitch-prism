@@ -1253,13 +1253,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (None, None, None, None)
         };
 
-        let is_account_funded_transaction = item
+        let is_account_funding_transaction = item
             .router_data
             .request
-            .is_account_funded_transaction
+            .is_account_funding_transaction
             .unwrap_or(false);
 
-        let (recipient, sender, instruction) = if is_account_funded_transaction {
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
             processing
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);
@@ -1645,13 +1645,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (None, None, None, None)
         };
 
-        let is_account_funded_transaction = item
+        let is_account_funding_transaction = item
             .router_data
             .request
-            .is_account_funded_transaction
+            .is_account_funding_transaction
             .unwrap_or(false);
 
-        let (recipient, sender, instruction) = if is_account_funded_transaction {
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
             processing
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);
@@ -2013,14 +2013,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (None, None, None, None)
         };
 
-        let is_account_funded_transaction = item
+        let is_account_funding_transaction = item
             .router_data
             .request
-            .is_account_funded_transaction
+            .is_account_funding_transaction
             .unwrap_or(false);
 
         // SetupMandateRequestData has no connector_feature_data; use the flow-level one.
-        let (recipient, sender, instruction) = if is_account_funded_transaction {
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
             processing
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);

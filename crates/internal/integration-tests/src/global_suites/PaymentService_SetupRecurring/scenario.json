@@ -32,8 +32,10 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
-        "connector_customer_id": ""
+        "connector_customer_id": null,
+        "phone_number": {
+          "value": "auto_generate"
+        }
       },
       "state": {
         "access_token": {
@@ -143,8 +145,10 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
-        "connector_customer_id": ""
+        "connector_customer_id": null,
+        "phone_number": {
+          "value": "auto_generate"
+        }
       },
       "state": {
         "access_token": {
@@ -253,8 +257,10 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
-        "connector_customer_id": ""
+        "connector_customer_id": null,
+        "phone_number": {
+          "value": "auto_generate"
+        }
       },
       "state": {
         "access_token": {
@@ -365,8 +371,10 @@
           "value": "auto_generate"
         },
         "id": "auto_generate",
-        "phone_number": "auto_generate",
-        "connector_customer_id": ""
+        "connector_customer_id": null,
+        "phone_number": {
+          "value": "auto_generate"
+        }
       },
       "state": {
         "access_token": {
