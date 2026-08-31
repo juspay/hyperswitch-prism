@@ -19,6 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.31.0
+
+### Features
+
+- **connector:**
+  - Add par support in checkout and worldpayxml connector ([#2189](https://github.com/juspay/connector-service/pull/2189)) ([`6c7526e`](https://github.com/juspay/connector-service/commit/6c7526e1240c15d0fda1df2d721cae989a97d9c6))
+  - Plaid Link token native app identifier support ([#2192](https://github.com/juspay/connector-service/pull/2192)) ([`f16c89a`](https://github.com/juspay/connector-service/commit/f16c89a71953b3d23a526009f17cb29a5efef2e5))
+
+**Full Changelog:** [`2026.08.28.0...2026.08.31.0`](https://github.com/juspay/connector-service/compare/2026.08.28.0...2026.08.31.0)
+
+- - -
+
 ## 2026.08.28.0
 
 ### Features

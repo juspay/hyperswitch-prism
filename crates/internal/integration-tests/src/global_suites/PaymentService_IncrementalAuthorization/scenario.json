@@ -9,7 +9,6 @@
       },
       "reason": "Additional authorization for tip",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -46,7 +45,6 @@
       },
       "reason": "Gratuity tip added",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -82,7 +80,6 @@
       },
       "reason": "Second incremental authorization",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -113,7 +110,6 @@
       },
       "reason": "Invalid transaction test",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""

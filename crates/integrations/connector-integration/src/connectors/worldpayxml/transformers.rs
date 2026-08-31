@@ -31,7 +31,6 @@ use crate::{types::ResponseRouterData, utils};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::errors::IntegrationErrorContext;
-use domain_types::payment_address::AddressDetails;
 
 const API_VERSION: &str = "1.4";
 
@@ -316,45 +315,37 @@ fn get_worldpayxml_exponent(
         })
 }
 
-/// The telephone number is carried on the billing contact rather than the address itself, so it is
-/// resolved by the caller and passed alongside.
-impl From<(&AddressDetails, Option<Secret<String>>)> for requests::WorldpayxmlAddress {
-    fn from((addr, telephone_number): (&AddressDetails, Option<Secret<String>>)) -> Self {
-        Self {
-            first_name: addr.first_name.clone(),
-            last_name: addr.last_name.clone(),
-            address1: addr.line1.clone(),
-            address2: addr.line2.clone(),
-            address3: addr.line3.clone(),
-            postal_code: addr.zip.clone(),
-            city: addr.city.clone().map(|c| c.expose()),
-            state: addr.state.clone(),
-            country_code: addr.country,
-            telephone_number,
-        }
-    }
-}
-
 fn get_worldpayxml_billing_address(
     resource_common_data: &PaymentFlowData,
 ) -> Option<requests::WorldpayxmlBillingAddress> {
-    resource_common_data
-        .address
-        .get_payment_billing()
-        .and_then(|billing| {
-            let telephone_number = billing.phone.as_ref().and_then(|phone| {
-                phone
-                    .get_number_with_country_code()
-                    .or_else(|_| phone.get_number())
-                    .ok()
-            });
-            billing
-                .address
-                .as_ref()
-                .map(|addr| requests::WorldpayxmlBillingAddress {
-                    address: (addr, telephone_number).into(),
-                })
-        })
+    let billing = resource_common_data.address.get_payment_billing()?;
+    let telephone_number = billing.phone.as_ref().and_then(|phone| {
+        phone
+            .get_number_with_country_code()
+            .or_else(|_| phone.get_number())
+            .ok()
+    });
+    let addr = billing.address.as_ref()?;
+
+    let address1 = addr.get_optional_line1()?;
+    let postal_code = addr.get_optional_zip()?;
+    let city = addr.get_optional_city()?.expose();
+    let country_code = addr.get_optional_country()?;
+
+    Some(requests::WorldpayxmlBillingAddress {
+        address: requests::WorldpayxmlAddress {
+            first_name: addr.get_optional_first_name(),
+            last_name: addr.get_optional_last_name(),
+            address1,
+            address2: addr.get_optional_line2(),
+            address3: addr.line3.clone(),
+            postal_code,
+            city,
+            state: addr.state.clone(),
+            country_code,
+            telephone_number,
+        },
+    })
 }
 
 /// Resolves the `authenticatedShopperID` Worldpay ties shopper-scoped tokens to.
@@ -1389,7 +1380,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -1535,7 +1526,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -1677,7 +1668,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
-            payment_account_reference: None,
+            payment_account_reference: payment.card_p_a_r.clone(),
         };
 
         Ok(Self {
@@ -2021,7 +2012,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
-                    payment_account_reference: None,
+                    payment_account_reference: payment.card_p_a_r.clone(),
                 };
 
                 Ok(Self {
