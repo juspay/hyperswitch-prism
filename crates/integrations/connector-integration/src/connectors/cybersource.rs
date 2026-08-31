@@ -868,8 +868,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
         let connector_payment_id = req.request.connector_transaction_id.clone();
+        let action = match req.resource_common_data.payment_method {
+            common_enums::PaymentMethod::BankDebit => "voids",
+            _ => "reversals",
+        };
         Ok(format!(
-            "{}pts/v2/payments/{connector_payment_id}/reversals",
+            "{}pts/v2/payments/{connector_payment_id}/{action}",
             self.connector_base_url_payments(req),
         ))
         }

@@ -75,6 +75,7 @@ fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
 pub struct CybersourceConnectorMetadataObject {
     pub disable_avs: Option<bool>,
     pub disable_cvn: Option<bool>,
+    pub sec_code: Option<String>,
 }
 
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
@@ -1142,6 +1143,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let connector_merchant_config = CybersourceConnectorMetadataObject {
             disable_avs: auth.disable_avs,
             disable_cvn: auth.disable_cvn,
+            sec_code: None,
         };
 
         let (action_list, action_token_types, authorization_options) = if item
@@ -2237,6 +2239,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // (authorizationOptions / actionList / actionTokenTypes / capture)
                 // are sent alongside paymentType.name = "check". secCode "WEB" is
                 // the standard online-consumer-initiated SEC code for ACH debits.
+                let sec_code = match CybersourceConnectorMetadataObject::try_from(
+                    &item.router_data.request.metadata.clone(),
+                )
+                .ok()
+                .and_then(|m| m.sec_code)
+                {
+                    Some(code) if matches!(code.as_str(), "WEB" | "CCD" | "PPD" | "TEL") => code,
+                    Some(_invalid) => {
+                        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "metadata.sec_code: must be one of WEB, CCD, PPD, TEL",
+                            context: Default::default(),
+                        }));
+                    }
+                    None => String::from("WEB"),
+                };
+
                 let processing_information = ProcessingInformation {
                     action_list: None,
                     action_token_types: None,
@@ -2245,9 +2263,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     capture: None,
                     capture_options: None,
                     payment_solution: None,
-                    bank_transfer_options: Some(BankTransferOptions {
-                        sec_code: String::from("WEB"),
-                    }),
+                    bank_transfer_options: Some(BankTransferOptions { sec_code }),
                 };
 
                 let client_reference_information = ClientReferenceInformation::from(item);
@@ -3099,6 +3115,7 @@ pub enum CybersourcePaymentStatus {
     Accepted,
     Cancelled,
     StatusNotReceived,
+    Settled,
     //PartialAuthorized, not being consumed yet.
 }
 
@@ -3123,9 +3140,9 @@ pub fn map_cybersource_attempt_status(
                 common_enums::AttemptStatus::Authorized
             }
         }
-        CybersourcePaymentStatus::Succeeded | CybersourcePaymentStatus::Transmitted => {
-            common_enums::AttemptStatus::Charged
-        }
+        CybersourcePaymentStatus::Succeeded
+        | CybersourcePaymentStatus::Transmitted
+        | CybersourcePaymentStatus::Settled => common_enums::AttemptStatus::Charged,
         CybersourcePaymentStatus::Voided
         | CybersourcePaymentStatus::Reversed
         | CybersourcePaymentStatus::Cancelled => common_enums::AttemptStatus::Voided,
