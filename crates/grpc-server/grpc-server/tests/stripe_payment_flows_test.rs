@@ -3,7 +3,7 @@
 #![allow(clippy::panic)]
 
 use grpc_server::app;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use ucs_env::configs;
 mod common;
 mod utils;
@@ -43,7 +43,6 @@ fn generate_unique_id(prefix: &str) -> String {
 
 // Constants for Stripe connector
 const CONNECTOR_NAME: &str = "stripe";
-const AUTH_TYPE: &str = "header-key";
 const MERCHANT_ID: &str = "merchant_1234";
 
 // Test card data
@@ -57,24 +56,19 @@ const TEST_EMAIL: &str = "customer@example.com";
 
 fn add_stripe_metadata<T>(request: &mut Request<T>) {
     // Get API credentials using the common credential loading utility
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load Stripe credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let api_key = match auth {
-        domain_types::router_data::ConnectorAuthType::HeaderKey { api_key } => api_key.expose(),
-        _ => panic!("Expected HeaderKey auth type for Stripe"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
     );
     request.metadata_mut().append(
         "x-merchant-id",
