@@ -752,105 +752,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "redirection_response": {
-            "params": "probe_redirect_params",
-            "payload": {
-              "cres": "probe_cres_value"
-            }
-          },
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api.sb.moneris.io/three-d-secure/authentication-value-lookups",
-          "method": "Post",
-          "headers": {
-            "api-version": "2026-08-14",
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-merchant-id": "probe_merchant"
-          },
-          "body": "{\"idempotencyKey\":\"postauth_probe_txn_001\",\"threeDSecureChallengeResponseData\":\"probe_cres_value\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "email": "probe@example.com",
-          "return_url": "https://example.com/return",
-          "browser_info": {
-            "ip_address": "1.2.3.4",
-            "screen_height": 900,
-            "screen_width": 1440,
-            "user_agent": "Mozilla/5.0",
-            "java_enabled": false,
-            "java_script_enabled": true,
-            "language": "en"
-          },
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api.sb.moneris.io/three-d-secure/authentications",
-          "method": "Post",
-          "headers": {
-            "api-version": "2026-08-14",
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-merchant-id": "probe_merchant"
-          },
-          "body": "{\"idempotencyKey\":\"3ds_probe_txn_001\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"cardholderEmail\":\"probe@example.com\",\"billingAddress\":{},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"BROWSER\",\"threeDSecureRequestType\":\"CARDHOLDER\",\"threeDSecureNotificationUrl\":\"https://example.com/return\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\",\"threeDSecureChallengeWindowSize\":\"FULL_SCREEN\",\"browserIpAddress\":\"1.2.3.4\",\"browserUserAgent\":\"Mozilla/5.0\",\"browserJavaEnabled\":false,\"browserJavascriptEnabled\":true,\"browserScreenHeight\":900,\"browserScreenWidth\":1440,\"browserLanguage\":\"en\"}"
-        }
+        "status": "error",
+        "error": "Failed to obtain authentication type. Moneris requires an OAuth access token on `resource_common_data.access_token`, but it was None."
       }
     },
     "proxy_authorize": {
