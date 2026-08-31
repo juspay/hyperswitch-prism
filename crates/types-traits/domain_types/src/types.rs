@@ -8456,7 +8456,7 @@ pub fn generate_payment_sync_response(
                         .connector_customer
                         .clone(),
                     merchant_order_id: None,
-                    metadata: None,
+                    metadata: convert_connector_metadata_to_secret_string(connector_metadata),
                     status_code: status_code as u32,
                     raw_connector_response,
                     typed_connector_response,
