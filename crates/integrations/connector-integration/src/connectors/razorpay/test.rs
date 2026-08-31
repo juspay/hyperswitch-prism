@@ -109,7 +109,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -318,7 +319,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -480,7 +482,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -664,7 +667,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1051,7 +1055,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1269,7 +1274,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1490,7 +1496,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1622,7 +1629,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1757,7 +1765,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1939,7 +1948,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2084,7 +2094,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2217,7 +2228,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,

@@ -249,6 +249,7 @@ pub trait ValidationTrait: ConnectorCommon {
         &self,
         _payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
+        _is_wallet_decrypted_network_token: bool,
     ) -> bool {
         false
     }

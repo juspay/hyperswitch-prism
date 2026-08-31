@@ -2715,12 +2715,6 @@
         "error": "This feature is not implemented: payment method"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for adyen"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

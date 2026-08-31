@@ -926,6 +926,7 @@ fn build_payment_response(
             incremental_authorization_allowed: None,
             status_code,
             splits: None,
+            payment_account_reference: None,
         }),
     }
 }
@@ -1457,6 +1458,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

@@ -550,6 +550,7 @@ impl<T: PaymentMethodDataTypes>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -608,6 +609,7 @@ impl TryFrom<crate::types::ResponseRouterData<BoostPaymentSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

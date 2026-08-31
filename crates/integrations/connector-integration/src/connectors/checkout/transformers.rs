@@ -1915,6 +1915,7 @@ pub struct Source {
     id: Option<String>,
     avs_check: Option<String>,
     cvv_check: Option<String>,
+    payment_account_reference: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
@@ -2070,6 +2071,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
         };
 
         let (amount_captured, minor_amount_capturable) =
@@ -2190,6 +2196,11 @@ impl<
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: item
+                        .response
+                        .source
+                        .as_ref()
+                        .and_then(|source| source.payment_account_reference.clone()),
                 };
 
                 let (amount_captured, minor_amount_capturable) =
@@ -2315,6 +2326,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2425,6 +2441,11 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: item
+                .response
+                .source
+                .as_ref()
+                .and_then(|source| source.payment_account_reference.clone()),
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2501,6 +2522,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: http_code_to_attempt_status_for_void_flow(item.http_code),
@@ -2639,6 +2661,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

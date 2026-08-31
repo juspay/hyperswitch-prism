@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paypal/paypal.py#L281) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L155) · [Rust](../../examples/paypal/paypal.rs#L353)
+**Examples:** [Python](../../examples/paypal/paypal.py#L281) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L155) · [Rust](../../examples/paypal/paypal.rs#L354)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paypal/paypal.py#L300) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L171) · [Rust](../../examples/paypal/paypal.rs#L369)
+**Examples:** [Python](../../examples/paypal/paypal.py#L300) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L171) · [Rust](../../examples/paypal/paypal.rs#L370)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/paypal/paypal.py#L325) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L193) · [Rust](../../examples/paypal/paypal.rs#L392)
+**Examples:** [Python](../../examples/paypal/paypal.py#L325) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L193) · [Rust](../../examples/paypal/paypal.rs#L393)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/paypal/paypal.py#L350) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L215) · [Rust](../../examples/paypal/paypal.rs#L415)
+**Examples:** [Python](../../examples/paypal/paypal.py#L350) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L215) · [Rust](../../examples/paypal/paypal.rs#L416)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/paypal/paypal.py#L372) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L234) · [Rust](../../examples/paypal/paypal.rs#L434)
+**Examples:** [Python](../../examples/paypal/paypal.py#L372) · [JavaScript](../../examples/paypal/paypal.js) · [Kotlin](../../examples/paypal/paypal.kt#L234) · [Rust](../../examples/paypal/paypal.rs#L435)
 
 ## API Reference
 
