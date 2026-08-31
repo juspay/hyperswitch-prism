@@ -104,8 +104,6 @@ interpayments.base_url = "https://api-test.interpayments.com/v1"
 twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
-# JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4). Distinct from the
-# `jpmorgan` entry above, which is the JPMorgan Payments API v2.
 jpmorganorbital.base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 nmi.base_url = "https://secure.nmi.com"
 nmi.secondary_base_url = "https://sandbox.nmi.com"
