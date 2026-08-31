@@ -192,6 +192,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     .chars()
                     .take(300)
                     .collect::<String>();
+                with_error_response_body!(event_builder, body_preview);
                 let msg = format!("HTTP {}", res.status_code);
                 (
                     format!("HTTP_{}", res.status_code),

@@ -1701,17 +1701,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let cardholder_name = resource.get_billing_full_name().map_err(|_| {
-            IntegrationError::MissingRequiredField {
-                field_name: "billing.address.first_name",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide cardholder name in billing address for Moneris 3DS.".to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: None,
-                },
-            }
+        let cardholder_name = match &payment_method_data {
+            PaymentMethodData::Card(card) => card.card_holder_name.clone(),
+            _ => None,
+        }
+        .or_else(|| resource.get_optional_billing_full_name())
+        .ok_or(IntegrationError::MissingRequiredField {
+            field_name: "cardholder_name",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Provide card_holder_name on the card or first_name in the billing \
+                     address for Moneris 3DS pre-authentication."
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: None,
+            },
         })?;
 
         let billing_address = MonerisBillingAddress {
