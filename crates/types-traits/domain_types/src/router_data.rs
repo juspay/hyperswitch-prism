@@ -1000,20 +1000,6 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
-    /// JP Morgan Orbital (Chase Paymentech Orbital Gateway).
-    ///
-    /// **Not** the `Jpmorgan` variant above, which configures the JPMorgan Payments
-    /// API v2 with an OAuth2 client id/secret. Orbital authenticates with three plain
-    /// HTTP headers instead.
-    ///
-    /// `username` / `password` / `merchant_id` are the header credentials
-    /// (`orbitalConnectionUsername`, `orbitalConnectionPassword`, `merchantID`);
-    /// `merchant_id` is additionally echoed in the request body.
-    ///
-    /// `bin` and `terminal_id` are **not secrets** — they are merchant provisioning
-    /// facts that travel in the request body and cannot be derived by the connector:
-    /// `bin` selects the back-end authorization host (`"000001"` Stratus / US,
-    /// `"000002"` Tandem / Canada) and `terminal_id` is the 3-digit terminal.
     JpmorganOrbital {
         username: Secret<String>,
         password: Secret<String>,
