@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L236) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L119) · [Rust](../../examples/nmi/nmi.rs#L309)
+**Examples:** [Python](../../examples/nmi/nmi.py#L236) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L119) · [Rust](../../examples/nmi/nmi.rs#L310)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L255) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L135) · [Rust](../../examples/nmi/nmi.rs#L325)
+**Examples:** [Python](../../examples/nmi/nmi.py#L255) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L135) · [Rust](../../examples/nmi/nmi.rs#L326)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L280) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L157) · [Rust](../../examples/nmi/nmi.rs#L348)
+**Examples:** [Python](../../examples/nmi/nmi.py#L280) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L157) · [Rust](../../examples/nmi/nmi.rs#L349)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L305) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L179) · [Rust](../../examples/nmi/nmi.rs#L371)
+**Examples:** [Python](../../examples/nmi/nmi.py#L305) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L179) · [Rust](../../examples/nmi/nmi.rs#L372)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L327) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L198) · [Rust](../../examples/nmi/nmi.rs#L390)
+**Examples:** [Python](../../examples/nmi/nmi.py#L327) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L198) · [Rust](../../examples/nmi/nmi.rs#L391)
 
 ## API Reference
 

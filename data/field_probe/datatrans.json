@@ -916,12 +916,6 @@
         "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans SetupMandate (zero-auth alias creation) supports raw card payment method only"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for datatrans"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -822,12 +822,6 @@
         "error": "This feature is not implemented: Only Card payment method is supported for Worldpay RAFT SetupMandate"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for worldpayraft"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

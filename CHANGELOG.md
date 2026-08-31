@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.28.0
+
+### Features
+
+- **connector:** [STRIPE] Google Pay decryption, and route predecrypted wallets through /v1/tokens ([#2120](https://github.com/juspay/connector-service/pull/2120)) ([`3466a0f`](https://github.com/juspay/connector-service/commit/3466a0ffefa71d974e53475dba0247691b85a993))
+- **core:** Add masked_connector_response with per-connector key allowlist ([#2050](https://github.com/juspay/connector-service/pull/2050)) ([`1b8fa7c`](https://github.com/juspay/connector-service/commit/1b8fa7c9ece79559dcefeaf9010c8b30be9b0067))
+
+**Full Changelog:** [`2026.08.27.1...2026.08.28.0`](https://github.com/juspay/connector-service/compare/2026.08.27.1...2026.08.28.0)
+
+- - -
+
 ## 2026.08.27.1
 
 ### Features
