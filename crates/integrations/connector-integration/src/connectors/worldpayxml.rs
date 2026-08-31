@@ -19,15 +19,15 @@ use domain_types::{
         SetupMandateRequestData,
     },
     payment_method_data::{
-        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+        PaymentMethodDataTypes,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_response_types::{RedirectForm, Response},
+    router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -41,9 +41,10 @@ use requests::{
     WorldpayxmlSetupMandateRequest, WorldpayxmlVoidPCRequest, WorldpayxmlVoidRequest,
 };
 use responses::{
-    WorldpayxmlAuthorizeResponse, WorldpayxmlCaptureResponse, WorldpayxmlRefundResponse,
-    WorldpayxmlRepeatPaymentResponse, WorldpayxmlRsyncResponse, WorldpayxmlSetupMandateResponse,
-    WorldpayxmlTransactionResponse, WorldpayxmlVoidPCResponse, WorldpayxmlVoidResponse,
+    WorldpayxmlAuthorizeResponse, WorldpayxmlCaptureResponse, WorldpayxmlPreAuthenticateResponse,
+    WorldpayxmlRefundResponse, WorldpayxmlRepeatPaymentResponse, WorldpayxmlRsyncResponse,
+    WorldpayxmlSetupMandateResponse, WorldpayxmlTransactionResponse, WorldpayxmlVoidPCResponse,
+    WorldpayxmlVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -223,6 +224,11 @@ macros::create_all_prerequisites!(
             response_body: WorldpayxmlVoidPCResponse,
             response_format: xml,
             router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            response_body: WorldpayxmlPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -675,177 +681,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Worldpayxml<T>
-{
-    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
-        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        // No outbound call: the device-data-collection page is built locally in
-        // `handle_response_v2` and the shopper's browser talks to Cardinal directly.
-        Ok(None)
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        // Unreachable: build_request_v2 returns None, so the framework never asks for a URL.
-        Err(IntegrationError::NotImplemented(
-            "worldpayxml pre_authenticate makes no outbound call".to_string(),
-            Default::default(),
-        )
-        .into())
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        _event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        // Fail before rendering the DDC page when the browser data the authorize leg
-        // will need is absent, matching the hyperswitch PreAuthenticate validations.
-        let browser_info =
-            data.request
-                .browser_info
-                .as_ref()
-                .ok_or(utils::response_handling_fail(
-                    res.status_code,
-                    "worldpayxml: browser_info is required for device data collection.",
-                ))?;
-        if browser_info.accept_header.is_none() {
-            return Err(utils::response_handling_fail(
-                res.status_code,
-                "worldpayxml: browser_info.accept_header is required for device data collection.",
-            )
-            .into());
-        }
-        if browser_info.user_agent.is_none() {
-            return Err(utils::response_handling_fail(
-                res.status_code,
-                "worldpayxml: browser_info.user_agent is required for device data collection.",
-            )
-            .into());
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayxml,
+    curl_response: WorldpayxmlPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: false,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+            // No outbound call: the device-data-collection page is built locally in
+            // `handle_response_v2` and the shopper's browser talks to Cardinal directly.
+            common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
         }
 
-        let bin = match &data.request.payment_method_data {
-            Some(PaymentMethodData::Card(card)) => {
-                card.card_number.peek().chars().take(6).collect::<String>()
-            }
-            Some(PaymentMethodData::Wallet(WalletData::GooglePay(gpay))) => {
-                match &gpay.tokenization_data {
-                    GpayTokenizationData::Decrypted(decrypt_data) => decrypt_data
-                        .application_primary_account_number
-                        .get_card_isin(),
-                    GpayTokenizationData::Encrypted(_) => {
-                        return Err(utils::response_handling_fail(
-                            res.status_code,
-                            "worldpayxml: device data collection needs the card bin; an encrypted google pay token does not carry it.",
-                        )
-                        .into())
-                    }
-                }
-            }
-            _ => {
-                return Err(utils::response_handling_fail(
-                    res.status_code,
-                    "worldpayxml: device data collection is only supported for cards and decrypted google pay.",
-                )
-                .into())
-            }
-        };
-
-        let (iss, org_unit_id, jwt_mac_key) = match &data.connector_config {
-            ConnectorSpecificConfig::Worldpayxml {
-                issuer_id: Some(issuer_id),
-                organizational_unit_id: Some(organizational_unit_id),
-                jwt_mac_key: Some(jwt_mac_key),
-                ..
-            } => (
-                issuer_id.clone(),
-                organizational_unit_id.clone(),
-                jwt_mac_key.clone(),
-            ),
-            _ => {
-                return Err(utils::response_handling_fail(
-                    res.status_code,
-                    "worldpayxml: issuer_id, organizational_unit_id and jwt_mac_key must be configured in the connector metadata for 3ds.",
-                )
-                .into())
-            }
-        };
-        let iat =
-            u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
-                utils::response_handling_fail(
-                    res.status_code,
-                    "worldpayxml: system time is before the unix epoch.",
-                )
-            })?;
-        let jwt = worldpayxml::sign_worldpayxml_jwt(
-            &requests::WorldpayxmlDdcJwt {
-                jti: uuid::Uuid::new_v4().to_string(),
-                iat,
-                iss,
-                org_unit_id,
-            },
-            &jwt_mac_key,
-            res.status_code,
-        )?;
-
-        let mut router_data = data.clone();
-        router_data.resource_common_data.status =
-            common_enums::AttemptStatus::DeviceDataCollectionPending;
-        router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
-            resource_id: None,
-            authentication_data: None,
-            redirection_data: Some(Box::new(RedirectForm::WorldpayxmlDDCForm {
-                bin,
-                jwt: Secret::new(jwt),
-            })),
-            connector_response_reference_id: Some(
-                data.resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
-            status_code: res.status_code,
-        });
-        Ok(router_data)
+        fn get_url(
+            &self,
+            _req: &RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            // Unreachable: the flow makes no outbound call, so the framework never asks for a URL.
+            Err(IntegrationError::NotImplemented(
+                "worldpayxml pre_authenticate makes no outbound call".to_string(),
+                Default::default(),
+            )
+            .into())
+        }
     }
-}
+);
 
 macros::macro_connector_flow_status_impls!(
     connector: Worldpayxml,

@@ -4,13 +4,15 @@ use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD_ENGINE, Engine
 use common_enums::{AttemptStatus, CaptureMethod, RefundStatus};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void, VoidPC,
     },
     connector_types::{
         ContinueRedirectionResponse, MandateReference, MandateReferenceId, PaymentFlowData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_address::AddressDetails,
@@ -2212,8 +2214,8 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                         };
 
                         return Ok(Self {
-                            response: Ok(payments_response_data),
-                            ..router_data.clone()
+                    response: Ok(payments_response_data),
+                    ..router_data.clone()
                         });
                     }
 
@@ -2361,6 +2363,137 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 })
             }
         }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<responses::WorldpayxmlPreAuthenticateResponse, Self>>
+        for RouterDataV2<
+            PreAuthenticate,
+            PaymentFlowData,
+            PaymentsPreAuthenticateData<T>,
+            PaymentsResponseData,
+        >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<responses::WorldpayxmlPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            router_data: data,
+            http_code: status_code,
+            ..
+        } = item;
+
+        // Fail before rendering the DDC page when the browser data the authorize leg
+        // will need is absent, matching the hyperswitch PreAuthenticate validations.
+        let browser_info =
+            data.request
+                .browser_info
+                .as_ref()
+                .ok_or(utils::response_handling_fail(
+                    status_code,
+                    "worldpayxml: browser_info is required for device data collection.",
+                ))?;
+        if browser_info.accept_header.is_none() {
+            return Err(utils::response_handling_fail(
+                status_code,
+                "worldpayxml: browser_info.accept_header is required for device data collection.",
+            )
+            .into());
+        }
+        if browser_info.user_agent.is_none() {
+            return Err(utils::response_handling_fail(
+                status_code,
+                "worldpayxml: browser_info.user_agent is required for device data collection.",
+            )
+            .into());
+        }
+
+        let bin = match &data.request.payment_method_data {
+            Some(PaymentMethodData::Card(card)) => {
+                card.card_number.peek().chars().take(6).collect::<String>()
+            }
+            Some(PaymentMethodData::Wallet(WalletData::GooglePay(gpay))) => {
+                match &gpay.tokenization_data {
+                    GpayTokenizationData::Decrypted(decrypt_data) => decrypt_data
+                        .application_primary_account_number
+                        .get_card_isin(),
+                    GpayTokenizationData::Encrypted(_) => {
+                        return Err(utils::response_handling_fail(
+                            status_code,
+                            "worldpayxml: device data collection needs the card bin; an encrypted google pay token does not carry it.",
+                        )
+                        .into())
+                    }
+                }
+            }
+            _ => {
+                return Err(utils::response_handling_fail(
+                    status_code,
+                    "worldpayxml: device data collection is only supported for cards and decrypted google pay.",
+                )
+                .into())
+            }
+        };
+
+        let (iss, org_unit_id, jwt_mac_key) = match &data.connector_config {
+            ConnectorSpecificConfig::Worldpayxml {
+                issuer_id: Some(issuer_id),
+                organizational_unit_id: Some(organizational_unit_id),
+                jwt_mac_key: Some(jwt_mac_key),
+                ..
+            } => (
+                issuer_id.clone(),
+                organizational_unit_id.clone(),
+                jwt_mac_key.clone(),
+            ),
+            _ => {
+                return Err(utils::response_handling_fail(
+                    status_code,
+                    "worldpayxml: issuer_id, organizational_unit_id and jwt_mac_key must be configured in the connector metadata for 3ds.",
+                )
+                .into())
+            }
+        };
+        let iat =
+            u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
+                utils::response_handling_fail(
+                    status_code,
+                    "worldpayxml: system time is before the unix epoch.",
+                )
+            })?;
+        let jwt = sign_worldpayxml_jwt(
+            &requests::WorldpayxmlDdcJwt {
+                jti: uuid::Uuid::new_v4().to_string(),
+                iat,
+                iss,
+                org_unit_id,
+            },
+            &jwt_mac_key,
+            status_code,
+        )?;
+
+        let mut router_data = data;
+        router_data.resource_common_data.status =
+            AttemptStatus::DeviceDataCollectionPending;
+        router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: None,
+            authentication_data: None,
+            redirection_data: Some(Box::new(RedirectForm::WorldpayxmlDDCForm {
+                bin,
+                jwt: Secret::new(jwt),
+            })),
+            connector_response_reference_id: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            status_code,
+        });
+        Ok(router_data)
     }
 }
 

@@ -2,6 +2,14 @@ use common_utils::StringMinorUnit;
 use hyperswitch_masking::Secret;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
+/// Placeholder response body for the pre_authenticate (device data collection) flow.
+///
+/// The flow makes no outbound call: the macro's response bridge deserializes
+/// the empty body into this type, and the transformer builds the DDC page
+/// from the request data.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlPreAuthenticateResponse {}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename = "paymentService")]
 pub struct WorldpayxmlAuthorizeResponse {
