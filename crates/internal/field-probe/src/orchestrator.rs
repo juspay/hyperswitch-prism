@@ -31,6 +31,7 @@ pub(crate) fn probe_connector(connector: &ConnectorEnum) -> ConnectorResult {
         if let Some(mut results) =
             probe_flow_by_definition(def, connector, &config, auth, &metadata, &pm_variants)
         {
+            mark_local_response_flow(&name, def.key, &mut results);
             flows.insert(def.key.to_string(), results);
         }
     }
