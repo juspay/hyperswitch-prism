@@ -2348,6 +2348,121 @@ pub(crate) use flow_status_emit;
 /// [`FrmFlowData`] as their common data, so this only needs the connector type
 /// (with its generic parameter + bounds) and the flow's request/response types.
 /// Generic over the connector, so any FRM connector can reuse it.
+/// Generate a full `ConnectorIntegrationV2` impl for a flow that makes no
+/// outbound connector call — the entire response is built locally in
+/// `handle_response_v2`.  Mirrors `macro_connector_implementation!` but for
+/// the local-response-flows category (`CallConnectorAction::HandleResponseWithoutBuildRequest`).
+///
+/// Emits a `ConnectorIntegrationV2<$flow, $resource_common_data, $request, $response>`
+/// impl with:
+/// - `get_call_connector_action` → `HandleResponseWithoutBuildRequest`
+/// - `build_request_v2` → `Ok(None)`
+/// - `get_url` → `Err(IntegrationError::NotImplemented(..))` (unreachable)
+/// - `handle_response_v2` → forwards to `$handle_response`
+///
+/// The connector file still owns the marker-trait impl (e.g.
+/// `impl PaymentPreAuthenticateV2<G> for C<G> {}`).
+///
+/// `$handle_response` is a connector-owned function (typically in `transformers.rs`)
+/// whose signature must match:
+/// ```text
+/// fn(data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
+///    event_builder: Option<&mut Event>,
+///    res: Response)
+///  -> CustomResult<RouterDataV2<$flow, $resource_common_data, $request, $response>, ConnectorError>
+/// ```
+macro_rules! macro_connector_local_flow_implementation {
+    (
+        connector: $connector:ident,
+        flow_name: $flow:ident,
+        resource_common_data: $resource_common_data:ty,
+        flow_request: $request:ty,
+        flow_response: $response:ty,
+        handle_response: $handle_response:path,
+        generic_type: $g:tt,
+        [$($b:tt)*] $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::$flow,
+                $resource_common_data,
+                $request,
+                $response,
+            > for $connector<$g>
+        {
+            fn get_call_connector_action(&self) -> ::common_enums::CallConnectorAction {
+                ::common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+            }
+
+            fn build_request_v2(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                Option<::common_utils::request::Request>,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // No outbound call: the whole flow is handled locally in
+                // `handle_response_v2`.
+                Ok(None)
+            }
+
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                String,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // Unreachable: build_request_v2 returns None, so the framework
+                // never asks for a URL.
+                Err(::domain_types::errors::IntegrationError::NotImplemented(
+                    format!(
+                        "{} {} flow makes no outbound call",
+                        ::interfaces::api::ConnectorCommon::id(self),
+                        stringify!($flow),
+                    ),
+                    Default::default(),
+                )
+                .into())
+            }
+
+            fn handle_response_v2(
+                &self,
+                data: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                event_builder: Option<&mut ::common_utils::events::Event>,
+                res: ::domain_types::router_response_types::Response,
+            ) -> ::common_utils::errors::CustomResult<
+                ::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                ::domain_types::errors::ConnectorError,
+            > {
+                let handle_response = $handle_response;
+                handle_response(data, event_builder, res)
+            }
+        }
+    };
+}
+pub(crate) use macro_connector_local_flow_implementation;
+
 macro_rules! frm_flow_not_implemented {
     (
         connector: $c:ident,
