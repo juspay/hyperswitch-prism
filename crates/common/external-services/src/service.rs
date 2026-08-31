@@ -1896,7 +1896,12 @@ fn extract_raw_connector_request(connector_request: &Request) -> String {
         }
         None => serde_json::Value::Null,
     };
-    // Extract unmasked headers
+    // Extract unmasked headers. BTreeMap, NOT HashMap: this map is serialized
+    // into a STRING (the raw-request echo), and HashMap iteration order is
+    // randomized per process — the same headers stringified by two processes
+    // differ byte-wise, which surfaced as a replay divergence on every
+    // response ($.rawConnectorRequest.value). Deterministic order makes the
+    // echo a pure function of the request.
     let headers_content = connector_request
         .headers
         .iter()
@@ -1907,7 +1912,7 @@ fn extract_raw_connector_request(connector_request: &Request) -> String {
             };
             (k.clone(), value)
         })
-        .collect::<HashMap<_, _>>();
+        .collect::<std::collections::BTreeMap<_, _>>();
 
     // Create complete request with actual content
     json!({
