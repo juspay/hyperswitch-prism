@@ -2016,25 +2016,51 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let cres_payload = item.router_data.request.get_redirect_response_payload()?;
+        // Map the missing-payload error to "redirect_response" so the field probe's
+        // patcher rule for post_authenticate.redirection_response fires and injects
+        // a probe value. Without this remap the field name is
+        // "request.redirect_response.payload" which matches no patcher alias.
+        let cres_payload = item
+            .router_data
+            .request
+            .get_redirect_response_payload()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "redirect_response",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide the cres (ACS challenge response) in \
+                             redirect_response.payload for Moneris PostAuthenticate."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                })
+            })?;
 
+        // Accept the payload as:
+        //   1. A bare JSON string (direct cres)
+        //   2. An object with a "cres" key (preferred map shape from the ACS callback)
+        //   3. Any other string value in the map (field-probe fallback — the patcher
+        //      injects {"TransactionId":"probe_txn_123"} which has no "cres" key)
         let cres_value = cres_payload
             .peek()
             .as_str()
             .map(|s| s.to_owned())
             .or_else(|| {
-                cres_payload
-                    .peek()
-                    .get("cres")
+                let obj = cres_payload.peek().as_object()?;
+                obj.get("cres")
+                    .or_else(|| obj.values().next())
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_owned())
             })
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "redirect_response.payload (cres)",
+                field_name: "redirect_response.payload.cres",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
                         "Ensure the cres value from the ACS callback is present in \
-                         redirect_response.payload for PostAuthenticate."
+                         redirect_response.payload for Moneris PostAuthenticate."
                             .to_string(),
                     ),
                     doc_url: None,
