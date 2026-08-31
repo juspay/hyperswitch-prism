@@ -3080,9 +3080,6 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
   // Connector-specific permissions for client authentication token
   // e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
   optional Permissions permissions = 7;
-
-  // Customer's browser / device information.
-  optional BrowserInformation browser_info = 9;
 }
 
 // Payment-specific context for client authentication token creation
@@ -3106,7 +3103,9 @@ message AuthenticatorClientAuthenticationContext {
   optional Customer customer = 5;           // User/customer context
   optional string metadata = 6;             // Additional provider-specific config as JSON
 
-  // Platform-specific target for returning control to the client app after the hosted flow completes.
+  // Native app identifier for returning control to the client app after the
+  // hosted flow completes (e.g. an Android package name). Sent by merchants
+  // integrating from a native app instead of return_url.
   optional string native_app_identifier = 7;
 }
 

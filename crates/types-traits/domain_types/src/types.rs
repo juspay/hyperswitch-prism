@@ -11302,11 +11302,6 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     .map(CustomerInfo::foreign_try_from)
                     .transpose()?;
 
-                let browser_info = value
-                    .browser_info
-                    .map(BrowserInformation::foreign_try_from)
-                    .transpose()?;
-
                 Ok(Self {
                     amount: common_utils::types::MinorUnit::new(0),
                     currency: common_enums::Currency::USD,
@@ -11320,7 +11315,6 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country_codes,
                     locale: auth_ctx.locale,
                     permissions,
-                    browser_info,
                     native_app_identifier: auth_ctx.native_app_identifier,
                 })
             }
@@ -11375,7 +11369,6 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     webhook_url: None,
                     country_codes: vec![],
                     locale: None,
-                    browser_info: None,
                     native_app_identifier: None,
                 })
             }

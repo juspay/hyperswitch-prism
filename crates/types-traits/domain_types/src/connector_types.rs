@@ -2403,9 +2403,9 @@ pub struct ClientAuthenticationTokenRequestData {
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
-    /// Customer's browser / device information (used e.g. for platform detection)
-    pub browser_info: Option<BrowserInformation>,
-    /// Platform-specific target for returning to the client app after the hosted flow completes.
+    /// Native app identifier for returning to the client app after the hosted
+    /// flow completes (e.g. an Android package name). Sent instead of a return
+    /// URL when the merchant integrates from a native app.
     pub native_app_identifier: Option<String>,
 }
 

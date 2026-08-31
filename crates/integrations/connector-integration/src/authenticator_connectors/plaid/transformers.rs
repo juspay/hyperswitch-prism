@@ -196,27 +196,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }));
         }
 
-        // Plaid's Link token needs a platform-specific "return target":
-        // - Android: `android_package_name` (redirect_uri must be blank)
-        // - iOS / web / unknown: `redirect_uri` (an https URI)
-        // The client platform is derived from `browser_info.os_type`; the generic
-        // `native_app_identifier` carries the platform-appropriate value.
-        let is_android = req
-            .browser_info
-            .as_ref()
-            .and_then(|browser_info| browser_info.os_type.as_deref())
-            .map(|os_type| os_type.eq_ignore_ascii_case("android"))
-            .unwrap_or(false);
-
-        let (redirect_uri, android_package_name) = if is_android {
-            (None, req.native_app_identifier.clone())
-        } else {
-            (
-                item.router_data.resource_common_data.return_url.clone(),
-                None,
-            )
-        };
-
+        // Plaid's Link token "return target": web/iOS merchants send a return
+        // URL (-> redirect_uri), native-app merchants send a native app
+        // identifier (-> android_package_name). We forward whatever was
+        // provided without asserting mutual exclusivity.
         Ok(Self {
             client_id: auth.client_id,
             secret: auth.secret,
@@ -225,8 +208,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             products: vec!["auth".to_owned()],
             country_codes,
             language: req.locale.clone(),
-            redirect_uri,
-            android_package_name,
+            redirect_uri: item.router_data.resource_common_data.return_url.clone(),
+            android_package_name: req.native_app_identifier.clone(),
             webhook: req.webhook_url.clone(),
         })
     }
