@@ -752,14 +752,97 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "redirection_response": {
+            "params": "probe_redirect_params",
+            "payload": {
+              "transaction_id": "probe_txn_123"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/three-d-secure/authentication-value-lookups",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"postauth_\",\"threeDSecureChallengeResponseData\":\"probe_txn_123\"}"
+        }
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "error",
-        "error": "Failed to obtain authentication type. Moneris requires an OAuth access token on `resource_common_data.access_token`, but it was None."
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.sb.moneris.io/three-d-secure/authentications",
+          "method": "Post",
+          "headers": {
+            "api-version": "2026-08-14",
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-merchant-id": "probe_merchant"
+          },
+          "body": "{\"idempotencyKey\":\"3ds_\",\"amount\":{\"amount\":1000,\"currency\":\"USD\"},\"cardholderName\":\"John Doe\",\"cardholderEmail\":\"test@example.com\",\"billingAddress\":{},\"paymentMethod\":{\"paymentMethodSource\":\"CARD\",\"card\":{\"cardNumber\":\"4111111111111111\",\"expiryMonth\":3,\"expiryYear\":2030,\"cardSecurityCode\":\"737\"}},\"threeDSecureMessageCategory\":\"PAYMENT\",\"threeDSecureDeviceChannel\":\"THREE_D_SECURE_REQUESTOR_INITIATED\",\"threeDSecureRequestType\":\"RECURRING\",\"threeDSecureNotificationUrl\":\"https://example.com/3ds-return\",\"threeDSecureCompletionIndicator\":\"UNAVAILABLE\",\"threeDSecureChallengeRequested\":\"NO_PREFERENCE\"}"
+        }
       }
     },
     "proxy_authorize": {
