@@ -1023,7 +1023,15 @@ jobs:
             echo "${CONNECTOR_SPECIFIC_AUTH}" > creds.json
             echo "Connector credentials created"
           else
-            echo "No CONNECTOR_SPECIFIC_AUTH secret found, running in dry-run mode"
+            # A pull request from a fork receives no secrets, and the four smoke-test
+            # harnesses disagree about a missing creds.json — Rust and Kotlin abort,
+            # JavaScript and Python fall back to placeholders. Stage the dummy file
+            # the mock tests already use so all four take one path: the connector
+            # rejects the placeholder key and every harness records that as
+            # "skipped (connector error)", leaving packaging, native-library
+            # loading, transport and request building still covered.
+            cp creds_dummy.json creds.json
+            echo "No CONNECTOR_SPECIFIC_AUTH secret found, using placeholder credentials from creds_dummy.json"
           fi
 
       - name: Run SDK gRPC Tests
