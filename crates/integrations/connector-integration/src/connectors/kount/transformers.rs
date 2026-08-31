@@ -794,8 +794,7 @@ pub(crate) fn handle_pre_authenticate_response<
     let script = super::build_ddc_script(&client_id, &session_id, sandbox);
 
     let mut router_data = data.clone();
-    router_data.resource_common_data.status =
-        AttemptStatus::DeviceDataCollectionPending;
+    router_data.resource_common_data.status = AttemptStatus::DeviceDataCollectionPending;
     router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
         resource_id: None,
         authentication_data: None,

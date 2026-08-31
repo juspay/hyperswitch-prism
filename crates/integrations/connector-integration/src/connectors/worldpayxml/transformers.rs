@@ -490,14 +490,14 @@ pub(crate) fn handle_pre_authenticate_response<
 > {
     // Fail before rendering the DDC page when the browser data the authorize leg
     // will need is absent, matching the hyperswitch PreAuthenticate validations.
-    let browser_info =
-        data.request
-            .browser_info
-            .as_ref()
-            .ok_or(utils::response_handling_fail(
-                res.status_code,
-                "worldpayxml: browser_info is required for device data collection.",
-            ))?;
+    let browser_info = data
+        .request
+        .browser_info
+        .as_ref()
+        .ok_or(utils::response_handling_fail(
+            res.status_code,
+            "worldpayxml: browser_info is required for device data collection.",
+        ))?;
     if browser_info.accept_header.is_none() {
         return Err(utils::response_handling_fail(
             res.status_code,
@@ -559,13 +559,12 @@ pub(crate) fn handle_pre_authenticate_response<
             .into())
         }
     };
-    let iat =
-        u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
-            utils::response_handling_fail(
-                res.status_code,
-                "worldpayxml: system time is before the unix epoch.",
-            )
-        })?;
+    let iat = u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
+        utils::response_handling_fail(
+            res.status_code,
+            "worldpayxml: system time is before the unix epoch.",
+        )
+    })?;
     let jwt = sign_worldpayxml_jwt(
         &requests::WorldpayxmlDdcJwt {
             jti: uuid::Uuid::new_v4().to_string(),
@@ -578,8 +577,7 @@ pub(crate) fn handle_pre_authenticate_response<
     )?;
 
     let mut router_data = data.clone();
-        router_data.resource_common_data.status =
-            AttemptStatus::DeviceDataCollectionPending;
+    router_data.resource_common_data.status = AttemptStatus::DeviceDataCollectionPending;
     router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
         resource_id: None,
         authentication_data: None,

@@ -5,9 +5,9 @@
 // Kount — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx kount.ts checkout_autocapture
 
-import { MerchantAuthenticationClient, types } from 'hyperswitch-prism';
+import { MerchantAuthenticationClient, PaymentMethodAuthenticationClient, types } from 'hyperswitch-prism';
 const { Environment } = types;
-export const SUPPORTED_FLOWS = ["create_server_authentication_token"];
+export const SUPPORTED_FLOWS = ["create_server_authentication_token", "pre_authenticate"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -28,6 +28,11 @@ function _buildCreateServerAuthenticationTokenRequest(): types.IMerchantAuthenti
     };
 }
 
+function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePreAuthenticateRequest {
+    return {
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
@@ -39,10 +44,19 @@ async function createServerAuthenticationToken(merchantTransactionId: string, co
     return createResponse;
 }
 
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
+
+    return preResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    createServerAuthenticationToken, _buildCreateServerAuthenticationTokenRequest
+    createServerAuthenticationToken, preAuthenticate, _buildCreateServerAuthenticationTokenRequest, _buildPreAuthenticateRequest
 };
 
 // CLI runner
