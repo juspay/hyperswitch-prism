@@ -759,7 +759,7 @@
     "pre_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: billing.address.first_name — Missing required field: billing.address.first_name"
+        "error": "Failed to obtain authentication type. Moneris requires an OAuth access token on `resource_common_data.access_token`, but it was None."
       }
     },
     "proxy_authorize": {
