@@ -223,7 +223,10 @@ mod tests {
         fn test_build_request_android_sends_package_name() {
             let req = make_req_with_platform(Some("Android"), Some("com.merchant.app"));
             let body = link_token_body(&req);
-            assert_eq!(body["android_package_name"], "com.merchant.app");
+            assert_eq!(
+                body.get("android_package_name").and_then(|v| v.as_str()),
+                Some("com.merchant.app")
+            );
             assert!(
                 body.get("redirect_uri").is_none(),
                 "redirect_uri must be omitted for Android"
@@ -234,7 +237,10 @@ mod tests {
         fn test_build_request_ios_sends_redirect_uri() {
             let req = make_req_with_platform(Some("iOS"), Some("https://merchant.example/oauth"));
             let body = link_token_body(&req);
-            assert_eq!(body["redirect_uri"], "https://merchant.example/oauth");
+            assert_eq!(
+                body.get("redirect_uri").and_then(|v| v.as_str()),
+                Some("https://merchant.example/oauth")
+            );
             assert!(
                 body.get("android_package_name").is_none(),
                 "android_package_name must be omitted for non-Android"
