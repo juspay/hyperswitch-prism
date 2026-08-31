@@ -150,13 +150,8 @@ jobs:
             exit 1
           fi
 
-          # Names come from real directory listings, not from pattern-matching
-          # diff paths, so a name can only ever be one that actually exists.
-          #
-          # Regression certification (below) only covers payment connectors —
-          # connector_specs/ has no authenticator/payout/surcharge entries —
-          # so only payment names feed it. The other three types are kept
-          # separately, for nextest scoping only (see "Run Tests").
+          # Enumerate real directories instead of grepping diff paths, so a
+          # name can only ever be one that actually exists.
           names_in_dir() {
             local dir="$1"
             [ -d "${dir}" ] || return 0
