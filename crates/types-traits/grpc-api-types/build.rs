@@ -55,6 +55,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PaysafePaymentMethodDetails::get_account_id` (domain_types/router_data.rs).
     config.type_attribute(".types.PaysafePaymentMethodDetails", "#[serde(default)]");
 
+    // BraintreeConfig has four `repeated string` fields (apple_pay_supported_networks,
+    // apple_pay_merchant_capabilities, gpay_allowed_auth_methods, gpay_allowed_card_networks)
+    // which compile to bare `Vec<String>`. Without `#[serde(default)]`, serde rejects JSON
+    // that omits them — and HS does not serialize these wallet-config fields for standard
+    // card flows. Applying `#[serde(default)]` at the type level makes every missing field
+    // use its `Default::default()` value (Vec → empty, Option → None, String → ""), which
+    // is the correct proto3 semantics for `repeated` and also future-proofs new fields.
+    config.type_attribute(".types.BraintreeConfig", "#[serde(default)]");
+
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
     bridge_generator.compile_protos_with_config(
