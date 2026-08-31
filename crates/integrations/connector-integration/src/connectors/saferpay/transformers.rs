@@ -613,7 +613,7 @@ impl SaferpayPaymentsResponse {
     }
 
     /// Metadata emitted alongside an `Initialize` response so the token survives to
-    /// the PSync that finalises the 3DS transaction.
+    /// the settle Authorize that finalises the 3DS transaction.
     fn initialize_metadata(&self, token: &str) -> Option<serde_json::Value> {
         Some(serde_json::json!({
             SAFERPAY_TOKEN_METADATA_KEY: token,
@@ -1017,10 +1017,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayPreAuthentica
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::AuthenticationPending,
-                connector_feature_data: Some(Secret::new(serde_json::json!({
-                    SAFERPAY_TOKEN_METADATA_KEY: token,
-                    SAFERPAY_STAGE_METADATA_KEY: STAGE_INITIALIZED,
-                }))),
+                connector_feature_data: response.initialize_metadata(&token).map(Secret::new),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1438,7 +1435,7 @@ pub enum SaferpayRefundSyncResponse {
     /// Response to the settling `Capture`.
     Settled(SaferpayCaptureResponse),
     /// Response to a plain `Inquire`.
-    Inquired(SaferpayPaymentsResponse),
+    Inquired(Box<SaferpayPaymentsResponse>),
 }
 
 impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyncRouterData {
