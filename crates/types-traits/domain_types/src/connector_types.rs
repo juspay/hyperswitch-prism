@@ -1739,7 +1739,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Connectors that support DCC can consume this when building their request.
     pub currency_conversion_data: Option<CurrencyConversionData>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }
@@ -3618,7 +3618,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }
@@ -3725,7 +3725,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
     /// Indicates whether this payment is an account funded transaction (AFT).
-    pub is_account_funded_transaction: Option<bool>,
+    pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
 }

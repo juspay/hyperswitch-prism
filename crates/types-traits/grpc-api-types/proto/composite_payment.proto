@@ -139,7 +139,7 @@ message CompositeAuthorizeRequest {
   optional CurrencyConversionData currency_conversion_data = 58;
 
   // Indicates whether this payment is an account funded transaction (AFT).
-  optional bool is_account_funded_transaction = 60;
+  optional bool is_account_funding_transaction = 60;
 
   // Details about the recipient of funds for account-funded transactions.
   optional RecipientDetails recipient_details = 61;
@@ -798,7 +798,7 @@ message CompositeVerifyRedirectResponseRequest {
   optional CurrencyConversionData currency_conversion_data = 54;
 
   // Indicates whether this payment is an account funded transaction (AFT).
-  optional bool is_account_funded_transaction = 56;
+  optional bool is_account_funding_transaction = 56;
 
   // Details about the recipient of funds for account-funded transactions.
   optional RecipientDetails recipient_details = 57;

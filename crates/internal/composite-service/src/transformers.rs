@@ -357,7 +357,7 @@ impl
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
             currency_conversion_data: item.currency_conversion_data.clone(),
-            is_account_funded_transaction: item.is_account_funded_transaction,
+            is_account_funding_transaction: item.is_account_funding_transaction,
             recipient_details: item.recipient_details.clone(),
         }
     }
@@ -1227,7 +1227,7 @@ impl
                 .partner_merchant_identifier_details
                 .clone(),
             currency_conversion_data: request.currency_conversion_data.clone(),
-            is_account_funded_transaction: request.is_account_funded_transaction,
+            is_account_funding_transaction: request.is_account_funding_transaction,
             recipient_details: request.recipient_details.clone(),
         }
     }

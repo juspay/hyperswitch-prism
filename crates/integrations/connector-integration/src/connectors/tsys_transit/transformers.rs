@@ -3813,7 +3813,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
-        is_account_funded_transaction: None,
+        is_account_funding_transaction: None,
         recipient_details: None,
     }
 }

@@ -2695,11 +2695,12 @@ message PaymentServiceAuthorizeRequest {
   // authorization flow for future connector-specific processing.
   optional CurrencyConversionData currency_conversion_data = 51;
 
-  // Indicates whether this payment is an account funded transaction (AFT),
+  // Indicates whether this payment is an account funding transaction (AFT),
   // where funds are pulled from a pre-funded account rather than a card.
-  optional bool is_account_funded_transaction = 53;
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 53;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 54;
 }
 
@@ -3653,10 +3654,11 @@ message PaymentServiceSetupRecurringRequest {
   // Partner / merchant application identifiers initiating the request.
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 37;
 
-  // Indicates whether this payment is an account funded transaction (AFT).
-  optional bool is_account_funded_transaction = 38;
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 38;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 39;
 }
 
@@ -3822,10 +3824,11 @@ message RecurringPaymentServiceChargeRequest {
   // Channel through which the repeat payment was initiated.
   optional PaymentChannel payment_channel = 38;
 
-  // Indicates whether this payment is an account funded transaction (AFT).
-  optional bool is_account_funded_transaction = 40;
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 40;
 
-  // Details about the recipient of funds for account-funded transactions.
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 41;
 }
 
