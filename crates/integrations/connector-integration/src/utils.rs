@@ -684,8 +684,6 @@ pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
     domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
 
-
-
 /// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
 pub trait CardTypeCode {
     fn type_code(&self) -> Option<&'static str>;

@@ -235,7 +235,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Stripe](connectors/stripe.md) | ✓ | ✓ | x | ✓ | x | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Tamara](connectors/tamara.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | ? | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Tesouro](connectors/tesouro.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ? | ? | ? | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Travelhub](connectors/travelhub.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Travelhub](connectors/travelhub.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Truelayer](connectors/truelayer.md) | ✓ | ⚠ | x | x | x | ? | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Trustly](connectors/trustly.md) | ⚠ | ⚠ | x | ⚠ | x | ? | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [TrustPay](connectors/trustpay.md) | ✓ | x | x | x | ✓ | ✓ | x | ⚠ | ? | x | x | ✓ | ? | ✓ | x | ✓ | x | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
