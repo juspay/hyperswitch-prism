@@ -133,6 +133,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -347,6 +348,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -512,6 +514,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -699,6 +702,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -1088,6 +1092,7 @@ mod tests {
             request: PaymentsAuthorizeData {
                 split_settlement: None,
                 customer_document_details: None,
+                customer_date_of_birth: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1309,6 +1314,7 @@ mod tests {
             request: PaymentsAuthorizeData {
                 split_settlement: None,
                 customer_document_details: None,
+                customer_date_of_birth: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1801,6 +1807,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,

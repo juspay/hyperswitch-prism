@@ -117,6 +117,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     authentication_data: None,
                     connector_testing_data: None,
                     currency_conversion_data: None,
@@ -310,6 +311,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     authentication_data: None,
                     connector_testing_data: None,
                     currency_conversion_data: None,
@@ -489,6 +491,7 @@ mod tests {
                 request: PaymentsAuthorizeData {
                     split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
                     connector_testing_data: None,
