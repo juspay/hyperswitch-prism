@@ -154,9 +154,18 @@ jobs:
           # name can only ever be one that actually exists.
           names_in_dir() {
             local dir="$1"
+            local specs_root="${2:-}"
             [ -d "${dir}" ] || return 0
             find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
-              sed 's|\.rs$||' | sort -u
+              sed 's|\.rs$||' | while IFS= read -r name; do
+                # If a specs root is given, only include names that have a
+                # connector_specs/<name>/specs.json — this keeps .rs-only
+                # utility files (e.g. macros.rs) out of the connector list.
+                if [ -n "${specs_root}" ] && [ ! -f "${specs_root}/${name}/specs.json" ]; then
+                  continue
+                fi
+                printf '%s\n' "$name"
+              done | sort -u
           }
 
           touched_under() {
@@ -172,7 +181,7 @@ jobs:
             if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(names_in_dir crates/integrations/connector-integration/src/connectors)
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors crates/internal/integration-tests/src/connector_specs)
 
           # A connector's specs.json/override.json can change without any of
           # its own Rust files changing, so specs-only edits need their own
