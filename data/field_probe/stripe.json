@@ -212,7 +212,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -238,7 +238,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%2C%22header%22%3A%7B%22ephemeralPublicKey%22%3A%22probe%22%2C%22publicKeyHash%22%3A%22probe%22%2C%22transactionId%22%3A%22probe_txn_id%22%7D%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
         }
       },
       "ApplePayDecrypted": {
@@ -716,8 +716,50 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=android_pay&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -1690,40 +1732,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          }
-        },
-        "sample": {
-          "url": "https://api.stripe.com/v1/payment_methods",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/x-www-form-urlencoded",
-            "stripe-version": "2022-11-15",
-            "via": "HyperSwitch"
-          },
-          "body": "type=card&card%5Bnumber%5D=4111111111111111&card%5Bexp_month%5D=03&card%5Bexp_year%5D=2030&card%5Bcvc%5D=737"
-        }
       }
     },
     "verify_redirect": {

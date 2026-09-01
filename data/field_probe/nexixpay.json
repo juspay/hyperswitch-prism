@@ -38,7 +38,7 @@
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
+        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
@@ -294,7 +294,7 @@
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method BankRedirect(OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })"
+        "error": "This feature is not implemented: Payment method BankRedirect(OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -791,19 +791,13 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None })"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) for SetupMandate"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for nexixpay"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None }) for SetupMandate"
       }
     },
     "verify_redirect": {

@@ -683,12 +683,6 @@
         "error": "This feature is not implemented: setup_mandate flow for mifinity"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_supported",
-        "error": "payment_method_token flow not supported by mifinity connector"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

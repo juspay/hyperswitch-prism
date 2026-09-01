@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_enums::{
     AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
@@ -166,6 +166,7 @@ pub enum ConnectorEnum {
     Boost,
     Citigate,
     Ilixium,
+    Worldpayraft,
 }
 
 // snake case for enum variants
@@ -250,6 +251,7 @@ pub enum PayoutConnectorEnum {
     Santander,
     Truelayer,
     Trustly,
+    GotymeSanlam,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -307,6 +309,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Santander(_) => Ok(Self::Santander),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Trustly(_) => Ok(Self::Trustly),
+            AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -533,6 +536,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
+            grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -813,7 +817,7 @@ pub struct PaymentFlowData {
     pub connector_http_status_code: Option<u16>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub external_latency: Option<u128>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -1697,6 +1701,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -1731,6 +1738,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
     pub currency_conversion_data: Option<CurrencyConversionData>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -1996,6 +2007,7 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
+        payment_account_reference: Option<String>,
     },
     ClientAuthenticationTokenResponse {
         session_data: ClientAuthenticationTokenData,
@@ -2395,6 +2407,10 @@ pub struct ClientAuthenticationTokenRequestData {
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
+    /// Native app identifier for returning to the client app after the hosted
+    /// flow completes (e.g. an Android package name). Sent instead of a return
+    /// URL when the merchant integrates from a native app.
+    pub native_app_identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2733,7 +2749,7 @@ pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3450,6 +3466,9 @@ pub struct RefundsData {
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
     pub split_refunds: Option<SplitRefundsDetails>,
+    /// Unified split settlement for the refund (supersedes split_refunds). Boxed to keep
+    /// the enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement_refund: Option<Box<SplitSettlementRefund>>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3522,6 +3541,9 @@ pub struct PaymentsCaptureData {
     pub order_tax_amount: Option<MinorUnit>,
     pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
 }
 
 impl PaymentsCaptureData {
@@ -3599,9 +3621,21 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
+    pub fn is_auto_capture(&self) -> bool {
+        !matches!(
+            self.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+        )
+    }
+
     pub fn get_connector_testing_data(&self) -> Option<SecretSerdeValue> {
         self.connector_testing_data.clone()
     }
@@ -3676,6 +3710,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
     pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// Unified split settlement (supersedes split_payments). Boxed to keep the
+    /// enclosing request (and its RouterDataV2 clones) small on the async stack.
+    pub split_settlement: Option<Box<SplitSettlement>>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub payment_channel: Option<PaymentChannel>,
@@ -3691,6 +3728,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_payment_data: Option<AdditionalPaymentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -3791,7 +3832,7 @@ pub struct AcceptDisputeData {
 pub struct DisputeFlowData {
     pub dispute_id: Option<String>,
     pub connector_dispute_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
@@ -3847,7 +3888,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3902,7 +3943,7 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefreshPaymentMethodFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
@@ -4460,6 +4501,83 @@ pub struct DestinationChargeRefund {
     pub revert_transfer: bool,
 }
 
+// ============================================================================
+// SPLIT SETTLEMENT — unified, connector-agnostic split contract (domain mirror
+// of proto SplitSettlement / SplitSettlementRefund). Supersedes SplitPaymentsDetails.
+// ============================================================================
+
+/// A split share expressed as an absolute amount OR a percentage (exactly one).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum SplitValue {
+    /// Absolute amount (with currency) for this split line. Mirrors the proto `Money`
+    /// so the currency travels with the amount and the type stays consistent across
+    /// the proto and domain contracts.
+    Amount(Money),
+    /// Percentage of the payment for this split line.
+    Percentage(f64),
+}
+
+/// Split settlement across a marketplace (the platform's own cut) + N vendors (request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlement {
+    pub marketplace_split_details: Option<SplitSettlementMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementVendor>,
+}
+
+/// Marketplace / platform share (the merchant's own cut).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementMarketplace {
+    pub split_value: SplitValue,
+    /// Connector's own id for the marketplace/platform account this settles to.
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementVendor {
+    pub split_value: SplitValue,
+    /// Connector's own id for the payee (vendor) account this line settles to.
+    pub connector_sub_account_id: Option<String>,
+    /// Commission retained by the merchant from this vendor's share.
+    pub merchant_commission: Option<MinorUnit>,
+    /// Per-split description forwarded to the connector.
+    pub description: Option<String>,
+    /// Merchant's own per-split reference; forwarded to the connector as its per-split
+    /// reference (e.g. Adyen split item `reference`) and echoed on the response.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
+}
+
+/// Split settlement (refund request).
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefund {
+    pub marketplace_split_details: Option<SplitSettlementRefundMarketplace>,
+    pub vendor_split_details: Vec<SplitSettlementRefundVendor>,
+}
+
+/// Marketplace / platform refund share.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundMarketplace {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+}
+
+/// Per-vendor refund split line.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SplitSettlementRefundVendor {
+    pub split_value: SplitValue,
+    pub connector_sub_account_id: Option<String>,
+    pub merchant_commission: Option<MinorUnit>,
+    /// The merchant's OWN reference for this refund split.
+    pub merchant_reference_id: Option<String>,
+    /// Connector-specific per-split attributes (typed inside the connector), e.g. Adyen split_type.
+    /// Opaque to us, so it is masked as a secret to keep any caller-supplied data out of logs.
+    pub split_metadata: Option<Secret<String>>,
+}
+
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct RecurringMandatePaymentData {
     pub payment_method_type: Option<PaymentMethodType>, //required for making recurring payment using saved payment method through stripe
@@ -4698,6 +4816,7 @@ pub struct CustomerInfo {
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
     pub salutation: Option<String>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerInfo {
@@ -4743,6 +4862,12 @@ impl CustomerInfo {
         self.customer_email
             .clone()
             .ok_or_else(missing_field_err("customer.email"))
+    }
+
+    pub fn get_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
+        self.date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
 }
 
@@ -5595,6 +5720,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
             AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
+            AuthType::GotymeSanlam(_) => Ok(Self::Payout(PayoutConnectorEnum::GotymeSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
@@ -5700,6 +5826,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
@@ -5718,4 +5845,53 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
+}
+
+// ============================================================================
+// RECIPIENT / ACCOUNT-FUNDED TRANSACTION TYPES
+// ============================================================================
+
+/// A bank account that receives funds — discriminated by the identifying scheme.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "bank_account_type", rename_all = "snake_case")]
+pub enum RecipientBankAccount {
+    Iban {
+        iban: Secret<String>,
+    },
+    RoutingNumber {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+    },
+    Bic {
+        account_number: Secret<String>,
+        bic: Secret<String>,
+    },
+    AccountNumber {
+        account_number: Secret<String>,
+    },
+    TruncatedPan {
+        card_isin: Secret<String>,
+        last4: Secret<String>,
+    },
+}
+
+/// The account that receives the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RecipientAccount {
+    BankAccount(RecipientBankAccount),
+    Card { card_number: cards::CardNumber },
+    Wallet { wallet_id: Secret<String> },
+    Email { email: Email },
+    Phone { phone_number: Secret<String> },
+    SocialNetwork { social_network_id: Secret<String> },
+}
+
+/// Details about the recipient of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecipientDetails {
+    pub account: Option<RecipientAccount>,
+    pub phone_number: Option<Secret<String>>,
+    pub tax_id: Option<Secret<String>>,
+    pub address: Option<AddressDetails>,
 }

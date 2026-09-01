@@ -13,6 +13,7 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "RecurringPaymentService/Revoke"
   ]
 }

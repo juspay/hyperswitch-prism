@@ -174,9 +174,13 @@ pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
         payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::EncryptedData(
-                    // Valid base64 encoding of a minimal Apple Pay token JSON stub.
-                    // Decodes to: {"version":"EC_v1","data":"probe","signature":"probe"}
-                    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                    // Valid base64 encoding of a structurally complete Apple Pay token stub.
+                    // `header` is mandatory in Apple's token format, so connectors that parse the
+                    // envelope (e.g. worldpayxml) reject a stub without it.
+                    // Decodes to: {"version":"EC_v1","data":"probe","signature":"probe",
+                    //              "header":{"ephemeralPublicKey":"probe","publicKeyHash":"probe",
+                    //                        "transactionId":"probe_txn_id"}}
+                    "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
                         .to_string(),
                 )),
             }),

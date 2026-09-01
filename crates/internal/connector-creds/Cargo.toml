@@ -1,0 +1,16 @@
+[package]
+name = "connector-creds"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+grpc-api-types = { path = "../../types-traits/grpc-api-types" }
+
+serde_json = "1.0"
+thiserror = "1.0"
+
+[dev-dependencies]
+tempfile = "3.19.1"
+
+[lints]
+workspace = true

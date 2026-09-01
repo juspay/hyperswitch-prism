@@ -664,8 +664,38 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for elavon"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.demo.convergepay.com/VirtualMerchantDemo/processxml.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "xmldata=%3Ctxn%3E%3Cssl_transaction_type%3Eccsale%3C%2Fssl_transaction_type%3E%3Cssl_account_id%3Eprobe_merchant%3C%2Fssl_account_id%3E%3Cssl_user_id%3Eprobe_user%3C%2Fssl_user_id%3E%3Cssl_pin%3Eprobe_pin%3C%2Fssl_pin%3E%3Cssl_amount%3E10.00%3C%2Fssl_amount%3E%3Cssl_token%3Eprobe-mandate-123%3C%2Fssl_token%3E%3C%2Ftxn%3E"
+        }
       }
     },
     "recurring_revoke": {
@@ -744,12 +774,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for elavon"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for elavon"
       }
     },
     "verify_redirect": {

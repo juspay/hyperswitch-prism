@@ -35,7 +35,6 @@ use std::fmt::Debug;
 use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRouterData};
 use crate::types::ResponseRouterData;
 
-const POS_ACCEPTANCE_DEVICE_TYPE: &str = "0";
 const DEFAULT_CANCELLATION_REASON: &str = "POST_AUTH_USER_DECLINE";
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -703,6 +702,11 @@ pub struct TsysTransitCardAuthenticationRequest {
     // expirationDate (early in the body, like Sale/Auth).
     #[serde(rename = "cvv2", skip_serializing_if = "Option::is_none")]
     pub cvv2: Option<Secret<String>>,
+    // TSYS cert: citStatusIndicator (Mastercard sCIT) was displaced —
+    // it sits before addressLine1/zip/externalReferenceID on Sale, not
+    // after externalReferenceID. Match that slot here.
+    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
+    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
     #[serde(rename = "addressLine1")]
     pub address_line1: Secret<String>,
     #[serde(rename = "zip")]
@@ -714,8 +718,6 @@ pub struct TsysTransitCardAuthenticationRequest {
     // sits between externalReferenceID and terminalCapability.
     #[serde(rename = "cardOnFile", skip_serializing_if = "Option::is_none")]
     pub card_on_file: Option<TsysTransitCardOnFile>,
-    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
-    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
     // TSYS cert: authorizationIndicator missing on MC card auth.
     #[serde(
         rename = "authorizationIndicator",
@@ -754,17 +756,6 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
     #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
-    // TSYS' SBX XSD requires mPosAcceptanceDeviceType as the LAST
-    // element on CardAuthentication. The cert csv asked us to remove
-    // it, but removing it alone trips a different XSD complaint
-    // (F9901). Keep "0" as a placeholder; downstream fields
-    // (cardOnFile, citStatusIndicator, authorizationIndicator) all
-    // moved earlier in the body to match Sale's schema order.
-    #[serde(
-        rename = "mPosAcceptanceDeviceType",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub m_pos_acceptance_device_type: Option<String>,
     #[serde(
         rename = "acceptorStreetAddress",
         skip_serializing_if = "Option::is_none"
@@ -2572,6 +2563,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2619,7 +2611,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl From<&TsysTransitTransactionDetails> for AttemptStatus {
     fn from(item: &TsysTransitTransactionDetails) -> Self {
         let transaction_type = item.transaction_type.to_lowercase();
-        if transaction_type.contains("auth") || transaction_type.contains("void") {
+        if transaction_type.contains("auth") && transaction_type.contains("void") {
             match item.transaction_status {
                 Some(TsysTransitTransactionStatus::Approved) => Self::Voided,
                 Some(TsysTransitTransactionStatus::Decline)
@@ -2676,6 +2668,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -2843,6 +2836,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3393,6 +3387,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3576,8 +3571,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // authentications used to store credentials for future payments.
         let card_on_file = rules::cof_mit::card_on_file(&profile);
         let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
-        let m_pos_acceptance_device_type =
-            (!is_ecommerce_payment).then_some(POS_ACCEPTANCE_DEVICE_TYPE.to_string());
 
         let merchant_acceptor_info = build_merchant_acceptor_info(
             &auth,
@@ -3618,10 +3611,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_input_mode,
             cardholder_authentication_entity,
             card_data_output_capability,
-            // mPos must be the LAST element on CardAuthentication per
-            // the SBX XSD; downstream fields (cardOnFile, etc.) live
-            // earlier in the struct now.
-            m_pos_acceptance_device_type,
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
@@ -3721,6 +3710,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3793,6 +3783,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         metadata: req.metadata.clone(),
         authentication_data: req.authentication_data.clone(),
         split_payments: req.split_payments.clone(),
+        split_settlement: req.split_settlement.clone(),
         minor_amount: req.minor_amount,
         merchant_order_id: req.merchant_order_id.clone(),
         shipping_cost: req.shipping_cost,
@@ -3822,6 +3813,8 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
     }
 }
 
@@ -3945,6 +3938,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

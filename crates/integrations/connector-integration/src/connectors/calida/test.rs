@@ -91,7 +91,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -114,6 +115,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -172,7 +174,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -281,7 +284,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -304,6 +308,7 @@ mod tests {
                     shop_name: Some(Secret::new("test_shop".to_string())),
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -362,7 +367,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -457,7 +463,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -480,6 +487,7 @@ mod tests {
                     shop_name: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
@@ -530,7 +538,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,

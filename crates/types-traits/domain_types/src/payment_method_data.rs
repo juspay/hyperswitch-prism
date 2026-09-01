@@ -493,6 +493,15 @@ pub struct GiftCardDetails {
 #[serde(rename_all = "snake_case")]
 pub struct PaymentMethodToken {
     pub token: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_payment_method_type: Option<TokenPaymentMethod>,
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TokenPaymentMethod {
+    ApplePay,
+    GooglePay,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -783,6 +792,7 @@ pub enum BankRedirectData {
         provider: String,
     },
     OpenBanking {
+        bank_name: Option<common_enums::BankNames>,
         account_number: Option<Secret<String>>,
         sort_code: Option<Secret<String>>,
         iban: Option<Secret<String>>,

@@ -195,7 +195,7 @@
           "payment_method": {
             "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -220,7 +220,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"applepay\",\"applePayToken\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":1000},\"merchantAccount\":\"probe_merchant\",\"paymentMethod\":{\"type\":\"applepay\",\"applePayToken\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"reference\":\"probe_txn_001\",\"returnUrl\":\"https://example.com/return\",\"shopperInteraction\":\"Ecommerce\",\"additionalData\":{\"executeThreeD\":\"false\"}}"
         }
       },
       "ApplePayDecrypted": {
@@ -2713,12 +2713,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment method"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for adyen"
       }
     },
     "verify_redirect": {

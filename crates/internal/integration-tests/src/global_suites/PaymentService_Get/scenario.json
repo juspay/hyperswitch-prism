@@ -7,7 +7,6 @@
         "currency": "USD"
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -41,7 +40,6 @@
         "currency": "USD"
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -77,7 +75,6 @@
         "currency": "INR"
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -110,7 +107,6 @@
         "currency": "INR"
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -143,7 +139,6 @@
         "currency": "INR"
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""

@@ -377,7 +377,7 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "BankRedirect type OpenBanking { account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
+        "error": "BankRedirect type OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } is not supported by Shift4 is not supported by Shift4"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -1022,12 +1022,6 @@
           },
           "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":\"pm_1AbcXyzStripeTestToken\"}"
         }
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for shift4"
       }
     },
     "verify_redirect": {
