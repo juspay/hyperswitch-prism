@@ -57,7 +57,7 @@ impl FrmOperationsInternal for FraudAndRiskManagement {
         request_data_constructor: PreRiskCheckRequest::foreign_try_from,
         common_flow_data_constructor: FrmFlowData::foreign_try_from,
         generate_response_fn: generate_pre_risk_check_response,
-        connector_data_type: FrmConnectorData,
+        connector_data_types: [FrmConnectorData],
         all_keys_required: None
     );
 
@@ -73,7 +73,7 @@ impl FrmOperationsInternal for FraudAndRiskManagement {
         request_data_constructor: PostRiskCheckRequest::foreign_try_from,
         common_flow_data_constructor: FrmFlowData::foreign_try_from,
         generate_response_fn: generate_post_risk_check_response,
-        connector_data_type: FrmConnectorData,
+        connector_data_types: [FrmConnectorData],
         all_keys_required: None
     );
 }

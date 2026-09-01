@@ -4,6 +4,10 @@
     "PaymentService/Authorize",
     "PaymentService/Get",
     "PaymentService/Reverse",
-    "PaymentService/IncrementalAuthorization"
+    "PaymentService/IncrementalAuthorization",
+    "PaymentService/Capture",
+    "PaymentService/Refund",
+    "PaymentService/Void",
+    "RefundService/Get"
   ]
 }

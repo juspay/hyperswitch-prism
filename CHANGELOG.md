@@ -19,6 +19,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.08.31.1
+
+### Features
+
+- **connector:** Add moneris 3DS flows ([#2179](https://github.com/juspay/connector-service/pull/2179)) ([`1bcc6bd`](https://github.com/juspay/connector-service/commit/1bcc6bd7c5b375397228458a80d9eb25e4ed4dd9))
+- **framework:** Add account_funded_transactions support in payment request ([#2188](https://github.com/juspay/connector-service/pull/2188)) ([`46520cb`](https://github.com/juspay/connector-service/commit/46520cb258cefd0c3264dd6ed87b3b7daa6e2296))
+- **payouts:** Add merchant_request_id field to payout gRPC requests and use it in Gotyme connector ([#2193](https://github.com/juspay/connector-service/pull/2193)) ([`e085466`](https://github.com/juspay/connector-service/commit/e0854669a95d3f27dfa4cfd559149282a88076a3))
+
+### Bug Fixes
+
+- **ci:** Derive connector names from real directories, not diff-path regex ([#2197](https://github.com/juspay/connector-service/pull/2197)) ([`34fcb42`](https://github.com/juspay/connector-service/commit/34fcb42b31c469cc0dc5a23b8bbc27be18ac8e8a))
+
+**Full Changelog:** [`2026.08.31.0...2026.08.31.1`](https://github.com/juspay/connector-service/compare/2026.08.31.0...2026.08.31.1)
+
+- - -
+
+## 2026.08.31.0
+
+### Features
+
+- **connector:**
+  - Add par support in checkout and worldpayxml connector ([#2189](https://github.com/juspay/connector-service/pull/2189)) ([`6c7526e`](https://github.com/juspay/connector-service/commit/6c7526e1240c15d0fda1df2d721cae989a97d9c6))
+  - Plaid Link token native app identifier support ([#2192](https://github.com/juspay/connector-service/pull/2192)) ([`f16c89a`](https://github.com/juspay/connector-service/commit/f16c89a71953b3d23a526009f17cb29a5efef2e5))
+
+**Full Changelog:** [`2026.08.28.0...2026.08.31.0`](https://github.com/juspay/connector-service/compare/2026.08.28.0...2026.08.31.0)
+
+- - -
+
 ## 2026.08.28.0
 
 ### Features

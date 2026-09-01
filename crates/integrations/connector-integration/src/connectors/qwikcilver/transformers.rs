@@ -1088,6 +1088,7 @@ fn customer_details_to_customer_info(
         customer_phone_number,
         customer_phone_country_code: None,
         salutation: customer.salutation.clone(),
+        date_of_birth: None,
     }
 }
 

@@ -5,9 +5,9 @@
 // Moneris — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx moneris.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "proxy_authorize", "refund", "refund_get", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -88,6 +88,74 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         },
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        }
+    };
+}
+
+function _buildPostAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePostAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "state": {  // State Information.
+            "accessToken": {  // Access token obtained from connector.
+                "token": {"value": "probe_access_token"},  // The token string.
+                "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
+                "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
+            }
+        },
+        "redirectionResponse": {  // Redirection Information after DDC step.
+            "params": "probe_redirect_params",
+            "payload": {
+            }
+        }
+    };
+}
+
+function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePreAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "customer": {  // Customer Information.
+            "email": {"value": "test@example.com"}  // Customer's email address.
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "enrolledFor_3ds": false,  // Authentication Details.
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
         "state": {  // State Information.
             "accessToken": {  // Access token obtained from connector.
                 "token": {"value": "probe_access_token"},  // The token string.
@@ -332,6 +400,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const postResponse = await paymentMethodAuthenticationClient.postAuthenticate(_buildPostAuthenticateRequest());
+
+    return postResponse;
+}
+
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
+
+    return preResponse;
+}
+
 // Flow: PaymentService.ProxyAuthorize
 async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -371,7 +457,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerAuthenticationToken, get, postAuthenticate, preAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

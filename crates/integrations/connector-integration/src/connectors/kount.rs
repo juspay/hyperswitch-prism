@@ -786,8 +786,14 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // FrmServiceTrait requires the remaining FRM markers. `expand_flow_status_impl!`
 // has no arms for FRM flows, so these stubs are hand-written.
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::FrmServiceTrait for Kount<T>
+//
+// Not generic over `T`: FrmServiceTrait also requires
+// `PaymentPreAuthenticateV2<DefaultPCIHolder>` (fixed — Frm requests never carry
+// payment-method data), which `Kount<T>` only provides for the matching `T`. This
+// impl is restricted to `Kount<DefaultPCIHolder>` to match, which is also the only
+// monomorphization `FrmConnectorData::convert_connector` ever constructs.
+impl connector_types::FrmServiceTrait
+    for Kount<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 
