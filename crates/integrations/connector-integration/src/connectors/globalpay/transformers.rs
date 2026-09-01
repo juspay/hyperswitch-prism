@@ -1,24 +1,24 @@
 use crate::{connectors::globalpay::GlobalpayRouterData, types::ResponseRouterData};
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, FutureUsage, RefundStatus};
 use common_utils::consts::NO_ERROR_CODE;
 use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
@@ -101,7 +101,19 @@ impl TryFrom<&ConnectorSpecificConfig> for GlobalpayAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Expected ConnectorSpecificConfig::Globalpay with app_id and app_key \
+                             fields; received a different connector variant"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Ensure the connector is configured as Globalpay with valid \
+                             app_id and app_key credentials"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             )),
         }
@@ -112,6 +124,13 @@ impl TryFrom<&ConnectorSpecificConfig> for GlobalpayAuthType {
 pub struct GlobalpayErrorResponse {
     pub error_code: String,
     pub detailed_error_code: String,
+    pub detailed_error_description: String,
+}
+
+// Access token endpoint returns a simpler error shape — no detailed_error_code field
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalpayAccessTokenErrorResponse {
+    pub error_code: String,
     pub detailed_error_description: String,
 }
 
@@ -160,6 +179,9 @@ pub enum GlobalpayRefundStatus {
     Declined,
     Failed,
     Rejected,
+    // A refund can be reversed (voided before funding) or, rarely, pre-authorized
+    Reversed,
+    Preauthorized,
 }
 
 impl From<GlobalpayRefundStatus> for RefundStatus {
@@ -168,10 +190,12 @@ impl From<GlobalpayRefundStatus> for RefundStatus {
             GlobalpayRefundStatus::Captured | GlobalpayRefundStatus::Funded => Self::Success,
             GlobalpayRefundStatus::Pending
             | GlobalpayRefundStatus::Initiated
-            | GlobalpayRefundStatus::ForReview => Self::Pending,
+            | GlobalpayRefundStatus::ForReview
+            | GlobalpayRefundStatus::Preauthorized => Self::Pending,
             GlobalpayRefundStatus::Declined
             | GlobalpayRefundStatus::Failed
-            | GlobalpayRefundStatus::Rejected => Self::Failure,
+            | GlobalpayRefundStatus::Rejected
+            | GlobalpayRefundStatus::Reversed => Self::Failure,
         }
     }
 }
@@ -211,58 +235,48 @@ pub struct GlobalpayAccessTokenRequest {
     pub grant_type: String,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
+        GlobalpayRouterData<
+            RouterDataV2<
+                ServerAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
+            >,
+            T,
         >,
     > for GlobalpayAccessTokenRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        item: &RouterDataV2<
-            ServerAuthenticationToken,
-            MerchantAuthenticationFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
+        value: GlobalpayRouterData<
+            RouterDataV2<
+                ServerAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerAuthenticationTokenRequestData,
+                ServerAuthenticationTokenResponseData,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
-        if let ConnectorSpecificConfig::Globalpay {
-            app_id, app_key, ..
-        } = &item.connector_config
-        {
-            use sha2::{Digest, Sha512};
+        let item = &value.router_data;
+        let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
 
-            // Generate random alphanumeric nonce (matching Hyperswitch implementation)
-            let nonce =
-                rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        use sha2::{Digest, Sha512};
+        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let secret_input = format!("{}{}", nonce, auth.app_key.peek());
+        let mut hasher = Sha512::new();
+        hasher.update(secret_input.as_bytes());
+        let secret_hex = hex::encode(hasher.finalize());
 
-            // Create secret: SHA512(nonce + app_key)
-            let secret_input = format!("{}{}", nonce, app_key.peek());
-
-            // Generate SHA-512 hash
-            let mut hasher = Sha512::new();
-            hasher.update(secret_input.as_bytes());
-            let result = hasher.finalize();
-            let secret_hex = hex::encode(result);
-
-            Ok(Self {
-                app_id: app_id.clone(),
-                nonce: Secret::new(nonce),
-                secret: Secret::new(secret_hex),
-                grant_type: item.request.grant_type.clone(),
-            })
-        } else {
-            Err(error_stack::report!(
-                IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
-                }
-            ))
-        }
+        Ok(Self {
+            app_id: auth.app_id,
+            nonce: Secret::new(nonce),
+            secret: Secret::new(secret_hex),
+            grant_type: item.request.grant_type.clone(),
+        })
     }
 }
 
@@ -439,7 +453,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Convert to 2-digit year using built-in helper method
                 let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
                     IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to convert card expiry year to 2-digit format for \
+                                 GlobalPay Authorize request"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
                     },
                 )?;
 
@@ -471,7 +493,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     _ => {
                         return Err(error_stack::report!(IntegrationError::NotImplemented(
                             "Bank redirect payment method not supported".to_string(),
-                            Default::default()
+                            IntegrationErrorContext {
+                                additional_context: Some(
+                                    "GlobalPay Authorize supports EPS and iDEAL bank redirects \
+                                     only; received an unsupported bank redirect variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: None,
+                                doc_url: None,
+                            },
                         )))
                     }
                 };
@@ -501,7 +531,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
-                    Default::default()
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL), and \
+                             PaymentMethodToken; received an unsupported payment method type"
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
                 )))
             }
         };
@@ -534,7 +572,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(item.request.minor_amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert authorize amount to StringMinorUnit for GlobalPay \
+                         POST /transactions request"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?;
 
         Ok(Self {
@@ -560,8 +606,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 pub struct GlobalpayCaptureRequest {
     pub amount: StringMinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub capture_sequence: Option<Sequence>,
-    pub reference: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -586,7 +632,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(item.request.minor_amount_to_capture, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert capture amount to StringMinorUnit for GlobalPay \
+                         POST /transactions/{id}/capture request"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?;
 
         Ok(Self {
@@ -598,11 +652,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Sequence::Subsequent
                 }
             }),
-            reference: item
-                .request
-                .multiple_capture_data
-                .as_ref()
-                .map(|mcd| mcd.capture_reference.clone()),
         })
     }
 }
@@ -765,7 +814,6 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status.clone());
 
-        // Extract network transaction ID from card response
         let network_txn_id = item
             .response
             .payment_method
@@ -774,7 +822,24 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
             .and_then(|card| card.brand_reference.as_ref())
             .map(|s| s.peek().to_string());
 
-        // Handle failure responses separately
+        // For pending APM payments, the GET /transactions/{id} response still includes
+        // the redirect URL so the caller can re-redirect the user if needed.
+        let redirection_data = item
+            .response
+            .payment_method
+            .as_ref()
+            .and_then(|pm| pm.apm.as_ref())
+            .and_then(|apm| apm.redirect_url.as_ref())
+            .filter(|url| !url.is_empty())
+            .map(|url| {
+                Url::parse(url).change_context(crate::utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    "globalpay",
+                ))
+            })
+            .transpose()?
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+
         let response = match status {
             AttemptStatus::Failure => Err(ErrorResponse {
                 status_code: item.http_code,
@@ -815,7 +880,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
             }),
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
+                redirection_data,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
@@ -955,7 +1020,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(item.request.minor_refund_amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert refund amount to StringMinorUnit for GlobalPay \
+                         POST /transactions/{id}/refund request"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?;
         Ok(Self { amount })
     }
@@ -1023,6 +1096,7 @@ impl TryFrom<ResponseRouterData<GlobalpayRefundResponse, Self>>
 // Void Request - Based on tech spec, /transactions/{transaction_id}/reverse endpoint
 #[derive(Debug, Clone, Serialize)]
 pub struct GlobalpayVoidRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<StringMinorUnit>,
 }
 
@@ -1047,7 +1121,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if item.request.connector_transaction_id.is_empty() {
             return Err(error_stack::report!(
                 IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default()
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_transaction_id is required to construct the \
+                             POST /transactions/{id}/reversal URL for GlobalPay Void"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Ensure the payment was authorized and a connector_transaction_id \
+                             was captured before attempting a void"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             ));
         }
@@ -1063,7 +1149,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .amount_converter
                     .convert(amount_value, currency)
                     .change_context(IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to convert partial void amount to StringMinorUnit for \
+                                 GlobalPay POST /transactions/{id}/reversal request"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
                     })
             })
             .transpose()?;
@@ -1082,16 +1176,11 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<GlobalpayPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Map GlobalPay void statuses to UCS AttemptStatus
-        // Void flow uses VoidFailed instead of generic Failure for failed void attempts
         let status = match item.response.status.clone() {
-            // Success case - void completed
             GlobalpayPaymentStatus::Reversed => AttemptStatus::Voided,
-            // Pending cases - void in progress
             GlobalpayPaymentStatus::Pending
             | GlobalpayPaymentStatus::Initiated
             | GlobalpayPaymentStatus::ForReview => AttemptStatus::Pending,
-            // Failure cases - void attempt failed or invalid states
             GlobalpayPaymentStatus::Declined
             | GlobalpayPaymentStatus::Failed
             | GlobalpayPaymentStatus::Rejected
@@ -1100,8 +1189,45 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
             | GlobalpayPaymentStatus::Funded => AttemptStatus::VoidFailed,
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        let response = match status {
+            AttemptStatus::VoidFailed => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone())
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone())
+                    .unwrap_or_else(|| "Void failed".to_string()),
+                reason: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.result.clone()),
+                network_advice_code: None,
+                network_error_message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.message.clone()),
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+            _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
@@ -1114,6 +1240,10 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 splits: None,
                 payment_account_reference: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -1169,42 +1299,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
-        if let ConnectorSpecificConfig::Globalpay {
-            app_id, app_key, ..
-        } = &item.connector_config
-        {
-            use sha2::{Digest, Sha512};
+        let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
 
-            // Generate random alphanumeric nonce
-            let nonce =
-                rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        use sha2::{Digest, Sha512};
+        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let secret_input = format!("{}{}", nonce, auth.app_key.peek());
+        let mut hasher = Sha512::new();
+        hasher.update(secret_input.as_bytes());
+        let secret_hex = hex::encode(hasher.finalize());
 
-            // Create secret: SHA512(nonce + app_key)
-            let secret_input = format!("{}{}", nonce, app_key.peek());
+        let permissions = item.request.permissions.clone();
 
-            let mut hasher = Sha512::new();
-            hasher.update(secret_input.as_bytes());
-            let result = hasher.finalize();
-            let secret_hex = hex::encode(result);
-
-            let permissions = wrapper.router_data.request.permissions.clone();
-
-            Ok(Self {
-                app_id: app_id.clone(),
-                nonce: Secret::new(nonce),
-                secret: Secret::new(secret_hex),
-                grant_type: "client_credentials".to_string(),
-                interval_to_expire: Some("1_HOUR".to_string()),
-                restricted_token: Some("YES".to_string()),
-                permissions,
-            })
-        } else {
-            Err(error_stack::report!(
-                IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
-                }
-            ))
-        }
+        Ok(Self {
+            app_id: auth.app_id,
+            nonce: Secret::new(nonce),
+            secret: Secret::new(secret_hex),
+            grant_type: "client_credentials".to_string(),
+            interval_to_expire: Some("1_HOUR".to_string()),
+            restricted_token: Some("YES".to_string()),
+            permissions,
+        })
     }
 }
 
@@ -1337,7 +1451,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card_data) => {
                 let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
                     IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to convert card expiry year to 2-digit format for \
+                                 GlobalPay SetupMandate POST /payment-methods request"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
                     },
                 )?;
                 // GlobalPay's /payment-methods endpoint requires CVV for card
@@ -1348,7 +1470,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     return Err(error_stack::report!(
                         IntegrationError::MissingRequiredField {
                             field_name: "card_cvc",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "GlobalPay POST /payment-methods requires CVV for card \
+                                     tokenization; an empty CVV causes a connector-side rejection"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide a valid CVV value in the card payment method data"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
                         }
                     ));
                 }
@@ -1362,7 +1495,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment method not supported for SetupMandate".to_string(),
-                    Default::default()
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalPay SetupMandate POST /payment-methods only supports card \
+                             payment methods; received an unsupported payment method type"
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
                 )))
             }
         };
@@ -1497,14 +1638,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "connector_mandate_id",
-                        context: Default::default()
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "connector_mandate_id (PMT_ token from a prior SetupMandate) is \
+                                 required as payment_method.id for GlobalPay MIT charges via \
+                                 POST /transactions"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Ensure a SetupMandate was completed and the resulting PMT_ token \
+                                 is stored as connector_mandate_id before initiating RepeatPayment"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                 })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Network mandate id not supported for GlobalPay RepeatPayment".to_string(),
-                    Default::default()
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalPay RepeatPayment requires a PMT_ connector mandate id; \
+                             network mandate ids and network token NTIs are not supported"
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
                 )));
             }
         };
@@ -1536,7 +1698,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .amount_converter
             .convert(item.request.minor_amount, item.request.currency)
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert RepeatPayment amount to StringMinorUnit for GlobalPay \
+                         MIT POST /transactions request"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
             })?;
 
         Ok(Self {
@@ -1641,6 +1811,163 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== PAYMENT METHOD TOKEN FLOW STRUCTURES =====
+//
+// GlobalPay's /payment-methods endpoint stores a card for future off-session
+// (MIT) use and returns a PMT_ token. This flow is the standalone tokenization
+// equivalent of SetupMandate — same endpoint, same payload shape, but triggered
+// as a discrete pre-authorize step rather than bundled with a CIT charge.
+
+#[derive(Debug, Serialize)]
+pub struct GlobalpayPaymentMethodTokenRequest<T: PaymentMethodDataTypes> {
+    pub reference: String,
+    pub usage_mode: GlobalpayUsageMode,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<GlobalpaySetupMandateCard<T>>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayPaymentMethodTokenResponse {
+    pub id: Option<String>,
+    pub card: Option<GlobalpayPaymentMethodTokenCard>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayPaymentMethodTokenCard {
+    pub brand_reference: Option<Secret<String>>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    > for GlobalpayPaymentMethodTokenRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: GlobalpayRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+        let request = &item.request;
+
+        let is_mandate_setup = request.setup_future_usage == Some(FutureUsage::OffSession)
+            || request.setup_mandate_details.is_some()
+            || request.customer_acceptance.is_some();
+
+        if !is_mandate_setup {
+            return Err(error_stack::report!(IntegrationError::NotImplemented(
+                "GlobalPay PaymentMethodToken only supports mandate/recurring tokenization \
+                 (setup_future_usage: OffSession or mandate details required)"
+                    .to_string(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Set setup_future_usage to OffSession or provide mandate/customer_acceptance \
+                         details to enable GlobalPay card tokenization via POST /payment-methods"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
+            )));
+        }
+
+        let card = match &request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
+                    IntegrationError::RequestEncodingFailed {
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to convert card expiry year to 2-digit format for \
+                                 GlobalPay PaymentMethodToken POST /payment-methods request"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    },
+                )?;
+                if card_data.card_cvc.peek().is_empty() {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "card_cvc",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "GlobalPay POST /payment-methods requires CVV for card \
+                                     tokenization; an empty CVV causes a connector-side rejection"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide a valid CVV value in the card payment method data"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        }
+                    ));
+                }
+                Some(GlobalpaySetupMandateCard {
+                    number: card_data.card_number.clone(),
+                    expiry_month: card_data.card_exp_month.clone(),
+                    expiry_year: expiry_year_2digit,
+                    cvv: card_data.card_cvc.clone(),
+                })
+            }
+            _ => None,
+        };
+
+        Ok(Self {
+            reference: item
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            usage_mode: GlobalpayUsageMode::Multiple,
+            card,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<GlobalpayPaymentMethodTokenResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodToken,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayPaymentMethodTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let token = item.response.id.clone().unwrap_or_default();
+        Ok(Self {
+            response: Ok(PaymentMethodTokenResponse {
+                token,
+                connector_payment_method_id: None,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }
