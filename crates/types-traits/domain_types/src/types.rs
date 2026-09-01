@@ -1428,6 +1428,26 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
     }
 }
 
+/// Converts connector-returned payment method details to the proto representation for the
+/// returning-customer flow, dropping them with a warning if the payment method has no proto
+/// equivalent yet. Shared by the PSync and incoming-webhook response builders.
+impl ForeignFrom<Option<PaymentMethodData<DefaultPCIHolder>>>
+    for Option<grpc_api_types::payments::PaymentMethod>
+{
+    fn foreign_from(payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>) -> Self {
+        payment_method_data.and_then(|payment_method_data| {
+            grpc_api_types::payments::PaymentMethod::foreign_try_from(payment_method_data)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to convert connector_returned_payment_method_details; omitting it"
+                    );
+                })
+                .ok()
+        })
+    }
+}
+
 impl ForeignFrom<RawConnectorStatus> for grpc_api_types::payments::RawConnectorStatus {
     fn foreign_from(value: RawConnectorStatus) -> Self {
         Self {
@@ -8484,22 +8504,11 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
-                    connector_returned_payment_method_details: router_data_v2
-                        .resource_common_data
-                        .connector_returned_payment_method_details
-                        .clone()
-                        .and_then(|payment_method_data| {
-                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
-                                payment_method_data,
-                            )
-                            .map_err(|error| {
-                                tracing::warn!(
-                                    ?error,
-                                    "Failed to convert connector_returned_payment_method_details; omitting it"
-                                );
-                            })
-                            .ok()
-                        }),
+                    connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_returned_payment_method_details,
+                    ),
                     payment_account_reference,
                 })
             }
@@ -9708,7 +9717,9 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             splits: None,
             settlement_status: None,
             connector_feature_data: None,
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                value.connector_returned_payment_method_details,
+            ),
             payment_account_reference: None,
         })
     }

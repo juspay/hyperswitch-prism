@@ -867,6 +867,7 @@ impl BoostWebhookBody {
             minor_amount_captured.map(|minor_unit| minor_unit.get_amount_as_i64());
 
         WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.uuid.clone())),
             status,
             connector_response_reference_id: None,
