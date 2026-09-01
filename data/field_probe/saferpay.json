@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Card": {
         "status": "not_supported",
@@ -102,19 +102,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Crypto": {
         "status": "not_supported",
@@ -122,11 +122,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -134,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Givex": {
         "status": "not_supported",
@@ -170,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -258,43 +258,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -302,35 +302,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Paysera": {
         "status": "not_supported",
@@ -342,111 +342,111 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       }
     },
     "capture": {
@@ -469,7 +469,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"},\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_capture_001\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"},\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"}}"
         }
       }
     },
@@ -558,7 +558,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_merchant_txn_001\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     },
@@ -621,7 +621,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}},\"ReturnUrl\":{\"Url\":\"https://example.com/3ds-return\"},\"Authentication\":{\"ThreeDsChallenge\":\"FORCE\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}},\"ReturnUrl\":{\"Url\":\"https://example.com/3ds-return\"},\"Authentication\":{\"ThreeDsChallenge\":\"FORCE\"}}"
         }
       }
     },
@@ -657,7 +657,7 @@
     "refund": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: refund_metadata.capture_id — Missing required field: refund_metadata.capture_id"
+        "error": "Stuck on field: refund_metadata.capture_id. while building a Saferpay Transaction API request — Missing required field: refund_metadata.capture_id. while building a Saferpay Transaction API request"
       }
     },
     "refund_get": {
@@ -677,7 +677,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_refund_id_001\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_refund_001\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_refund_id_001\"}}"
         }
       }
     },
@@ -696,7 +696,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by saferpay"
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       }
     },
     "token_setup_recurring": {
@@ -726,7 +726,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"00000000-0000-0000-0000-000000000000\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_void_001\",\"RetryIndicator\":0},\"TransactionReference\":{\"TransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     }
