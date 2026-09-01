@@ -2483,7 +2483,17 @@ macro_rules! macro_connector_local_flow_implementation {
                         ::interfaces::api::ConnectorCommon::id(self),
                         stringify!($flow),
                     ),
-                    Default::default(),
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "get_url is unreachable for {} because build_request_v2 returns None",
+                            stringify!($flow),
+                        )),
+                        suggested_action: Some(
+                            "No action required: the response is built locally in handle_response_v2"
+                                .to_owned(),
+                        ),
+                        doc_url: None,
+                    },
                 )
                 .into())
             }
