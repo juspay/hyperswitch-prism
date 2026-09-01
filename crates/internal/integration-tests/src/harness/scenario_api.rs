@@ -6486,16 +6486,28 @@ grpc-status: 0
                         continue;
                     }
 
-                    let grpc_req = match get_the_grpc_req_for_connector(suite, scenario, connector)
-                    {
-                        Ok(req) => req,
-                        Err(error) => {
-                            failures.push(format!(
+                    let mut grpc_req =
+                        match get_the_grpc_req_for_connector(suite, scenario, connector) {
+                            Ok(req) => req,
+                            Err(error) => {
+                                failures.push(format!(
                                 "{connector}/{suite}/{scenario}: failed to materialize request with override: {error}"
                             ));
-                            continue;
-                        }
-                    };
+                                continue;
+                            }
+                        };
+
+                    // Real execution resolves auto_generate/auto_generate_numeric
+                    // sentinels before sending the request; this static check must
+                    // do the same; otherwise an unresolved sentinel — a string —
+                    // fails proto deserialization on any field that isn't itself a
+                    // string, like an i64 amount.
+                    if let Err(error) = resolve_auto_generate(&mut grpc_req, connector) {
+                        failures.push(format!(
+                            "{connector}/{suite}/{scenario}: failed to resolve auto_generate sentinels: {error}"
+                        ));
+                        continue;
+                    }
 
                     if let Err(error) =
                         validate_suite_scenario_schema(connector, suite, scenario, &grpc_req)
