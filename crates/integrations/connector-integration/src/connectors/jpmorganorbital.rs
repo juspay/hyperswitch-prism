@@ -44,7 +44,6 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
@@ -182,18 +181,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         // returns a full `paymentsResponse` with the same two fields nested under
         // `order.status`. `JpmorganOrbitalPaymentsResponse` models both shapes, so
         // the error path parses exactly the same struct as the success path.
-        let response: JpmorganOrbitalPaymentsResponse = res
+        match res
             .response
-            .parse_struct("JpmorganOrbitalPaymentsResponse")
-            .change_context(crate::utils::response_deserialization_fail(
-                res.status_code,
-                "jpmorganorbital: response body matched neither the paymentsResponse envelope \
-                 nor the flat {procStatus, procStatusMessage} error body.",
-            ))?;
-
-        with_error_response_body!(event_builder, response);
-
-        Ok(response.to_error_response(res.status_code))
+            .parse_struct::<JpmorganOrbitalPaymentsResponse>("JpmorganOrbitalPaymentsResponse")
+        {
+            Ok(response) => {
+                with_error_response_body!(event_builder, response);
+                Ok(response.to_error_response(res.status_code))
+            }
+            // Not every failure comes from Orbital itself. 403 "SSL Connection Required"
+            // and 412 "Security Information is missing" are documented, and an
+            // intermediary proxy or WAF can answer with HTML or nothing at all. Failing
+            // to deserialize would discard the HTTP status, which is the only diagnostic
+            // such a response carries, so surface it instead.
+            Err(_) => {
+                let raw_body = String::from_utf8_lossy(&res.response).to_string();
+                tracing::warn!(
+                    status_code = res.status_code,
+                    "jpmorganorbital returned a body matching neither the paymentsResponse \
+                     envelope nor the flat {{procStatus, procStatusMessage}} error body — most \
+                     likely an intermediary proxy, WAF or gateway response"
+                );
+                Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: common_utils::consts::NO_ERROR_CODE.to_string(),
+                    message: common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                    reason: Some(raw_body.chars().take(500).collect()),
+                    // Nothing here says whether the authorization landed, so the attempt
+                    // is left for PSync to settle rather than marked terminal.
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            }
+        }
     }
 }
 

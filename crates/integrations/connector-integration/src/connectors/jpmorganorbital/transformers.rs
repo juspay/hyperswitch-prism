@@ -29,14 +29,21 @@ use crate::types::ResponseRouterData;
 pub const ORBITAL_VERSION: &str = "5.2";
 /// `order.industryType`. Only e-commerce is in scope.
 const INDUSTRY_TYPE_ECOMMERCE: &str = "EC";
-/// `transType` for an authorization without capture (UCS `CaptureMethod::Manual`).
-const TRANS_TYPE_AUTH_ONLY: &str = "A";
 /// `transType` for authorization + capture (UCS `CaptureMethod::Automatic`).
 const TRANS_TYPE_AUTH_CAPTURE: &str = "AC";
 /// `cardholderVerification.ccCardVerifyPresenceInd` — "value is present".
 const CARD_VERIFY_PRESENCE_PRESENT: &str = "1";
 /// `order.status.procStatus` value meaning "passed all Gateway edit checks".
 const PROC_STATUS_SUCCESS: &str = "0";
+/// `order.status.procStatus` value meaning "timed out waiting for the transaction to
+/// complete". The authorization may still have succeeded at the issuer, so this is the one
+/// failure code that must NOT be recorded as terminal.
+const PROC_STATUS_TIMED_OUT: &str = "9710";
+/// HTTP 408. Orbital returns it when the gateway did not complete in time.
+const HTTP_REQUEST_TIMEOUT: u16 = 408;
+/// `additionalAuthInfo.authenticationECIInd` meaning "authentication attempted but not
+/// completed". Orbital expects the indicator on its own; there is no cryptogram to send.
+const ECI_NOT_AUTHENTICATED: &str = "7";
 /// `order.status.approvalStatus` value meaning "approved by the issuer".
 const APPROVAL_STATUS_APPROVED: &str = "1";
 /// `merchant.bin` selecting the Stratus host. Only Stratus supports
@@ -49,6 +56,9 @@ const BRAND_PROGRAM_AMEX_SAFEKEY: &str = "ASK";
 
 /// Max length of `order.orderID`.
 const MAX_ORDER_ID_LEN: usize = 22;
+/// Orbital requires `order.orderID` to be unique across transactions within its first 8
+/// characters, not merely as a whole.
+const ORDER_ID_UNIQUE_PREFIX_LEN: usize = 8;
 /// Max length of `order.amount`.
 const MAX_AMOUNT_LEN: usize = 12;
 
@@ -264,33 +274,64 @@ impl AmountConvertor for JpmorganOrbitalAmountForConnector {
 // ORDER ID + RETRY TRACE
 // =============================================================================
 
-/// True when `reference` already satisfies every `order.orderID` rule and can be sent
-/// through untouched, keeping the value traceable in Orbital's back office.
+/// The `order.orderID` alphabet used when the reference has to be derived. Orbital also
+/// allows `- , $ @ &` and space, but restricting the digest to `[0-9a-z]` keeps the value
+/// URL-safe, unambiguous in logs, and free of any leading-space risk.
+const ORDER_ID_DIGEST_ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+
+/// Orbital requires the **first 8 characters** of `orderID` to be unique per transaction,
+/// so a reference may only travel verbatim when it is short enough that its first 8
+/// characters are the whole thing. A longer reference is derived instead: `ORDER0000001`
+/// and `ORDER0000002` are both charset-legal and both start `ORDER000`, which would
+/// collide.
 fn is_order_id_verbatim_safe(reference: &str) -> bool {
     !reference.is_empty()
-        && reference.len() <= MAX_ORDER_ID_LEN
+        && reference.len() <= ORDER_ID_UNIQUE_PREFIX_LEN
         && !reference.starts_with(' ')
         && reference
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | ',' | '$' | '@' | '&' | ' '))
 }
 
+/// Render a digest in base-36 over [`ORDER_ID_DIGEST_ALPHABET`], most significant digit
+/// first, to exactly `len` characters.
+///
+/// Base-36 rather than hex because only the leading 8 characters carry the uniqueness
+/// requirement: hex gives those 8 characters 32 bits, base-36 gives them ~41.
+fn encode_base36(bytes: &[u8], len: usize) -> String {
+    let mut digits = vec![0_u8; len];
+    for byte in bytes {
+        let mut carry = usize::from(*byte);
+        for digit in digits.iter_mut().rev() {
+            let value = usize::from(*digit) * 256 + carry;
+            *digit = u8::try_from(value % 36).unwrap_or(0);
+            carry = value / 36;
+        }
+    }
+    digits
+        .into_iter()
+        .map(|d| {
+            ORDER_ID_DIGEST_ALPHABET
+                .get(usize::from(d))
+                .map_or('0', |b| char::from(*b))
+        })
+        .collect()
+}
+
 /// Orbital's `order.orderID` is at most 22 characters of `a-z A-Z 0-9 - , $ @ &` plus
 /// space, may not start with a space, and its **first 8 characters must be unique per
-/// transaction**. A UCS `connector_request_reference_id` is routinely longer than 22
-/// characters and carries `_`, which is outside that set.
+/// transaction**. A UCS `connector_request_reference_id` is routinely longer than that and
+/// carries `_`, which is outside the set.
 ///
-/// Sanitising and truncating would break the uniqueness rule: references that differ
-/// only in a prefix collapse onto the same leading characters. So this mirrors
-/// `ilixium::derive_merchant_ref` instead — send the reference verbatim when it already
-/// fits, otherwise derive `hex(SHA-256(reference))[..22]`. Hex is a subset of the
-/// allowed charset, never starts with a space, and spreads the leading 8 characters
-/// uniformly.
+/// Sanitising and truncating cannot satisfy the uniqueness rule, so this mirrors
+/// `ilixium::derive_merchant_ref`: send the reference verbatim when it is short enough to
+/// be unique on its own, otherwise derive a base-36 digest of it.
 ///
-/// The derivation is deterministic, which is what lets PSync rebuild the same
-/// `orderID` from the same reference without persisting a mapping. It is also
-/// idempotent: a 22-character hex digest is itself verbatim-safe, so re-deriving from
-/// an already-derived value returns it unchanged.
+/// The derivation is deterministic, which is what lets PSync rebuild the same `orderID`
+/// from the same reference without persisting a mapping. It is deliberately **not**
+/// idempotent — a 22-character digest is longer than the verbatim limit, so re-deriving
+/// from an already-derived value would hash it again. Nothing does that: both Authorize
+/// and PSync derive from `connector_request_reference_id`, never from a previous output.
 fn build_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
     if is_order_id_verbatim_safe(reference) {
         return Ok(reference.to_string());
@@ -310,11 +351,10 @@ fn build_order_id(reference: &str) -> Result<String, error_stack::Report<Integra
         ));
     }
 
-    let digest = format!("{:x}", Sha256::digest(reference.as_bytes()));
-    Ok(digest
-        .get(..MAX_ORDER_ID_LEN)
-        .unwrap_or(&digest)
-        .to_string())
+    Ok(encode_base36(
+        &Sha256::digest(reference.as_bytes()),
+        MAX_ORDER_ID_LEN,
+    ))
 }
 
 /// Reject a payment whose currency does not match what the MID is provisioned for.
@@ -543,12 +583,27 @@ fn trans_type_for(
     capture_method: Option<CaptureMethod>,
 ) -> Result<&'static str, error_stack::Report<IntegrationError>> {
     match capture_method {
-        None | Some(CaptureMethod::Automatic) => Ok(TRANS_TYPE_AUTH_CAPTURE),
-        Some(CaptureMethod::Manual) => Ok(TRANS_TYPE_AUTH_ONLY),
+        // `SequentialAutomatic` is an auto-capture as far as this connector is
+        // concerned; the framework groups it with `Automatic` in
+        // `PaymentsSyncData::is_auto_capture`.
+        None | Some(CaptureMethod::Automatic) | Some(CaptureMethod::SequentialAutomatic) => {
+            Ok(TRANS_TYPE_AUTH_CAPTURE)
+        }
+        // Manual capture would send `transType: "A"`, holding funds at the issuer with
+        // no way to settle or release them: Capture, Void and Refund are all
+        // `not_implemented` for this connector. Refuse it rather than stranding an
+        // authorization the caller cannot act on.
         Some(other) => Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!("Capture method {other:?}"),
             connector: "jpmorganorbital",
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "JP Morgan Orbital is integrated for one-time auto-capture card payments \
+                     only. Use automatic capture."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })),
     }
 }
@@ -614,24 +669,14 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
     authentication_data: &AuthenticationData,
     bin: &str,
 ) -> Result<
-    (JpmorganOrbitalCryptogram, JpmorganOrbitalAdditionalAuthInfo),
+    (
+        Option<JpmorganOrbitalCryptogram>,
+        JpmorganOrbitalAdditionalAuthInfo,
+    ),
     error_stack::Report<IntegrationError>,
 > {
-    let cavv = authentication_data.cavv.as_ref().ok_or_else(|| {
-        error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "authentication_data.cavv",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "JP Morgan Orbital requires a CAVV to encode a 3DS authorization; \
-                     downgrading to non-3DS would silently forfeit the liability shift"
-                        .to_string(),
-                ),
-                ..Default::default()
-            },
-        })
-    })?;
     let brand = resolve_brand(card);
-    // Checked before the ECI so an unresolvable brand reports itself rather than
+    // Resolved before the ECI so an unsupported brand reports itself rather than
     // surfacing as an unmappable-ECI error (`map_eci` also rejects `Other`).
     if brand == OrbitalBrand::Other {
         return Err(unsupported_three_ds_brand());
@@ -641,9 +686,7 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
             field_name: "authentication_data.eci",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "JP Morgan Orbital requires an ECI alongside the CAVV; the two must \
-                     always travel together"
-                        .to_string(),
+                    "JP Morgan Orbital requires an ECI to encode a 3DS authorization".to_string(),
                 ),
                 ..Default::default()
             },
@@ -660,6 +703,30 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
         })
     })?;
 
+    // A "not authenticated" outcome carries no CAVV by definition, so the ECI travels
+    // alone. Demanding a CAVV here would reject a payment Orbital accepts. For a full
+    // (5) or attempted (6) authentication the CAVV is mandatory, and its absence is a
+    // genuine error rather than a reason to silently downgrade to non-3DS.
+    let cavv = match authentication_data.cavv.as_ref() {
+        Some(cavv) => Some(cavv),
+        None if eci == ECI_NOT_AUTHENTICATED => None,
+        None => {
+            return Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "authentication_data.cavv",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "JP Morgan Orbital requires a CAVV to encode a 3DS authorization at \
+                         authenticationECIInd {eci}; downgrading to non-3DS would silently \
+                         forfeit the liability shift"
+                        )),
+                        ..Default::default()
+                    },
+                }
+            ))
+        }
+    };
+
     let mut cryptogram = JpmorganOrbitalCryptogram::default();
     let mut additional = JpmorganOrbitalAdditionalAuthInfo {
         authentication_eci_ind: Some(eci.to_string()),
@@ -671,7 +738,7 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
             // Pass the CAVV through verbatim — it is already Base64 as produced by
             // the 3DS server. Re-encoding it is the single most likely bug here and
             // surfaces as a respCode 37/245 decline, not as an error.
-            cryptogram.verify_by_visa_cavv = Some(cavv.clone());
+            cryptogram.verify_by_visa_cavv = cavv.cloned();
             // `verifyByVisaXID` is Conditional, not Mandatory, and a non-Base64 value
             // is a guaranteed respCode 245 decline. Under 3DS 2.x there is no XID at
             // all and the 3DS server transaction id is a UUID, so omitting it here is
@@ -685,7 +752,7 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
                 .map(|xid| Secret::new(xid.to_string()));
         }
         OrbitalBrand::Mastercard => {
-            cryptogram.mc_secure_code_aav = Some(cavv.clone());
+            cryptogram.mc_secure_code_aav = cavv.cloned();
             // UCS carries a first-class UCAF collection indicator; pass it through
             // when present, never derive one.
             additional
@@ -704,18 +771,20 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
             }
         }
         OrbitalBrand::Discover => {
-            cryptogram.digital_token_cryptogram = Some(cavv.clone());
+            cryptogram.digital_token_cryptogram = cavv.cloned();
             additional.pymt_brand_program_code =
                 Some(BRAND_PROGRAM_DISCOVER_PROTECTBUY.to_string());
         }
         OrbitalBrand::Amex => {
-            cryptogram.digital_token_cryptogram = Some(cavv.clone());
+            cryptogram.digital_token_cryptogram = cavv.cloned();
             additional.pymt_brand_program_code = Some(BRAND_PROGRAM_AMEX_SAFEKEY.to_string());
         }
         OrbitalBrand::Other => return Err(unsupported_three_ds_brand()),
     }
 
-    Ok((cryptogram, additional))
+    // With no CAVV there is nothing for the cryptogram object to carry, and Orbital
+    // must not receive an empty one.
+    Ok((cavv.is_some().then_some(cryptogram), additional))
 }
 
 type AuthorizeRouterData<T> =
@@ -790,7 +859,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(authentication_data) => {
                 let (cryptogram, additional) =
                     build_three_ds_objects(card, authentication_data, &auth.bin)?;
-                (Some(cryptogram), Some(additional))
+                (cryptogram, Some(additional))
             }
             None => (None, None),
         };
@@ -981,7 +1050,6 @@ pub struct JpmorganOrbitalPaymentsResponse {
     pub version: Option<String>,
     #[serde(rename = "transType")]
     pub trans_type: Option<String>,
-    pub merchant: Option<serde_json::Value>,
     #[serde(rename = "paymentInstrument")]
     pub payment_instrument: Option<JpmorganOrbitalPaymentInstrumentResponse>,
     pub order: Option<JpmorganOrbitalOrderResponse>,
@@ -1087,11 +1155,24 @@ impl JpmorganOrbitalPaymentsResponse {
         }
     }
 
-    /// Every failure mode of this connector is terminal. `/payments` is synchronous,
-    /// there is no challenge state and no webhook, so nothing here may map to
-    /// `Pending` / `AuthenticationPending` / `Started`.
+    /// Almost every failure mode of this connector is terminal: `/payments` is
+    /// synchronous, there is no challenge state and no webhook, so nothing here may map
+    /// to `Pending` / `AuthenticationPending` / `Started`.
+    ///
+    /// The one exception is `procStatus` 9710, which means Orbital gave up waiting past
+    /// its own 90-second ceiling. The original authorization may still have been
+    /// approved, so recording it as `Failure` would both defeat the PSync recovery path
+    /// and invite a double charge on re-attempt. It is `Unresolved` instead.
+    ///
+    /// This is the single funnel for the attempt status of every failure path — the
+    /// `ErrorResponse` below and the `PaymentFlowData` of both the Authorize and PSync
+    /// transforms all read it, so the 9710 carve-out cannot drift between them.
     fn failure_status(&self) -> AttemptStatus {
-        AttemptStatus::Failure
+        if self.proc_status_value().map(str::trim) == Some(PROC_STATUS_TIMED_OUT) {
+            AttemptStatus::Unresolved
+        } else {
+            AttemptStatus::Failure
+        }
     }
 
     /// Build an `ErrorResponse` covering all three of Orbital's failure layers:
@@ -1132,7 +1213,11 @@ impl JpmorganOrbitalPaymentsResponse {
             code,
             message,
             reason,
-            attempt_status: Some(FlowStatus::Payment(self.failure_status())),
+            // A 408 means Orbital did not finish inside its own ceiling; the
+            // authorization may still land, so the attempt is left unresolved for PSync
+            // to settle. 5xx never reaches here — the framework default handles it.
+            attempt_status: (http_code != HTTP_REQUEST_TIMEOUT)
+                .then(|| FlowStatus::Payment(self.failure_status())),
             // The attempt exists at the gateway whenever a txRefNum came back, even
             // on a decline, so surface it.
             connector_transaction_id: self.connector_transaction_id(),
@@ -1240,12 +1325,17 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
             });
         }
 
-        // On `/inquiry` the echoed `transType` comes from the stored original
-        // request, so it *is* authoritative here (unlike on `/payments`).
+        // On `/inquiry` the echoed `transType` comes from the stored original request,
+        // so it *is* authoritative here (unlike on `/payments`). When it is absent, fall
+        // back to what this payment must have been sent as rather than assuming
+        // authorize-only — guessing "A" would report a settled payment as merely
+        // `Authorized` and tell the merchant funds were never captured.
+        let sent_trans_type = trans_type_for(item.router_data.request.capture_method)
+            .unwrap_or(TRANS_TYPE_AUTH_CAPTURE);
         let echoed_trans_type = response
             .trans_type
             .as_deref()
-            .unwrap_or(TRANS_TYPE_AUTH_ONLY)
+            .unwrap_or(sent_trans_type)
             .trim();
 
         let resource_id = match response.connector_transaction_id() {
