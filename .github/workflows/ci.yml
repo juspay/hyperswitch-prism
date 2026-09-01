@@ -187,7 +187,7 @@ jobs:
                ! echo ",${payment_touched}," | grep -q ",${name},"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(names_in_dir crates/internal/integration-tests/src/connector_specs crates/internal/integration-tests/src/connector_specs)
+          done < <(find crates/internal/integration-tests/src/connector_specs -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
 
           # authenticator/payout/surcharge connectors have no connector_specs/
           # entry, so names_in_dir's specs.json check does not apply here —
