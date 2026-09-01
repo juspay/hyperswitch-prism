@@ -335,12 +335,6 @@ pub struct CheckoutInstruction {
     pub purpose: String,
 }
 
-#[derive(Debug, Deserialize)]
-struct CheckoutConnectorFeatureData {
-    purpose_of_payment: Option<String>,
-    sender_date_of_birth: Option<Secret<time::Date>>,
-}
-
 #[skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct CheckoutRecipient {
@@ -1264,28 +1258,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);
 
-            let checkout_feature_data = item
+            let purpose = item
                 .router_data
                 .request
-                .connector_feature_data
+                .additional_connector_details
                 .as_ref()
-                .and_then(|data| {
-                    serde_json::from_value::<CheckoutConnectorFeatureData>(data.clone().expose())
-                        .ok()
-                });
-
-            let purpose = checkout_feature_data
-                .as_ref()
-                .and_then(|d| d.purpose_of_payment.clone())
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
                 .ok_or_else(utils::missing_field_err(
-                    "connector_feature_data.purpose_of_payment",
+                    "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = checkout_feature_data
-                .and_then(|d| d.sender_date_of_birth)
-                .ok_or_else(utils::missing_field_err(
-                "connector_feature_data.sender_date_of_birth",
-            ))?;
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -1656,28 +1646,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);
 
-            let checkout_feature_data = item
+            let purpose = item
                 .router_data
                 .request
-                .connector_feature_data
+                .additional_connector_details
                 .as_ref()
-                .and_then(|data| {
-                    serde_json::from_value::<CheckoutConnectorFeatureData>(data.clone().expose())
-                        .ok()
-                });
-
-            let purpose = checkout_feature_data
-                .as_ref()
-                .and_then(|d| d.purpose_of_payment.clone())
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
                 .ok_or_else(utils::missing_field_err(
-                    "connector_feature_data.purpose_of_payment",
+                    "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = checkout_feature_data
-                .and_then(|d| d.sender_date_of_birth)
-                .ok_or_else(utils::missing_field_err(
-                "connector_feature_data.sender_date_of_birth",
-            ))?;
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
 
             (
                 Some(build_checkout_recipient(
@@ -2019,34 +2005,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .is_account_funding_transaction
             .unwrap_or(false);
 
-        // SetupMandateRequestData has no connector_feature_data; use the flow-level one.
         let (recipient, sender, instruction) = if is_account_funding_transaction {
             processing
                 .get_or_insert_with(CheckoutProcessing::default)
                 .aft = Some(true);
 
-            let checkout_feature_data = item
+            let purpose = item
                 .router_data
-                .resource_common_data
-                .connector_feature_data
+                .request
+                .additional_connector_details
                 .as_ref()
-                .and_then(|data| {
-                    serde_json::from_value::<CheckoutConnectorFeatureData>(data.clone().expose())
-                        .ok()
-                });
-
-            let purpose = checkout_feature_data
-                .as_ref()
-                .and_then(|d| d.purpose_of_payment.clone())
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
                 .ok_or_else(utils::missing_field_err(
-                    "connector_feature_data.purpose_of_payment",
+                    "additional_connector_details.checkout.purpose_of_payment",
                 ))?;
 
-            let sender_date_of_birth = checkout_feature_data
-                .and_then(|d| d.sender_date_of_birth)
-                .ok_or_else(utils::missing_field_err(
-                "connector_feature_data.sender_date_of_birth",
-            ))?;
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
 
             (
                 Some(build_checkout_recipient(
