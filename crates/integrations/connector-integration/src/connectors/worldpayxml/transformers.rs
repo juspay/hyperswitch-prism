@@ -1612,11 +1612,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             });
         }
 
-        // Extract payment details
-        let payment = order_status.payment.as_ref().ok_or(
-            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
-        )?;
-
         // A challengeRequired reply means 3DS authentication demands shopper interaction:
         // redirect the shopper to Cardinal StepUp with a signed JWT and stash the machine
         // cookie for the completion leg.
@@ -1728,7 +1723,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     redirection_data: Some(Box::new(redirection_data)),
                     connector_metadata: cookie.map(|value| serde_json::json!({ "cookie": value })),
-                    payment_account_reference: payment.card_p_a_r.clone(),
+                    payment_account_reference: None,
                     mandate_reference: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -1740,6 +1735,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ..router_data.clone()
             });
         }
+
+        // Extract payment details
+        let payment = order_status.payment.as_ref().ok_or(
+            utils::response_deserialization_fail(item.http_code, "worldpayxml: response body did not match the expected format; confirm API version and connector documentation."),
+        )?;
 
         // Map status from lastEvent
         let status = map_worldpayxml_authorize_status(
