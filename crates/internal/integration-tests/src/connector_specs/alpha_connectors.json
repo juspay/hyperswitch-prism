@@ -31,7 +31,9 @@
     "dlocal": {},
     "easebuzz": {},
     "elavon": {},
-    "elavon_pg": {},
+    "elavon_pg": {
+      "reason": "No Elavon Payment Gateway sandbox credentials exist for this integration yet; sandbox access has not been provisioned. Wire shape is proven against a local mock EPG server and by 19 unit tests; live certification will follow once credentials are available."
+    },
     "finix": {},
     "fiservcommercehub": {},
     "fiservemea": {},
