@@ -141,3 +141,8 @@ digit_value_fields = ["NUMQUESTION"]
 # need Google's signed ECv2 envelope. Only the encrypted variants are affected.
 [wallet_token_overrides.worldpayxml]
 GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"probe"}'
+
+# Flows that answer locally without an outbound connector call.
+[local_response_flows]
+worldpayxml = ["pre_authenticate"]
+kount = ["pre_authenticate"]

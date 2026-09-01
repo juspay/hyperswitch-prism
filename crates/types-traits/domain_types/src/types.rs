@@ -9190,6 +9190,23 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                     ),
                 ),
             }),
+            router_response_types::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => Ok(Self {
+                form_type: Some(
+                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlDdc(
+                        grpc_api_types::payments::WorldpayxmlDdcData {
+                            bin,
+                            jwt: Some(jwt),
+                        },
+                    ),
+                ),
+            }),
+            router_response_types::RedirectForm::WorldpayxmlRedirectForm { jwt } => Ok(Self {
+                form_type: Some(
+                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlChallenge(
+                        grpc_api_types::payments::WorldpayxmlChallengeData { jwt: Some(jwt) },
+                    ),
+                ),
+            }),
             // Variants not supported in gRPC proto
             router_response_types::RedirectForm::BlueSnap { .. }
             | router_response_types::RedirectForm::CybersourceAuthSetup { .. }
@@ -19297,6 +19314,29 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             ),
                         }),
+                        router_response_types::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlDdc(
+                                        grpc_api_types::payments::WorldpayxmlDdcData {
+                                            bin,
+                                            jwt: Some(jwt),
+                                        },
+                                    ),
+                                ),
+                            })
+                        }
+                        router_response_types::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlChallenge(
+                                        grpc_api_types::payments::WorldpayxmlChallengeData {
+                                            jwt: Some(jwt),
+                                        },
+                                    ),
+                                ),
+                            })
+                        }
                         router_response_types::RedirectForm::CybersourceAuthSetup {
                             access_token,
                             ddc_url,
