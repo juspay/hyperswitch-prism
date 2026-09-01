@@ -1887,23 +1887,23 @@ pub fn extract_returned_open_banking_details(
         || (account_holder_name.is_some()
             && ((account_number.is_some() && sort_code.is_some()) || iban.is_some()));
 
-    if !has_returned_open_banking_details {
-        return None;
-    }
-
     let additional_details =
         provider_id.map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
 
-    Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
-        BankRedirectData::OpenBanking {
-            bank_name,
-            account_number,
-            sort_code,
-            iban,
-            account_holder_name,
-            additional_details,
-        },
-    ))
+    if has_returned_open_banking_details {
+        Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+            BankRedirectData::OpenBanking {
+                bank_name,
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_details,
+            },
+        ))
+    } else {
+        None
+    }
 }
 
 pub fn get_webhook_event(

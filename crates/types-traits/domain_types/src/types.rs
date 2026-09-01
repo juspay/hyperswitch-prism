@@ -8483,8 +8483,7 @@ pub fn generate_payment_sync_response(
                         to_proto_connector_returned_payment_method_details(
                             router_data_v2
                                 .resource_common_data
-                                .connector_returned_payment_method_details
-                                .clone(),
+                                .connector_returned_payment_method_details,
                         ),
                     payment_account_reference,
                 })
