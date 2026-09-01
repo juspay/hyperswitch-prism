@@ -747,6 +747,12 @@ pub enum ConnectorSpecificConfig {
         api_password: Secret<String>,
         merchant_code: Secret<String>,
         base_url: Option<String>,
+        /// Cardinal JWT issuer for 3DS device data collection and challenges.
+        issuer_id: Option<Secret<String>>,
+        /// Cardinal organisational unit for the 3DS JWTs.
+        organizational_unit_id: Option<Secret<String>>,
+        /// HMAC key the 3DS JWTs are signed with.
+        jwt_mac_key: Option<Secret<String>>,
     },
     Zift {
         user_name: Secret<String>,
@@ -2327,6 +2333,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_password: worldpayxml.api_password.ok_or_else(err)?,
                 merchant_code: worldpayxml.merchant_code.ok_or_else(err)?,
                 base_url: worldpayxml.base_url,
+                issuer_id: worldpayxml.issuer_id,
+                organizational_unit_id: worldpayxml.organizational_unit_id,
+                jwt_mac_key: worldpayxml.jwt_mac_key,
             }),
             AuthType::Revolut(revolut) => Ok(Self::Revolut {
                 secret_api_key: revolut.secret_api_key.ok_or_else(err)?,
@@ -3473,6 +3482,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -4015,6 +4027,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },
