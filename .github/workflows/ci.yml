@@ -158,13 +158,10 @@ jobs:
             [ -d "${dir}" ] || return 0
             find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
               sed 's|\.rs$||' | while IFS= read -r name; do
-                # If a specs root is given, only include names that have a
-                # connector_specs/<name>/specs.json — this keeps .rs-only
-                # utility files (e.g. macros.rs) out of the connector list.
                 if [ -n "${specs_root}" ] && [ ! -f "${specs_root}/${name}/specs.json" ]; then
                   continue
                 fi
-                printf '%s\n' "$name"
+                echo "$name"
               done | sort -u
           }
 
