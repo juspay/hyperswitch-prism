@@ -5247,11 +5247,13 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
-    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
-    #[cfg_attr(
-        feature = "deja",
-        tracing::instrument(name = "ucs::flow_data_transform", skip_all)
-    )]
+    // DIVERGENCE PROBE — deliberate regression, never merge. The
+    // `ucs::flow_data_transform` skeleton span attribute is DELETED here,
+    // simulating a candidate that silently stops executing an instrumented
+    // chokepoint. Expected replay verdict: diverged — span_shape.missing = 1
+    // on every correlation, "missing scored span(s)" in the reason, a
+    // missing-span chip in the timeline. If it passes, the span-shape
+    // contract tier has a detection gap.
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
