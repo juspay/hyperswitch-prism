@@ -28,6 +28,9 @@
     "PaymentService/CreateOrder": {
       "create_order_with_payment_method_type": "Adyen's CreateOrder does not return a session_token; it never sets session_data (confirmed in adyen's own transformer)."
     },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_fail_invalid_transaction_id": "Adyen's /amountUpdates endpoint is asynchronous: it always returns a 'received' acknowledgement synchronously, regardless of whether the referenced transaction is valid. Whether the update actually succeeds is only reported later, via webhook. Confirmed against Adyen's documented behavior for its other async endpoints (e.g. refund/capture, which use the same accept-then-notify pattern) and against a live call with a fabricated connector_transaction_id, which returned AUTHORIZATION_SUCCESS instead of an error. This cannot be observed synchronously through this endpoint."
+    },
     "EventService/HandleEvent": {
       "payment_succeeded": "the global scenario asserts a top-level event_status field the response does not have; the real status lives nested at eventContent.paymentsResponse.status. Not verified working; needs the global scenario or assertion fixed.",
       "refund_succeeded": "same as payment_succeeded.",
