@@ -687,8 +687,8 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for globalpayments_realex"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.orderid. GlobalpaymentsRealex refund sync needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund sync request, or set connector_order_id to the original order id — Missing required field: connector_feature_data.orderid. GlobalpaymentsRealex refund sync needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund sync request, or set connector_order_id to the original order id"
       }
     },
     "reverse": {
