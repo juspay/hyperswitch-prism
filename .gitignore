@@ -476,3 +476,7 @@ grace/grace-workspace/packages/dashboard/playwright-report/
 /past_runs*.png
 /create_modal.png
 docs/qwikcilver.postman_collection.json
+
+# déjà tapes pulled locally for inspection — they carry live credentials and
+# belong in the recordings bucket, never in the repo
+/*.jsonl
