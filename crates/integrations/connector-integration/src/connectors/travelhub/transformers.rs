@@ -117,7 +117,8 @@ pub struct TravelhubRequest3DS {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubPaymentCard<T: PaymentMethodDataTypes> {
-    pub card_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_name: Option<Secret<String>>,
     pub card_number: RawCardNumber<T>,
     pub expiry_date: Secret<String>,
     pub cvc: Secret<String>,
@@ -216,27 +217,16 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        let cardholder_name = card_data
-            .card_holder_name
-            .clone()
-            .or_else(|| item.resource_common_data.get_optional_billing_first_name())
-            .or_else(|| item.resource_common_data.get_optional_shipping_first_name())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "card.card_holder_name or billing.first_name or shipping.first_name",
-                context: IntegrationErrorContext {
-                    suggested_action: Some(
-                        "Provide the cardholder name via card.card_holder_name, billing.first_name, or shipping.first_name"
-                            .to_string(),
-                    ),
-                    doc_url: None,
-                    additional_context: Some(
-                        "Travelhub requires the cardholder name (card_name) for card payments"
-                            .to_string(),
-                    ),
-                },
-            })?;
+        // Travelhub's cardName is optional (mandatory: No in the API spec, max 51 chars),
+        // so send the best available name instead of failing when none is provided.
+        let cardholder_name = crate::utils::build_card_holder_name(
+            &card_data.card_holder_name,
+            item.resource_common_data.get_optional_billing_first_name(),
+            item.resource_common_data.get_optional_billing_last_name(),
+        )
+        .map(|name| crate::utils::truncate_secret_string(&name, 51));
 
-        let expiry_date = crate::utils::format_card_expiry_mmyy(card_data)?;
+        let expiry_date = card_data.get_expiry_date_as_mmyy()?;
 
         let payment_method_code = get_card_payment_method_code(card_data)?.to_string();
 
@@ -253,11 +243,7 @@ impl<T: PaymentMethodDataTypes>
         };
 
         let request3ds = item.request.authentication_data.as_ref().map(|auth_data| {
-            let cavv_algorithm = auth_data
-                .network_params
-                .as_ref()
-                .and_then(|np| np.cartes_bancaires.as_ref())
-                .map(|cb| crate::utils::cavv_algorithm_to_str(cb.cavv_algorithm.clone()).to_string());
+            let cavv_algorithm = auth_data.get_cavv_algorithm().map(ToString::to_string);
             TravelhubRequest3DS {
                 cavv: auth_data.cavv.as_ref().map(|c| c.peek().to_string()),
                 cavv_algorithm,
