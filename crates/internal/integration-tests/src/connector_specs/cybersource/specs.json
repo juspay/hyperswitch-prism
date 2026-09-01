@@ -22,24 +22,24 @@
   "sync_poll_until_terminal_seconds": 15,
   "unsupported_scenarios": {
     "PaymentMethodAuthenticationService/Authenticate": {
-      "threeds_card_authenticate": "out of scope for this certification pass — not part of the core Authorize/PSync/Capture/Void/Refund/SetupMandate flows being certified; not yet verified live."
+      "threeds_card_authenticate": "implemented but not yet verified against the live sandbox."
     },
     "PaymentMethodAuthenticationService/PreAuthenticate": {
-      "threeds_card_pre_authenticate": "out of scope for this certification pass — not part of the core Authorize/PSync/Capture/Void/Refund/SetupMandate flows being certified; not yet verified live."
+      "threeds_card_pre_authenticate": "implemented but not yet verified against the live sandbox."
     },
     "PaymentMethodAuthenticationService/PostAuthenticate": {
-      "threeds_card_post_authenticate": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live."
+      "threeds_card_post_authenticate": "implemented but not yet verified against the live sandbox."
     },
     "PaymentService/IncrementalAuthorization": {
-      "incremental_auth_basic": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live.",
-      "incremental_auth_with_tip": "out of scope for this certification pass — see incremental_auth_basic.",
-      "incremental_auth_multiple_increase": "out of scope for this certification pass — see incremental_auth_basic.",
-      "incremental_auth_fail_invalid_transaction_id": "out of scope for this certification pass — see incremental_auth_basic."
+      "incremental_auth_basic": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_with_tip": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_multiple_increase": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_fail_invalid_transaction_id": "implemented but not yet verified against the live sandbox."
     },
     "RecurringPaymentService/Revoke": {
-      "revoke_active_mandate": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live.",
-      "revoke_with_reason": "out of scope for this certification pass — see revoke_active_mandate.",
-      "revoke_fail_invalid_mandate_id": "out of scope for this certification pass — see revoke_active_mandate."
+      "revoke_active_mandate": "implemented but not yet verified against the live sandbox.",
+      "revoke_with_reason": "implemented but not yet verified against the live sandbox.",
+      "revoke_fail_invalid_mandate_id": "implemented but not yet verified against the live sandbox."
     }
   }
 }

@@ -19,11 +19,11 @@
   "sync_poll_until_terminal_seconds": 15,
   "unsupported_scenarios": {
     "PaymentService/Get": {
-      "sync_payment": "Adyen has no status-by-transaction-ID endpoint for a plain (non-redirect) card payment — confirmed against hyperswitch main's adyen connector, which returns None from build_request for PSync without encoded_data and relies on webhooks instead. UCS has no local order state to fall back on, so this scenario cannot pass for card.",
-      "sync_payment_with_handle_response": "same as sync_payment — no PSync endpoint exists for a non-redirect card payment on Adyen.",
-      "sync_upi_collect": "UPI is not in supported_payment_methods for this certification pass (card only). PaymentService/Get's scenarios carry no payment_method field for the harness's supported_payment_methods filter to key on (unlike Authorize's scenarios), so this UPI-only scenario is not automatically excluded and needs an explicit entry here.",
-      "sync_upi_intent": "out of scope for this certification pass — see sync_upi_collect.",
-      "sync_upi_qr": "out of scope for this certification pass — see sync_upi_collect."
+      "sync_payment": "Adyen has no status-by-transaction-ID lookup for a non-redirect card payment; status is only available via webhook.",
+      "sync_payment_with_handle_response": "same reason as sync_payment.",
+      "sync_upi_collect": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_intent": "UPI is not in supported_payment_methods for this connector.",
+      "sync_upi_qr": "UPI is not in supported_payment_methods for this connector."
     }
   }
 }
