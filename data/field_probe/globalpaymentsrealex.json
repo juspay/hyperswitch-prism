@@ -706,8 +706,20 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for globalpayments_realex"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"void\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><orderid>probe_void_001</orderid><pasref>probe_connector_txn_001</pasref><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
       }
     }
   }

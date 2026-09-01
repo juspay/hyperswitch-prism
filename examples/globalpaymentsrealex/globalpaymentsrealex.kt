@@ -19,7 +19,7 @@ import payments.SdkOptions
 import payments.Environment
 
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "proxy_authorize")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "proxy_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -65,6 +65,13 @@ private fun buildCaptureRequest(connectorTransactionIdStr: String): PaymentServi
     }.build()
 }
 
+private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
+    return PaymentServiceVoidRequest.newBuilder().apply {
+        merchantVoidId = "probe_void_001"  // Identification.
+        connectorTransactionId = connectorTransactionIdStr
+    }.build()
+}
+
 // Scenario: One-step Payment (Authorize + Capture)
 // Simple payment that authorizes and captures in one call. Use for immediate charges.
 fun processCheckoutAutocapture(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
@@ -101,6 +108,25 @@ fun processCheckoutCard(txnId: String, config: ConnectorConfig = _defaultConfig)
         throw RuntimeException("Capture failed: ${captureResponse.error.unifiedDetails.message}")
 
     return mapOf("status" to captureResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to authorizeResponse.error)
+}
+
+// Scenario: Void Payment
+// Cancel an authorized but not-yet-captured payment.
+fun processVoidPayment(txnId: String, config: ConnectorConfig = _defaultConfig): Map<String, Any?> {
+    val paymentClient = PaymentClient(config)
+
+    // Step 1: Authorize — reserve funds on the payment method
+    val authorizeResponse = paymentClient.authorize(buildAuthorizeRequest("MANUAL"))
+
+    when (authorizeResponse.status.name) {
+        "FAILED"  -> throw RuntimeException("Payment failed: ${authorizeResponse.error.unifiedDetails.message}")
+        "PENDING" -> return mapOf("status" to "PENDING")  // await webhook before proceeding
+    }
+
+    // Step 2: Void — release reserved funds (cancel authorization)
+    val voidResponse = paymentClient.void(buildVoidRequest(authorizeResponse.connectorTransactionId ?: ""))
+
+    return mapOf("status" to voidResponse.status.name, "transactionId" to authorizeResponse.connectorTransactionId, "error" to voidResponse.error)
 }
 
 // Flow: PaymentService.Authorize (Card)
@@ -154,6 +180,16 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.Void
+fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = buildVoidRequest("probe_connector_txn_001")
+    val response = client.void(request)
+    if (response.status.name == "FAILED")
+        throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
+    println("Done: ${response.status.name}")
+}
+
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
@@ -161,9 +197,11 @@ fun main(args: Array<String>) {
     when (flow) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
         "processCheckoutCard" -> processCheckoutCard(txnId)
+        "processVoidPayment" -> processVoidPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, authorize, capture, proxyAuthorize")
+        "void" -> void(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processVoidPayment, authorize, capture, proxyAuthorize, void")
     }
 }
