@@ -9,10 +9,10 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, RefundStatus};
 use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
         ResponseId as DomainResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -47,6 +47,10 @@ pub const REQUEST_TYPE_VOID: &str = "void";
 /// `type="credit"`, which is a different request type with a different password and is out of
 /// scope (tech spec §12.3).
 pub const REQUEST_TYPE_REBATE: &str = "rebate";
+/// Root element `type` attribute for the PSync flow. A `query` reads back the state of an existing
+/// transaction; it is undocumented but verified live, and it is the only status-enquiry operation
+/// this API exposes (tech spec §12.4).
+pub const REQUEST_TYPE_QUERY: &str = "query";
 /// Ecommerce channel. The other documented value is `MOTO`, which is out of scope.
 pub const CHANNEL_ECOM: &str = "ECOM";
 /// `<cvn><presind>` — `1` means "CVN present on the card and supplied by the cardholder".
@@ -134,6 +138,21 @@ pub struct GlobalpaymentsRealexPaymentMetadata {
     /// `<authcode>` from the original `auth` response. Optional because a `5xx` auth carries none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub authcode: Option<String>,
+    /// The `<pasref>` a successful `void` minted, republished by the Void flow.
+    ///
+    /// **This is the only way PSync can tell that a payment was voided.** A `query` echoes the
+    /// authorization leg forever and is completely blind to a void (tech spec §12.4.5), so without
+    /// this marker a voided payment syncs as `Authorized` / `Charged`. See
+    /// [`map_psync_attempt_status`].
+    ///
+    /// It carries the void leg's gateway reference rather than a bare boolean because that
+    /// reference is independently useful — it is the id of the `_void_<orderid>` transaction the
+    /// gateway stores (tech spec §12.4.6) — and costs nothing extra to persist.
+    ///
+    /// Additive and optional on purpose: metadata written by the already-shipped Authorize,
+    /// Capture and Refund flows carries no such field and must keep deserializing unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub void_pasref: Option<String>,
 }
 
 // =============================================================================
@@ -902,6 +921,9 @@ where
             let connector_metadata = serde_json::to_value(GlobalpaymentsRealexPaymentMetadata {
                 orderid: sent_order_id,
                 authcode: response.authcode.clone(),
+                // Nothing has been voided yet; the Void flow republishes this block with the
+                // marker filled in.
+                void_pasref: None,
             })
             .change_context(ConnectorError::ResponseHandlingFailed {
                 context: Default::default(),
@@ -1490,48 +1512,86 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
             .clone()
             .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
 
-        let void_response =
-            if response.is_success() && hash_verification != HashVerification::Mismatch {
-                // Keep the payment referenceable: a void response echoes a `<pasref>`, but fall back to
-                // the one we sent if the gateway omits it.
-                let resource_id = DomainResponseId::ConnectorTransactionId(
-                    response
-                        .pasref
-                        .clone()
-                        .unwrap_or_else(|| router_data.request.connector_transaction_id.clone()),
-                );
+        let void_response = if response.is_success()
+            && hash_verification != HashVerification::Mismatch
+        {
+            // Keep the payment referenceable: a void response echoes a `<pasref>`, but fall back to
+            // the one we sent if the gateway omits it.
+            let void_pasref = response
+                .pasref
+                .clone()
+                .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
+            let resource_id = DomainResponseId::ConnectorTransactionId(void_pasref.clone());
 
-                Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id,
-                    redirection_data: None,
-                    connector_metadata: None,
-                    mandate_reference: None,
-                    network_txn_id: response.srd.clone(),
-                    network_txn_link_id: None,
-                    connector_response_reference_id: response.orderid.clone(),
-                    incremental_authorization_allowed: None,
-                    splits: None,
-                    status_code: http_code,
-                    payment_account_reference: None,
-                })
-            } else {
-                Err(ErrorResponse {
-                    status_code: http_code,
-                    // The `<result>` code verbatim — e.g. `"513"` for an already-settled transaction.
-                    code: response.result.clone(),
-                    message: message.clone(),
-                    reason: response.message.clone(),
-                    attempt_status: Some(FlowStatus::Payment(status)),
-                    connector_transaction_id: response.pasref.clone(),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                })
-            };
+            // Republish the follow-up metadata with the void marker set, so that a later PSync
+            // can report `Voided` — a `query` is blind to voids and would otherwise keep
+            // reporting the authorization leg (tech spec §12.4.5, and `map_psync_attempt_status`).
+            //
+            // `orderid` and `authcode` are carried over from the metadata the caller sent us,
+            // falling back to the gateway echo and then to the request reference, so that a
+            // caller which *replaces* its stored `connector_feature_data` with this block does
+            // not lose the order id every follow-up flow depends on.
+            let previous = extract_followup_metadata(
+                router_data.request.connector_feature_data.as_ref(),
+                router_data.request.metadata.as_ref(),
+            );
+            let order_id = previous
+                .as_ref()
+                .map(|metadata| metadata.orderid.clone())
+                .or_else(|| response.orderid.clone())
+                .unwrap_or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            let connector_metadata = serde_json::to_value(GlobalpaymentsRealexPaymentMetadata {
+                orderid: order_id,
+                // The ORIGINAL auth's authcode. A void response carries its own
+                // (`000000`), which a later `rebate` must not use, so it is never read
+                // from the response here.
+                authcode: previous.and_then(|metadata| metadata.authcode),
+                void_pasref: Some(void_pasref),
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Failed to serialize the GlobalpaymentsRealex follow-up metadata \
+                         (orderid / authcode / void_pasref) on the void response",
+            )?;
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: None,
+                connector_metadata: Some(connector_metadata),
+                mandate_reference: None,
+                network_txn_id: response.srd.clone(),
+                network_txn_link_id: None,
+                connector_response_reference_id: response.orderid.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: http_code,
+                payment_account_reference: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                // The `<result>` code verbatim — e.g. `"513"` for an already-settled transaction.
+                code: response.result.clone(),
+                message: message.clone(),
+                reason: response.message.clone(),
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: response.pasref.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -1879,6 +1939,371 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>>
                 ..router_data.resource_common_data
             },
             response: refund_response,
+            ..router_data
+        })
+    }
+}
+
+// =============================================================================
+// PSYNC — `type="query"` (tech spec §12.4)
+// =============================================================================
+
+/// The `query` request.
+///
+/// Same envelope and same single endpoint as every other flow; only the `type` attribute and the
+/// body elements change. A `query` carries **no `<amount>`** and no card data.
+///
+/// **`query` keys on `<orderid>` only** (tech spec §12.4.2, verified live). This is the one place
+/// on this connector where `<pasref>` is *not* the lookup key: the gateway ignores it completely —
+/// garbage, an empty element, a pasref belonging to a different order, or omitting the element
+/// altogether all return the same transaction, while an unknown `<orderid>` returns
+/// `508 Original transaction not found.` even when a perfectly valid `<pasref>` accompanies it.
+/// It is still sent when we have one, because it costs nothing and keeps the request shape uniform
+/// with `settle` / `void` / `rebate` — but nothing may ever depend on it.
+///
+/// The corollary is that PSync is entirely dependent on the **original** `<orderid>`, the one we
+/// sent on the `auth`. It comes from the same `connector_metadata` → `connector_feature_data`
+/// channel Authorize publishes and Capture / Void / Refund already consume. It must never be taken
+/// from a gateway echo, which is prefixed on the follow-up legs (`_settle_…`, `_void_…`,
+/// `_rebate_…`).
+#[derive(Debug, Serialize)]
+#[serde(rename = "request")]
+pub struct GlobalpaymentsRealexPSyncRequest {
+    #[serde(rename = "@type")]
+    pub request_type: String,
+    #[serde(rename = "@timestamp")]
+    pub timestamp: String,
+    pub merchantid: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<Secret<String>>,
+    /// The sole lookup key: the `<orderid>` of the original `auth`.
+    pub orderid: String,
+    /// Accepted but **ignored** by the gateway (tech spec §12.4.2). Omitted when we have no
+    /// gateway reference to hand, which changes nothing about the result.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pasref: Option<String>,
+    pub sha1hash: Secret<String>,
+}
+
+impl GetSoapXml for GlobalpaymentsRealexPSyncRequest {
+    fn to_soap_xml(&self) -> String {
+        // Mirrors the other flows: a serialization failure emits a minimal well-formed document
+        // that the gateway answers with `502 Mandatory Fields missing`, rather than panicking.
+        quick_xml::se::to_string_with_root("request", self).unwrap_or_else(|error| {
+            tracing::error!(
+                connector = "globalpayments_realex",
+                ?error,
+                "Failed to serialize the GlobalpaymentsRealex query request to XML"
+            );
+            "<request/>".to_string()
+        })
+    }
+}
+
+/// The `query` response is a **superset** of the `auth` response — same root and same fields, plus
+/// `<cardnumber>`, `<cardissuer>`, `<tss>`, `<threedsecure>`, `<srd>`, `<timetaken>` and
+/// `<authtimetaken>`. On this sandbox account the extra blocks come back as **empty elements** on a
+/// plain card auth, which is precisely why the shared struct does not use `deny_unknown_fields` and
+/// why `<batchid>` goes through the tolerant [`deserialize_optional_i64`]. Modelling it with the
+/// existing struct therefore parses every observed document; the additional elements are simply not
+/// read.
+///
+/// # The check-hash blueprint is UNRECOVERED on this flow — not absent
+///
+/// A `query` response **does** carry a `<sha1hash>`, and it is a real, live digest: two queries
+/// against the same order return different values that track the response timestamp, so a
+/// timestamp is certainly one of its inputs. What could not be established is the rest of the
+/// field list. It is emphatically **not** the documented response blueprint
+/// `timestamp.merchantid.orderid.result.message.pasref.authcode`, which the `auth`, `settle`,
+/// `void` and `rebate` responses all satisfy through this very same [`build_response_hash`] —
+/// so this is specific to `query` and is not a bug in the shared helper.
+///
+/// Ruled out by exhaustive live search against a known-good order, recorded here so nobody repeats
+/// it:
+///
+/// * every ordering of the response's own field values under the prefixes `timestamp`,
+///   `timestamp.merchantid` and `timestamp.merchantid.orderid`, up to nine positional slots, with
+///   repeated empty slots allowed (~5x10^8 candidates);
+/// * the document-order prefixes of the response as it appears on the wire;
+/// * the `auth` **request** blueprint (`timestamp.merchantid.orderid.amount.currency.cardnumber`);
+/// * the masked (`424242XXXXXX4242`-style) and unmasked card numbers;
+/// * `<message>` with and without the sandbox's `[ test system ] ` prefix;
+/// * the request timestamp as well as the response timestamp;
+/// * the second credential (the rebate password) as the stage-2 key, and the single-stage digest.
+///
+/// Consequently this flow **cannot** implement the usual integrity check. The digest is still
+/// computed and logged at `debug` so that a change on the gateway's side becomes visible, but it
+/// never decides the status: mapping a mismatch to `IntegrityFailure` would fail every single sync,
+/// and there is no way to tell "blueprint unrecovered" apart from "response tampered". The
+/// transport is TLS and a `query` is a read-only status enquiry that moves no money. Should Global
+/// Payments ever document the `query` blueprint, re-enabling verification is a one-line change in
+/// the caller below. The `IntegrityFailure` mapping on the other four flows is untouched.
+pub type GlobalpaymentsRealexPSyncResponse = GlobalpaymentsRealexPaymentsResponse;
+
+impl<T>
+    TryFrom<
+        GlobalpaymentsRealexRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
+    > for GlobalpaymentsRealexPSyncRequest
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: GlobalpaymentsRealexRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
+
+        // Exactly the same metadata channel Capture, Void and Refund use. `PaymentsSyncData`
+        // carries no free-form `metadata` field, so `connector_feature_data` is the only source.
+        let metadata = extract_followup_metadata(request.connector_feature_data.as_ref(), None);
+
+        // `<orderid>` is the ONLY lookup key on a `query`, so getting it right is the whole flow.
+        // Preferred source is the metadata Authorize published; `connector_request_reference_id`
+        // is accepted as a fallback for callers that reuse the original reference there.
+        let order_id = match metadata.as_ref().map(|metadata| metadata.orderid.clone()) {
+            Some(order_id) => sanitize_order_id(&order_id)?,
+            None => sanitize_order_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )
+            .attach_printable(
+                "GlobalpaymentsRealex query needs the original <orderid>: echo the Authorize \
+                 response's connector_feature_data back on the sync request, or reuse the original \
+                 order id as the request reference",
+            )?,
+        };
+
+        // Sent when available purely for shape parity — the gateway ignores it, so a payment whose
+        // `connector_transaction_id` is missing (or is the settle-minted pasref, which trips up
+        // `void` and `rebate`) still syncs correctly.
+        let pasref = request
+            .get_connector_transaction_id()
+            .ok()
+            .map(|pasref| pasref.trim().to_string())
+            .filter(|pasref| !pasref.is_empty());
+
+        let timestamp = current_timestamp()?;
+        let merchant_id = auth.merchant_id.clone().expose();
+        // No `<amount>` and no `<currency>` on the wire, so both slots stay empty and the
+        // blueprint is byte-identical to `void`: `timestamp.merchantid.orderid...`
+        // (tech spec §12.4.3 — 12 alternative blueprints were tried live and every one of them
+        // returned `505 sha1hash incorrect`).
+        let sha1hash = build_reference_request_hash(
+            &timestamp,
+            &merchant_id,
+            &order_id,
+            None,
+            None,
+            auth.shared_secret.peek(),
+        );
+
+        Ok(Self {
+            request_type: REQUEST_TYPE_QUERY.to_string(),
+            timestamp,
+            merchantid: auth.merchant_id,
+            account: Some(auth.account),
+            orderid: order_id,
+            pasref,
+            sha1hash,
+        })
+    }
+}
+
+/// `query` result + `<batchid>` + the void marker in `connector_feature_data` → `AttemptStatus`
+/// (tech spec §12.4.7).
+///
+/// The difficulty of this flow is that **a `query` echoes the original `auth` leg forever**:
+/// `result`, `message`, `authcode` and `pasref` never change no matter what happens to the payment
+/// afterwards. The only field that moves is `<batchid>`, which goes from `-1` (never batched) to a
+/// positive batch id the moment the transaction is settled — by an explicit `settle` *or* by
+/// `autosettle flag="1"` at auth time. Both were verified live.
+///
+/// Consequently a **void is invisible to the gateway response**: a voided authorization still
+/// reads `00 … AUTHORISED` with the same batch id it had before, whether it was voided before or
+/// after settlement. The gateway does store the void as its own transaction under a synthetic
+/// `_void_<orderid>` order id (tech spec §12.4.6), but reading it would need a *second* HTTP
+/// request, which the one-request-per-invocation `ConnectorIntegrationV2` PSync contract does not
+/// allow.
+///
+/// Rule 2 closes that gap without a second request: when UCS performs the void itself, the Void
+/// flow republishes [`GlobalpaymentsRealexPaymentMetadata::void_pasref`] as `connector_metadata`,
+/// which the caller returns on the sync request as `connector_feature_data`. A `00` on the
+/// authorization leg is **not** evidence that the payment is live, so the marker wins.
+///
+/// | # | Condition | Result |
+/// |---|---|---|
+/// | 1 | `result != "00"` | `Failure` |
+/// | 2 | `00` and the void marker is present in `connector_feature_data` | `Voided` |
+/// | 3 | `00` and `batchid > 0` | `Charged` |
+/// | 4 | `00` and `batchid` is `-1`, `0` or absent | `Authorized` |
+///
+/// A response-digest mismatch does **not** map to `IntegrityFailure` on this flow — unlike
+/// Authorize, Capture, Void and Refund, whose mapping is untouched. See
+/// [`GlobalpaymentsRealexPSyncResponse`] for why the `query` blueprint could not be recovered.
+///
+/// Refund state is deliberately not derived here: a rebate is likewise invisible to a query, and in
+/// UCS a refunded payment's attempt status stays `Charged` — refund state lives on the refund
+/// object, not on the payment attempt.
+///
+/// # Residual limitation — an out-of-band void is still undetectable
+///
+/// Rule 2 only fires for a void **UCS itself performed**, and only when the caller round-trips
+/// `connector_feature_data` from the Void response into the sync request. That round-trip is
+/// already a hard requirement on this connector — Capture, Void and Refund all depend on the same
+/// channel for the original `<orderid>` — so it is not a new obligation, but it is a real one: a
+/// caller that drops the metadata gets `Authorized` / `Charged` back.
+///
+/// A void performed **out of band** — through the merchant portal, or by a different integration —
+/// leaves no trace UCS can see. The only gateway-side evidence is the `_void_<orderid>` leg, and
+/// reading it needs a second request this flow will not make. Such a payment keeps syncing as
+/// `Authorized` / `Charged`. This is inherent to the API and is documented in tech spec §12.4.8.
+///
+/// # Why the attempt status UCS already holds is not an input
+///
+/// An earlier revision guarded on `RouterDataV2::resource_common_data`
+/// (`PaymentFlowData::status`) instead of the metadata marker. That guard can never fire on the
+/// gRPC surface: `PaymentServiceGetRequest`
+/// (`crates/types-traits/grpc-api-types/proto/payment.proto`) carries no attempt status, and
+/// `impl ForeignTryFrom<(PaymentServiceGetRequest, ..)> for PaymentFlowData`
+/// (`crates/types-traits/domain_types/src/types.rs`) hard-codes `status: AttemptStatus::Pending`.
+/// Dead guards that read as safety are worse than no guard, so it was removed rather than left in
+/// place. Carrying the current attempt status on the sync request is the proper long-term fix, but
+/// it is a proto and shared-domain change and therefore out of scope for this connector.
+fn map_psync_attempt_status(
+    result: &str,
+    batchid: Option<i64>,
+    voided_by_ucs: bool,
+) -> AttemptStatus {
+    // Rule 1. There is no pending/async state anywhere on this API, so every non-`00` code is
+    // terminal (tech spec §9.4) — including the `5xx` family, which also surfaces as a structured
+    // connector error alongside this status.
+    if result != RESULT_SUCCESS {
+        return AttemptStatus::Failure;
+    }
+
+    // Rule 2. The query cannot observe a void, so the marker the Void flow published is the only
+    // evidence there is — and it outranks the authorization leg's stale `00 … AUTHORISED`.
+    if voided_by_ucs {
+        return AttemptStatus::Voided;
+    }
+
+    match batchid {
+        // Rule 3. Batched ⇒ settled, by an explicit `settle` or by `autosettle flag="1"`.
+        Some(batch) if batch > 0 => AttemptStatus::Charged,
+        // Rule 4. `-1` (or an empty/absent element) ⇒ authorized, not yet batched.
+        _ => AttemptStatus::Authorized,
+    }
+}
+
+impl TryFrom<ResponseRouterData<GlobalpaymentsRealexPSyncResponse, Self>>
+    for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<GlobalpaymentsRealexPSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        // A `query` response's `<sha1hash>` does not follow the documented blueprint and is not
+        // reproducible (see `GlobalpaymentsRealexPSyncResponse`), so the check is **informational
+        // only** on this flow: it is still computed and logged so that a future change on the
+        // gateway's side becomes visible, but it never decides the status. `Skipped` remains the
+        // normal outcome for the small `5xx` error document, which carries no digest at all.
+        let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
+
+        if hash_verification == HashVerification::Mismatch {
+            tracing::debug!(
+                connector = "globalpayments_realex",
+                order_id = ?response.orderid,
+                "GlobalpaymentsRealex query response sha1hash did not match the documented \
+                 response blueprint; `query` digests are not reproducible, so the check is \
+                 informational for this flow and the response is processed on its merits"
+            );
+        }
+
+        // The void marker the Void flow published, round-tripped by the caller. `PaymentsSyncData`
+        // has no free-form `metadata` field, so `connector_feature_data` is the only channel.
+        let voided_by_ucs =
+            extract_followup_metadata(router_data.request.connector_feature_data.as_ref(), None)
+                .is_some_and(|metadata| metadata.void_pasref.is_some());
+
+        let status = map_psync_attempt_status(&response.result, response.batchid, voided_by_ucs);
+
+        let message = response
+            .message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+
+        let sync_response = if response.is_success() {
+            // A query echoes the original auth's `<pasref>`; keep the id we synced with when
+            // the gateway omits it so the payment stays referenceable either way.
+            let resource_id = response
+                .pasref
+                .clone()
+                .map(DomainResponseId::ConnectorTransactionId)
+                .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: None,
+                connector_metadata: None,
+                mandate_reference: None,
+                network_txn_id: response.srd.clone(),
+                network_txn_link_id: None,
+                connector_response_reference_id: response.orderid.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: http_code,
+                payment_account_reference: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                // The `<result>` code verbatim — `"101"` for a queried decline, `"508"` for an
+                // unknown order id, `"506"` for a malformed one, `"505"` for a bad digest.
+                // Surfaced as a structured connector error, never as a gRPC Internal.
+                code: response.result.clone(),
+                message: message.clone(),
+                reason: response.message.clone(),
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: response.pasref.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: sync_response,
             ..router_data
         })
     }

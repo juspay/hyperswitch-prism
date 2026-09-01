@@ -6,8 +6,9 @@
 //! The two products share no types, transformers, status maps or configuration.
 //!
 //! A single endpoint serves every operation; the operation is chosen by the `type` attribute on
-//! the `<request>` root element (`auth`, `settle`, `void` and `rebate` here; `query` is the
-//! remaining follow-up flow that will reuse this scaffolding).
+//! the `<request>` root element: `auth` (Authorize), `settle` (Capture), `void` (Void), `rebate`
+//! (Refund) and `query` (PSync). RSync is not implemented — refund state is not derivable from a
+//! `query`, which only ever echoes the authorization leg.
 
 pub mod transformers;
 
@@ -16,10 +17,10 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -37,6 +38,7 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     GlobalpaymentsRealexCaptureRequest, GlobalpaymentsRealexCaptureResponse,
+    GlobalpaymentsRealexPSyncRequest, GlobalpaymentsRealexPSyncResponse,
     GlobalpaymentsRealexPaymentsRequest, GlobalpaymentsRealexPaymentsResponse,
     GlobalpaymentsRealexRefundRequest, GlobalpaymentsRealexRefundResponse,
     GlobalpaymentsRealexVoidRequest, GlobalpaymentsRealexVoidResponse,
@@ -72,6 +74,13 @@ macros::create_all_prerequisites!(
             response_body: GlobalpaymentsRealexPaymentsResponse,
             response_format: xml,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PSync,
+            request_body: GlobalpaymentsRealexPSyncRequest,
+            response_body: GlobalpaymentsRealexPSyncResponse,
+            response_format: xml,
+            router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ),
         (
             flow: Capture,
@@ -142,6 +151,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for GlobalpaymentsRealex<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentSyncV2 for GlobalpaymentsRealex<T>
 {
 }
 
@@ -231,6 +245,42 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            Ok(self.build_endpoint_url(self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// =============================================================================
+// PSYNC FLOW (`type="query"`)
+// =============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: GlobalpaymentsRealex,
+    curl_request: SoapXml(GlobalpaymentsRealexPSyncRequest),
+    curl_response: GlobalpaymentsRealexPSyncResponse,
+    flow_name: PSync,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsSyncData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(self.build_xml_headers())
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // A status enquiry is a POST like everything else on this API: the same single CGI
+            // endpoint, with `type="query"` on the request root.
             Ok(self.build_endpoint_url(self.connector_base_url_payments(req)))
         }
     }
@@ -417,14 +467,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// Authorize (`auth`), Capture (`settle`), Void (`void`) and Refund (`rebate`) are wired.
-// PSync/RSync (`query`) reuse the same endpoint and digest scaffolding and are follow-up work.
+// Authorize (`auth`), PSync (`query`), Capture (`settle`), Void (`void`) and Refund (`rebate`)
+// are wired. RSync stays unimplemented: a `query` only ever echoes the authorization leg, so a
+// rebate's state cannot be read back from the original order id (tech spec §12.4.5).
 macros::macro_connector_flow_status_impls!(
     connector: GlobalpaymentsRealex,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        PSync,
         RSync,
         PreAuthenticate,
         Authenticate,
