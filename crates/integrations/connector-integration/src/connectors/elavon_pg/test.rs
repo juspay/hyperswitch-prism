@@ -9,9 +9,12 @@ mod tests {
     use hyperswitch_masking::Secret;
 
     use crate::connectors::elavon_pg::transformers::{
-        summarize_failures, ElavonPgAmount, ElavonPgAuthorizeRequest, ElavonPgCaptureRequest,
-        ElavonPgCaptureResponse, ElavonPgCard, ElavonPgChildStatus, ElavonPgContact,
-        ElavonPgErrorResponse, ElavonPgFailure, ElavonPgSaleStatus, ElavonPgShopperInteraction,
+        elavon_pg_payment_session_href, elavon_pg_resource_reference, summarize_failures,
+        ElavonPgAmount, ElavonPgAuthorizeRequest, ElavonPgCaptureRequest, ElavonPgCaptureResponse,
+        ElavonPgCard, ElavonPgCardSaleRequest, ElavonPgChildStatus, ElavonPgContact,
+        ElavonPgCreateOrderRequest, ElavonPgCreateOrderResponse, ElavonPgErrorResponse,
+        ElavonPgFailure, ElavonPgPaymentSessionSaleRequest, ElavonPgPreAuthenticateRequest,
+        ElavonPgPreAuthenticateResponse, ElavonPgSaleStatus, ElavonPgShopperInteraction,
         ElavonPgThreeDSecure, ElavonPgThreeDsTransactionStatus, ElavonPgTransactionResponse,
         ElavonPgTransactionState, ElavonPgTransactionType,
     };
@@ -80,7 +83,7 @@ mod tests {
     fn sample_request(
         three_d_secure: Option<ElavonPgThreeDSecure>,
     ) -> ElavonPgAuthorizeRequest<DefaultPCIHolder> {
-        ElavonPgAuthorizeRequest {
+        ElavonPgAuthorizeRequest::Card(Box::new(ElavonPgCardSaleRequest {
             transaction_type: ElavonPgTransactionType::Sale,
             total: ElavonPgAmount {
                 amount: StringMajorUnitForConnector
@@ -96,7 +99,7 @@ mod tests {
             shopper_ip_address: None,
             custom_reference: Some("pay_1J2k3l4m5n6o".to_string()),
             description: None,
-        }
+        }))
     }
 
     #[test]
@@ -157,6 +160,211 @@ mod tests {
         );
         // `transStatusReason` was absent, so it must not be emitted as null.
         assert!(!three_ds.contains_key("transStatusReason"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Hosted payment page (gateway 3DS) — CreateOrder / PreAuthenticate / settle
+    // ---------------------------------------------------------------------
+
+    const ORDER_HREF: &str =
+        "https://api.sandbox.elavonpayments.com/orders/6xxFwvM8BqmM6T6DcF3DyTB3";
+    const PAYMENT_SESSION_HREF: &str =
+        "https://api.sandbox.elavonpayments.com/payment-sessions/rd8y9xhx7qh9yj6r4vpxpqcv";
+
+    #[test]
+    fn create_order_body_carries_nothing_but_the_total() {
+        let body = serde_json::to_value(ElavonPgCreateOrderRequest {
+            total: ElavonPgAmount {
+                amount: StringMajorUnitForConnector
+                    .convert(MinorUnit::new(1000), Currency::EUR)
+                    .unwrap(),
+                currency_code: Currency::EUR,
+            },
+        })
+        .unwrap();
+
+        assert_eq!(
+            body,
+            serde_json::json!({ "total": { "amount": "10.00", "currencyCode": "EUR" } })
+        );
+    }
+
+    #[test]
+    fn payment_session_body_types_the_switches_as_booleans_and_omits_hpp_type() {
+        let body = serde_json::to_value(ElavonPgPreAuthenticateRequest {
+            order: ORDER_HREF.to_string(),
+            return_url: "https://merchant.example.com/redirect/complete".to_string(),
+            cancel_url: "https://merchant.example.com/return".to_string(),
+            do_three_d_secure: true,
+            do_create_transaction: false,
+        })
+        .unwrap();
+
+        assert_eq!(
+            body,
+            serde_json::json!({
+                "order": ORDER_HREF,
+                "returnUrl": "https://merchant.example.com/redirect/complete",
+                "cancelUrl": "https://merchant.example.com/return",
+                "doThreeDSecure": true,
+                "doCreateTransaction": false,
+            })
+        );
+        // The published doc example writes doCreateTransaction as the string "true";
+        // the OpenAPI schema types it boolean, and the schema is what EPG validates.
+        assert!(body["doCreateTransaction"].is_boolean());
+        assert!(body["doThreeDSecure"].is_boolean());
+        // hppType defaults to fullPageRedirect, so it is not sent.
+        assert!(!body.as_object().unwrap().contains_key("hppType"));
+    }
+
+    #[test]
+    fn payment_session_settle_body_is_only_the_session_url() {
+        let body = serde_json::to_value(
+            ElavonPgAuthorizeRequest::<DefaultPCIHolder>::PaymentSession(
+                ElavonPgPaymentSessionSaleRequest {
+                    payment_session: PAYMENT_SESSION_HREF.to_string(),
+                },
+            ),
+        )
+        .unwrap();
+
+        assert_eq!(
+            body,
+            serde_json::json!({ "paymentSession": PAYMENT_SESSION_HREF })
+        );
+        // EPG documents that nothing else belongs on this call.
+        let object = body.as_object().unwrap();
+        assert!(!object.contains_key("card"));
+        assert!(!object.contains_key("threeDSecure"));
+        assert!(!object.contains_key("hostedCard"));
+        assert!(!object.contains_key("type"));
+    }
+
+    #[test]
+    fn the_card_sale_body_is_untouched_by_the_untagged_authorize_enum() {
+        // The `Card` variant must serialize exactly like the old struct did: the two
+        // already-certified card paths are wire-compatible only if this holds.
+        let card_body = serde_json::to_value(sample_request(None)).unwrap();
+        assert_eq!(card_body["type"], "sale");
+        assert_eq!(card_body["card"]["number"], "4546341111111119");
+        assert!(!card_body
+            .as_object()
+            .unwrap()
+            .contains_key("paymentSession"));
+    }
+
+    #[test]
+    fn only_a_payment_session_url_is_read_back_as_a_hosted_session() {
+        use domain_types::router_request_types::AuthenticationData;
+
+        fn authentication_data(threeds_server_transaction_id: Option<&str>) -> AuthenticationData {
+            AuthenticationData {
+                threeds_server_transaction_id: threeds_server_transaction_id.map(str::to_owned),
+                trans_status: None,
+                eci: None,
+                cavv: None,
+                ucaf_collection_indicator: None,
+                message_version: None,
+                ds_trans_id: None,
+                acs_transaction_id: None,
+                transaction_id: None,
+                network_params: None,
+                exemption_indicator: None,
+                created_at: None,
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+                authentication_type: None,
+            }
+        }
+
+        // The hosted-session href round-trips.
+        assert_eq!(
+            elavon_pg_payment_session_href(Some(&authentication_data(Some(PAYMENT_SESSION_HREF)))),
+            Some(PAYMENT_SESSION_HREF.to_string())
+        );
+
+        // A real external-3DS server transaction id must NOT be mistaken for one —
+        // that is what keeps the pass-through 3DS Authorize body unchanged.
+        assert_eq!(
+            elavon_pg_payment_session_href(Some(&authentication_data(Some(
+                "88093c16-4659-4b23-bc84-b5a790779107"
+            )))),
+            None
+        );
+        // Neither may some other EPG resource URL.
+        assert_eq!(
+            elavon_pg_payment_session_href(Some(&authentication_data(Some(ORDER_HREF)))),
+            None
+        );
+        assert_eq!(
+            elavon_pg_payment_session_href(Some(&authentication_data(None))),
+            None
+        );
+        assert_eq!(elavon_pg_payment_session_href(None), None);
+    }
+
+    #[test]
+    fn a_resource_reference_prefers_the_href_and_degrades_to_the_id() {
+        assert_eq!(
+            elavon_pg_resource_reference(
+                Some(ORDER_HREF.to_string()),
+                "6xxFwvM8BqmM6T6DcF3DyTB3",
+                "Order"
+            ),
+            ORDER_HREF
+        );
+        // EPG parses a reference as either an href or a bare id, so an absent self
+        // link is still usable.
+        assert_eq!(
+            elavon_pg_resource_reference(None, "6xxFwvM8BqmM6T6DcF3DyTB3", "Order"),
+            "6xxFwvM8BqmM6T6DcF3DyTB3"
+        );
+    }
+
+    #[test]
+    fn payment_session_response_deserializes_with_and_without_the_shopper_url() {
+        let with_url: ElavonPgPreAuthenticateResponse = serde_json::from_str(
+            r#"{
+                "id": "rd8y9xhx7qh9yj6r4vpxpqcv",
+                "href": "https://api.sandbox.elavonpayments.com/payment-sessions/rd8y9xhx7qh9yj6r4vpxpqcv",
+                "hppType": "fullPageRedirect",
+                "doThreeDSecure": true,
+                "expiresAt": "2026-09-02T13:11:23.123Z",
+                "url": "https://hpp.sandbox.elavonpayments.com/rd8y9xhx7qh9yj6r4vpxpqcv"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            with_url.url.as_deref(),
+            Some("https://hpp.sandbox.elavonpayments.com/rd8y9xhx7qh9yj6r4vpxpqcv")
+        );
+
+        // EPG's own published 201 example omits `url`; the response transformer turns
+        // that into an actionable error rather than a guessed redirect target.
+        let without_url: ElavonPgPreAuthenticateResponse = serde_json::from_str(
+            r#"{ "id": "rd8y9xhx7qh9yj6r4vpxpqcv", "hppType": "fullPageRedirect" }"#,
+        )
+        .unwrap();
+        assert!(without_url.url.is_none());
+        assert!(without_url.href.is_none());
+    }
+
+    #[test]
+    fn order_response_deserializes_leniently() {
+        let order: ElavonPgCreateOrderResponse = serde_json::from_str(
+            r#"{
+                "id": "6xxFwvM8BqmM6T6DcF3DyTB3",
+                "href": "https://api.sandbox.elavonpayments.com/orders/6xxFwvM8BqmM6T6DcF3DyTB3",
+                "createdAt": "2026-09-02T13:01:23.123Z",
+                "total": { "amount": "10.00", "currencyCode": "EUR" }
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(order.id, "6xxFwvM8BqmM6T6DcF3DyTB3");
+        assert_eq!(order.href.as_deref(), Some(ORDER_HREF));
     }
 
     #[test]

@@ -3970,6 +3970,12 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
+
+  // Send the connector order identifier here if an order was created before
+  // pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order
+  // resource URL returned by PaymentService/CreateOrder to open a payment
+  // session.
+  optional string connector_order_id = 16;
 }
 
 // Response message for pre-authentication step

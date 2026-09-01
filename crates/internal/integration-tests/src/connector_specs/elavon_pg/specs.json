@@ -3,9 +3,11 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
+    "PaymentService/CreateOrder",
     "PaymentService/Get",
     "PaymentService/Void",
     "PaymentService/Refund",
-    "RefundService/Get"
+    "RefundService/Get",
+    "PaymentMethodAuthenticationService/PreAuthenticate"
   ]
 }

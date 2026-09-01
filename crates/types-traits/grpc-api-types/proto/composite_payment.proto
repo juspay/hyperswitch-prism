@@ -220,6 +220,10 @@ message CompositePreAuthenticateRequest {
 
   // Per-request idempotency / correlation token propagated from the parent composite request
   optional string merchant_request_id = 18;
+
+  // Send the connector order identifier here if an order was created before
+  // pre-authentication (mirrors PaymentMethodAuthenticationServicePreAuthenticateRequest).
+  optional string connector_order_id = 19;
 }
 
 // Generic composite response for pre-authenticate that includes access

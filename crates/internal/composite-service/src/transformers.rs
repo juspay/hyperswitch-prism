@@ -678,6 +678,7 @@ impl
             capture_method: item.capture_method,
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
+            connector_order_id: item.connector_order_id.clone(),
         }
     }
 }
@@ -1369,6 +1370,7 @@ impl
             capture_method: item.capture_method,
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
+            connector_order_id: item.connector_order_id.clone(),
         }
     }
 }

@@ -4,9 +4,13 @@
 //! Elavon Converge: a different product with an XML/form-encoded API. EPG shares no
 //! request or response shape with it.
 //!
-//! Scope: raw card payments (no-3DS and external/pass-through 3DS), one-time only,
-//! plus the companion PSync / Capture / Void / Refund / RSync flows so that a
-//! manual-capture authorization always has a settle and a release path.
+//! Scope: raw card payments (no-3DS and external/pass-through 3DS) plus EPG's own
+//! gateway 3DS, which it runs inside a Hosted Payment Page: CreateOrder
+//! (`POST /orders`) and PreAuthenticate (`POST /payment-sessions`) set the page up,
+//! the shopper enters the card there, and Authorize settles it with
+//! `POST /transactions {"paymentSession": …}`. One-time payments only, plus the
+//! companion PSync / Capture / Void / Refund / RSync flows so that a manual-capture
+//! authorization always has a settle and a release path.
 
 pub mod transformers;
 
@@ -21,9 +25,12 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData,
     },
@@ -44,9 +51,11 @@ use serde::Serialize;
 use transformers as elavon_pg;
 use transformers::{
     ElavonPgAuthorizeRequest, ElavonPgCaptureRequest, ElavonPgCaptureResponse,
-    ElavonPgPsyncResponse, ElavonPgRefundRequest, ElavonPgRefundResponse, ElavonPgRsyncResponse,
-    ElavonPgTransactionResponse, ElavonPgVoidRequest, ElavonPgVoidResponse,
-    ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID, ELAVON_PG_MEDIA_TYPE,
+    ElavonPgCreateOrderRequest, ElavonPgCreateOrderResponse, ElavonPgPreAuthenticateRequest,
+    ElavonPgPreAuthenticateResponse, ElavonPgPsyncResponse, ElavonPgRefundRequest,
+    ElavonPgRefundResponse, ElavonPgRsyncResponse, ElavonPgTransactionResponse,
+    ElavonPgVoidRequest, ElavonPgVoidResponse, ELAVON_PG_ACCEPT_VERSION, ELAVON_PG_CONNECTOR_ID,
+    ELAVON_PG_MEDIA_TYPE,
 };
 
 use super::macros;
@@ -69,6 +78,10 @@ pub(crate) mod paths {
     /// Partial-capture resource. It is the only capture endpoint this connector
     /// uses, because it is the only one that states the captured amount explicitly.
     pub(crate) const PARTIAL_CAPTURES: &str = "partial-captures";
+    /// Order collection — step 1 of the hosted-payment-page 3DS flow (spec §5.2).
+    pub(crate) const ORDERS: &str = "orders";
+    /// Payment-session collection — step 2 of the hosted-payment-page 3DS flow.
+    pub(crate) const PAYMENT_SESSIONS: &str = "payment-sessions";
 }
 
 // ===== MACRO-BASED STRUCT AND BRIDGE SETUP =====
@@ -76,6 +89,18 @@ macros::create_all_prerequisites!(
     connector_name: ElavonPg,
     generic_type: T,
     api: [
+        (
+            flow: CreateOrder,
+            request_body: ElavonPgCreateOrderRequest,
+            response_body: ElavonPgCreateOrderResponse,
+            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: ElavonPgPreAuthenticateRequest,
+            response_body: ElavonPgPreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
         (
             flow: Authorize,
             request_body: ElavonPgAuthorizeRequest<T>,
@@ -275,6 +300,88 @@ macros::macro_connector_payout_implementation!(
     connector: ElavonPg,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+);
+
+// ===== CREATE ORDER =====
+// Step 1 of EPG's hosted-payment-page 3DS: a `PaymentSession` can only be opened
+// against an existing `Order`, and the order's resource URL is what the session
+// references (spec §5.2).
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentOrderCreate for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgCreateOrderRequest),
+    curl_response: ElavonPgCreateOrderResponse,
+    flow_name: CreateOrder,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentCreateOrderData,
+    flow_response: PaymentCreateOrderResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::ORDERS
+            ))
+        }
+    }
+);
+
+// ===== PRE-AUTHENTICATE =====
+// Step 2 of the hosted-payment-page 3DS flow: mint the payment session whose `url`
+// the shopper is redirected to. EPG collects the card and runs the 3DS itself on
+// that page; the settle happens on the follow-up Authorize (spec §5.2).
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for ElavonPg<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: ElavonPg,
+    curl_request: Json(ElavonPgPreAuthenticateRequest),
+    curl_response: ElavonPgPreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/{}",
+                self.connector_base_url_payments(req),
+                paths::PAYMENT_SESSIONS
+            ))
+        }
+    }
 );
 
 // ===== AUTHORIZE =====
@@ -542,11 +649,9 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         GetConnectorCustomer,
         PaymentMethodToken,
-        CreateOrder,
         ClientAuthenticationToken,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        PreAuthenticate,
         Authenticate,
         PostAuthenticate,
         IncrementalAuthorization,

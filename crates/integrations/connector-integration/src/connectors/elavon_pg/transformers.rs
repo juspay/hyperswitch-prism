@@ -10,11 +10,14 @@
 //! as a `PartialCapture` resource (`POST /partial-captures`).
 
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{consts, pii::Email, types::StringMajorUnit};
+use common_utils::{consts, pii::Email, request::Method, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, PSync, PreAuthenticate, RSync, Refund, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
@@ -23,6 +26,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::AuthenticationData,
+    router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -57,6 +61,54 @@ const ELAVON_PG_FAILURE_JOIN: &str = "; ";
 /// EPG's `ThreeDSecure.transStatusReason` must be exactly two numeric digits
 /// (pattern `^[0-9]{2}$`); anything else is a `fieldValidationFailure`.
 const ELAVON_PG_TRANS_STATUS_REASON_LENGTH: usize = 2;
+
+/// `PaymentSessionInputOptions.doThreeDSecure` — *"Determines whether or not the
+/// HPP will perform 3-D secure validation"*. Always `true`: authenticating the
+/// shopper is the entire reason this connector opens a hosted payment session
+/// (spec §5.2).
+const ELAVON_PG_HPP_DO_THREE_D_SECURE: bool = true;
+
+/// `PaymentSessionInputOptions.doCreateTransaction` — when `false`, EPG turns what
+/// the shopper typed into the HPP into a single-use **HostedCard** instead of
+/// creating the `Transaction` itself, leaving the settle to
+/// `POST /transactions {"paymentSession": …}`. That is the completion call this
+/// connector's Authorize makes, so the switch is deliberately `false`.
+///
+/// The published documentation example writes this as the *string* `"true"`, but
+/// the OpenAPI `PaymentSessionInputOptions` schema types it `"type": "boolean"`
+/// with `"default": false`. The schema is authoritative: it goes on the wire as a
+/// JSON boolean.
+const ELAVON_PG_HPP_DO_CREATE_TRANSACTION: bool = false;
+
+/// Path segment of an EPG payment-session resource URL
+/// (`https://api…/payment-sessions/{id}`).
+///
+/// The hosted-payment-page href is threaded from PreAuthenticate to the settle
+/// Authorize inside `AuthenticationData.threeds_server_transaction_id` — the only
+/// field Hyperswitch carries across the shopper redirect. That same field legitimately
+/// holds a real 3DS-server transaction id on the external/pass-through 3DS path, so
+/// the two are told apart by shape: only an absolute URL naming this collection is
+/// treated as a payment session.
+const ELAVON_PG_PAYMENT_SESSIONS_SEGMENT: &str = "/payment-sessions/";
+
+/// URL schemes EPG resource URLs use (`href` is `"format": "url"`, and the
+/// `returnUrl`/`cancelUrl` pattern is `https?://[^/]{2,}.*`).
+const ELAVON_PG_URL_SCHEMES: [&str; 2] = ["https://", "http://"];
+
+/// EPG resource names, used only to make the "href missing, using id" warning say
+/// which resource it is talking about.
+const ELAVON_PG_ORDER_RESOURCE: &str = "Order";
+const ELAVON_PG_PAYMENT_SESSION_RESOURCE: &str = "PaymentSession";
+
+/// Diagnostic for the one unverifiable assumption in the hosted-payment-page flow:
+/// that `POST /payment-sessions` really does return the shopper `url`.
+const ELAVON_PG_MISSING_HOSTED_PAGE_URL: &str =
+    "elavon_pg: PreAuthenticate created the payment session but the 201 carried no `url`. \
+     `url` (\"URL that shoppers will use\") is the hosted payment page the shopper must be \
+     redirected to; it is documented on the PaymentSession schema but omitted from Elavon's \
+     published example and has not been verified against a live sandbox. Nothing can be \
+     substituted for it, so the attempt fails here rather than redirecting the shopper to a \
+     guessed URL.";
 
 // =============================================================================
 // AUTHENTICATION
@@ -278,10 +330,47 @@ impl TryFrom<common_enums::TransactionStatus> for ElavonPgThreeDsTransactionStat
 // REQUESTS
 // =============================================================================
 
-/// `SaleTransaction` — the Authorize body (spec §4.1).
+/// The Authorize body. EPG has two shapes for the same `POST /transactions`
+/// endpoint and this connector emits exactly one of them per attempt:
+///
+/// * [`ElavonPgAuthorizeRequest::Card`] — the raw-card sale, optionally carrying
+///   pass-through 3DS results (spec §4.1). This is the shape used by the card
+///   no-3DS and external-3DS paths and it is unchanged by the hosted-payment-page
+///   work.
+/// * [`ElavonPgAuthorizeRequest::PaymentSession`] — the settle leg of the hosted
+///   payment page, where the shopper already entered the PAN on EPG's own page
+///   (spec §5.2 step 5).
+///
+/// `untagged` is safe here because this enum is **serialize-only**: there is no
+/// deserialization to misattribute, and each variant already carries its own EPG
+/// discriminator (`type` on the card sale, `paymentSession` on the session settle).
+/// The card variant is boxed so the two variants stay comparable in size.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum ElavonPgAuthorizeRequest<T: PaymentMethodDataTypes> {
+    Card(Box<ElavonPgCardSaleRequest<T>>),
+    PaymentSession(ElavonPgPaymentSessionSaleRequest),
+}
+
+/// The settle leg of the hosted-payment-page flow: `POST /transactions` whose only
+/// member is the payment session's resource URL (spec §5.2 step 5).
+///
+/// The EPG documentation is explicit that nothing else belongs here: *"the body of
+/// the post only requires the payment session's resource URL […] For forward
+/// compatibility, do not include hostedCard in the request."* No `card`, no
+/// `threeDSecure` (the HPP already ran the authentication and EPG rejects
+/// authenticating in both places), no `type`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ElavonPgAuthorizeRequest<T: PaymentMethodDataTypes> {
+pub struct ElavonPgPaymentSessionSaleRequest {
+    /// `PaymentSession` resource URL minted by the PreAuthenticate leg.
+    pub payment_session: String,
+}
+
+/// `SaleTransaction` — the raw-card Authorize body (spec §4.1).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgCardSaleRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "type")]
     pub transaction_type: ElavonPgTransactionType,
     pub total: ElavonPgAmount,
@@ -356,6 +445,72 @@ pub struct ElavonPgCaptureRequest {
     pub total: ElavonPgAmount,
     /// When `true`, EPG may reverse any authorized amount left uncaptured.
     pub is_final: bool,
+}
+
+/// `OrderInput` — the CreateOrder body (spec §5.2 step 1).
+///
+/// An EPG `Order` describes what the shopper is paying for, and it is the only
+/// resource a `PaymentSession` is required to reference. `total` is the schema's
+/// single required member; every other `OrderInput` field is descriptive and would
+/// only duplicate what the sale itself already carries.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgCreateOrderRequest {
+    pub total: ElavonPgAmount,
+}
+
+/// `Order` — the CreateOrder response (spec §5.2 step 1).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgCreateOrderResponse {
+    pub id: String,
+    /// Self link. `PaymentSessionInput.order` is a `ResourceURL<Order>`, so the
+    /// href is what the PreAuthenticate leg wants. EPG parses a reference as
+    /// *either* an href or a bare id, which is why an absent href degrades to `id`
+    /// rather than failing.
+    pub href: Option<String>,
+}
+
+/// `PaymentSessionInputRedirect` — the PreAuthenticate body (spec §5.2 step 2).
+///
+/// `hppType` is omitted: `PaymentSessionInput` documents it as *"defaults to
+/// fullPageRedirect"*, which is the variant this connector uses, and EPG's own
+/// published example omits it too.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgPreAuthenticateRequest {
+    /// `Order` resource URL produced by the CreateOrder leg.
+    pub order: String,
+    /// Where EPG sends the shopper once the hosted page has collected the card and
+    /// finished 3DS. Required for `hppType = fullPageRedirect`.
+    pub return_url: String,
+    /// Where EPG sends the shopper if they abandon the hosted page. Also required
+    /// for `hppType = fullPageRedirect`.
+    pub cancel_url: String,
+    pub do_three_d_secure: bool,
+    pub do_create_transaction: bool,
+}
+
+/// `PaymentSession` — the PreAuthenticate `201` (spec §5.2 step 2).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ElavonPgPreAuthenticateResponse {
+    pub id: String,
+    /// Self link; this is what the settle `POST /transactions` references. As with
+    /// the order href, an absent value degrades to `id` because EPG parses either
+    /// form.
+    pub href: Option<String>,
+    /// *"URL that shoppers will use"* — the hosted payment page the browser is sent
+    /// to.
+    ///
+    /// **UNVERIFIED AGAINST A LIVE SANDBOX.** `url` is documented on the
+    /// `PaymentSession` schema but absent from EPG's published `201` example; no
+    /// EPG credentials exist for this integration, so it has only been exercised
+    /// against a mock. It is modelled as optional and its absence is reported as an
+    /// actionable error rather than papered over with a guessed URL.
+    pub url: Option<String>,
+    /// Session expiry (EPG mints these with a 30-minute lifetime).
+    pub expires_at: Option<String>,
 }
 
 // =============================================================================
@@ -913,6 +1068,343 @@ fn build_three_d_secure(
 }
 
 // =============================================================================
+// HOSTED PAYMENT PAGE (gateway 3DS) — SHARED HELPERS
+// =============================================================================
+
+/// EPG resource references parse as **either** an `href` or a bare `id` —
+/// *"Resource reference could not be parsed as either an href or an id"* is the
+/// failure when neither does. A `201` that omits its self link is therefore still
+/// usable, by referencing the resource with its id. Every published example uses
+/// the href, so taking the id is a deliberate, warned-about fallback rather than a
+/// silent one.
+pub(crate) fn elavon_pg_resource_reference(
+    href: Option<String>,
+    id: &str,
+    resource: &str,
+) -> String {
+    match href {
+        Some(href) => href,
+        None => {
+            tracing::warn!(
+                connector = ELAVON_PG_CONNECTOR_ID,
+                resource = resource,
+                resource_id = id,
+                "Elavon Payment Gateway response omitted the resource href; referencing the \
+                 resource by its bare id instead"
+            );
+            id.to_string()
+        }
+    }
+}
+
+/// Threads the hosted-payment-page session href from PreAuthenticate to the settle
+/// Authorize inside `AuthenticationData.threeds_server_transaction_id`.
+///
+/// That is the only field Hyperswitch carries across the shopper redirect, and EPG
+/// runs the 3DS itself on this path so there is no real 3DS-server transaction id to
+/// displace. It is the same channel Paysafe uses for its `paymentHandleToken`.
+fn elavon_pg_payment_session_authentication_data(
+    payment_session_href: String,
+) -> AuthenticationData {
+    AuthenticationData {
+        threeds_server_transaction_id: Some(payment_session_href),
+        trans_status: None,
+        eci: None,
+        cavv: None,
+        ucaf_collection_indicator: None,
+        message_version: None,
+        ds_trans_id: None,
+        acs_transaction_id: None,
+        transaction_id: None,
+        network_params: None,
+        exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+/// Reads back the payment-session href stashed by
+/// [`elavon_pg_payment_session_authentication_data`].
+///
+/// `threeds_server_transaction_id` is shared with the external/pass-through 3DS
+/// path, where it legitimately carries a real 3DS-server transaction id (a UUID), so
+/// a value is only claimed here when it is shaped like an EPG payment-session
+/// resource URL. Anything else falls through to the card branch of Authorize, which
+/// is what keeps the two already-proven card paths byte-for-byte unchanged.
+pub(crate) fn elavon_pg_payment_session_href(
+    authentication_data: Option<&AuthenticationData>,
+) -> Option<String> {
+    authentication_data
+        .and_then(|data| data.threeds_server_transaction_id.as_deref())
+        .filter(|reference| {
+            ELAVON_PG_URL_SCHEMES
+                .iter()
+                .any(|scheme| reference.starts_with(scheme))
+                && reference.contains(ELAVON_PG_PAYMENT_SESSIONS_SEGMENT)
+        })
+        .map(str::to_owned)
+}
+
+// =============================================================================
+// CREATE ORDER — POST /orders
+// =============================================================================
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonPgRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    > for ElavonPgCreateOrderRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonPgRouterData<
+            RouterDataV2<
+                CreateOrder,
+                PaymentFlowData,
+                PaymentCreateOrderData,
+                PaymentCreateOrderResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.amount, request.currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Elavon Payment Gateway carries total.amount as a decimal string in the \
+                         currency's major units (at most 9 integer and 4 fractional digits). The \
+                         order total must equal the amount the payment session will authenticate: \
+                         EPG rejects a mismatch with \"Transaction amount does not match the 3DS \
+                         authorized amount\"."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        Ok(Self {
+            total: ElavonPgAmount {
+                amount,
+                currency_code: request.currency,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<ElavonPgCreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<ElavonPgCreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // The order **href** is what travels onward: `PaymentSessionInput.order` is
+        // a `ResourceURL<Order>`, not a bare id.
+        let order_reference = elavon_pg_resource_reference(
+            item.response.href,
+            &item.response.id,
+            ELAVON_PG_ORDER_RESOURCE,
+        );
+
+        Ok(Self {
+            response: Ok(PaymentCreateOrderResponse {
+                connector_order_id: order_reference.clone(),
+                session_data: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                // An order is not yet a payment: nothing has been authorized and no
+                // shopper has been asked for anything.
+                status: AttemptStatus::Pending,
+                connector_order_id: Some(order_reference),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// PRE-AUTHENTICATE — POST /payment-sessions
+// =============================================================================
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        ElavonPgRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for ElavonPgPreAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: ElavonPgRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let order = router_data
+            .resource_common_data
+            .connector_order_id
+            .clone()
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Run PaymentService/CreateOrder first and pass the Order resource URL it \
+                         returns as connector_order_id on the PreAuthenticate request."
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Elavon Payment Gateway's hosted payment page is opened against an \
+                         existing Order: `order` is the one required member of \
+                         PaymentSessionInput and there is no way to create the order inline."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        // The shopper must land back on the complete-authorize continuation so
+        // Hyperswitch settles the payment; `return_url` alone only triggers a sync.
+        let return_url = request
+            .continue_redirection_url
+            .as_ref()
+            .map(|url| url.to_string())
+            .or_else(|| router_data.resource_common_data.get_return_url())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "continue_redirection_url",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Elavon Payment Gateway requires returnUrl on a fullPageRedirect payment \
+                         session: it is where the hosted payment page sends the shopper once the \
+                         card has been collected and 3DS has run."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        // Cancellation lands on the merchant return URL — the shopper abandoned the
+        // hosted page, so there is nothing for complete-authorize to settle.
+        let cancel_url = request
+            .router_return_url
+            .as_ref()
+            .map(|url| url.to_string())
+            .or_else(|| router_data.resource_common_data.get_return_url())
+            .unwrap_or_else(|| return_url.clone());
+
+        Ok(Self {
+            order,
+            return_url,
+            cancel_url,
+            do_three_d_secure: ELAVON_PG_HPP_DO_THREE_D_SECURE,
+            do_create_transaction: ELAVON_PG_HPP_DO_CREATE_TRANSACTION,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<ElavonPgPreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<ElavonPgPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let http_code = item.http_code;
+        let response = item.response;
+
+        // No URL means no hosted payment page, and there is nothing to guess: the
+        // page lives on an EPG-owned host under an opaque session id. Fail here,
+        // naming the field, instead of shipping the shopper somewhere invented.
+        let hosted_page_url = response
+            .url
+            .ok_or_else(|| {
+                ConnectorError::unexpected_response_error_with_context(
+                    http_code,
+                    Some(ELAVON_PG_MISSING_HOSTED_PAGE_URL.to_string()),
+                )
+            })
+            .attach_printable(ELAVON_PG_MISSING_HOSTED_PAGE_URL)?;
+
+        let payment_session_reference = elavon_pg_resource_reference(
+            response.href,
+            &response.id,
+            ELAVON_PG_PAYMENT_SESSION_RESOURCE,
+        );
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                // Nothing has been created on the card network yet — the Transaction
+                // only comes into being on the settle Authorize.
+                resource_id: Some(ResponseId::NoResponseId),
+                authentication_data: Some(elavon_pg_payment_session_authentication_data(
+                    payment_session_reference,
+                )),
+                redirection_data: Some(Box::new(RedirectForm::Form {
+                    endpoint: hosted_page_url,
+                    // The hosted page is opened with a plain browser navigation; EPG
+                    // carries the session identity in the URL itself.
+                    method: Method::Get,
+                    form_fields: std::collections::HashMap::new(),
+                })),
+                connector_response_reference_id: Some(response.id),
+                status_code: http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                // The shopper still has to visit the hosted page and authenticate.
+                status: AttemptStatus::AuthenticationPending,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
 // AUTHORIZE
 // =============================================================================
 
@@ -945,6 +1437,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let request = &router_data.request;
 
+        // Precedence (spec §5.2 step 5 vs §4.1/§5.1): a hosted-payment-page session
+        // href beats everything, because on that path EPG already holds the card and
+        // already ran 3DS — sending `card` or `threeDSecure` alongside it is rejected.
+        // Only then does the external/pass-through 3DS shape apply, and failing that,
+        // the plain card sale.
+        if let Some(payment_session) =
+            elavon_pg_payment_session_href(request.authentication_data.as_ref())
+        {
+            return Ok(Self::PaymentSession(ElavonPgPaymentSessionSaleRequest {
+                payment_session,
+            }));
+        }
+
         let amount = item
             .connector
             .amount_converter
@@ -962,7 +1467,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card = get_card(&request.payment_method_data)?;
 
-        Ok(Self {
+        Ok(Self::Card(Box::new(ElavonPgCardSaleRequest {
             transaction_type: ElavonPgTransactionType::Sale,
             total: ElavonPgAmount {
                 amount,
@@ -995,7 +1500,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
             ),
             description: router_data.resource_common_data.description.clone(),
-        })
+        })))
     }
 }
 

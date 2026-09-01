@@ -18737,7 +18737,10 @@ impl
             access_token,
             session_token: None,
             reference_id: None,
-            connector_order_id: None,
+            // Elavon PG's hosted-payment-page 3DS opens its payment session against
+            // an Order created by PaymentService/CreateOrder, so the order created
+            // before pre-authentication has to reach this leg.
+            connector_order_id: value.connector_order_id.clone(),
             preprocessing_id: None,
             connector_api_version: None,
             test_mode: None,
