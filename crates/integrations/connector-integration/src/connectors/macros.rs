@@ -2348,7 +2348,6 @@ pub(crate) use flow_status_emit;
 /// [`FrmFlowData`] as their common data, so this only needs the connector type
 /// (with its generic parameter + bounds) and the flow's request/response types.
 /// Generic over the connector, so any FRM connector can reuse it.
-
 macro_rules! frm_flow_not_implemented {
     (
         connector: $c:ident,
