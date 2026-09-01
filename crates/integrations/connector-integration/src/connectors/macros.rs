@@ -527,6 +527,7 @@ pub(crate) use expand_fn_handle_response;
 macro_rules! expand_default_functions {
     (
         function: get_headers,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -544,6 +545,7 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_content_type,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -555,6 +557,7 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_error_response_v2,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -563,7 +566,7 @@ macro_rules! expand_default_functions {
         #[cfg_attr(feature = "deja", tracing::instrument(
             name = "connector::error_response",
             skip_all,
-            fields(flow = stringify!($flow), http_status = res.status_code)
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
         ))]
         fn get_error_response_v2(
             &self,
@@ -613,6 +616,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -674,6 +678,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -733,6 +738,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -790,6 +796,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -849,6 +856,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -905,6 +913,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -960,6 +969,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
