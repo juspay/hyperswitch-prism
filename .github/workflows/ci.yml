@@ -150,13 +150,17 @@ jobs:
             exit 1
           fi
 
-          # Enumerate real directories instead of grepping diff paths, so a
-          # name can only ever be one that actually exists.
+          # Enumerate real directories instead of grepping diff paths, and
+          # require a specs.json so a shared, non-connector module in the same
+          # directory is never counted as a connector.
           names_in_dir() {
             local dir="$1"
+            local specs_root="$2"
             [ -d "${dir}" ] || return 0
             find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
-              sed 's|\.rs$||' | sort -u
+              sed 's|\.rs$||' | sort -u | while IFS= read -r name; do
+                [ -f "${specs_root}/${name}/specs.json" ] && echo "${name}"
+              done
           }
 
           touched_under() {
@@ -172,7 +176,7 @@ jobs:
             if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(names_in_dir crates/integrations/connector-integration/src/connectors)
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors crates/internal/integration-tests/src/connector_specs)
 
           # A connector's specs.json/override.json can change without any of
           # its own Rust files changing, so specs-only edits need their own
@@ -183,8 +187,11 @@ jobs:
                ! echo ",${payment_touched}," | grep -q ",${name},"; then
               payment_touched="${payment_touched}${payment_touched:+,}${name}"
             fi
-          done < <(names_in_dir crates/internal/integration-tests/src/connector_specs)
+          done < <(find crates/internal/integration-tests/src/connector_specs -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
 
+          # authenticator/payout/surcharge connectors have no connector_specs/
+          # entry, so names_in_dir's specs.json check does not apply here —
+          # every name under these directories is used as-is.
           other_touched=""
           for dir in authenticator_connectors payout_connectors surcharge_connectors; do
             while IFS= read -r name; do
@@ -192,7 +199,7 @@ jobs:
               if touched_under "crates/integrations/connector-integration/src/${dir}" "${name}"; then
                 other_touched="${other_touched}${other_touched:+,}${name}"
               fi
-            done < <(names_in_dir "crates/integrations/connector-integration/src/${dir}")
+            done < <(find "crates/integrations/connector-integration/src/${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; 2>/dev/null | sed 's|\.rs$||' | sort -u)
           done
 
           # Taking a connector off the alpha list is what starts certifying it,
