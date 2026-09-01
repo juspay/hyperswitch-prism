@@ -3790,38 +3790,37 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
 }
 
 #[cfg(test)]
+// Test fixtures panic on a bad literal date rather than threading a Result through every case.
+#[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+
+    fn date_of_birth(year: i32, month: time::Month, day: u8) -> Secret<time::Date> {
+        Secret::new(
+            time::Date::from_calendar_date(year, month, day)
+                .expect("test fixture is a valid calendar date"),
+        )
+    }
+
+    fn formatted(year: i32, month: time::Month, day: u8) -> Option<String> {
+        format_date_of_birth(Some(date_of_birth(year, month, day))).map(|value| value.expose())
+    }
 
     /// Ilixium wants `ddmmyyyy` with no separators, so single-digit days and months must be
     /// zero-padded — `1990-01-05` is `05011990`, never `511990`.
     #[test]
     fn formats_date_of_birth_as_zero_padded_ddmmyyyy() {
-        let date_of_birth = Secret::new(
-            time::Date::from_calendar_date(1990, time::Month::January, 5)
-                .expect("1990-01-05 is a valid date"),
-        );
-
         assert_eq!(
-            format_date_of_birth(Some(date_of_birth))
-                .expect("a date was supplied")
-                .expose(),
-            "05011990"
+            formatted(1990, time::Month::January, 5).as_deref(),
+            Some("05011990")
         );
     }
 
     #[test]
     fn formats_two_digit_day_and_month() {
-        let date_of_birth = Secret::new(
-            time::Date::from_calendar_date(1985, time::Month::December, 31)
-                .expect("1985-12-31 is a valid date"),
-        );
-
         assert_eq!(
-            format_date_of_birth(Some(date_of_birth))
-                .expect("a date was supplied")
-                .expose(),
-            "31121985"
+            formatted(1985, time::Month::December, 31).as_deref(),
+            Some("31121985")
         );
     }
 
