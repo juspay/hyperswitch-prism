@@ -401,7 +401,6 @@ pub struct FiservcommercehubTransactionDetailsReq {
     pub merchant_invoice_number: Option<String>,
 }
 
-
 #[derive(Default, Debug, Deserialize)]
 pub struct FiservcommercehubConnectorMetadata {
     pub merchant_invoice_id: Option<String>,
@@ -436,23 +435,23 @@ fn parse_connector_metadata(
     metadata: Option<&SecretSerdeValue>,
 ) -> Result<FiservcommercehubConnectorMetadata, error_stack::Report<errors::IntegrationError>> {
     let parsed = match metadata {
-        Some(meta) => serde_json::from_value::<FiservcommercehubConnectorMetadata>(
-            meta.clone().expose(),
-        )
-        .change_context(errors::IntegrationError::InvalidDataFormat {
-            field_name: "metadata",
-            context: errors::IntegrationErrorContext {
-                suggested_action: Some(
-                    "Ensure metadata matches the expected schema for Fiserv CommerceHub"
-                        .to_string(),
-                ),
-                doc_url: Some(FISERV_TRANSACTION_DETAILS_DOC_URL.to_string()),
-                additional_context: Some(
-                    "Failed to deserialize metadata into FiservcommercehubConnectorMetadata"
-                        .to_string(),
-                ),
-            },
-        })?,
+        Some(meta) => {
+            serde_json::from_value::<FiservcommercehubConnectorMetadata>(meta.clone().expose())
+                .change_context(errors::IntegrationError::InvalidDataFormat {
+                field_name: "metadata",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure metadata matches the expected schema for Fiserv CommerceHub"
+                            .to_string(),
+                    ),
+                    doc_url: Some(FISERV_TRANSACTION_DETAILS_DOC_URL.to_string()),
+                    additional_context: Some(
+                        "Failed to deserialize metadata into FiservcommercehubConnectorMetadata"
+                            .to_string(),
+                    ),
+                },
+            })?
+        }
         None => FiservcommercehubConnectorMetadata::default(),
     };
 
@@ -769,8 +768,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let additional_data_3ds =
             build_additional_data_3ds(router_data.request.authentication_data.as_ref());
 
-        let connector_metadata =
-            parse_connector_metadata(router_data.request.metadata.as_ref())?;
+        let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
 
         let request = Self {
             amount: FiservcommercehubAuthorizeAmount {
@@ -1702,8 +1700,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..Default::default()
                 },
             })?;
-        let connector_metadata =
-            parse_connector_metadata(router_data.request.metadata.as_ref())?;
+        let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
         Ok(Self {
             amount: FiservcommercehubAuthorizeAmount {
                 currency: router_data.request.currency,
@@ -1892,8 +1889,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             });
 
-        let connector_metadata =
-            parse_connector_metadata(router_data.request.metadata.as_ref())?;
+        let connector_metadata = parse_connector_metadata(router_data.request.metadata.as_ref())?;
 
         let request = Self {
             amount: FiservcommercehubAuthorizeAmount {
