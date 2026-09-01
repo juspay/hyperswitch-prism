@@ -1709,7 +1709,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .iter()
                         .filter_map(|value| value.to_str().ok())
                         .find(|cookie| cookie.trim_start().starts_with("machine="))
-                        .map(|cookie| cookie.to_string())
+                        .map(|cookie| {
+                            cookie
+                                .split(';')
+                                .next()
+                                .unwrap_or(cookie)
+                                .trim()
+                                .to_string()
+                        })
                 });
 
             return Ok(Self {
