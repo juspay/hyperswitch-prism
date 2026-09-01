@@ -142,6 +142,8 @@ pub use self::trustpayments::Trustpayments;
 
 pub mod globalpay;
 pub use self::globalpay::Globalpay;
+pub mod globalpayments_realex;
+pub use self::globalpayments_realex::GlobalpaymentsRealex;
 
 pub mod billwerk;
 pub use self::billwerk::Billwerk;

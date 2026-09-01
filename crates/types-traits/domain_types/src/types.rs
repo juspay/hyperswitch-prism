@@ -434,6 +434,7 @@ pub struct Connectors {
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
+    pub globalpayments_realex: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -805,6 +806,9 @@ impl Connectors {
             }
             ConnectorEnum::Grabpay => {
                 patched.grabpay.apply(params_patch);
+            }
+            ConnectorEnum::GlobalpaymentsRealex => {
+                patched.globalpayments_realex.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
