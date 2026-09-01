@@ -395,7 +395,17 @@ fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> Str
 // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
 #[cfg_attr(
     feature = "deja",
-    tracing::instrument(name = "ucs::handle_response", skip_all, fields(method = %method))
+    tracing::instrument(
+        name = "ucs::handle_response",
+        skip_all,
+        fields(
+            method = %method,
+            // Declared so the record() calls in the body land in the tape
+            // instead of silently no-oping against an undeclared field.
+            status_code = Empty,
+            url = Empty,
+        )
+    )
 )]
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -648,6 +658,12 @@ where
         + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
+    // Déjà scored span carrying the connector call's essential facts (url,
+    // headers, body, status, integrity outcome); inert unless `deja` is on.
+    // Lives here — not on trait defaults — so hand-written connector
+    // overrides can't silently lose it.
+    #[cfg(feature = "deja")]
+    let connector_call = crate::deja_fields::ConnectorCallSpan::open();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
@@ -763,6 +779,8 @@ where
                 Some(request) => {
                     let url = request.url.clone();
                     let method = request.method;
+                    #[cfg(feature = "deja")]
+                    connector_call.record_request(&request);
                     metrics::EXTERNAL_SERVICE_TOTAL_API_CALLS
                         .with_label_values(&[
                             &method.to_string(),
@@ -947,6 +965,8 @@ where
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
+                    #[cfg(feature = "deja")]
+                    connector_call.record_status(status_code);
 
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
@@ -1011,6 +1031,8 @@ where
                     let external_service_start_latency = tokio::time::Instant::now();
 
                     let topic = record.topic.clone();
+                    #[cfg(feature = "deja")]
+                    connector_call.record_topic(&topic);
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
 
                     let masked_headers = record.headers.clone();
@@ -1065,6 +1087,8 @@ where
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
+                    #[cfg(feature = "deja")]
+                    connector_call.record_status(status_code);
 
                     let latency =
                         u64::try_from(external_service_elapsed.as_millis()).unwrap_or(u64::MAX);
@@ -1108,6 +1132,8 @@ where
             data.request
                 .check_integrity(&data.request.clone(), None)
                 .map_err(|err| {
+                    #[cfg(feature = "deja")]
+                    connector_call.record_integrity(Err(&err.field_names));
                     report_connector_response_to_flow(error_stack::report!(
                         ConnectorError::IntegrityCheckFailed {
                             context: ResponseTransformationErrorContext {
@@ -1119,6 +1145,8 @@ where
                         }
                     ))
                 })?;
+            #[cfg(feature = "deja")]
+            connector_call.record_integrity(Ok(()));
             Ok(data)
         }
         Err(err) => Err(err),
