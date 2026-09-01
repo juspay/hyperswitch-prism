@@ -824,6 +824,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             bin: Some("000001".to_string()),
             terminal_id: Some("001".to_string()),
             base_url: None,
+            merchant_config_currency: None,
         },
     }
 }

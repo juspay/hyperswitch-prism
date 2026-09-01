@@ -1007,6 +1007,9 @@ pub enum ConnectorSpecificConfig {
         bin: Option<String>,
         terminal_id: Option<String>,
         base_url: Option<String>,
+        /// ISO-4217 alphabetic code the MID is provisioned for. Optional; when
+        /// absent no currency validation is performed.
+        merchant_config_currency: Option<String>,
     },
 }
 
@@ -2530,6 +2533,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 bin: jpmorgan_orbital.bin,
                 terminal_id: jpmorgan_orbital.terminal_id,
                 base_url: jpmorgan_orbital.base_url,
+                merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3808,6 +3812,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         bin: None,
                         terminal_id: None,
                         base_url: None,
+                        merchant_config_currency: None,
                     }),
                     _ => Err(err().into()),
                 },

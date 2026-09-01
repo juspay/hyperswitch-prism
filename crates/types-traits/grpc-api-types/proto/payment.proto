@@ -5759,6 +5759,11 @@ message JpmorganOrbitalConfig {
   // Body merchant.terminalID: 3 digits ("001" on Stratus). Not a secret.
   optional string terminal_id = 5;
   optional string base_url = 50;
+  // ISO-4217 alphabetic code the MID is provisioned for (e.g. "USD"). Optional:
+  // when absent no currency validation happens. Orbital derives the currency from
+  // the MID setup and has no field to receive it, so a request in another currency
+  // would otherwise be charged at the numeric amount in the MID's currency.
+  optional string merchant_config_currency = 51;
 }
 
 // ConnectorSpecificConfig message with oneof containing all connector
