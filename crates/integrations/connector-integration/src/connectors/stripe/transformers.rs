@@ -2852,7 +2852,13 @@ where
                 connector_metadata,
                 network_txn_id,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                // DIVERGENCE PROBE — deliberate regression, never merge.
+                // Expected replay verdict: diverged, BodyMismatch at
+                // connectorReferenceId + merchantTransactionId on every case.
+                connector_response_reference_id: Some(format!(
+                    "{}-divergence-probe",
+                    item.response.id
+                )),
                 incremental_authorization_allowed: item
                     .router_data
                     .request
@@ -3288,7 +3294,13 @@ where
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                // DIVERGENCE PROBE — deliberate regression, never merge.
+                // Expected replay verdict: diverged, BodyMismatch at
+                // connectorReferenceId + merchantTransactionId on every case.
+                connector_response_reference_id: Some(format!(
+                    "{}-divergence-probe",
+                    item.response.id
+                )),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
