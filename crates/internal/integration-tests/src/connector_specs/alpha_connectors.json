@@ -51,6 +51,9 @@
     "imerchantsolutions": {},
     "itaubank": {},
     "jpmorgan": {},
+    "jpmorganorbital": {
+      "reason": "No JPMorgan Orbital sandbox credentials exist; validated against a local mock server only."
+    },
     "juspay": {},
     "kount": {},
     "loonio": {},
