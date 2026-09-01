@@ -26,6 +26,7 @@ use domain_types::{
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
     types::{AdditionalCardInfo, AdditionalPaymentData},
 };
@@ -370,7 +371,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
                     cvv: Some(card_data.card_cvc.clone()),
                     card_type: Some(CARD_TYPE_PLAIN.to_string()),
-                    three_ds: build_three_ds_data(router_data)?,
+                    three_ds: build_three_ds_data(
+                        router_data.request.authentication_data.as_ref(),
+                        &router_data.resource_common_data,
+                        false,
+                    )?,
                 };
                 // Return URLs are required for a native-3DS challenge OR a CIT alias
                 // registration (which Datatrans runs through the redirect-capable endpoint).
@@ -395,7 +400,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry_year: None,
                     cvv: None,
                     card_type: Some(CARD_TYPE_ALIAS.to_string()),
-                    three_ds: build_three_ds_data(router_data)?,
+                    three_ds: build_three_ds_data(
+                        router_data.request.authentication_data.as_ref(),
+                        &router_data.resource_common_data,
+                        false,
+                    )?,
                 };
                 // Native 3DS on the alias follows the same redirect contract as a
                 // raw-card 3DS charge (the alias itself carries no expiry/CVV, so the
@@ -547,21 +556,18 @@ fn should_create_alias<T: PaymentMethodDataTypes>(
     is_mandate_payment && matches!(payment_method_data, PaymentMethodData::Card(_))
 }
 
-/// Builds the optional `3D` object for a raw-card Authorize request.
+/// Builds the optional `3D` object for a card request (Authorize / SetupMandate).
 /// - external/passthrough 3DS (merchant supplied `authentication_data`) -> `Authentication`
-/// - Datatrans-native 3DS (`auth_type == ThreeDs`, no external data) -> `Cardholder`
+/// - Datatrans-native 3DS (`auth_type == ThreeDs` with no external data, or a flow that
+///   always drives a native challenge such as SetupMandate zero-auth alias registration,
+///   signaled via `native_challenge`) -> `Cardholder`
 /// - no 3DS -> `None`
-fn build_three_ds_data<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+fn build_three_ds_data(
+    authentication_data: Option<&AuthenticationData>,
+    resource_common_data: &PaymentFlowData,
+    native_challenge: bool,
 ) -> Result<Option<ThreeDSecureData>, error_stack::Report<IntegrationError>> {
-    if let Some(auth_data) = &router_data.request.authentication_data {
+    if let Some(auth_data) = authentication_data {
         let cavv = auth_data.cavv.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "authentication_data.cavv",
@@ -581,11 +587,11 @@ fn build_three_ds_data<
             three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
             authentication_response: THREE_DS_AUTHENTICATION_RESPONSE_Y.to_string(),
         })))
-    } else if router_data.resource_common_data.is_three_ds() {
+    } else if native_challenge || resource_common_data.is_three_ds() {
         Ok(Some(ThreeDSecureData::Cardholder(ThreedsInfo {
             cardholder: CardHolder {
-                cardholder_name: router_data.resource_common_data.get_billing_full_name()?,
-                email: router_data.resource_common_data.get_billing_email()?,
+                cardholder_name: resource_common_data.get_billing_full_name()?,
+                email: resource_common_data.get_billing_email()?,
             },
         })))
     } else {
@@ -831,24 +837,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
-        // Zero-auth alias registration always runs Datatrans-native 3DS: send the
-        // cardholder details so Datatrans can drive the ACS challenge. Shared by the
-        // raw-card (`PLAIN`) and the Google Pay alias (`ALIAS`) registration, since
-        // SetupMandate never carries passthrough external authentication artifacts.
-        // Evaluated lazily so an unsupported payment method still reports
-        // `NotImplemented` rather than a missing-billing-field error.
-        let native_three_ds =
-            || -> Result<Option<ThreeDSecureData>, error_stack::Report<IntegrationError>> {
-                Ok(Some(ThreeDSecureData::Cardholder(ThreedsInfo {
-                    cardholder: CardHolder {
-                        cardholder_name: router_data
-                            .resource_common_data
-                            .get_billing_full_name()?,
-                        email: router_data.resource_common_data.get_billing_email()?,
-                    },
-                })))
-            };
-
+        // Zero-auth alias registration always runs Datatrans-native 3DS (`native_challenge:
+        // true`): send the cardholder details so Datatrans can drive the ACS challenge.
+        // Shared by the raw-card (`PLAIN`) and the Google Pay alias (`ALIAS`) registration,
+        // since SetupMandate never carries passthrough external authentication artifacts.
+        // The call sits inside the match arms so an unsupported payment method still
+        // reports `NotImplemented` rather than a missing-billing-field error.
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => DatatransCard {
                 alias: None,
@@ -857,7 +851,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
                 cvv: Some(card_data.card_cvc.clone()),
                 card_type: Some(CARD_TYPE_PLAIN.to_string()),
-                three_ds: native_three_ds()?,
+                // zero auth always runs native 3DS, so Datatrans can drive the ACS challenge with the cardholder details
+                three_ds: build_three_ds_data(None, &router_data.resource_common_data, true)?,
             },
             // Google Pay zero-auth registration: the PaymentMethodToken flow already
             // tokenized the Google Pay payload into a Datatrans alias
@@ -873,7 +868,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiry_year: None,
                 cvv: None,
                 card_type: Some(CARD_TYPE_ALIAS.to_string()),
-                three_ds: native_three_ds()?,
+                three_ds: build_three_ds_data(None, &router_data.resource_common_data, true)?,
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
