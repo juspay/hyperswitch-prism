@@ -6,8 +6,8 @@
 //! The two products share no types, transformers, status maps or configuration.
 //!
 //! A single endpoint serves every operation; the operation is chosen by the `type` attribute on
-//! the `<request>` root element (`auth`, `settle` and `void` here; `rebate` and `query` are the
-//! follow-up flows that will reuse this scaffolding).
+//! the `<request>` root element (`auth`, `settle`, `void` and `rebate` here; `query` is the
+//! remaining follow-up flow that will reuse this scaffolding).
 
 pub mod transformers;
 
@@ -16,10 +16,10 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -38,6 +38,7 @@ use serde::Serialize;
 use transformers::{
     GlobalpaymentsRealexCaptureRequest, GlobalpaymentsRealexCaptureResponse,
     GlobalpaymentsRealexPaymentsRequest, GlobalpaymentsRealexPaymentsResponse,
+    GlobalpaymentsRealexRefundRequest, GlobalpaymentsRealexRefundResponse,
     GlobalpaymentsRealexVoidRequest, GlobalpaymentsRealexVoidResponse,
 };
 
@@ -85,6 +86,13 @@ macros::create_all_prerequisites!(
             response_body: GlobalpaymentsRealexVoidResponse,
             response_format: xml,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: GlobalpaymentsRealexRefundRequest,
+            response_body: GlobalpaymentsRealexRefundResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -94,6 +102,15 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.globalpayments_realex.base_url
+        }
+
+        /// The Refund flow hangs off `RefundFlowData` rather than `PaymentFlowData`, so it needs
+        /// its own accessor; the URL it resolves to is identical.
+        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.globalpayments_realex.base_url
         }
@@ -135,6 +152,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for GlobalpaymentsRealex<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for GlobalpaymentsRealex<T>
 {
 }
 
@@ -285,6 +307,41 @@ macros::macro_connector_implementation!(
 );
 
 // =============================================================================
+// REFUND FLOW (`type="rebate"`)
+// =============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: GlobalpaymentsRealex,
+    curl_request: SoapXml(GlobalpaymentsRealexRefundRequest),
+    curl_response: GlobalpaymentsRealexRefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(self.build_xml_headers())
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Same single CGI endpoint as every other flow; only the `type` attribute differs.
+            Ok(self.build_endpoint_url(self.connector_base_url_refunds(req)))
+        }
+    }
+);
+
+// =============================================================================
 // CONNECTOR COMMON
 // =============================================================================
 
@@ -360,7 +417,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// Authorize (`auth`), Capture (`settle`) and Void (`void`) are wired. Refund (`rebate`) and
+// Authorize (`auth`), Capture (`settle`), Void (`void`) and Refund (`rebate`) are wired.
 // PSync/RSync (`query`) reuse the same endpoint and digest scaffolding and are follow-up work.
 macros::macro_connector_flow_status_impls!(
     connector: GlobalpaymentsRealex,
@@ -368,7 +425,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         PSync,
-        Refund,
         RSync,
         PreAuthenticate,
         Authenticate,

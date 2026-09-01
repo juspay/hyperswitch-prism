@@ -6,13 +6,14 @@
 //!
 //! Reference: `grace/rulesbook/codegen/references/globalpayments_realex/technical_specification.md`
 
-use common_enums::{AttemptStatus, CaptureMethod, CardNetwork};
+use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, RefundStatus};
 use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, Void},
+    connector_flow::{Authorize, Capture, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, ResponseId as DomainResponseId,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData,
+        ResponseId as DomainResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
@@ -41,6 +42,11 @@ pub const REQUEST_TYPE_SETTLE: &str = "settle";
 /// Root element `type` attribute for the Void flow. Same endpoint and envelope again — a `void`
 /// reverses an authorization that has not been settled yet (tech spec §12.2).
 pub const REQUEST_TYPE_VOID: &str = "void";
+/// Root element `type` attribute for the Refund flow. A `rebate` returns funds to the cardholder
+/// against an existing, captured transaction; the *unreferenced* credit-to-a-card request is
+/// `type="credit"`, which is a different request type with a different password and is out of
+/// scope (tech spec §12.3).
+pub const REQUEST_TYPE_REBATE: &str = "rebate";
 /// Ecommerce channel. The other documented value is `MOTO`, which is out of scope.
 pub const CHANNEL_ECOM: &str = "ECOM";
 /// `<cvn><presind>` — `1` means "CVN present on the card and supplied by the cardholder".
@@ -69,7 +75,9 @@ pub struct GlobalpaymentsRealexAuthType {
     pub shared_secret: Secret<String>,
     pub merchant_id: Secret<String>,
     pub account: Secret<String>,
-    /// Only consumed by the (not-yet-implemented) Refund flow's `<refundhash>`.
+    /// The **Rebate** password. Consumed by the Refund flow alone, as the sole input to
+    /// `<refundhash>` (see [`build_refund_password_hash`]) — never by `<sha1hash>`, which is
+    /// always keyed on `shared_secret`.
     pub refund_password: Secret<String>,
 }
 
@@ -185,27 +193,32 @@ fn build_auth_request_hash(
 }
 
 /// Digest for the request types that reference an existing transaction rather than a card —
-/// `settle` (Capture) and `void` (Void).
+/// `settle` (Capture), `void` (Void) and `rebate` (Refund).
 ///
 /// The blueprint is the same six positional slots as `auth`
-/// (`timestamp.merchantid.orderid.amount.currency.cardnumber`), but the amount slot must mirror the
-/// body **exactly**:
+/// (`timestamp.merchantid.orderid.amount.currency.cardnumber`), and every slot must mirror the
+/// body **exactly**. The card-number slot is always empty here (no card data is ever sent on a
+/// reference request), leaving these three shapes:
 ///
-/// * `<amount>` omitted -> `timestamp.merchantid.orderid...`
-/// * `<amount>` present -> `timestamp.merchantid.orderid.<amount>..`
+/// | Flow | `<amount>` on the wire | Stage-1 string |
+/// |---|---|---|
+/// | `void` | absent | `timestamp.merchantid.orderid...` |
+/// | `settle` | present, **no** `currency` attribute | `timestamp.merchantid.orderid.<amount>..` |
+/// | `rebate` | present, **with** a `currency` attribute | `timestamp.merchantid.orderid.<amount>.<currency>.` |
 ///
-/// Both variants were **verified live** against the sandbox while implementing the Capture flow;
-/// the documentation's partial-settle worked example is a placeholder and could not be used
-/// (tech spec §16 item 6). Filling the amount slot while omitting `<amount>` — or filling the
-/// currency slot at all — is rejected with `505 sha1hash incorrect`.
+/// The `settle` and `void` variants were **verified live** against the sandbox while implementing
+/// those flows; the documentation's partial-settle worked example is a placeholder and could not be
+/// used (tech spec §16 item 6). Filling the amount slot while omitting `<amount>` — or filling the
+/// currency slot on a `settle` — is rejected with `505 sha1hash incorrect`.
 ///
-/// Capture always sends `<amount>` and therefore always uses the amount-filled blueprint; `void`
-/// carries no `<amount>` at all, so it passes `None` and the slot stays empty (tech spec §12.2).
+/// `rebate` is the only reference request that carries a `currency`, and it *always* carries one,
+/// so it always fills both the amount and the currency slot (tech spec §12.3). Verified live.
 fn build_reference_request_hash(
     timestamp: &str,
     merchant_id: &str,
     order_id: &str,
     amount: Option<&str>,
+    currency: Option<&str>,
     shared_secret: &str,
 ) -> Secret<String> {
     Secret::new(realex_digest(
@@ -214,13 +227,37 @@ fn build_reference_request_hash(
             merchant_id,
             order_id,
             amount.unwrap_or_default(),
-            // Neither `settle` nor `void` carries a currency attribute or a card number; both slots
-            // stay empty but their separators are still emitted.
-            "",
+            // `settle` and `void` carry no currency attribute, so they pass `None` and the slot
+            // stays empty; `rebate` fills it. No reference request ever carries a card number, so
+            // the last slot is always empty — but its separator is still emitted.
+            currency.unwrap_or_default(),
             "",
         ],
         shared_secret,
     ))
+}
+
+/// The second, **independent** digest that only `rebate` (and the out-of-scope `credit`) carries.
+///
+/// ```text
+/// refundhash = SHA1_hex(plaintext rebate password)
+/// ```
+///
+/// One stage, 40 lowercase hex characters. It is **not** the two-stage
+/// [`realex_digest`] construction, it is **not** salted or concatenated with the Shared Secret
+/// (`api_key`), and it contains **no** transaction fields — it is a bare SHA-1 of the rebate
+/// password, which UCS holds in `api_secret` and this connector exposes as
+/// [`GlobalpaymentsRealexAuthType::refund_password`]. It is therefore constant for the account.
+///
+/// Getting this wrong fails with `505 The refund password you entered was incorrect.`, which is a
+/// *different message* from the `505 sha1hash incorrect …` a bad [`build_reference_request_hash`]
+/// produces — the `result` code alone cannot tell the two apart, so `<message>` is surfaced
+/// verbatim in `error_message` (tech spec §12.3).
+///
+/// Illustrative vector (not an account credential): `SHA1("password")` =
+/// `5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8`.
+fn build_refund_password_hash(refund_password: &str) -> Secret<String> {
+    Secret::new(sha1_hex(refund_password))
 }
 
 /// Response digest blueprint: `timestamp.merchantid.orderid.result.message.pasref.authcode`,
@@ -1081,6 +1118,9 @@ where
             &merchant_id,
             &order_id,
             Some(&amount),
+            // `settle`'s `<amount>` has no `currency` attribute, so the currency slot stays empty:
+            // `timestamp.merchantid.orderid.<amount>..` (verified live).
+            None,
             auth.shared_secret.peek(),
         );
 
@@ -1353,12 +1393,13 @@ where
 
         let timestamp = current_timestamp()?;
         let merchant_id = auth.merchant_id.clone().expose();
-        // No `<amount>` on the wire, so the amount slot of the digest stays empty:
-        // `timestamp.merchantid.orderid...` (tech spec §12.2).
+        // No `<amount>` on the wire, so the amount and currency slots of the digest both stay
+        // empty: `timestamp.merchantid.orderid...` (tech spec §12.2).
         let sha1hash = build_reference_request_hash(
             &timestamp,
             &merchant_id,
             &order_id,
+            None,
             None,
             auth.shared_secret.peek(),
         );
@@ -1498,6 +1539,346 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
                 ..router_data.resource_common_data
             },
             response: void_response,
+            ..router_data
+        })
+    }
+}
+
+// =============================================================================
+// REFUND — `type="rebate"` (tech spec §12.3)
+// =============================================================================
+
+/// The `rebate` request — a **referenced** refund against an existing, captured transaction.
+///
+/// Like `settle` and `void` it carries no card data and addresses the original transaction by
+/// `<orderid>` + `<pasref>` + `<authcode>`, but it differs from both in two ways that each have
+/// their own failure mode:
+///
+/// 1. **`<amount>` carries the `currency` as an attribute** — `<amount currency="EUR">1999</amount>`
+///    — where `settle` sends a bare `<amount>599</amount>`. The digest blueprint mirrors that, so
+///    `rebate` is the only reference request whose currency slot is filled
+///    (see [`build_reference_request_hash`]).
+/// 2. **A second, independent digest `<refundhash>`** derived from the *rebate password*
+///    (`api_secret`), not from the shared secret (see [`build_refund_password_hash`]). This is the
+///    only flow on this connector that consumes `api_secret` at all.
+///
+/// `<authcode>` is graded **mandatory** by the vendor for `rebate` (it is merely accepted, and
+/// ignored, by `settle`), and it must be the **original authorization's** auth code — not the
+/// `000000` that `settle` and `void` responses return. It reaches us through the same
+/// `connector_metadata` channel Authorize publishes and [`extract_followup_metadata`] reads.
+///
+/// **Which `<pasref>`:** verified live against the sandbox with the A/B test tech spec §12.3
+/// prescribes — `auth`(MANUAL) -> `settle` -> `rebate` with each candidate in turn:
+///
+/// | `<pasref>` sent | Result |
+/// |---|---|
+/// | the **original `auth`** pasref | `00 Successful` |
+/// | the `settle`-minted pasref | `508 Original transaction not found.` |
+///
+/// So `rebate` behaves exactly like `void` (tech spec §12.2) despite acting *after* capture: it
+/// wants the **`auth`** pasref. Because UCS surfaces the settle-minted pasref as the Capture
+/// response's `connector_transaction_id`, a caller refunding a captured payment must pass the
+/// **Authorize** transaction id here, not the Capture one.
+#[derive(Debug, Serialize)]
+#[serde(rename = "request")]
+pub struct GlobalpaymentsRealexRefundRequest {
+    #[serde(rename = "@type")]
+    pub request_type: String,
+    #[serde(rename = "@timestamp")]
+    pub timestamp: String,
+    pub merchantid: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<Secret<String>>,
+    /// The `<orderid>` of the transaction being refunded, not a new one.
+    pub orderid: String,
+    /// `<amount currency="…">…</amount>` — the same shape Authorize uses, and unlike `settle`,
+    /// which sends a bare integer.
+    pub amount: GlobalpaymentsRealexAmount,
+    /// The gateway reference minted by the original `auth`.
+    pub pasref: String,
+    /// The **original authorization's** `<authcode>`. Mandatory for `rebate`; omitted only when
+    /// Authorize never surfaced one, in which case the gateway answers `502 Compulsory field not
+    /// present` rather than silently refunding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authcode: Option<String>,
+    /// Single SHA-1 of the plaintext rebate password (`api_secret`) — **not** the shared secret.
+    pub refundhash: Secret<String>,
+    /// The ordinary two-stage request digest, keyed on the shared secret (`api_key`).
+    pub sha1hash: Secret<String>,
+}
+
+impl GetSoapXml for GlobalpaymentsRealexRefundRequest {
+    fn to_soap_xml(&self) -> String {
+        // Mirrors the other flows: a serialization failure emits a minimal well-formed document
+        // that the gateway answers with `502 Mandatory Fields missing`, rather than panicking.
+        quick_xml::se::to_string_with_root("request", self).unwrap_or_else(|error| {
+            tracing::error!(
+                connector = "globalpayments_realex",
+                ?error,
+                "Failed to serialize the GlobalpaymentsRealex rebate request to XML"
+            );
+            "<request/>".to_string()
+        })
+    }
+}
+
+/// The `rebate` response is the **same document shape** as every other response on this API — a
+/// success carries a `<batchid>` (unlike `void`, which returns `0`) and a **new** `<pasref>`, and a
+/// failure is the small error document with only `@timestamp`, `<result>`, `<message>` and
+/// `<orderid>`. It therefore reuses the one response struct, including the tolerant `<batchid>`
+/// deserializer.
+///
+/// Two live observations that contradict the vendor documentation, both harmless because nothing
+/// here matches on either value — but worth recording so that a future reader does not "fix" them:
+///
+/// * `<authcode>` is a **real issuer auth code** (e.g. `003712`), not the `000000` the vendor sample
+///   prints and that `settle` / `void` genuinely do return. It is hashed verbatim into the response
+///   check-hash, so it must be read from the response, never assumed.
+/// * `<message>` on a successful rebate is `AUTH CODE: nnnnnn` — neither the `Successful` of the XML
+///   sample nor the `Rebated Successfully` of the SDK guide. Success is decided by `<result>` alone.
+pub type GlobalpaymentsRealexRefundResponse = GlobalpaymentsRealexPaymentsResponse;
+
+impl<T>
+    TryFrom<
+        GlobalpaymentsRealexRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    > for GlobalpaymentsRealexRefundRequest
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: GlobalpaymentsRealexRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
+
+        // Exactly the same metadata channel Capture and Void use: Authorize publishes the original
+        // `<orderid>` and `<authcode>` as `connector_metadata`, which comes back on
+        // `connector_feature_data` (or, for callers that route it there, `refund_metadata`).
+        let metadata = extract_followup_metadata(
+            request.connector_feature_data.as_ref(),
+            request.refund_connector_metadata.as_ref(),
+        );
+
+        // `<orderid>` must be the reference **we** originally sent — never the gateway echo. Every
+        // failed rebate observed live echoes it prefixed, `_rebate_ucs-1234` (the `settle`
+        // equivalent is `_settle_…`). Feeding an echo back yields
+        // `508 Invalid characters in order id …` or `508 Original transaction not found.`
+        //
+        // `connector_order_id` is accepted as a fallback for callers that carry the original order
+        // id there; `connector_request_reference_id` on a refund is the *merchant refund id*, which
+        // is a different value, so it is deliberately not used.
+        let order_id = match metadata
+            .as_ref()
+            .map(|metadata| metadata.orderid.clone())
+            .or_else(|| request.connector_order_id.clone())
+        {
+            Some(order_id) => sanitize_order_id(&order_id)?,
+            None => {
+                return Err(report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.orderid",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalpaymentsRealex rebate needs the original <orderid>: echo the \
+                             Authorize response's connector_feature_data back on the refund \
+                             request, or set connector_order_id to the original order id"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }))
+            }
+        };
+
+        // `<pasref>` is the gateway reference, i.e. the connector_transaction_id. It must be the
+        // one the **original `auth`** minted — see the struct doc for the live A/B result.
+        let pasref = request.connector_transaction_id.trim().to_string();
+        if pasref.is_empty() {
+            return Err(report!(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "GlobalpaymentsRealex rebate needs the original <pasref> as the \
+                         connector_transaction_id"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }));
+        }
+
+        // Minor units, integer, no decimal point. The gateway owns the 115% / 105% over-refund
+        // ceiling; no client-side limit is applied so its refusal surfaces verbatim.
+        let amount = format_amount(request.minor_refund_amount, request.currency)?;
+        let currency = request.currency.to_string();
+
+        let timestamp = current_timestamp()?;
+        let merchant_id = auth.merchant_id.clone().expose();
+        // `rebate` always carries `<amount currency="…">`, so both the amount and the currency slot
+        // are filled: `timestamp.merchantid.orderid.<amount>.<currency>.` (tech spec §12.3).
+        let sha1hash = build_reference_request_hash(
+            &timestamp,
+            &merchant_id,
+            &order_id,
+            Some(&amount),
+            Some(&currency),
+            auth.shared_secret.peek(),
+        );
+
+        Ok(Self {
+            request_type: REQUEST_TYPE_REBATE.to_string(),
+            timestamp,
+            merchantid: auth.merchant_id,
+            account: Some(auth.account),
+            orderid: order_id,
+            amount: GlobalpaymentsRealexAmount {
+                currency,
+                value: amount,
+            },
+            pasref,
+            authcode: metadata.and_then(|metadata| metadata.authcode),
+            // The one and only consumer of `api_secret` on this connector. Deriving this from
+            // `shared_secret` instead is a silent bug on any account where the two differ.
+            refundhash: build_refund_password_hash(auth.refund_password.peek()),
+            sha1hash,
+        })
+    }
+}
+
+/// `result` → `RefundStatus` for `rebate` (tech spec §9.4, §12.3).
+///
+/// There is no pending or asynchronous refund state in this API — the answer is final in the same
+/// HTTP 200 response — so `RefundStatus::Pending` is never correct here. Every non-`00` code is a
+/// plain `Failure` carrying the gateway's own `<result>` as `error_code` and its `<message>` as
+/// `error_message`; nothing is retried and nothing is mapped to success.
+///
+/// The `<message>` matters more here than on any other flow, because the two digests fail with the
+/// *same* result code and are only distinguishable by their text. Codes marked **verified live**
+/// were reproduced against the sandbox while implementing this flow:
+///
+/// | `result` | `message` | Cause |
+/// |---|---|---|
+/// | `505` | `sha1hash incorrect - check your code and the Developers Documentation` | bad `<sha1hash>` — blueprint / mirror-rule mistake, or a stale timestamp. **Verified live** by supplying a wrong shared secret with a correct rebate password |
+/// | `505` | `The refund password you entered was incorrect.` | bad `<refundhash>` — wrong `api_secret`, or the two-stage construction used instead of the single SHA-1. **Verified live** by supplying a wrong rebate password with a correct shared secret |
+/// | `512` | `You may only refund up to 100% of the original amount.` | over-refund. **Verified live** — note the *ceiling is account-configured*: the docs advertise 115% (`508`) and 105% (`512`), and this sandbox account enforces **100%**. This is exactly why no client-side limit is applied |
+/// | `508` | `You may only rebate up to 115% of the original amount.` | the 115% variant of the ceiling on accounts configured that way |
+/// | `508` | `Original transaction not found.` | wrong `<pasref>` / `<orderid>` pair. **Verified live** with the `settle`-minted pasref |
+/// | `512` | `This transaction has already been rebated and cannot be rebated again.` | second partial refund on an account not enabled for multiple refunds |
+/// | `512` | `You can't refund a delayed transaction that has not been sent for settlement …` | the authorization was never captured — void it instead |
+/// | `506` | `The line number 2 which contains '…' does not conform to the schema` | unparseable `<pasref>`. **Verified live** |
+///
+/// Every one of these arrives as HTTP 200 in the small error document, so they are classified from
+/// `<result>` here rather than from a transport status.
+fn map_refund_status(result: &str) -> RefundStatus {
+    if result == RESULT_SUCCESS {
+        RefundStatus::Success
+    } else {
+        RefundStatus::Failure
+    }
+}
+
+impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        // Same check-hash blueprint as `auth`, `settle` and `void`
+        // (`timestamp.merchantid.orderid.result.message.pasref.authcode`), keyed on the **shared
+        // secret** — `refundhash` plays no part in response verification — and the same "no
+        // <sha1hash> on the small 5xx error document" rule.
+        let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
+
+        let status = match hash_verification {
+            // A tampered response must never be reported as a completed refund.
+            HashVerification::Mismatch => RefundStatus::Failure,
+            HashVerification::Verified | HashVerification::Skipped => {
+                map_refund_status(&response.result)
+            }
+        };
+
+        if hash_verification == HashVerification::Mismatch {
+            tracing::warn!(
+                connector = "globalpayments_realex",
+                order_id = ?response.orderid,
+                "GlobalpaymentsRealex rebate response sha1hash did not match the computed digest"
+            );
+        }
+
+        let message = response
+            .message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+
+        let refund_response =
+            if response.is_success() && hash_verification != HashVerification::Mismatch {
+                // A rebate mints a **new** `<pasref>`, and that is the refund's own identity. Falling
+                // back to the payment's pasref would make two different refunds indistinguishable, so
+                // a success without one is a response-handling failure rather than a silent alias.
+                let connector_refund_id = response.pasref.clone().ok_or_else(|| {
+                    report!(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })
+                    .attach_printable(
+                        "GlobalpaymentsRealex returned result 00 on a rebate without a <pasref> \
+                     refund reference",
+                    )
+                })?;
+
+                Ok(RefundsResponseData {
+                    connector_refund_id,
+                    refund_status: status,
+                    status_code: http_code,
+                    acquirer_reference_number: None,
+                })
+            } else {
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    // The `<result>` code verbatim — `"505"`, `"508"`, `"512"`, …
+                    code: response.result.clone(),
+                    // Surfaced verbatim: on a `505` this text is the *only* thing separating a bad
+                    // `<sha1hash>` from a bad `<refundhash>`.
+                    message: message.clone(),
+                    reason: response.message.clone(),
+                    attempt_status: Some(FlowStatus::Refund(status)),
+                    connector_transaction_id: response.pasref.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            };
+
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: refund_response,
             ..router_data
         })
     }
