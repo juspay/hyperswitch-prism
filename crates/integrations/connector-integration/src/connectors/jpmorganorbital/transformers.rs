@@ -264,30 +264,39 @@ impl AmountConvertor for JpmorganOrbitalAmountForConnector {
 // ORDER ID + RETRY TRACE
 // =============================================================================
 
+/// True when `reference` already satisfies every `order.orderID` rule and can be sent
+/// through untouched, keeping the value traceable in Orbital's back office.
+fn is_order_id_verbatim_safe(reference: &str) -> bool {
+    !reference.is_empty()
+        && reference.len() <= MAX_ORDER_ID_LEN
+        && !reference.starts_with(' ')
+        && reference
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | ',' | '$' | '@' | '&' | ' '))
+}
+
+/// Orbital's `order.orderID` is at most 22 characters of `a-z A-Z 0-9 - , $ @ &` plus
+/// space, may not start with a space, and its **first 8 characters must be unique per
+/// transaction**. A UCS `connector_request_reference_id` is routinely longer than 22
+/// characters and carries `_`, which is outside that set.
+///
+/// Sanitising and truncating would break the uniqueness rule: references that differ
+/// only in a prefix collapse onto the same leading characters. So this mirrors
+/// `ilixium::derive_merchant_ref` instead — send the reference verbatim when it already
+/// fits, otherwise derive `hex(SHA-256(reference))[..22]`. Hex is a subset of the
+/// allowed charset, never starts with a space, and spreads the leading 8 characters
+/// uniformly.
+///
+/// The derivation is deterministic, which is what lets PSync rebuild the same
+/// `orderID` from the same reference without persisting a mapping. It is also
+/// idempotent: a 22-character hex digest is itself verbatim-safe, so re-deriving from
+/// an already-derived value returns it unchanged.
 fn build_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
-    let sanitized: String = reference
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || matches!(c, '-' | ',' | '$' | '@' | '&' | ' ') {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect();
+    if is_order_id_verbatim_safe(reference) {
+        return Ok(reference.to_string());
+    }
 
-    let truncated = if sanitized.len() > MAX_ORDER_ID_LEN {
-        sanitized
-            .get(sanitized.len() - MAX_ORDER_ID_LEN..)
-            .unwrap_or(&sanitized)
-            .to_string()
-    } else {
-        sanitized
-    };
-
-    // A leading space is explicitly illegal.
-    let order_id = truncated.trim_start().to_string();
-    if order_id.is_empty() {
+    if reference.trim().is_empty() {
         return Err(error_stack::report!(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_request_reference_id",
@@ -300,7 +309,12 @@ fn build_order_id(reference: &str) -> Result<String, error_stack::Report<Integra
             }
         ));
     }
-    Ok(order_id)
+
+    let digest = format!("{:x}", Sha256::digest(reference.as_bytes()));
+    Ok(digest
+        .get(..MAX_ORDER_ID_LEN)
+        .unwrap_or(&digest)
+        .to_string())
 }
 
 /// Reject a payment whose currency does not match what the MID is provisioned for.
