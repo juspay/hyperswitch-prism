@@ -15,5 +15,31 @@
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
     "RecurringPaymentService/Revoke"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "sync_poll_until_terminal_seconds": 15,
+  "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "threeds_card_authenticate": "out of scope for this certification pass — not part of the core Authorize/PSync/Capture/Void/Refund/SetupMandate flows being certified; not yet verified live."
+    },
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "threeds_card_pre_authenticate": "out of scope for this certification pass — not verified live; a prior local run of this exact scenario crashed the server with a stack overflow (mitigated process-wide by RUST_MIN_STACK, but the request itself is still unverified)."
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live."
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live.",
+      "incremental_auth_with_tip": "out of scope for this certification pass — see incremental_auth_basic.",
+      "incremental_auth_multiple_increase": "out of scope for this certification pass — see incremental_auth_basic.",
+      "incremental_auth_fail_invalid_transaction_id": "out of scope for this certification pass — see incremental_auth_basic."
+    },
+    "RecurringPaymentService/Revoke": {
+      "revoke_active_mandate": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live.",
+      "revoke_with_reason": "out of scope for this certification pass — see revoke_active_mandate.",
+      "revoke_fail_invalid_mandate_id": "out of scope for this certification pass — see revoke_active_mandate."
+    }
+  }
 }

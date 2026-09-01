@@ -1363,7 +1363,27 @@ pub fn apply_context_map(
 
             if let Some(value) = source_value {
                 if !value.is_null() {
-                    let _ = deep_set_json_path(current_grpc_req, target_path, value.clone());
+                    // A context_map entry declared alongside one dependency is
+                    // forwarded to every later dependency in the same chain
+                    // (needed so a field several links back, e.g. a created
+                    // customer ID, still reaches a dependency two levels
+                    // deeper) — but the target proto varies per dependency, so
+                    // blindly creating the path can insert a field that
+                    // dependency's request never had (e.g. RefundService/Get's
+                    // Authorize context_map writes "amount.minor_amount", which
+                    // PaymentServiceRefundRequest has no "amount" field for at
+                    // all, only "refund_amount" — grpcurl then rejects the
+                    // whole request as an unknown field). Only apply an entry
+                    // whose top-level segment this dependency's own request
+                    // already references, so a mapping only ever lands where
+                    // it is actually relevant.
+                    let top_level = target_path.split('.').next().unwrap_or(target_path);
+                    let applies_here = current_grpc_req
+                        .as_object()
+                        .is_some_and(|map| map.contains_key(top_level));
+                    if applies_here {
+                        let _ = deep_set_json_path(current_grpc_req, target_path, value.clone());
+                    }
                 }
             }
         }
@@ -3060,6 +3080,7 @@ fn normalize_request_common(connector: &str, suite: &str, scenario: &str, value:
                 "country_alpha2_code",
                 "customer",
                 "metadata",
+                "return_url",
             ];
             let mut payment_ctx = serde_json::Map::new();
             for key in &payment_keys {
@@ -4540,7 +4561,9 @@ fn maybe_poll_sync_until_terminal(
     grpc_request: &mut Option<String>,
     grpc_response: &mut Option<String>,
 ) {
-    if suite != "get" || options.backend != ExecutionBackend::Grpcurl {
+    if !matches!(suite, "PaymentService/Get" | "RefundService/Get")
+        || options.backend != ExecutionBackend::Grpcurl
+    {
         return;
     }
     let Some(spec) = load_connector_spec(connector) else {

@@ -19,6 +19,12 @@ use crate::harness::scenario_types::ScenarioError;
 /// Sentinel types:
 /// - `"auto_generate"` — replaced with a generated value appropriate for the
 ///   field's semantic role (e.g. UUID for IDs, email for email fields, etc.)
+/// - `"auto_generate_numeric"` — like `"auto_generate"`, but for a field whose
+///   proto type is numeric (e.g. an `int64` amount), so the sentinel resolves
+///   to a real `Value::Number`, not a string a numeric field would reject.
+///   Only usable via a connector's `override.json`: the shared scenario JSON
+///   is typed, so a numeric field there is already a real number and never
+///   carries this string sentinel in the first place.
 /// - `"connector_name"` — replaced with the uppercase connector name (e.g.
 ///   `"STRIPE"`, `"AIRWALLEX"`), matching the proto `Connector` enum values.
 pub fn resolve_auto_generate(
@@ -43,6 +49,15 @@ pub fn resolve_auto_generate(
                 &path,
                 Value::String(connector_upper.clone()),
             );
+            continue;
+        }
+
+        // Handle "auto_generate_numeric" sentinel — replace with a generated
+        // integer, so a sandbox that dedupes on (card, amount) sees a fresh
+        // amount every run instead of the shared scenario's fixed constant.
+        if is_auto_generate_numeric_sentinel(current_value) {
+            let generated = generate_numeric_value(&mut runner)?;
+            let _ = set_json_path_value(current_grpc_req, &path, Value::Number(generated.into()));
             continue;
         }
 
@@ -274,6 +289,26 @@ fn is_auto_generate_sentinel(value: &Value) -> bool {
         return false;
     };
     text.to_ascii_lowercase().contains("auto_generate")
+}
+
+/// Detects the `"auto_generate_numeric"` sentinel — checked before the plain
+/// `"auto_generate"` sentinel, whose `.contains("auto_generate")` match would
+/// also fire on this string.
+fn is_auto_generate_numeric_sentinel(value: &Value) -> bool {
+    value.as_str() == Some("auto_generate_numeric")
+}
+
+/// Generates a small positive integer offset, distinct enough across
+/// invocations in the same run to avoid colliding with a fixed base amount a
+/// shared scenario already sends (e.g. a sandbox that dedupes authorizations
+/// by (card, amount) within a short window).
+fn generate_numeric_value(runner: &mut TestRunner) -> Result<i64, ScenarioError> {
+    let tree = (1_000i64..1_000_000i64)
+        .new_tree(runner)
+        .map_err(|error| ScenarioError::GrpcurlExecution {
+            message: format!("auto-generate-numeric failed: {error}"),
+        })?;
+    Ok(tree.current())
 }
 
 /// Detects the `"connector_name"` sentinel — a placeholder that should be

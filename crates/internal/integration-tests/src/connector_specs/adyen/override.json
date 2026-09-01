@@ -227,6 +227,36 @@
     "PaymentService/SetupRecurring": {
       "grpc_req": {
         "return_url": "https://google.com",
+        "customer": {
+          "connector_customer_id": "auto_generate"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5101180000000007"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        },
+        "browser_info": {
+          "language": "en-US"
+        }
+      }
+    },
+    "setup_recurring": {
+      "grpc_req": {
+        "return_url": "https://google.com",
+        "customer": {
+          "connector_customer_id": "auto_generate"
+        },
         "payment_method": {
           "card": {
             "card_number": {
@@ -250,6 +280,9 @@
     },
     "setup_recurring_with_webhook": {
       "grpc_req": {
+        "customer": {
+          "connector_customer_id": "auto_generate"
+        },
         "payment_method": {
           "card": {
             "card_number": {
@@ -273,6 +306,9 @@
     },
     "setup_recurring_with_order_context": {
       "grpc_req": {
+        "customer": {
+          "connector_customer_id": "auto_generate"
+        },
         "payment_method": {
           "card": {
             "card_number": {
@@ -292,6 +328,23 @@
         "browser_info": {
           "language": "en-US"
         }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "RecurringPaymentService/Charge": {
+      "grpc_req": {
+        "return_url": "https://google.com"
+      }
+    },
+    "recurring_charge": {
+      "grpc_req": {
+        "return_url": "https://google.com"
+      }
+    },
+    "recurring_charge_low_amount": {
+      "grpc_req": {
+        "return_url": "https://google.com"
       }
     }
   }
