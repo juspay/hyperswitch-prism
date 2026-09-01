@@ -8,6 +8,7 @@ This harness supports connector-specific scenario overrides through a trait-base
 - Let connectors override only what differs.
 - Allow connector-side extra keys in request/assert payloads.
 - Restrict overrides to existing scenarios (no connector-only scenario creation).
+- Keep capability statements out of this file; they live in `specs.json`.
 
 ## When to use override
 
@@ -111,6 +112,15 @@ Example: remove one baseline assertion rule
   }
 }
 ```
+
+## Declaring a scenario unsupported
+
+Not an override. Use `unsupported_scenarios` in `connector_specs/<connector>/specs.json`
+— it states a capability, so it belongs with `supported_suites` and
+`supported_payment_methods` rather than in this file.
+
+Do not reach for an `assert` override that expects the failure instead. It passes,
+carries no reason, and turns a future real regression green.
 
 ## Trait and registry
 

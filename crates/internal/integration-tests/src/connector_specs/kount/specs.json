@@ -1,6 +1,7 @@
 {
   "connector": "kount",
   "supported_suites": [
-    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentMethodAuthenticationService/PreAuthenticate"
   ]
 }

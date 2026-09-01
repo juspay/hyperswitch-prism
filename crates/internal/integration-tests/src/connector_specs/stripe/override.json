@@ -20,7 +20,9 @@
       }
     },
     "no3ds_auto_capture_giropay": {
-      "grpc_req": {}
+      "grpc_req": {
+        "setup_future_usage": null
+      }
     },
     "no3ds_auto_capture_bancontact": {
       "grpc_req": {
@@ -48,7 +50,17 @@
       }
     },
     "no3ds_auto_capture_sepa_bank_transfer": {
-      "grpc_req": {}
+      "grpc_req": {
+        "setup_future_usage": null,
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "DE"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "DE"
+          }
+        }
+      }
     },
     "no3ds_auto_capture_ach_bank_transfer": {
       "grpc_req": {
@@ -56,7 +68,9 @@
       }
     },
     "no3ds_auto_capture_bacs_bank_transfer": {
-      "grpc_req": {}
+      "grpc_req": {
+        "setup_future_usage": null
+      }
     },
     "no3ds_fail_payment": {
       "grpc_req": {
@@ -87,32 +101,13 @@
     "revoke_with_reason": {
       "assert": {
         "status": {
-          "one_of": ["REVOKED", "INACTIVE", "MANDATE_REVOKE_FAILED"]
+          "one_of": [
+            "REVOKED",
+            "INACTIVE",
+            "MANDATE_REVOKE_FAILED"
+          ]
         },
         "error": null
-      }
-    }
-  },
-  "EventService/HandleEvent": {
-    "payment_succeeded": {
-      "assert": {
-        "source_verified": {
-          "must_not_exist": true
-        }
-      }
-    },
-    "payment_failed": {
-      "assert": {
-        "source_verified": {
-          "must_not_exist": true
-        }
-      }
-    },
-    "refund_succeeded": {
-      "assert": {
-        "source_verified": {
-          "must_not_exist": true
-        }
       }
     }
   }

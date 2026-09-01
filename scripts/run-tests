@@ -18,6 +18,7 @@
 #   --endpoint <addr>     Override gRPC endpoint (default: localhost:8000)
 #   --report              Write report.json + markdown test_report/ files
 #   --no-server           Do not start/stop the gRPC server automatically
+#   --no-build            Use pre-built target/debug binaries instead of invoking cargo
 #   --setup               Force re-run of the one-time setup wizard
 #   --skip-setup          Skip setup check entirely (assume setup is done)
 #
@@ -70,6 +71,7 @@ INTERFACE="grpc"
 ENDPOINT=""
 REPORT=false
 NO_SERVER=false
+NO_BUILD=false
 CARGO_EXTRA_FLAGS=()   # flags forwarded verbatim to test_ucs binary
 
 while [[ $# -gt 0 ]]; do
@@ -105,6 +107,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-server)
       NO_SERVER=true
+      shift
+      ;;
+    --no-build)
+      NO_BUILD=true
       shift
       ;;
     --connector|--suite|--scenario)
@@ -148,46 +154,44 @@ if [[ -f "${REPO_ROOT}/.env.connector-tests" ]]; then
 fi
 
 # ── gRPC server lifecycle ──────────────────────────────────────────────────────
+# shellcheck source=grpc-server.sh
+source "${SCRIPT_DIR}/grpc-server.sh"
+
 SERVER_MANAGED=false
 
 start_grpc_server() {
-  info "Building grpc-server (debug)..."
-  cargo build -p grpc-server \
-    --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
+  if [[ "${NO_BUILD}" == "true" ]]; then
+    if [[ ! -x "${REPO_ROOT}/target/debug/grpc-server" ]]; then
+      error "--no-build was passed but target/debug/grpc-server does not exist"
+      return 1
+    fi
+    info "Using pre-built grpc-server (--no-build)"
+  else
+    info "Building grpc-server (debug)..."
+    cargo build -p grpc-server \
+      --manifest-path "${REPO_ROOT}/Cargo.toml" 2>&1
+  fi
 
   info "Starting grpc-server on ${GRPC_HOST}:${GRPC_PORT}..."
-  CS__SERVER__HOST="${GRPC_HOST}" \
-  CS__SERVER__PORT="${GRPC_PORT}" \
-  CS__COMMON__ENVIRONMENT=development \
-  RUST_LOG=error \
-    "${REPO_ROOT}/target/debug/grpc-server" > /dev/null 2>&1 &
-  echo $! > "${GRPC_PID_FILE}"
-
-  info "Waiting for grpc-server to be ready on port ${GRPC_PORT}..."
-  for i in $(seq 1 40); do
-    if nc -z 127.0.0.1 "${GRPC_PORT}" 2>/dev/null; then
-      success "gRPC server is ready (PID $(cat "${GRPC_PID_FILE}"))"
-      SERVER_MANAGED=true
-      return 0
-    fi
-    sleep 0.5
-  done
-  error "gRPC server did not become ready within 20 s"
-  return 1
+  if ! grpc_server_start "${REPO_ROOT}/target/debug/grpc-server" \
+       "${GRPC_HOST}" "${GRPC_PORT}"; then
+    error "gRPC server did not start"
+    return 1
+  fi
+  echo "${GRPC_SERVER_PID}" > "${GRPC_PID_FILE}"
+  success "gRPC server is ready (PID ${GRPC_SERVER_PID})"
+  SERVER_MANAGED=true
+  return 0
 }
 
 stop_grpc_server() {
   if [[ "${SERVER_MANAGED}" != "true" ]]; then
     return 0
   fi
-  if [[ -f "${GRPC_PID_FILE}" ]]; then
-    local pid
-    pid="$(cat "${GRPC_PID_FILE}")"
-    info "Stopping gRPC server (PID ${pid})..."
-    kill "${pid}" 2>/dev/null || true
-    rm -f "${GRPC_PID_FILE}"
-    success "gRPC server stopped"
-  fi
+  info "Stopping gRPC server (PID ${GRPC_SERVER_PID:-unknown})..."
+  grpc_server_stop
+  rm -f "${GRPC_PID_FILE}"
+  success "gRPC server stopped"
 }
 
 # Ensure server is stopped even on error / SIGINT / SIGTERM
@@ -197,8 +201,16 @@ if [[ "${INTERFACE}" == "grpc" && "${NO_SERVER}" == "false" ]]; then
   start_grpc_server
 fi
 
-# ── Build cargo command ────────────────────────────────────────────────────────
-CMD=(cargo run -p integration-tests --bin test_ucs --)
+# ── Build test command ─────────────────────────────────────────────────────────
+if [[ "${NO_BUILD}" == "true" ]]; then
+  if [[ ! -x "${REPO_ROOT}/target/debug/test_ucs" ]]; then
+    error "--no-build was passed but target/debug/test_ucs does not exist"
+    exit 1
+  fi
+  CMD=("${REPO_ROOT}/target/debug/test_ucs")
+else
+  CMD=(cargo run -p integration-tests --bin test_ucs --)
+fi
 
 # Interface
 CMD+=(--interface "${INTERFACE}")

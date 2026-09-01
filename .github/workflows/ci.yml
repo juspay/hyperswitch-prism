@@ -57,7 +57,11 @@ jobs:
       stripe: ${{ steps.filter.outputs.stripe }}
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
-      connector-names: ${{ steps.connector-names.outputs.list }}
+      certification-inputs: ${{ steps.filter.outputs.certification-inputs }}
+      payment-connector-names: ${{ steps.connector-names.outputs.list }}
+      all-connector-names: ${{ steps.connector-names.outputs.all-list }}
+      new-connectors: ${{ steps.new-connectors.outputs.list }}
+      spec-modified-connectors: ${{ steps.spec-modified-connectors.outputs.list }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -106,23 +110,230 @@ jobs:
               - 'scripts/**'
             stripe:
               - 'crates/integrations/connector-integration/src/connectors/stripe.rs'
-              - 'crates/integrations/connector-integration/src/connectors/stripe/transformers.rs'
+              - 'crates/integrations/connector-integration/src/connectors/stripe/**'
+              - 'crates/internal/integration-tests/src/connector_specs/stripe/**'
             any-rs:
               - '**/*.rs'
             ci:
               - '.github/**'
-      - name: Extract changed connector names
+            # Read at run time by certification; they match no connector path.
+            # Separate from rust-core, which seven other jobs also gate on.
+            certification-inputs:
+              - 'crates/internal/connector-creds/**'
+              - 'crates/internal/integration-tests/src/bin/**'
+              - 'crates/internal/integration-tests/src/webhook_signatures.rs'
+              - 'scripts/**'
+              - 'config/**'
+              - '.github/scripts/**'
+              # Shared connector code: no connector name in the path, so nothing
+              # would be selected. `*` stops at the slash, sparing connectors/.
+              - 'crates/integrations/connector-integration/src/*.rs'
+      - name: Extract changed payment connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
         shell: bash
+        # Expressions reach bash through the environment, never spliced into the
+        # script: connector_files carries attacker-chosen file names on a fork PR,
+        # and one apostrophe in a path would end the quoting and run the rest.
+        env:
+          CONNECTOR_FILES: ${{ steps.filter.outputs.connector_files }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
         run: |
-          names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
-            jq -r '.[]' | \
-            grep -oE '(connectors|connector_specs)/[^/]+' | \
-            sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
-            sort -u | paste -sd ',' -)
-          echo "list=$names" >> $GITHUB_OUTPUT
-          echo "Changed connectors: $names"
+          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
+          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
+          base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
+
+          # Enumerate real directories instead of grepping diff paths, and
+          # require a specs.json so a shared, non-connector module in the same
+          # directory is never counted as a connector.
+          names_in_dir() {
+            local dir="$1"
+            local specs_root="$2"
+            [ -d "${dir}" ] || return 0
+            find "${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; | \
+              sed 's|\.rs$||' | sort -u | while IFS= read -r name; do
+                [ -f "${specs_root}/${name}/specs.json" ] && echo "${name}"
+              done
+          }
+
+          touched_under() {
+            local dir_prefix="$1"
+            local name="$2"
+            echo "${CONNECTOR_FILES}" | jq -r '.[]' | \
+              grep -qE "^${dir_prefix}/${name}(\.rs)?(/|$)"
+          }
+
+          payment_touched=""
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/integrations/connector-integration/src/connectors" "${name}"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(names_in_dir crates/integrations/connector-integration/src/connectors crates/internal/integration-tests/src/connector_specs)
+
+          # A connector's specs.json/override.json can change without any of
+          # its own Rust files changing, so specs-only edits need their own
+          # pass against the same real, known list.
+          while IFS= read -r name; do
+            [ -n "${name}" ] || continue
+            if touched_under "crates/internal/integration-tests/src/connector_specs" "${name}" && \
+               ! echo ",${payment_touched}," | grep -q ",${name},"; then
+              payment_touched="${payment_touched}${payment_touched:+,}${name}"
+            fi
+          done < <(find crates/internal/integration-tests/src/connector_specs -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort -u)
+
+          # authenticator/payout/surcharge connectors have no connector_specs/
+          # entry, so names_in_dir's specs.json check does not apply here —
+          # every name under these directories is used as-is.
+          other_touched=""
+          for dir in authenticator_connectors payout_connectors surcharge_connectors; do
+            while IFS= read -r name; do
+              [ -n "${name}" ] || continue
+              if touched_under "crates/integrations/connector-integration/src/${dir}" "${name}"; then
+                other_touched="${other_touched}${other_touched:+,}${name}"
+              fi
+            done < <(find "crates/integrations/connector-integration/src/${dir}" -mindepth 1 -maxdepth 1 \( -type d -o -name '*.rs' \) -exec basename {} \; 2>/dev/null | sed 's|\.rs$||' | sort -u)
+          done
+
+          # Taking a connector off the alpha list is what starts certifying it,
+          # but the edit touches only that shared file. Names present at the
+          # merge base and gone now are the ones being promoted.
+          promoted=""
+          if [ -f "$alpha" ]; then
+            promoted=$(comm -23 \
+              <(git show "$base_ref:$alpha" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$alpha"))
+          fi
+
+          # Same idea for live_connectors.json: a connector added there starts
+          # being swept in on every shared-code change, but the edit touches
+          # only that shared file, not the connector's own spec_dir.
+          newly_live=""
+          if [ -f "$live" ]; then
+            newly_live=$(comm -13 \
+              <(git show "$base_ref:$live" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$live"))
+          fi
+
+          payment_names=$(printf '%s\n%s\n%s\n' "$(echo "$payment_touched" | tr ',' '\n')" "$promoted" "$newly_live" | sed '/^$/d' | sort -u | paste -sd ',' -)
+          other_names=$(echo "$other_touched" | tr ',' '\n' | sed '/^$/d' | sort -u | paste -sd ',' -)
+          all_names=$(printf '%s\n%s\n' "$(echo "$payment_names" | tr ',' '\n')" "$(echo "$other_names" | tr ',' '\n')" | sed '/^$/d' | sort -u | paste -sd ',' -)
+
+          echo "list=$payment_names" >> $GITHUB_OUTPUT
+          echo "all-list=$all_names" >> $GITHUB_OUTPUT
+          echo "Changed payment connectors (drives regression + nextest scoping): $payment_names"
+          echo "Changed non-payment connectors (drives nextest scoping only): $other_names"
+
+      - name: Detect newly added connectors
+        id: new-connectors
+        if: steps.connector-names.outputs.list != ''
+        shell: bash
+        env:
+          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
+          new_list=""
+          IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
+          for c in "${CONNECTORS[@]}"; do
+            spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+            # A connector is "new" in this PR if its spec directory does not
+            # exist at the PR's base commit, regardless of whether it exists
+            # now. Compares against the merge-base, not just the immediate
+            # parent, so it's correct for PRs with multiple commits.
+            if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null; then
+              new_list="${new_list}${new_list:+,}${c}"
+            fi
+          done
+          echo "list=$new_list" >> $GITHUB_OUTPUT
+          echo "Newly added connectors: $new_list"
+
+      - name: Detect connectors with a modified specs.json or override.json
+        id: spec-modified-connectors
+        if: steps.connector-names.outputs.list != ''
+        shell: bash
+        env:
+          CHANGED_LIST: ${{ steps.connector-names.outputs.list }}
+          # merge_group has no pull_request and no `before` — it diffs a
+          # synthetic batch commit, so its own base_sha (the target branch's
+          # tip before the queued batch) is the only correct base here.
+          BASE_REF: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+        run: |
+          alpha=crates/internal/integration-tests/src/connector_specs/alpha_connectors.json
+          live=crates/internal/integration-tests/src/connector_specs/live_connectors.json
+          base_ref="${BASE_REF}"
+          if [[ -z "${base_ref}" ]]; then
+            echo "::error::BASE_REF resolved empty — none of pull_request.base.sha, merge_group.base_sha, or event.before matched this trigger. Diffing against nothing would silently misreport every connector as changed."
+            exit 1
+          fi
+          modified_list=""
+
+          # Promoted off the alpha list, or newly added to the live list: the
+          # edit lives in a shared file, not the connector's own spec_dir, so
+          # a content diff on specs.json/override.json below would find
+          # nothing — the connector is newly exposed to certification (or, for
+          # the live list, to the shared-code sweep) regardless of whether its
+          # own files changed at all.
+          if [ -f "$alpha" ]; then
+            while IFS= read -r c; do
+              [ -n "$c" ] || continue
+              modified_list="${modified_list}${modified_list:+,}${c}"
+            done < <(comm -23 \
+              <(git show "$base_ref:$alpha" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$alpha"))
+          fi
+          if [ -f "$live" ]; then
+            while IFS= read -r c; do
+              [ -n "$c" ] || continue
+              modified_list="${modified_list}${modified_list:+,}${c}"
+            done < <(comm -13 \
+              <(git show "$base_ref:$live" 2>/dev/null | jq -r '.connectors | keys[]') \
+              <(jq -r '.connectors | keys[]' "$live"))
+          fi
+
+          IFS=',' read -ra CONNECTORS <<< "${CHANGED_LIST}"
+          for c in "${CONNECTORS[@]}"; do
+            spec_dir="crates/internal/integration-tests/src/connector_specs/$c"
+            # A newly added connector has no merge-base content to diff against
+            # and is already held to a stricter bar by verify-new-connectors.sh
+            # (every failure attributable, no arbitration at all) — skip it here
+            # so certify-connectors.sh does not have to reconcile two different
+            # "no escape hatch" reasons for the same connector.
+            if ! git cat-file -e "${base_ref}:${spec_dir}" 2>/dev/null; then
+              continue
+            fi
+            for f in specs.json override.json; do
+              path="${spec_dir}/${f}"
+              [ -f "${path}" ] || continue
+              # Compares file content, not merely "did this path appear in the
+              # diff" — a connector's specs.json can be untouched even though
+              # the connector name is in CHANGED_LIST because a *different*
+              # file for the same connector (e.g. a transformer .rs) changed.
+              if ! git diff --quiet "${base_ref}" HEAD -- "${path}" 2>/dev/null; then
+                modified_list="${modified_list}${modified_list:+,}${c}"
+                break
+              fi
+            done
+          done
+
+          modified_list=$(echo "$modified_list" | tr ',' '\n' | sed '/^$/d' | sort -u | paste -sd ',' -)
+          echo "list=$modified_list" >> $GITHUB_OUTPUT
+          echo "Connectors with a modified specs.json/override.json, promoted off alpha, or newly live: $modified_list"
+
 
   # ── Fast Checks ───────────────────────────────────────────────────────────
 
@@ -494,7 +705,11 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "b59e91fc-9054-4412-a746-664fdc185345.json.gpg"
+          # Proto-native ConnectorSpecificConfig shape — the same file the
+          # connector-service report pipeline reads. Both consumers now expect
+          # it: the harness loader, and the grpc-server tests via
+          # credential_utils, which forward it as x-connector-config.
+          S3_SOURCE_FILE_NAME: "c66ba935-61a1-4a96-95cf-5ee5120813a3.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -506,11 +721,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
         run: |
+          # Missing credentials are fatal to certification but not to the unit
+          # tests in this job, so this does not fail here — the certification
+          # steps below fail instead, and only when they were actually selected.
+          # An S3 or GPG hiccup must not take down CI for every open PR.
           if [[ -f ".github/test/creds.json" ]]; then
             echo "CONNECTOR_AUTH_FILE_PATH=${{ github.workspace }}/.github/test/creds.json" >> $GITHUB_ENV
             echo "Connector credentials available for tests"
           else
-            echo "No connector credentials available - tests will use default values"
+            echo "::warning::No connector credentials available — live certification cannot run"
           fi
 
       - name: Free up disk space
@@ -538,7 +757,9 @@ jobs:
           # Debug test binaries overflow the 2 MiB default thread stack.
           RUST_MIN_STACK: "8388608"
         run: |
-          CONNECTOR_NAMES="${{ needs.changes.outputs.connector-names }}"
+          # Includes non-payment connector types too — this only scopes a
+          # Rust test-name filter, not certification.
+          CONNECTOR_NAMES="${{ needs.changes.outputs.all-connector-names }}"
           CORE_CHANGED="${{ needs.changes.outputs.rust-core }}"
           PROTO_CHANGED="${{ needs.changes.outputs.proto }}"
           CI_CHANGED="${{ needs.changes.outputs.ci }}"
@@ -571,6 +792,110 @@ jobs:
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
           fi
+
+      # Certification calls each selected connector's live sandbox for real.
+      # The gRPC call itself takes seconds; the cost is building the binaries,
+      # so both are built once here with the same features the test run above
+      # used, and the certification steps reuse them via `--no-build`.
+      - name: Build certification binaries
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        shell: bash
+        run: |
+          cargo build --workspace --bins \
+            --features grpc-server/connector-request-kafka,grpc-server/log-transformations
+
+      # The test harness shells out to grpcurl to make the actual call.
+      - name: Install grpcurl
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        shell: bash
+        env:
+          GRPCURL_VERSION: "1.9.3"
+          GRPCURL_SHA256: "a926b62a85787ccf73ef8736b3ae554f1242e39d92bb8767a79d6dd23b11d1d5"
+        run: |
+          if command -v grpcurl >/dev/null 2>&1; then
+            grpcurl --version
+            exit 0
+          fi
+          curl -fsSL \
+            "https://github.com/fullstorydev/grpcurl/releases/download/v${GRPCURL_VERSION}/grpcurl_${GRPCURL_VERSION}_linux_x86_64.tar.gz" \
+            -o /tmp/grpcurl.tar.gz
+          echo "${GRPCURL_SHA256}  /tmp/grpcurl.tar.gz" | sha256sum --check --strict
+          tar -xzf /tmp/grpcurl.tar.gz -C /tmp grpcurl
+          sudo mv /tmp/grpcurl /usr/local/bin/grpcurl
+          grpcurl --version
+
+      - name: Verify newly added connectors' declared scenarios
+        id: verify-new-connectors
+        if: ${{ env.RUN_TESTS == 'true' && needs.changes.outputs.new-connectors != '' }}
+        shell: bash
+        env:
+          NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+          UNPROVEN_FILE: ${{ runner.temp }}/unproven.txt
+        run: .github/scripts/verify-new-connectors.sh
+
+      - name: Certify selected connectors
+        if: ${{ env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        shell: bash
+        env:
+          # Git facts only. Which suites and scenarios each connector runs is the
+          # framework's to derive from that connector's own specs.json.
+          CHANGED_CONNECTORS: ${{ needs.changes.outputs.payment-connector-names }}
+          NEW_CONNECTORS: ${{ needs.changes.outputs.new-connectors }}
+          SPEC_MODIFIED_CONNECTORS: ${{ needs.changes.outputs.spec-modified-connectors }}
+          SHARED_CHANGED: ${{ needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true' }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: .github/scripts/certify-connectors.sh
+
+      # Every request and response is already recorded per scenario; without this
+      # the file dies with the runner and only the assertion text survives.
+      - name: Upload certification reports
+        if: ${{ always() && env.RUN_TESTS == 'true' && (needs.changes.outputs.connector == 'true' || needs.changes.outputs.rust-core == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.certification-inputs == 'true') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: certification-reports
+          path: ${{ runner.temp }}/certify-*.json
+          if-no-files-found: ignore
+          retention-days: 2
+
+      # A connector whose connector_specs/<name>/ directory did not exist at this
+      # PR's base commit must prove itself on its own PR. Its specs.json states
+      # what it supports in `supported_suites`.
+      #
+      # Every scenario of every declared suite runs against the sandbox and must
+      # pass. Merging unproven is allowed but never silent: the connector is
+      # listed in alpha_connectors.json with a reason, and appears in the job
+      # summary and in a PR comment. It certifies once that entry is removed.
+      - name: Comment unproven connector declarations on the PR
+        if: ${{ github.event_name == 'pull_request' && steps.verify-new-connectors.outputs.unproven == 'true' }}
+        uses: actions/github-script@v7
+        env:
+          UNPROVEN_FILE: ${{ runner.temp }}/unproven.txt
+        with:
+          script: |
+            const fs = require('fs');
+            const lines = fs.readFileSync(process.env.UNPROVEN_FILE, 'utf8').trim().split('\n');
+            const marker = '<!-- unproven-connectors -->';
+            const body = [
+              marker,
+              '### ⚠️ Merging without live sandbox proof',
+              '',
+              ...lines.map(l => `- ${l}`),
+              '',
+              'These connectors are listed in `alpha_connectors.json`.',
+              'No real sandbox call backs them. Confirm each stated reason before approving;',
+              'they do not certify until the entry is removed.',
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = (await github.rest.issues.listComments({ owner, repo, issue_number }))
+              .data.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
 
   # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
   # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
