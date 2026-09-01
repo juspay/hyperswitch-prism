@@ -379,6 +379,7 @@ where
                     mandate_reference: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
             _ => Err(error_response_from_qc(
@@ -1087,6 +1088,7 @@ fn customer_details_to_customer_info(
         customer_phone_number,
         customer_phone_country_code: None,
         salutation: customer.salutation.clone(),
+        date_of_birth: None,
     }
 }
 

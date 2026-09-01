@@ -63,6 +63,27 @@ impl Payouts {
 
 #[tonic::async_trait]
 impl PayoutService for Payouts {
+    #[tracing::instrument(
+        name = "payout_create",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutCreate.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutCreate.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn create(
         &self,
         request: tonic::Request<PayoutServiceCreateRequest>,
@@ -78,6 +99,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_transfer",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutTransfer.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutTransfer.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn transfer(
         &self,
         request: tonic::Request<PayoutServiceTransferRequest>,
@@ -93,6 +135,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_get",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutGet.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutGet.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn get(
         &self,
         request: tonic::Request<PayoutServiceGetRequest>,
@@ -108,6 +171,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_void",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutVoid.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutVoid.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn void(
         &self,
         request: tonic::Request<PayoutServiceVoidRequest>,
@@ -123,6 +207,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_stage",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutStage.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutStage.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn stage(
         &self,
         request: tonic::Request<PayoutServiceStageRequest>,
@@ -138,6 +243,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_create_link",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutCreateLink.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutCreateLink.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn create_link(
         &self,
         request: tonic::Request<PayoutServiceCreateLinkRequest>,
@@ -153,6 +279,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_create_recipient",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutCreateRecipient.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutCreateRecipient.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn create_recipient(
         &self,
         request: tonic::Request<PayoutServiceCreateRecipientRequest>,
@@ -168,6 +315,27 @@ impl PayoutService for Payouts {
         .await
     }
 
+    #[tracing::instrument(
+        name = "payout_enroll_disburse_account",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = tracing::field::Empty,
+            service_method = FlowName::PayoutEnrollDisburseAccount.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::PayoutEnrollDisburseAccount.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        )
+        skip(self, request)
+    )]
     async fn enroll_disburse_account(
         &self,
         request: tonic::Request<PayoutServiceEnrollDisburseAccountRequest>,
@@ -304,7 +472,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -320,7 +488,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutTransferRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_transfer_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -336,7 +504,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutGetRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_get_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -352,7 +520,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutVoidRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_void_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -368,7 +536,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutStageRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_stage_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -384,7 +552,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateLinkRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_link_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -400,7 +568,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRecipientRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_recipient_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -416,7 +584,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutEnrollDisburseAccountRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_enroll_disburse_account_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 
@@ -432,7 +600,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutEligibilityRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_eligibility_response,
-        connector_data_type: PayoutConnectorData,
+        connector_data_types: [PayoutConnectorData],
         all_keys_required: None
     );
 }

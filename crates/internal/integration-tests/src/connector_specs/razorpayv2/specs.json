@@ -1,6 +1,10 @@
 {
   "connector": "razorpayv2",
   "supported_suites": [
-    "PaymentService/Authorize"
+    "PaymentService/Authorize",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

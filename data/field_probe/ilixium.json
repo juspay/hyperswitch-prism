@@ -38,7 +38,7 @@
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
+        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
@@ -749,19 +749,13 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
+        "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None })"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: setup_mandate flow for ilixium"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for ilixium"
       }
     },
     "verify_redirect": {

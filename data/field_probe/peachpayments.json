@@ -867,12 +867,6 @@
         "error": "Payment method not supported for SetupMandate is not supported by peachpayments"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for peachpayments"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

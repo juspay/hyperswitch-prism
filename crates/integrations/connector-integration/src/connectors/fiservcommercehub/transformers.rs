@@ -905,8 +905,8 @@ fn build_payment_response(
                 status_code,
                 attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id,
-                network_decline_code: response_code,
-                network_advice_code: host_response_code,
+                network_decline_code: host_response_code,
+                network_advice_code: None,
                 network_error_message: host_response_message,
                 typed_connector_response: None,
                 raw_connector_response: None,
@@ -926,6 +926,7 @@ fn build_payment_response(
             incremental_authorization_allowed: None,
             status_code,
             splits: None,
+            payment_account_reference: None,
         }),
     }
 }
@@ -1457,6 +1458,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

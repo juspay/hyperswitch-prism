@@ -898,6 +898,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -970,6 +971,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {
@@ -1041,6 +1043,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(Self {

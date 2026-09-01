@@ -239,6 +239,11 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
+            PayoutConnectorEnum::GotymeSanlam => {
+                Box::new(payout_connectors::GotymeSanlamPayouts::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::new())
+            }
         }
     }
 }

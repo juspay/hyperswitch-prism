@@ -1,0 +1,40 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "timestamp": "2025-09-09T01:22:50.650398229Z",
+          "uuid": "5e3cc113-0426-44e2-985b-f90bdddd06e8",
+          "amount": 1,
+          "currency": "MYR",
+          "created": "2025-09-09T01:22:06.739Z",
+          "description": "Payment",
+          "status": "succeeded",
+          "paymentMethod": "card",
+          "referenceId": "Llof2a6I0EdVmURL7YoL"
+        }
+      },
+      "merchant_event_id": "boost_webhook_payment_succeeded"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "timestamp": "2025-09-09T01:24:11.115902471Z",
+          "uuid": "9c1f4a80-6d31-4f52-9a77-2b0e5c3d1a44",
+          "amount": 1,
+          "currency": "MYR",
+          "created": "2025-09-09T01:23:48.204Z",
+          "description": "Payment",
+          "status": "failed",
+          "paymentMethod": "card",
+          "referenceId": "Xq7tB2wR9cLmN4vK1sZa"
+        }
+      },
+      "merchant_event_id": "boost_webhook_payment_failed"
+    }
+  }
+}

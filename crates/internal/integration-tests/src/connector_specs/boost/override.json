@@ -1,0 +1,18 @@
+{
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    }
+  }
+}

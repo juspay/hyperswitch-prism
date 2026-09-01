@@ -313,6 +313,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -348,6 +349,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                         mandate_reference: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -452,6 +454,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 mandate_reference: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -528,6 +531,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 mandate_reference: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -697,6 +701,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: Some(Box::new(mandate_reference)),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

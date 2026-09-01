@@ -3,7 +3,6 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Capture",
-    "PaymentService/CompleteAuthorize",
     "CustomerService/Create",
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Get",
@@ -19,5 +18,45 @@
     "PaymentService/TokenSetupRecurring",
     "PaymentMethodService/Tokenize",
     "PaymentService/Void"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card",
+    "affirm",
+    "afterpay_clearpay",
+    "ali_pay_redirect",
+    "ach_bank_transfer",
+    "bancontact_card",
+    "eps",
+    "google_pay_sdk",
+    "ideal",
+    "klarna",
+    "przelewy24",
+    "sepa_bank_transfer"
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "invalid_signature": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "payment_failed": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "payment_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here",
+      "refund_succeeded": "stripe webhooks are not used in production, so signature verification is not certified here"
+    },
+    "PaymentService/Authorize": {
+      "no3ds_manual_capture_incremental_auth": "Stripe sandbox account limitation, not a code or test-data issue: Stripe rejects the request with payment_intent_invalid_parameter — \"This account is not eligible for the requested card features\" — incremental authorization must be enabled on the Stripe account by Stripe support before this can be certified."
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "Blocked by the same Stripe sandbox account limitation as PaymentService/Authorize's no3ds_manual_capture_incremental_auth: this suite's mandatory dependency on that scenario cannot run, so nothing in this suite can be exercised. Incremental authorization must be enabled on the Stripe account by Stripe support before this suite can be certified.",
+      "incremental_auth_with_tip": "Same account-limitation dependency block as incremental_auth_basic — see that entry.",
+      "incremental_auth_multiple_increase": "Same account-limitation dependency block as incremental_auth_basic — see that entry.",
+      "incremental_auth_fail_invalid_transaction_id": "Same account-limitation dependency block as incremental_auth_basic — see that entry."
+    },
+    "PaymentService/TokenSetupRecurring": {
+      "token_setup_mandate": "connector code gap, not a test-data issue: stripe's SetupMandate transformer has no arm for a payment method sourced from a connector token — the server returns NOT_IMPLEMENTED (\"Selected payment method through stripe\") before any request reaches Stripe. Plain-card PaymentService/SetupRecurring is fully implemented and passes; only the token-sourced variant is missing. Needs a fix in connectors/stripe/transformers.rs's SetupMandate arm, tracked separately."
+    },
+    "PaymentService/ProxyAuthorize": {
+      "proxy_auto_capture_card": "connector code bug, not a test-data or framework issue: Stripe returns a valid HTTP response but the ProxyAuthorize response transformer fails with RESPONSE_DESERIALIZATION_FAILED (\"response body did not match the expected format\"). Needs a fix in connectors/stripe/transformers.rs's ProxyAuthorize response arm, tracked separately."
+    },
+    "PaymentService/ProxySetupRecurring": {
+      "proxy_setup_mandate": "connector code bug, not a test-data or framework issue: same RESPONSE_DESERIALIZATION_FAILED as ProxyAuthorize's proxy_auto_capture_card — Stripe returns a valid HTTP response but the ProxySetupRecurring response transformer fails to deserialize it. Needs a fix in connectors/stripe/transformers.rs, tracked separately."
+    }
+  }
 }

@@ -37,8 +37,45 @@
         "error": "Selected payment method through Noon is not supported by Noon"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: payment_method_token — Failed to parse Apple Pay wallet token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "order_category": "mobile",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api-test.noonpayments.com/payment/v1/order",
+          "method": "Post",
+          "headers": {
+            "authorization": "Key cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"apiOperation\":\"INITIATE\",\"order\":{\"amount\":\"10.00\",\"currency\":\"USD\",\"channel\":\"WEB\",\"category\":\"mobile\",\"reference\":\"probe_txn_001\",\"name\":\"Probe payment\",\"nvp\":null,\"ipAddress\":null},\"configuration\":{\"tokenizeCC\":null,\"paymentAction\":\"SALE\",\"returnUrl\":\"https://example.com/return\"},\"paymentData\":{\"type\":\"APPLEPAY\",\"data\":{\"paymentInfo\":\"{\\\"token\\\":{\\\"paymentData\\\":{\\\"version\\\":\\\"EC_v1\\\",\\\"data\\\":\\\"probe\\\",\\\"signature\\\":\\\"probe\\\",\\\"header\\\":{\\\"ephemeralPublicKey\\\":\\\"probe\\\",\\\"publicKeyHash\\\":\\\"probe\\\",\\\"transactionId\\\":\\\"probe_txn_id\\\"}},\\\"paymentMethod\\\":{\\\"displayName\\\":\\\"Visa 1111\\\",\\\"network\\\":\\\"Visa\\\",\\\"type\\\":\\\"debit\\\"},\\\"transactionIdentifier\\\":\\\"probe_txn_id\\\"}}\"}},\"subscription\":null,\"billing\":{\"address\":{\"street\":null,\"street2\":null,\"city\":null,\"stateProvince\":null,\"country\":null,\"postalCode\":null}}}"
+        }
       },
       "ApplePayDecrypted": {
         "status": "error",
@@ -975,12 +1012,6 @@
       "default": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for noon"
       }
     },
     "verify_redirect": {

@@ -280,12 +280,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         payment_method: common_enums::PaymentMethod,
         payment_method_type: Option<common_enums::PaymentMethodType>,
+        is_wallet_decrypted_network_token: bool,
     ) -> bool {
         matches!(payment_method, common_enums::PaymentMethod::Wallet)
-            && !matches!(
+            && (!matches!(
                 payment_method_type,
                 Some(common_enums::PaymentMethodType::GooglePay)
-            )
+            ) || is_wallet_decrypted_network_token)
     }
 }
 
@@ -688,10 +689,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
+            let endpoint = if transformers::tokenize_mints_payment_method(&req.request) {
+                "v1/payment_methods"
+            } else {
+                "v1/tokens"
+            };
             Ok(format!(
                 "{}{}",
                 self.connector_base_url_payments(req),
-                "v1/payment_methods"
+                endpoint
             ))
         }
     }

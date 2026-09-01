@@ -45,6 +45,7 @@ peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
 absa_sanlam.base_url = "sbx"
+gotyme_sanlam.base_url = "sbx"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 mollie.base_url = "https://api.mollie.com/v2"
@@ -188,3 +189,8 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
+
+[connector_response_masking]
+enabled = false
+
+[connector_response_masking.connector_keys]

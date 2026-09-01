@@ -2563,6 +2563,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -2667,6 +2668,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             };
 
             Ok(Self {
@@ -2834,6 +2836,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3384,6 +3387,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3706,6 +3710,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3778,6 +3783,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         metadata: req.metadata.clone(),
         authentication_data: req.authentication_data.clone(),
         split_payments: req.split_payments.clone(),
+        split_settlement: req.split_settlement.clone(),
         minor_amount: req.minor_amount,
         merchant_order_id: req.merchant_order_id.clone(),
         shipping_cost: req.shipping_cost,
@@ -3807,6 +3813,8 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
     }
 }
 
@@ -3930,6 +3938,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
