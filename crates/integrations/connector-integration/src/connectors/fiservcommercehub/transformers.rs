@@ -6,6 +6,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{self, RsaOaepSha256, SignMessage},
+    pii::SecretSerdeValue,
     FloatMajorUnit,
 };
 use domain_types::{
@@ -28,19 +29,22 @@ use domain_types::{
     utils,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 // Constants for encryption and token formatting
 pub(crate) const ENCRYPTION_TYPE_RSA: &str = "RSA";
 pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
 pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
+const MERCHANT_INVOICE_NUMBER_MAX_LEN: usize = 12;
 const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
 const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Developer-Resources/Authentication/Authentication.mdx";
 const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/charges?branch=active&version=1.26.0602";
 const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
+const FISERV_TRANSACTION_DETAILS_DOC_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/docs/Reference/Master-Data/Transaction-Details.mdx";
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -393,6 +397,67 @@ pub struct FiservcommercehubTransactionDetailsReq {
     pub merchant_transaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_order_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_invoice_number: Option<String>,
+}
+
+
+#[derive(Default, Debug, Deserialize)]
+pub struct FiservcommercehubConnectorMetadata {
+    pub merchant_invoice_id: Option<String>,
+}
+
+fn validate_connector_metadata(
+    metadata: &FiservcommercehubConnectorMetadata,
+) -> Result<(), error_stack::Report<errors::IntegrationError>> {
+    metadata
+        .merchant_invoice_id
+        .as_ref()
+        .filter(|invoice_id| invoice_id.len() > MERCHANT_INVOICE_NUMBER_MAX_LEN)
+        .map(|invoice_id| {
+            error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "metadata.merchant_invoice_id",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(format!(
+                        "merchant_invoice_id must be at most {MERCHANT_INVOICE_NUMBER_MAX_LEN} characters"
+                    )),
+                    additional_context: Some(format!(
+                        "Fiserv CommerceHub accepts a maximum of {MERCHANT_INVOICE_NUMBER_MAX_LEN} characters for merchantInvoiceNumber, but {} characters were provided",
+                        invoice_id.len()
+                    )),
+                    doc_url: Some(FISERV_TRANSACTION_DETAILS_DOC_URL.to_string()),
+                },
+            })
+        })
+        .map_or(Ok(()), Err)
+}
+
+fn parse_connector_metadata(
+    metadata: Option<&SecretSerdeValue>,
+) -> Result<FiservcommercehubConnectorMetadata, error_stack::Report<errors::IntegrationError>> {
+    let parsed = match metadata {
+        Some(meta) => serde_json::from_value::<FiservcommercehubConnectorMetadata>(
+            meta.clone().expose(),
+        )
+        .change_context(errors::IntegrationError::InvalidDataFormat {
+            field_name: "metadata",
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Ensure metadata matches the expected schema for Fiserv CommerceHub"
+                        .to_string(),
+                ),
+                doc_url: Some(FISERV_TRANSACTION_DETAILS_DOC_URL.to_string()),
+                additional_context: Some(
+                    "Failed to deserialize metadata into FiservcommercehubConnectorMetadata"
+                        .to_string(),
+                ),
+            },
+        })?,
+        None => FiservcommercehubConnectorMetadata::default(),
+    };
+
+    validate_connector_metadata(&parsed)?;
+    Ok(parsed)
 }
 
 #[derive(Debug, Serialize)]
@@ -704,6 +769,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let additional_data_3ds =
             build_additional_data_3ds(router_data.request.authentication_data.as_ref());
 
+        let connector_metadata =
+            parse_connector_metadata(router_data.request.metadata.as_ref())?;
+
         let request = Self {
             amount: FiservcommercehubAuthorizeAmount {
                 currency: router_data.request.currency,
@@ -721,6 +789,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
+                merchant_invoice_number: connector_metadata.merchant_invoice_id,
             },
             stored_credentials,
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
@@ -1633,6 +1702,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..Default::default()
                 },
             })?;
+        let connector_metadata =
+            parse_connector_metadata(router_data.request.metadata.as_ref())?;
         Ok(Self {
             amount: FiservcommercehubAuthorizeAmount {
                 currency: router_data.request.currency,
@@ -1645,6 +1716,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
+                merchant_invoice_number: connector_metadata.merchant_invoice_id,
             },
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
@@ -1820,6 +1892,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             });
 
+        let connector_metadata =
+            parse_connector_metadata(router_data.request.metadata.as_ref())?;
+
         let request = Self {
             amount: FiservcommercehubAuthorizeAmount {
                 currency: router_data.request.currency,
@@ -1844,6 +1919,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
                 merchant_order_id: router_data.request.merchant_order_id.clone(),
+                merchant_invoice_number: connector_metadata.merchant_invoice_id,
             },
             transaction_interaction: FiservcommercehubTransactionInteractionReq {
                 origin,
