@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.01.1
+
+### Features
+
+- **connector:** [WORLDPAYXML] add 3DS2 (Cardinal) support ([#2182](https://github.com/juspay/connector-service/pull/2182)) ([`526aa37`](https://github.com/juspay/connector-service/commit/526aa37e83ae0e344388475cdedc65e52e3eeac0))
+- **fiservcommercehub:** Map merchant_order_id and metadata.merchant_invoice_id to merchantOrderId and merchantInvoiceNumber ([#2177](https://github.com/juspay/connector-service/pull/2177)) ([`4d044a8`](https://github.com/juspay/connector-service/commit/4d044a831227c42d6114014051d8c8aa6c6ee9fa))
+
+### Bug Fixes
+
+- **connector:** [datatrans] googlepay 3ds ([#2200](https://github.com/juspay/connector-service/pull/2200)) ([`d5b550b`](https://github.com/juspay/connector-service/commit/d5b550b5e462f5758aecfe7ea5216f46a755f771))
+
+**Full Changelog:** [`2026.09.01.0...2026.09.01.1`](https://github.com/juspay/connector-service/compare/2026.09.01.0...2026.09.01.1)
+
+- - -
+
 ## 2026.09.01.0
 
 ### Features
