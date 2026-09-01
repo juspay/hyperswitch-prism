@@ -78,6 +78,7 @@ pub struct WorldpayxmlPayment {
     pub payment_method_detail: Option<WorldpayxmlPaymentMethodDetail>,
     pub balance: Option<Vec<WorldpayxmlBalance>>,
     pub scheme_response: Option<WorldpayxmlSchemeResponse>,
+    pub card_p_a_r: Option<String>,
 }
 
 /// `lastEvent`/`PaymentStatus` values Worldpay reports for an order. Unmodelled values

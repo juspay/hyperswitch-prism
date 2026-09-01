@@ -289,29 +289,24 @@ pub struct WorldpayxmlBillingAddress {
     pub address: WorldpayxmlAddress,
 }
 
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorldpayxmlAddress {
-    #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<Secret<String>>,
-    #[serde(rename = "lastName", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<Secret<String>>,
-    #[serde(rename = "address1", skip_serializing_if = "Option::is_none")]
-    pub address1: Option<Secret<String>>,
-    #[serde(rename = "address2", skip_serializing_if = "Option::is_none")]
+    pub address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address2: Option<Secret<String>>,
-    #[serde(rename = "address3", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address3: Option<Secret<String>>,
-    #[serde(rename = "postalCode", skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<Secret<String>>,
-    #[serde(rename = "city", skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
-    #[serde(rename = "state", skip_serializing_if = "Option::is_none")]
+    pub postal_code: Secret<String>,
+    pub city: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
-    #[serde(rename = "countryCode", skip_serializing_if = "Option::is_none")]
-    pub country_code: Option<common_enums::CountryAlpha2>,
-    // NOTE: must stay the LAST field — quick-xml emits elements in declaration
-    // order and the WPG DTD expects <telephoneNumber> after <countryCode>
-    #[serde(rename = "telephoneNumber", skip_serializing_if = "Option::is_none")]
+    pub country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub telephone_number: Option<Secret<String>>,
 }
 

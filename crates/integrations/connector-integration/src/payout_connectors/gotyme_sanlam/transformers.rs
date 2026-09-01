@@ -178,18 +178,18 @@ impl
         ),
     ) -> Result<Self, Self::Error> {
         let idempotency_key = req
-            .request
-            .merchant_payout_id
+            .resource_common_data
+            .merchant_request_id
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-            field_name: "merchant_payout_id",
+            field_name: "merchant_request_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "GotymeSanlam payout transfer requires a valid idempotency key to be sent in payout transfer call"
                         .to_string(),
                 ),
                 suggested_action: Some(
-                    "Pass a valid idempotency key as merchant_payout_id".to_string(),
+                    "Pass a valid idempotency key as merchant_request_id".to_string(),
                 ),
                 doc_url: None,
             },
@@ -299,18 +299,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data;
         let idempotency_key = req
-            .request
-            .merchant_payout_id
+            .resource_common_data
+            .merchant_request_id
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
-            field_name: "merchant_payout_id",
+            field_name: "merchant_request_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "GotymeSanlam payout get requires the idempotency key sent in payout transfer call"
                         .to_string(),
                 ),
                 suggested_action: Some(
-                    "Pass the transfer idempotency key as merchant_payout_id".to_string(),
+                    "Pass the transfer idempotency key as merchant_request_id".to_string(),
                 ),
                 doc_url: None,
             },

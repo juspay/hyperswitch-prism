@@ -29,7 +29,6 @@ fn get_timestamp() -> u64 {
 
 // Constants for Cashtocode connector
 const CONNECTOR_NAME: &str = "cashtocode";
-const AUTH_TYPE: &str = "currency-auth-key";
 const MERCHANT_ID: &str = "merchant_1234";
 
 const TEST_EMAIL: &str = "customer@example.com";
@@ -38,32 +37,19 @@ const TEST_EMAIL: &str = "customer@example.com";
 const TEST_AMOUNT: i64 = 1000;
 
 fn add_cashtocode_metadata<T>(request: &mut Request<T>) {
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load cashtocode credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let auth_key_map = match auth {
-        domain_types::router_data::ConnectorAuthType::CurrencyAuthKey { auth_key_map } => {
-            auth_key_map
-        }
-        _ => panic!("Expected CurrencyAuthKey auth type for cashtocode"),
-    };
-
-    // Serialize the auth_key_map to JSON for metadata
-    let auth_key_map_json =
-        serde_json::to_string(&auth_key_map).expect("Failed to serialize auth_key_map");
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-    request.metadata_mut().append(
-        "x-auth-key-map",
-        auth_key_map_json
-            .parse()
-            .expect("Failed to parse x-auth-key-map"),
     );
     request.metadata_mut().append(
         "x-merchant-id",
@@ -100,6 +86,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         return_url: Some("https://hyperswitch.io/connector-service".to_string()),
         webhook_url: Some("https://hyperswitch.io/connector-service".to_string()),

@@ -161,13 +161,13 @@ impl
                 Some(requests::WorldpayxmlAddress {
                     first_name: router_data.request.get_billing_first_name().ok(),
                     last_name: router_data.request.get_billing_last_name().ok(),
-                    address1: Some(line1),
+                    address1: line1,
                     address2: None,
                     address3: None,
-                    postal_code: Some(zip),
-                    city: Some(city),
+                    postal_code: zip,
+                    city,
                     state: router_data.request.get_optional_billing_state(),
-                    country_code: Some(country),
+                    country_code: country,
                     telephone_number: None,
                 })
             }
