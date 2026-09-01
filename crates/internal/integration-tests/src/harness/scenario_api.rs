@@ -1308,6 +1308,129 @@ fn is_unresolved_connector_feature_data(value: &Value) -> bool {
     }
 }
 
+/// Reports whether `suite`'s tonic request type has a top-level field named
+/// `field`, by attempting to deserialize `{ field: null }` into that type and
+/// checking whether `serde_ignored` flags it as unknown.
+///
+/// Used to filter `context_map` entries before they reach [`apply_context_map`]:
+/// a mapping declared for one dependency in a chain is forwarded to every
+/// later dependency, but the target proto varies per dependency — writing a
+/// field the target request never had (e.g. `RefundService/Get` inheriting
+/// `PaymentService/Authorize`'s "amount.minor_amount" mapping, when
+/// `RefundServiceGetRequest` has no `amount` field at all, only
+/// `refund_amount`) makes grpcurl reject the whole request as unknown.
+///
+/// A suite this function doesn't recognize, or a field whose deserialization
+/// can't be checked this way (e.g. it's inside a `oneof`), is treated as
+/// valid — this is a best-effort filter for the known cross-dependency
+/// leakage shape, not a full schema validator.
+fn suite_request_has_top_level_field(suite: &str, field: &str) -> bool {
+    fn check<T: DeserializeOwned>(field: &str) -> bool {
+        let probe = serde_json::json!({ field: Value::Null });
+        let Ok(serialized) = serde_json::to_string(&probe) else {
+            return true;
+        };
+        // `serde_ignored` only flags a field as ignored when the type simply
+        // has no such field — that's the one signal this function trusts as
+        // "definitely absent". A deserialization error (e.g. `null` against
+        // a scalar field that isn't `Option`-wrapped) means the field name
+        // was recognized but the probe value didn't fit it, which still
+        // proves the field exists, so it is not treated as absent.
+        let mut ignored = false;
+        let mut deserializer = serde_json::Deserializer::from_str(&serialized);
+        let _: Result<T, _> = serde_ignored::deserialize(&mut deserializer, |_path| {
+            ignored = true;
+        });
+        !ignored
+    }
+
+    let suite_spec_opt = load_suite_spec(suite).ok();
+    let effective_suite = suite_spec_opt
+        .as_ref()
+        .and_then(|s| s.alias_for.as_deref())
+        .unwrap_or(suite);
+
+    match effective_suite {
+        "MerchantAuthenticationService/CreateServerAuthenticationToken" => check::<
+            grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        >(field),
+        "CustomerService/Create" => {
+            check::<grpc_api_types::payments::CustomerServiceCreateRequest>(field)
+        }
+        "CustomerService/Get" => {
+            check::<grpc_api_types::payments::CustomerServiceGetRequest>(field)
+        }
+        "PaymentMethodAuthenticationService/PreAuthenticate" => check::<
+            grpc_api_types::payments::PaymentMethodAuthenticationServicePreAuthenticateRequest,
+        >(field),
+        "PaymentMethodAuthenticationService/Authenticate" => check::<
+            grpc_api_types::payments::PaymentMethodAuthenticationServiceAuthenticateRequest,
+        >(field),
+        "PaymentMethodAuthenticationService/PostAuthenticate" => check::<
+            grpc_api_types::payments::PaymentMethodAuthenticationServicePostAuthenticateRequest,
+        >(field),
+        "PaymentService/Authorize" | "PaymentService/CompleteAuthorize" => {
+            check::<grpc_api_types::payments::PaymentServiceAuthorizeRequest>(field)
+        }
+        "PaymentService/Capture" => {
+            check::<grpc_api_types::payments::PaymentServiceCaptureRequest>(field)
+        }
+        "PaymentService/Void" => check::<grpc_api_types::payments::PaymentServiceVoidRequest>(field),
+        "PaymentService/Refund" => {
+            check::<grpc_api_types::payments::PaymentServiceRefundRequest>(field)
+        }
+        "PaymentService/Get" => check::<grpc_api_types::payments::PaymentServiceGetRequest>(field),
+        "RefundService/Get" => check::<grpc_api_types::payments::RefundServiceGetRequest>(field),
+        "PaymentService/SetupRecurring" => {
+            check::<grpc_api_types::payments::PaymentServiceSetupRecurringRequest>(field)
+        }
+        "RecurringPaymentService/Charge" => {
+            check::<grpc_api_types::payments::RecurringPaymentServiceChargeRequest>(field)
+        }
+        "RecurringPaymentService/Revoke" => {
+            check::<grpc_api_types::payments::RecurringPaymentServiceRevokeRequest>(field)
+        }
+        "PaymentMethodService/Tokenize" => {
+            check::<grpc_api_types::payments::PaymentMethodServiceTokenizeRequest>(field)
+        }
+        "PaymentService/IncrementalAuthorization" => {
+            check::<grpc_api_types::payments::PaymentServiceIncrementalAuthorizationRequest>(field)
+        }
+        "MerchantAuthenticationService/CreateServerSessionAuthenticationToken" => check::<
+            grpc_api_types::payments::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+        >(field),
+        "MerchantAuthenticationService/CreateClientAuthenticationToken" => check::<
+            grpc_api_types::payments::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
+        >(field),
+        "PaymentService/CreateOrder" => {
+            check::<grpc_api_types::payments::PaymentServiceCreateOrderRequest>(field)
+        }
+        "PaymentService/Reverse" => {
+            check::<grpc_api_types::payments::PaymentServiceReverseRequest>(field)
+        }
+        "PaymentService/TokenAuthorize" => {
+            check::<grpc_api_types::payments::PaymentServiceTokenAuthorizeRequest>(field)
+        }
+        "PaymentService/TokenSetupRecurring" => {
+            check::<grpc_api_types::payments::PaymentServiceTokenSetupRecurringRequest>(field)
+        }
+        "PaymentService/ProxyAuthorize" => {
+            check::<grpc_api_types::payments::PaymentServiceProxyAuthorizeRequest>(field)
+        }
+        "PaymentService/ProxySetupRecurring" => {
+            check::<grpc_api_types::payments::PaymentServiceProxySetupRecurringRequest>(field)
+        }
+        "PaymentMethodService/Eligibility" => {
+            check::<grpc_api_types::payments::PaymentMethodServiceEligibilityRequest>(field)
+        }
+        // Unrecognized suite, or a suite whose shape validation is skipped
+        // elsewhere (VerifyRedirectResponse/HandleEvent's bytes body) — treat
+        // as valid rather than silently dropping a mapping this function
+        // can't judge.
+        _ => true,
+    }
+}
+
 /// Applies explicit context mappings from dependency results into the target request.
 ///
 /// Each entry in `collected_context` is a `(context_map, dependency_req, dependency_res)` tuple
@@ -1363,27 +1486,7 @@ pub fn apply_context_map(
 
             if let Some(value) = source_value {
                 if !value.is_null() {
-                    // A context_map entry declared alongside one dependency is
-                    // forwarded to every later dependency in the same chain
-                    // (needed so a field several links back, e.g. a created
-                    // customer ID, still reaches a dependency two levels
-                    // deeper) — but the target proto varies per dependency, so
-                    // blindly creating the path can insert a field that
-                    // dependency's request never had (e.g. RefundService/Get's
-                    // Authorize context_map writes "amount.minor_amount", which
-                    // PaymentServiceRefundRequest has no "amount" field for at
-                    // all, only "refund_amount" — grpcurl then rejects the
-                    // whole request as an unknown field). Only apply an entry
-                    // whose top-level segment this dependency's own request
-                    // already references, so a mapping only ever lands where
-                    // it is actually relevant.
-                    let top_level = target_path.split('.').next().unwrap_or(target_path);
-                    let applies_here = current_grpc_req
-                        .as_object()
-                        .is_some_and(|map| map.contains_key(top_level));
-                    if applies_here {
-                        let _ = deep_set_json_path(current_grpc_req, target_path, value.clone());
-                    }
+                    let _ = deep_set_json_path(current_grpc_req, target_path, value.clone());
                 }
             }
         }
@@ -4779,7 +4882,31 @@ fn execute_single_scenario_with_context(
     add_context(dependency_reqs, dependency_res, &mut effective_req);
 
     // Apply any explicit dependency path mappings from suite_spec.json.
-    apply_context_map(explicit_context_entries, &mut effective_req);
+    //
+    // A context_map entry declared alongside one dependency in the chain is
+    // carried to every later dependency (needed so a field several links
+    // back still reaches a dependency two levels deeper), but each
+    // dependency's target request is *this* suite's, not the dependency's —
+    // an entry whose top-level field this suite's own proto doesn't have
+    // (e.g. RefundService/Get inheriting Authorize's "amount.minor_amount",
+    // when RefundServiceGetRequest has no "amount" field, only
+    // "refund_amount") must be dropped before it reaches apply_context_map,
+    // or grpcurl rejects the whole request as an unknown field.
+    let filtered_context_entries: Vec<ExplicitContextEntry> = explicit_context_entries
+        .iter()
+        .map(|(context_map, dep_req, dep_res)| {
+            let filtered_map: ContextMap = context_map
+                .iter()
+                .filter(|(target_path, _)| {
+                    let top_level = target_path.split('.').next().unwrap_or(target_path);
+                    suite_request_has_top_level_field(suite, top_level)
+                })
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+            (filtered_map, dep_req.clone(), dep_res.clone())
+        })
+        .collect();
+    apply_context_map(&filtered_context_entries, &mut effective_req);
 
     // Connector overrides apply last, so they are the final, most specific
     // word on the request — nothing after this point may change a field the
