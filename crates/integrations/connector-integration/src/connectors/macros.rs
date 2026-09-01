@@ -2348,6 +2348,58 @@ pub(crate) use flow_status_emit;
 /// [`FrmFlowData`] as their common data, so this only needs the connector type
 /// (with its generic parameter + bounds) and the flow's request/response types.
 /// Generic over the connector, so any FRM connector can reuse it.
+
+macro_rules! frm_flow_not_implemented {
+    (
+        connector: $c:ident,
+        generic_type: $g:tt,
+        [$($b:tt)*],
+        flow: $flow:ty,
+        request: $req:ty,
+        response: $resp:ty,
+        flow_name: $name:literal $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                $flow,
+                ::domain_types::frm::frm_types::FrmFlowData,
+                $req,
+                $resp,
+            > for $c<$g>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    $flow,
+                    ::domain_types::frm::frm_types::FrmFlowData,
+                    $req,
+                    $resp,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    $name,
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "{} does not implement the `{}` FRM flow",
+                            ::interfaces::api::ConnectorCommon::id(self),
+                            $name
+                        )),
+                        suggested_action: Some(format!(
+                            "Do not route the `{}` FRM flow to this connector",
+                            $name
+                        )),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+
+        }
+    };
+}
+pub(crate) use frm_flow_not_implemented;
+
 /// Generate a full `ConnectorIntegrationV2` impl for a flow that makes no
 /// outbound connector call — the entire response is built locally in
 /// `handle_response_v2`.  Mirrors `macro_connector_implementation!` but for
@@ -2462,54 +2514,3 @@ macro_rules! macro_connector_local_flow_implementation {
     };
 }
 pub(crate) use macro_connector_local_flow_implementation;
-
-macro_rules! frm_flow_not_implemented {
-    (
-        connector: $c:ident,
-        generic_type: $g:tt,
-        [$($b:tt)*],
-        flow: $flow:ty,
-        request: $req:ty,
-        response: $resp:ty,
-        flow_name: $name:literal $(,)?
-    ) => {
-        impl<$g: $($b)*>
-            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
-                $flow,
-                ::domain_types::frm::frm_types::FrmFlowData,
-                $req,
-                $resp,
-            > for $c<$g>
-        {
-            fn get_url(
-                &self,
-                _req: &::domain_types::router_data_v2::RouterDataV2<
-                    $flow,
-                    ::domain_types::frm::frm_types::FrmFlowData,
-                    $req,
-                    $resp,
-                >,
-            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
-                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
-                    ::interfaces::api::ConnectorCommon::id(self),
-                    $name,
-                    ::domain_types::errors::IntegrationErrorContext {
-                        additional_context: Some(format!(
-                            "{} does not implement the `{}` FRM flow",
-                            ::interfaces::api::ConnectorCommon::id(self),
-                            $name
-                        )),
-                        suggested_action: Some(format!(
-                            "Do not route the `{}` FRM flow to this connector",
-                            $name
-                        )),
-                        doc_url: None,
-                    },
-                )
-                .into())
-            }
-
-        }
-    };
-}
-pub(crate) use frm_flow_not_implemented;
