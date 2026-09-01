@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.01.0
+
+### Features
+
+- **pre-authenticate:** Resolve connector variant in preAuthN, support FRM (Kount) via x-frm-connector ([#2172](https://github.com/juspay/connector-service/pull/2172)) ([`a70c29a`](https://github.com/juspay/connector-service/commit/a70c29ab8ce843dafd9c02b8bcd4ba328311ca0e))
+
+### Bug Fixes
+
+- **ci:** Require specs.json for connector-name detection ([#2201](https://github.com/juspay/connector-service/pull/2201)) ([`1dae09d`](https://github.com/juspay/connector-service/commit/1dae09d434e9cec6ef1ca59593e3ba27aae9043b))
+
+**Full Changelog:** [`2026.08.31.1...2026.09.01.0`](https://github.com/juspay/connector-service/compare/2026.08.31.1...2026.09.01.0)
+
+- - -
+
 ## 2026.08.31.1
 
 ### Features
