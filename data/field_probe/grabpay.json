@@ -3535,8 +3535,26 @@
     },
     "get": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: access_token — Missing required field: access_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/one-time-charge/probe_merchant_txn_001/status?currency=USD",
+          "method": "Get",
+          "headers": {
+            "authorization": "probe_key:cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
       }
     },
     "handle_event": {
