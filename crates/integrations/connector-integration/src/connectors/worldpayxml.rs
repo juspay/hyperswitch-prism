@@ -132,7 +132,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         use connector_types::{AuthenticationStep, RedirectState};
         // Card 3DS starts with Cardinal device data collection; both the DDC return and
         // the challenge return re-enter Authorize, which branches on the redirect payload.
-        // Wallets authorize directly: the initial order arms additional3DSData itself.
+        // Wallets authorize directly: decrypted wallet tokens carry a network cryptogram,
+        // so they are already authenticated. Google Pay FPAN 3DS is supported on the
+        // granular path only, where the caller routes it through PreAuthenticate.
         if auth_type == common_enums::AuthenticationType::ThreeDs
             && payment_method == common_enums::PaymentMethod::Card
             && matches!(redirect_state, RedirectState::InitialRequest)
