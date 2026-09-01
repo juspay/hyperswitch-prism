@@ -44,6 +44,7 @@ pkill -9 -f "target/debug/grpc-server" 2>/dev/null || true
 sleep 1
 (
   cd "$ROOT"
+  RUST_MIN_STACK=33554432 \
   CS__DEJA__MODE=record \
   CS__DEJA__RECORDING__KAFKA__BROKERS=localhost:9092 \
   CS__TEST__ENABLED=true \

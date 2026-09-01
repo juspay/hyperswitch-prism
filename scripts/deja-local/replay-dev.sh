@@ -201,6 +201,7 @@ SERVER_TYPE=""; [ "$MODE" = "http" ] && SERVER_TYPE="http" || SERVER_TYPE="grpc"
   cd "$ROOT"
   CS__COMMON__ENVIRONMENT=development \
   CS__SERVER__TYPE="$SERVER_TYPE" \
+  RUST_MIN_STACK=33554432 \
   CS__DEJA__MODE=replay \
   CS__DEJA__REPLAY__SOURCE="$TABLE" \
   CS__DEJA__REPLAY__OBSERVED_SINK="$STATE/observed/$RUN_ID.jsonl" \
