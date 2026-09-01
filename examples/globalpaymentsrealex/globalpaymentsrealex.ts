@@ -7,7 +7,7 @@
 
 import { PaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -48,6 +48,17 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "merchantCaptureId": "probe_capture_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
         "amountToCapture": {  // Capture Details.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
+    return {
+        "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
+        "connectorTransactionId": connectorTransactionId,
+        "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
@@ -155,6 +166,28 @@ async function processVoidPayment(merchantTransactionId: string, config: types.I
     return { status: voidResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: voidResponse.error } as any;
 }
 
+// Get Payment Status
+// Retrieve current payment status from the connector.
+async function processGetPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    // Step 1: Authorize — reserve funds on the payment method
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
+
+    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
+        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
+    }
+    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
+        // Awaiting async confirmation — handle via webhook
+        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
+    }
+
+    // Step 2: Get — retrieve current payment status from the connector
+    const getResponse = await paymentClient.get(_buildGetRequest(authorizeResponse.connectorTransactionId!));
+
+    return { status: getResponse.status, transactionId: getResponse.connectorTransactionId!, error: getResponse.error } as any;
+}
+
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -171,6 +204,15 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
 
     return captureResponse;
+}
+
+// Flow: PaymentService.Get
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
+
+    return getResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -194,7 +236,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processVoidPayment, authorize, capture, proxyAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processVoidPayment, processGetPayment, authorize, capture, get, proxyAuthorize, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildProxyAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner

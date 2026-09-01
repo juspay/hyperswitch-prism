@@ -345,9 +345,9 @@ examples_python: examples/globalpay/globalpay.py
 ## Globalpaymentsrealex
 connector_id: globalpaymentsrealex
 doc: docs/connectors/globalpaymentsrealex.md
-scenarios: checkout_autocapture, checkout_card, void_payment
+scenarios: checkout_autocapture, checkout_card, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, proxy_authorize, void
+flows: authorize, capture, get, proxy_authorize, void
 examples_python: examples/globalpaymentsrealex/globalpaymentsrealex.py
 
 ## Glomopay

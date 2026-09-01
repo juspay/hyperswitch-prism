@@ -568,8 +568,24 @@
     },
     "get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_sync flow for globalpayments_realex"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"query\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><orderid>probe_merchant_txn_001</orderid><pasref>probe_connector_txn_001</pasref><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
       }
     },
     "handle_event": {

@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "capture", "proxy_authorize", "void"];
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "capture", "get", "proxy_authorize", "void"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -72,6 +72,19 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
         connector_transaction_id: connector_transaction_id.to_string(),
         amount_to_capture: Some(Money {
             // Capture Details.
+            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        ..Default::default()
+    }
+}
+
+pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
+    PaymentServiceGetRequest {
+        merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
+        connector_transaction_id: connector_transaction_id.to_string(),
+        amount: Some(Money {
+            // Amount Information.
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
@@ -231,6 +244,43 @@ pub async fn process_void_payment(
     Ok(format!("Voided: {:?}", void_response.status()))
 }
 
+// Scenario: Get Payment Status
+// Retrieve current payment status from the connector.
+#[allow(dead_code)]
+pub async fn process_get_payment(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    // Step 1: Authorize — reserve funds on the payment method
+    let authorize_response = client
+        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
+        .await?;
+
+    match authorize_response.status() {
+        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
+            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
+        }
+        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
+        _ => {}
+    }
+
+    // Step 2: Get — retrieve current payment status from the connector
+    let get_response = client
+        .get(
+            build_get_request(
+                authorize_response
+                    .connector_transaction_id
+                    .as_deref()
+                    .unwrap_or(""),
+            ),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+
+    Ok(format!("Status: {:?}", get_response.status()))
+}
+
 // Flow: PaymentService.Authorize (Card)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -261,6 +311,22 @@ pub async fn process_capture(
     let response = client
         .capture(
             build_capture_request("probe_connector_txn_001"),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: PaymentService.Get
+#[allow(dead_code)]
+pub async fn process_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .get(
+            build_get_request("probe_connector_txn_001"),
             &HashMap::new(),
             None,
         )
@@ -307,12 +373,14 @@ async fn main() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
         "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_void_payment" => process_void_payment(&client, "order_001").await,
+        "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_void_payment, process_authorize, process_capture, process_proxy_authorize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_void_payment, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_void", flow);
             return;
         }
     };
