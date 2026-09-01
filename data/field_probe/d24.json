@@ -1,0 +1,658 @@
+{
+  "connector": "d24",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for d24"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for d24"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for d24"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for d24"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for d24"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for d24"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for d24"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for d24"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for d24"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for d24"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for d24"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by d24 connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-stg.directa24.com/v3/deposits/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "D24 a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for d24"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for d24"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for d24"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for d24"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for d24"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for d24"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for d24"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for d24"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for d24"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for d24"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Directa24 WebPay only supports PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters card details on Transbank's own page, so no card data is sent to /v3/deposits"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for d24"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for d24"
+      }
+    }
+  }
+}

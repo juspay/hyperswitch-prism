@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 109
+# Connectors: 110
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 109
+  total_connectors: 110
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -213,6 +213,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDecrypted, SamsungPay
 flows: authenticate, authorize, capture, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, reverse, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
+
+## D24
+connector_id: d24
+doc: docs/connectors/d24.md
+scenarios: none
+payment_methods: none
+flows: get
+examples_python: none
 
 ## Datatrans
 connector_id: datatrans
