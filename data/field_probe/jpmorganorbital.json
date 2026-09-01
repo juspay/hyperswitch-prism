@@ -130,7 +130,7 @@
             "orbitalconnectionusername": "probe_key",
             "via": "HyperSwitch"
           },
-          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"4111111111111111\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"d86ae1f87bbf99f494c81b\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"7525117068057076\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"737\",\"ccCardVerifyPresenceInd\":\"1\"}}"
+          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"4111111111111111\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"2iertygodp50opzwo2bixy\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"7525117068057076\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"737\",\"ccCardVerifyPresenceInd\":\"1\"}}"
         }
       },
       "CashappQr": {
@@ -574,7 +574,7 @@
             "orbitalconnectionusername": "probe_key",
             "via": "HyperSwitch"
           },
-          "body": "{\"version\":\"5.2\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"order\":{\"orderID\":\"4d52d41f93a9f7e7e6c24a\",\"inquiryRetryNumber\":\"1748921097189351\"}}"
+          "body": "{\"version\":\"5.2\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"order\":{\"orderID\":\"54q6p5hsugiti69yiyz8bp\",\"inquiryRetryNumber\":\"1748921097189351\"}}"
         }
       }
     },
@@ -645,7 +645,7 @@
             "orbitalconnectionusername": "probe_key",
             "via": "HyperSwitch"
           },
-          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"{{$card_number}}\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"dcf57e35e875149d0363bd\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"1770827636610205\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"{{$card_cvc}}\",\"ccCardVerifyPresenceInd\":\"1\"}}"
+          "body": "{\"version\":\"5.2\",\"transType\":\"AC\",\"merchant\":{\"bin\":\"000001\",\"merchantID\":\"probe_key\",\"terminalID\":\"001\"},\"paymentInstrument\":{\"card\":{\"ccAccountNum\":\"{{$card_number}}\",\"ccExp\":\"203003\"}},\"order\":{\"orderID\":\"h19elzzqf4gyg1ipztcx5k\",\"amount\":\"1000\",\"industryType\":\"EC\",\"retryTrace\":\"1770827636610205\"},\"cardholderVerification\":{\"ccCardVerifyNum\":\"{{$card_cvc}}\",\"ccCardVerifyPresenceInd\":\"1\"}}"
         }
       }
     },
