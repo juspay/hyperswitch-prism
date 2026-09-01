@@ -73,6 +73,114 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
 
 const DEFAULT_PAYMENT_DESCRIPTION: &str = "Payment";
 
+impl From<&common_enums::TransactionStatus> for requests::WorldpayxmlTransactionStatus {
+    fn from(status: &common_enums::TransactionStatus) -> Self {
+        match status {
+            common_enums::TransactionStatus::Success => Self::Success,
+            common_enums::TransactionStatus::Failure => Self::Failure,
+            common_enums::TransactionStatus::VerificationNotPerformed => {
+                Self::VerificationNotPerformed
+            }
+            common_enums::TransactionStatus::NotVerified => Self::NotVerified,
+            common_enums::TransactionStatus::Rejected => Self::Rejected,
+            common_enums::TransactionStatus::ChallengeRequired => Self::ChallengeRequired,
+            common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+                Self::ChallengeRequiredDecoupledAuthentication
+            }
+            common_enums::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+fn get_worldpayxml_info_3d_secure(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+) -> Result<Option<requests::WorldpayxmlInfo3DSecure>, Report<IntegrationError>> {
+    let Some(authentication_data) = authentication_data else {
+        return Ok(None);
+    };
+
+    let has_external_authentication_result = authentication_data.ds_trans_id.is_some()
+        || authentication_data.cavv.is_some()
+        || authentication_data.eci.is_some()
+        || authentication_data.trans_status.is_some();
+
+    let Some(message_version) = authentication_data.message_version.as_ref() else {
+        // AuthenticationData can also carry non-3DS-result metadata (for example, an exemption).
+        // Since Worldpay exemption mapping is intentionally out of scope, omit that metadata.
+        if !has_external_authentication_result {
+            return Ok(None);
+        }
+
+        return Err(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.message_version",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay XML needs the 3DS protocol version to submit externally authenticated payment data."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the external authentication result with a 2.x message_version."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into());
+    };
+
+    if message_version.get_major() != 2 {
+        return Err(IntegrationError::FlowNotSupported {
+            flow: format!("External 3DS {} authorization", message_version),
+            connector: "worldpayxml".to_string(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "The Worldpay XML external-authentication mapping implemented by this connector supports only 3DS2 results."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass a completed 3DS2 authentication result with a 2.x message_version."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into());
+    }
+
+    if authentication_data
+        .eci
+        .as_ref()
+        .is_some_and(|eci| eci.len() != 2 || !eci.bytes().all(|byte| byte.is_ascii_digit()))
+    {
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.eci",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Worldpay XML expects ECI as exactly two ASCII digits (for example, 05)."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Pass the scheme-provided numeric ECI instead of a semantic authentication status."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }
+        .into());
+    }
+
+    Ok(Some(requests::WorldpayxmlInfo3DSecure {
+        three_ds_version: message_version.to_string(),
+        ds_transaction_id: authentication_data.ds_trans_id.clone(),
+        cavv: authentication_data.cavv.clone(),
+        eci: authentication_data.eci.clone(),
+        transaction_status: authentication_data
+            .trans_status
+            .as_ref()
+            .map(requests::WorldpayxmlTransactionStatus::from),
+    }))
+}
+
 // Helper function to get payment method XML element
 fn get_worldpayxml_payment_method<T>(
     payment_method_data: &PaymentMethodData<T>,
@@ -486,6 +594,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone(),
         });
 
+        let info_3d_secure =
+            get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
+
         let authenticated_shopper_id = get_worldpayxml_authenticated_shopper_id(
             &router_data.resource_common_data,
             is_cit_mandate_payment,
@@ -529,6 +640,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                         payment_method,
                         stored_credentials,
+                        info_3d_secure,
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
@@ -653,6 +765,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let authenticated_shopper_id =
             get_worldpayxml_authenticated_shopper_id(&router_data.resource_common_data, true)?;
 
+        let info_3d_secure =
+            get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
+
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
             router_data
                 .request
@@ -702,6 +817,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             merchant_initiated_reason: None,
                             scheme_transaction_identifier: None,
                         }),
+                        info_3d_secure,
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),
@@ -868,6 +984,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 .get_connector_mandate_request_reference_id()
                                 .map(Secret::new),
                         }),
+                        info_3d_secure: None,
                     },
                     shopper: requests::WorldpayxmlShopper {
                         shopper_email_address: router_data.request.email.clone(),

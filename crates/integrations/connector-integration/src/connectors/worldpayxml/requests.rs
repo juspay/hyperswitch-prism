@@ -95,6 +95,42 @@ pub struct WorldpayxmlPaymentDetails {
     pub payment_method: WorldpayxmlPaymentMethod,
     #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
     pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
+    #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
+    pub info_3d_secure: Option<WorldpayxmlInfo3DSecure>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlInfo3DSecure {
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: String,
+    #[serde(rename = "dsTransactionId", skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(rename = "transactionStatus", skip_serializing_if = "Option::is_none")]
+    pub transaction_status: Option<WorldpayxmlTransactionStatus>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum WorldpayxmlTransactionStatus {
+    #[serde(rename = "Y")]
+    Success,
+    #[serde(rename = "N")]
+    Failure,
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    #[serde(rename = "A")]
+    NotVerified,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    #[serde(rename = "I")]
+    InformationOnly,
 }
 
 /// Flags the authorisation as part of a stored-credential agreement.
