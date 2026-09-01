@@ -7,5 +7,8 @@
     "PaymentService/Void",
     "PaymentService/Refund",
     "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "card"
   ]
 }

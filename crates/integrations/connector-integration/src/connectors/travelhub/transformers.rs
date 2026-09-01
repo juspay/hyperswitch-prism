@@ -90,6 +90,156 @@ pub struct TravelhubErrorResponse {
     pub path: Option<String>,
 }
 
+// Travel / Airline Itinerary Types
+
+/// Connector-agnostic airline data (Euler `domainData.airlineData`) mapped onto
+/// Travelhub's `travel` object. Present in both authorize and capture requests;
+/// `airlineCode` is mandatory whenever `travel` is sent, so the whole block is
+/// omitted when no airline code is available.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubTravel {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub booking_code: Option<String>,
+    pub airline_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_date: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub passenger: Vec<TravelhubTravelPassenger>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub flight: Vec<TravelhubTravelFlight>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubTravelPassenger {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<TravelhubTravelPassengerName>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_number: Option<Secret<String>>,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub passenger_type: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubTravelPassengerName {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub middle_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubTravelFlight {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub departure_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub departure_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arrival_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arrival_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub carrier_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flight_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flight_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub air_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare: Option<TravelhubTravelFare>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub departure_country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arrival_country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arrival_date: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TravelhubTravelFare {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_basis: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stopover_allowed: Option<bool>,
+}
+
+fn build_travel_data(
+    domain_data: Option<&domain_types::connector_types::DomainData>,
+) -> Option<TravelhubTravel> {
+    let airline = domain_data?.airline_data.as_ref()?;
+    // Travelhub marks airlineCode as required whenever travel is sent; prefer the
+    // dedicated airline_code, fall back to the issuing carrier's code.
+    let airline_code = airline
+        .airline_code
+        .clone()
+        .or_else(|| airline.issuing_carrier_code.clone())?;
+    Some(TravelhubTravel {
+        booking_code: airline.pnr_code.clone(),
+        airline_code,
+        issue_date: airline.ticket_issue_date.clone(),
+        passenger: airline
+            .passengers
+            .iter()
+            .map(|p| TravelhubTravelPassenger {
+                name: p.customer.as_ref().map(|c| TravelhubTravelPassengerName {
+                    first_name: c.first_name.clone(),
+                    last_name: c.last_name.clone(),
+                    middle_name: p.middle_name.clone(),
+                }),
+                ticket_number: p.ticket_number.clone(),
+                passenger_type: p.passenger_type.clone(),
+            })
+            .collect(),
+        flight: airline
+            .flight_segments
+            .iter()
+            .map(|s| TravelhubTravelFlight {
+                departure_code: s.departure.as_ref().and_then(|d| d.airport_code.clone()),
+                departure_name: s.departure.as_ref().and_then(|d| d.city_name.clone()),
+                arrival_code: s.arrival.as_ref().and_then(|a| a.airport_code.clone()),
+                arrival_name: s.arrival.as_ref().and_then(|a| a.city_name.clone()),
+                carrier_code: s.marketing_carrier_code.clone(),
+                flight_number: s.flight_number.clone(),
+                flight_date: s
+                    .departure
+                    .as_ref()
+                    .and_then(|d| d.date_time.clone())
+                    .or_else(|| airline.flight_date.clone()),
+                air_class: s.class_of_service.clone(),
+                fare: s.fare_amount.as_ref().map(|m| TravelhubTravelFare {
+                    amount: Some(m.amount),
+                    currency: Some(m.currency),
+                    fare_class: s.class_of_service.clone(),
+                    fare_basis: s.fare_basis_code.clone(),
+                    stopover_allowed: s.stopover_code.as_deref().map(|c| c == "O"),
+                }),
+                departure_country_code: s.departure.as_ref().and_then(|d| d.country_code.clone()),
+                arrival_country_code: s.arrival.as_ref().and_then(|a| a.country_code.clone()),
+                arrival_date: s.arrival.as_ref().and_then(|a| a.date_time.clone()),
+            })
+            .collect(),
+        agent_code: airline.agency_code.clone(),
+        agent_name: airline.agency_name.clone(),
+    })
+}
+
 // Authorize Request Types
 
 #[derive(Debug, Serialize)]
@@ -149,6 +299,8 @@ pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub currency: Currency,
     pub capture: bool,
     pub payment: TravelhubPayment<T>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub travel: Option<TravelhubTravel>,
 }
 
 fn get_card_payment_method_code<T: PaymentMethodDataTypes>(
@@ -264,6 +416,7 @@ impl<T: PaymentMethodDataTypes>
             amount: item.request.minor_amount,
             currency: item.request.currency,
             capture: is_auto_capture,
+            travel: build_travel_data(item.request.domain_data.as_ref()),
             payment: TravelhubPayment {
                 payment_method: TravelhubPaymentMethod {
                     code: payment_method_code,
