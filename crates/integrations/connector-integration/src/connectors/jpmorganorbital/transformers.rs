@@ -1356,7 +1356,7 @@ mod currency_validation_tests {
     }
 
     #[test]
-    fn unparseable_config_is_rejected() {
+    fn unparsable_config_is_rejected() {
         assert!(validate_currency(Currency::USD, Some("DOLLARS")).is_err());
     }
 }
