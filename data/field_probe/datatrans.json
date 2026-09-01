@@ -871,7 +871,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
@@ -884,7 +884,7 @@
     "tokenize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for datatrans"
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only"
       }
     },
     "verify_redirect": {
