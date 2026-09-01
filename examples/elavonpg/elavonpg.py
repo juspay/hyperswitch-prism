@@ -8,10 +8,11 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import PaymentMethodAuthenticationClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "get", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -57,6 +58,15 @@ def _build_capture_request(connector_transaction_id: str):
         ),
     )
 
+def _build_create_order_request():
+    return payment_pb2.PaymentServiceCreateOrderRequest(
+        merchant_order_id="probe_order_001",  # Identification.
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+    )
+
 def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
@@ -65,6 +75,29 @@ def _build_get_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+    )
+
+def _build_pre_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(),
+        ),
+        enrolled_for_3ds=False,  # Authentication Details.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order resource URL returned by PaymentService/CreateOrder to open a payment session.
     )
 
 def _build_proxy_authorize_request():
@@ -245,6 +278,15 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": capture_response.status}
 
 
+async def process_create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.CreateOrder"""
+    payment_client = PaymentClient(config)
+
+    create_response = await payment_client.create_order(_build_create_order_request())
+
+    return {"status": create_response.status}
+
+
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -252,6 +294,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PreAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
+
+    return {"status": pre_response.status}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

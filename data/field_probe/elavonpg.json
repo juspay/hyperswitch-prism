@@ -515,8 +515,26 @@
     },
     "create_order": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_order flow for elavon_pg"
+        "status": "supported",
+        "proto_request": {
+          "merchant_order_id": "probe_order_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/orders",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total\":{\"amount\":\"10.00\",\"currencyCode\":\"USD\"}}"
+        }
       }
     },
     "create_server_authentication_token": {
@@ -626,8 +644,40 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for elavon_pg"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/payment-sessions",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"order\":\"connector_order_id\",\"returnUrl\":\"https://example.com/3ds-return\",\"cancelUrl\":\"https://example.com/3ds-return\",\"doThreeDSecure\":true,\"doCreateTransaction\":false}"
+        }
       }
     },
     "proxy_authorize": {
