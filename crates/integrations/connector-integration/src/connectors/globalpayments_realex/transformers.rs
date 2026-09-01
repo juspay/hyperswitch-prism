@@ -9,9 +9,9 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork};
 use common_utils::types::MinorUnit;
 use domain_types::{
-    connector_flow::Authorize,
+    connector_flow::{Authorize, Capture},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         ResponseId as DomainResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
@@ -35,6 +35,9 @@ use crate::types::ResponseRouterData;
 
 /// Root element `type` attribute for the Authorize flow.
 pub const REQUEST_TYPE_AUTH: &str = "auth";
+/// Root element `type` attribute for the Capture flow. Same endpoint, same envelope — only the
+/// `type` attribute and the body elements differ (tech spec §12.1).
+pub const REQUEST_TYPE_SETTLE: &str = "settle";
 /// Ecommerce channel. The other documented value is `MOTO`, which is out of scope.
 pub const CHANNEL_ECOM: &str = "ECOM";
 /// `<cvn><presind>` — `1` means "CVN present on the card and supplied by the cardholder".
@@ -99,6 +102,30 @@ impl TryFrom<&ConnectorSpecificConfig> for GlobalpaymentsRealexAuthType {
 }
 
 // =============================================================================
+// CONNECTOR METADATA (carried from Authorize to the follow-up flows)
+// =============================================================================
+
+/// The values a follow-up `settle` / `void` / `rebate` / `query` needs that are **not** carried by
+/// any standard UCS field.
+///
+/// `pasref` travels as the `connector_transaction_id`, but RealEx also requires the **original**
+/// `<orderid>` — and, for `rebate`, the original `<authcode>` — verbatim. Neither can be
+/// regenerated at capture time (a fresh timestamp-derived order id is rejected), so Authorize
+/// publishes them as `connector_metadata`, which the gRPC layer surfaces as
+/// `connector_feature_data` on the Authorize response and accepts back on the Capture request.
+///
+/// Tech spec §14.5 ("what to persist").
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GlobalpaymentsRealexPaymentMetadata {
+    /// The `<orderid>` **we sent** on the original `auth` (not the gateway's echo, which is
+    /// prefixed with `_settle_` on some error documents).
+    pub orderid: String,
+    /// `<authcode>` from the original `auth` response. Optional because a `5xx` auth carries none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub authcode: Option<String>,
+}
+
+// =============================================================================
 // HASHING (tech spec §3)
 // =============================================================================
 
@@ -149,6 +176,43 @@ fn build_auth_request_hash(
             amount,
             currency,
             card_number,
+        ],
+        shared_secret,
+    ))
+}
+
+/// Digest for `type="settle"`.
+///
+/// The blueprint is the same six positional slots as `auth`
+/// (`timestamp.merchantid.orderid.amount.currency.cardnumber`), but the slot must mirror the body
+/// **exactly**:
+///
+/// * `<amount>` omitted (full settle)  -> `timestamp.merchantid.orderid...`
+/// * `<amount>` present (any settle)   -> `timestamp.merchantid.orderid.<amount>..`
+///
+/// Both variants were **verified live** against the sandbox while implementing this flow; the
+/// documentation's partial-settle worked example is a placeholder and could not be used
+/// (tech spec §16 item 6). Filling the amount slot while omitting `<amount>` — or filling the
+/// currency slot at all — is rejected with `505 sha1hash incorrect`.
+///
+/// This connector always sends `<amount>`, so it always uses the amount-filled blueprint.
+fn build_settle_request_hash(
+    timestamp: &str,
+    merchant_id: &str,
+    order_id: &str,
+    amount: Option<&str>,
+    shared_secret: &str,
+) -> Secret<String> {
+    Secret::new(realex_digest(
+        &[
+            timestamp,
+            merchant_id,
+            order_id,
+            amount.unwrap_or_default(),
+            // `settle` carries no currency attribute and no card number; both slots stay empty but
+            // their separators are still emitted.
+            "",
+            "",
         ],
         shared_secret,
     ))
@@ -651,6 +715,13 @@ pub struct GlobalpaymentsRealexPaymentsResponse {
     pub sha1hash: Option<String>,
 }
 
+/// The `settle` response is the **same document shape** as the `auth` response — same root, same
+/// optional fields, same `<batchid>`-may-be-empty trap — so it is modelled by the same struct.
+///
+/// The alias exists because the macro layer derives per-flow helper types from the response type's
+/// name and therefore needs a distinct identifier per flow.
+pub type GlobalpaymentsRealexCaptureResponse = GlobalpaymentsRealexPaymentsResponse;
+
 /// Deserializes an optional integer that the gateway may send as an **empty element**.
 ///
 /// A declined `auth` answers with `<batchid></batchid>` while a successful one carries a number,
@@ -759,26 +830,339 @@ where
             .clone()
             .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
 
-        let payments_response =
-            if response.is_success() && hash_verification != HashVerification::Mismatch {
-                // `pasref` is the gateway transaction reference every follow-up flow needs; a success
-                // without one would leave the payment unreferenceable.
-                let pasref = response.pasref.clone().ok_or_else(|| {
-                    report!(ConnectorError::ResponseHandlingFailed {
-                        context: Default::default(),
-                    })
-                    .attach_printable(
-                        "GlobalpaymentsRealex returned result 00 without a <pasref> transaction \
+        let payments_response = if response.is_success()
+            && hash_verification != HashVerification::Mismatch
+        {
+            // `pasref` is the gateway transaction reference every follow-up flow needs; a success
+            // without one would leave the payment unreferenceable.
+            let pasref = response.pasref.clone().ok_or_else(|| {
+                report!(ConnectorError::ResponseHandlingFailed {
+                    context: Default::default(),
+                })
+                .attach_printable(
+                    "GlobalpaymentsRealex returned result 00 without a <pasref> transaction \
                      reference",
-                    )
-                })?;
+                )
+            })?;
+
+            // The order id we actually put on the wire — recomputed rather than read back from
+            // the response so that a follow-up `settle` reuses a byte-identical value.
+            let sent_order_id = sanitize_order_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+            let connector_metadata = serde_json::to_value(GlobalpaymentsRealexPaymentMetadata {
+                orderid: sent_order_id,
+                authcode: response.authcode.clone(),
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Failed to serialize the GlobalpaymentsRealex follow-up metadata (orderid / \
+                     authcode)",
+            )?;
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: DomainResponseId::ConnectorTransactionId(pasref),
+                redirection_data: None,
+                connector_metadata: Some(connector_metadata),
+                mandate_reference: None,
+                // Scheme Reference Data is the scheme-level transaction id for this payment.
+                network_txn_id: response.srd.clone(),
+                network_txn_link_id: None,
+                connector_response_reference_id: response.orderid.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: http_code,
+                payment_account_reference: None,
+            })
+        } else {
+            Err(ErrorResponse {
+                status_code: http_code,
+                // The `<result>` code verbatim — `"101"`, `"505"`, `"111"`, …
+                code: response.result.clone(),
+                message: message.clone(),
+                reason: response.message.clone(),
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: response.pasref.clone(),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: payments_response,
+            ..router_data
+        })
+    }
+}
+
+// =============================================================================
+// CAPTURE — `type="settle"` (tech spec §12.1)
+// =============================================================================
+
+/// The `settle` request.
+///
+/// It reuses the shared envelope (`<merchantid>`, `<account>`, `<sha1hash>`) but references an
+/// existing authorization instead of carrying card data: `<orderid>`, `<pasref>` and `<authcode>`
+/// must all be the **original** values from the `auth` that is being settled.
+///
+/// `<amount>` deliberately has **no** `currency` attribute — unlike `auth` and `rebate`, `settle`
+/// takes a bare integer and inherits the currency from the original authorization (tech spec §12.1).
+#[derive(Debug, Serialize)]
+#[serde(rename = "request")]
+pub struct GlobalpaymentsRealexCaptureRequest {
+    #[serde(rename = "@type")]
+    pub request_type: String,
+    #[serde(rename = "@timestamp")]
+    pub timestamp: String,
+    pub merchantid: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<Secret<String>>,
+    /// The `<orderid>` of the transaction being settled, not a new one.
+    pub orderid: String,
+    /// The gateway reference returned by the original `auth`.
+    pub pasref: String,
+    /// The issuer authorization code returned by the original `auth`. Omitted when Authorize did
+    /// not surface one; the sandbox accepts a `settle` without it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authcode: Option<String>,
+    /// Bare integer in the currency's minor unit — **no** `currency` attribute.
+    pub amount: String,
+    pub sha1hash: Secret<String>,
+}
+
+impl GetSoapXml for GlobalpaymentsRealexCaptureRequest {
+    fn to_soap_xml(&self) -> String {
+        // Mirrors the Authorize flow: a serialization failure emits a minimal well-formed document
+        // that the gateway answers with `502 Mandatory Fields missing`, rather than panicking.
+        quick_xml::se::to_string_with_root("request", self).unwrap_or_else(|error| {
+            tracing::error!(
+                connector = "globalpayments_realex",
+                ?error,
+                "Failed to serialize the GlobalpaymentsRealex settle request to XML"
+            );
+            "<request/>".to_string()
+        })
+    }
+}
+
+/// Recovers the `<orderid>` / `<authcode>` that Authorize published as `connector_metadata`.
+///
+/// The gRPC layer hands the same JSON back on either `connector_feature_data` (where the Authorize
+/// response emits it) or `metadata`, so both are accepted, in that order.
+fn extract_capture_metadata(
+    request: &PaymentsCaptureData,
+) -> Option<GlobalpaymentsRealexPaymentMetadata> {
+    request
+        .connector_feature_data
+        .as_ref()
+        .or(request.metadata.as_ref())
+        .and_then(|value| {
+            match serde_json::from_value::<GlobalpaymentsRealexPaymentMetadata>(
+                value.peek().clone(),
+            ) {
+                Ok(metadata) => Some(metadata),
+                Err(error) => {
+                    // Not fatal: the caller may be passing unrelated metadata, in which case the
+                    // order id falls back to `merchant_capture_id` below.
+                    tracing::warn!(
+                        connector = "globalpayments_realex",
+                        ?error,
+                        "GlobalpaymentsRealex capture metadata did not contain an <orderid>; \
+                         falling back to the capture reference"
+                    );
+                    None
+                }
+            }
+        })
+}
+
+impl<T>
+    TryFrom<
+        GlobalpaymentsRealexRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    > for GlobalpaymentsRealexCaptureRequest
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: GlobalpaymentsRealexRouterData<
+            RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        // RealEx expresses multiple partial captures through `autosettle flag="MULTI"` + repeated
+        // `multisettle` requests, which this sandbox account is not provisioned for
+        // (`503 Request type [multisettle] not allowed for this merchant` — tech spec §16 item 7).
+        // Reject it explicitly rather than silently degrading to a single settle.
+        if matches!(request.capture_method, Some(CaptureMethod::ManualMultiple))
+            || request.is_multiple_capture()
+        {
+            return Err(report!(IntegrationError::NotImplemented(
+                "Multiple partial captures (ManualMultiple) are not supported by \
+                 GlobalpaymentsRealex: the account must be provisioned for the `multisettle` \
+                 request type, which returns 503 otherwise"
+                    .to_string(),
+                IntegrationErrorContext::default(),
+            )));
+        }
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
+        let metadata = extract_capture_metadata(request);
+
+        // `<orderid>` must be the original one. Preferred source is the metadata Authorize
+        // published; `merchant_capture_id` is accepted as a fallback for callers that echo the
+        // original reference there.
+        let order_id = match metadata.as_ref().map(|metadata| metadata.orderid.clone()) {
+            Some(order_id) => sanitize_order_id(&order_id)?,
+            None => sanitize_order_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )
+            .attach_printable(
+                "GlobalpaymentsRealex settle needs the original <orderid>: echo the Authorize \
+                 response's connector_feature_data back on the capture request, or set \
+                 merchant_capture_id to the original order id",
+            )?,
+        };
+
+        // `<pasref>` is the gateway reference, i.e. the connector_transaction_id.
+        let pasref = request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "GlobalpaymentsRealex settle needs the original <pasref> as the \
+                         connector_transaction_id"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })?;
+
+        // Always sent explicitly, so full and partial settles share one code path and one digest
+        // blueprint (both verified live — see `build_settle_request_hash`).
+        let amount = format_amount(request.minor_amount_to_capture, request.currency)?;
+
+        let timestamp = current_timestamp()?;
+        let merchant_id = auth.merchant_id.clone().expose();
+        let sha1hash = build_settle_request_hash(
+            &timestamp,
+            &merchant_id,
+            &order_id,
+            Some(&amount),
+            auth.shared_secret.peek(),
+        );
+
+        Ok(Self {
+            request_type: REQUEST_TYPE_SETTLE.to_string(),
+            timestamp,
+            merchantid: auth.merchant_id,
+            account: Some(auth.account),
+            orderid: order_id,
+            pasref,
+            authcode: metadata.and_then(|metadata| metadata.authcode),
+            amount,
+            sha1hash,
+        })
+    }
+}
+
+/// `result` → `AttemptStatus` for `settle` (tech spec §9.4).
+///
+/// As with `auth` there is no asynchronous state: a `settle` either succeeds (`00 Settled
+/// Successfully`) or fails outright, so `Pending` is never correct here.
+fn map_capture_attempt_status(result: &str) -> AttemptStatus {
+    if result == RESULT_SUCCESS {
+        AttemptStatus::Charged
+    } else {
+        AttemptStatus::CaptureFailed
+    }
+}
+
+impl TryFrom<ResponseRouterData<GlobalpaymentsRealexCaptureResponse, Self>>
+    for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<GlobalpaymentsRealexCaptureResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        // The `settle` response uses the same check-hash blueprint as `auth` (verified live), and
+        // the same "no <sha1hash> on 5xx error documents" rule applies.
+        let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
+
+        let status = match hash_verification {
+            HashVerification::Mismatch => AttemptStatus::IntegrityFailure,
+            HashVerification::Verified | HashVerification::Skipped => {
+                map_capture_attempt_status(&response.result)
+            }
+        };
+
+        if hash_verification == HashVerification::Mismatch {
+            tracing::warn!(
+                connector = "globalpayments_realex",
+                order_id = ?response.orderid,
+                "GlobalpaymentsRealex settle response sha1hash did not match the computed digest"
+            );
+        }
+
+        let message = response
+            .message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+
+        let capture_response =
+            if response.is_success() && hash_verification != HashVerification::Mismatch {
+                // A settle mints its own `<pasref>`; keep the original one when the gateway does
+                // not return a new one so the payment stays referenceable either way.
+                let resource_id = response
+                    .pasref
+                    .clone()
+                    .map(DomainResponseId::ConnectorTransactionId)
+                    .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
 
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: DomainResponseId::ConnectorTransactionId(pasref),
+                    resource_id,
                     redirection_data: None,
                     connector_metadata: None,
                     mandate_reference: None,
-                    // Scheme Reference Data is the scheme-level transaction id for this payment.
                     network_txn_id: response.srd.clone(),
                     network_txn_link_id: None,
                     connector_response_reference_id: response.orderid.clone(),
@@ -790,7 +1174,6 @@ where
             } else {
                 Err(ErrorResponse {
                     status_code: http_code,
-                    // The `<result>` code verbatim — `"101"`, `"505"`, `"111"`, …
                     code: response.result.clone(),
                     message: message.clone(),
                     reason: response.message.clone(),
@@ -811,7 +1194,7 @@ where
                 status,
                 ..router_data.resource_common_data
             },
-            response: payments_response,
+            response: capture_response,
             ..router_data
         })
     }
