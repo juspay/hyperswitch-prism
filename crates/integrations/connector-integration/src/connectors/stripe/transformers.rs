@@ -1952,6 +1952,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let amount =
             StripeAmountConvertor::convert(item.request.minor_amount, item.request.currency)?;
+        // DIVERGENCE PROBE — deliberate regression, never merge.
+        // Expected replay verdict: diverged — the outgoing Stripe form body
+        // carries amount+1 vs the recorded request (egress args diff in the
+        // calls ledger; $.rawConnectorRequest.value.body.amount in the echo).
+        let amount = amount + MinorUnit::new(1);
         let order_id = item
             .resource_common_data
             .connector_request_reference_id
