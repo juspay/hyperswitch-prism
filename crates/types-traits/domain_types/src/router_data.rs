@@ -1000,6 +1000,13 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// Global Payments — Heartland (Portico PosGateway).
+    /// `api_key` = Portico SecretAPIKey; it travels in the SOAP body at
+    /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
+    GlobalpaymentsHeartland {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1366,6 +1373,7 @@ impl ConnectorSpecificConfig {
                 license,
                 merchant_id
             },
+            GlobalpaymentsHeartland { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1855,6 +1863,7 @@ impl ConnectorSpecificConfig {
                     license,
                     merchant_id
                 },
+                GlobalpaymentsHeartland { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2499,6 +2508,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: ilixium.key1.ok_or_else(err)?,
                 api_secret: ilixium.api_secret.ok_or_else(err)?,
                 base_url: ilixium.base_url,
+            }),
+            AuthType::Globalpaymentsheartland(config) => Ok(Self::GlobalpaymentsHeartland {
+                api_key: config.api_key.ok_or_else(err)?,
+                base_url: config.base_url,
             }),
             AuthType::Worldpayraft(worldpayraft) => Ok(Self::Worldpayraft {
                 license: worldpayraft.license.ok_or_else(err)?,
@@ -3727,6 +3740,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Globalpaymentsheartland => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

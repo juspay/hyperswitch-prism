@@ -904,6 +904,7 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
+  GLOBALPAYMENTSHEARTLAND = 140;
 }
 
 // Payment method types
@@ -5823,6 +5824,13 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -6162,6 +6170,8 @@ message ConnectorSpecificConfig {
     WorldpayraftConfig worldpayraft = 149;
     // GOTYME_SANLAM = 140
     GotymeSanlamConfig gotyme_sanlam = 150;
+    // GLOBALPAYMENTSHEARTLAND = 140
+    GlobalpaymentsHeartlandConfig globalpaymentsheartland = 151;
   }
 }
 

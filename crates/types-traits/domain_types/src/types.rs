@@ -430,6 +430,7 @@ pub struct Connectors {
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
     pub ilixium: ConnectorParams,
+    pub globalpaymentsheartland: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,

@@ -313,3 +313,6 @@ pub use self::ilixium::Ilixium;
 
 pub mod worldpayraft;
 pub use self::worldpayraft::Worldpayraft;
+
+pub mod globalpaymentsheartland;
+pub use self::globalpaymentsheartland::GlobalpaymentsHeartland;

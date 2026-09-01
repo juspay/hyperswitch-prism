@@ -810,6 +810,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::Globalpaymentsheartland => {
+            ConnectorSpecificConfig::GlobalpaymentsHeartland {
+                api_key: k(),
+                base_url: None,
+            }
+        }
         ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {
             license: k(),
             merchant_id: k(),
