@@ -303,11 +303,11 @@ fn is_auto_generate_numeric_sentinel(value: &Value) -> bool {
 /// shared scenario already sends (e.g. a sandbox that dedupes authorizations
 /// by (card, amount) within a short window).
 fn generate_numeric_value(runner: &mut TestRunner) -> Result<i64, ScenarioError> {
-    let tree = (1_000i64..1_000_000i64)
-        .new_tree(runner)
-        .map_err(|error| ScenarioError::GrpcurlExecution {
+    let tree = (1_000i64..1_000_000i64).new_tree(runner).map_err(|error| {
+        ScenarioError::GrpcurlExecution {
             message: format!("auto-generate-numeric failed: {error}"),
-        })?;
+        }
+    })?;
     Ok(tree.current())
 }
 
