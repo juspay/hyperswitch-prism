@@ -1,18 +1,3 @@
-//! Saferpay transformers.
-//!
-//! Saferpay (SIX Payment Services) exposes a POST-only, RPC-style JSON API under
-//! `/Payment/v1/Transaction/*`. There are no GET endpoints and no path or query
-//! parameters: the resource being acted on is always named inside the JSON body
-//! (`TransactionReference.TransactionId`, `CaptureReference.CaptureId` or `Token`).
-//! Every request carries a `RequestHeader` envelope and every response a
-//! `ResponseHeader`.
-//!
-//! Scope of this module: **Card, one-time payments only** — Authorize (non-3DS via
-//! `AuthorizeDirect`, 3DS via `Initialize` + the token-based `Authorize` issued from
-//! PSync), PSync / RSync (`Inquire`), Capture, Void (`Cancel`) and Refund. Wallets,
-//! bank debits, mandates/MIT, tokenization (Alias / Secure Card Data), `RefundDirect`,
-//! DCC and marketplace splits are all out of scope.
-
 use std::collections::HashMap;
 
 use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, RefundStatus};
