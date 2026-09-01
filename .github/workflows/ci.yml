@@ -642,6 +642,12 @@ jobs:
   test:
     name: Run Tests
     needs: [changes, auto-fix]
+    # `Comment unproven connector declarations on the PR` calls issues.createComment,
+    # which the top-level `contents: read` does not grant. Scoped the same way as the
+    # PR comment in sdk-client-sanity.yml.
+    permissions:
+      contents: read
+      pull-requests: write
     # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
     # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-
