@@ -6,7 +6,7 @@
 //! The two products share no types, transformers, status maps or configuration.
 //!
 //! A single endpoint serves every operation; the operation is chosen by the `type` attribute on
-//! the `<request>` root element (`auth` and `settle` here; `void`, `rebate` and `query` are the
+//! the `<request>` root element (`auth`, `settle` and `void` here; `rebate` and `query` are the
 //! follow-up flows that will reuse this scaffolding).
 
 pub mod transformers;
@@ -16,9 +16,10 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture},
+    connector_flow::{Authorize, Capture, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -37,6 +38,7 @@ use serde::Serialize;
 use transformers::{
     GlobalpaymentsRealexCaptureRequest, GlobalpaymentsRealexCaptureResponse,
     GlobalpaymentsRealexPaymentsRequest, GlobalpaymentsRealexPaymentsResponse,
+    GlobalpaymentsRealexVoidRequest, GlobalpaymentsRealexVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -76,6 +78,13 @@ macros::create_all_prerequisites!(
             response_body: GlobalpaymentsRealexCaptureResponse,
             response_format: xml,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: GlobalpaymentsRealexVoidRequest,
+            response_body: GlobalpaymentsRealexVoidResponse,
+            response_format: xml,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -121,6 +130,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for GlobalpaymentsRealex<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for GlobalpaymentsRealex<T>
 {
 }
 
@@ -236,6 +250,41 @@ macros::macro_connector_implementation!(
 );
 
 // =============================================================================
+// VOID FLOW (`type="void"`)
+// =============================================================================
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: GlobalpaymentsRealex,
+    curl_request: SoapXml(GlobalpaymentsRealexVoidRequest),
+    curl_response: GlobalpaymentsRealexVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(self.build_xml_headers())
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Same single CGI endpoint as Authorize and Capture; only the `type` attribute differs.
+            Ok(self.build_endpoint_url(self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+// =============================================================================
 // CONNECTOR COMMON
 // =============================================================================
 
@@ -311,7 +360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// Authorize (`auth`) and Capture (`settle`) are wired. Void (`void`), Refund (`rebate`) and
+// Authorize (`auth`), Capture (`settle`) and Void (`void`) are wired. Refund (`rebate`) and
 // PSync/RSync (`query`) reuse the same endpoint and digest scaffolding and are follow-up work.
 macros::macro_connector_flow_status_impls!(
     connector: GlobalpaymentsRealex,
@@ -319,7 +368,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         PSync,
-        Void,
         Refund,
         RSync,
         PreAuthenticate,

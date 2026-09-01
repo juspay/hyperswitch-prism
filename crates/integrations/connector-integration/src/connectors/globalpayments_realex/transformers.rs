@@ -7,12 +7,12 @@
 //! Reference: `grace/rulesbook/codegen/references/globalpayments_realex/technical_specification.md`
 
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork};
-use common_utils::types::MinorUnit;
+use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture},
+    connector_flow::{Authorize, Capture, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        ResponseId as DomainResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, ResponseId as DomainResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
@@ -38,6 +38,9 @@ pub const REQUEST_TYPE_AUTH: &str = "auth";
 /// Root element `type` attribute for the Capture flow. Same endpoint, same envelope — only the
 /// `type` attribute and the body elements differ (tech spec §12.1).
 pub const REQUEST_TYPE_SETTLE: &str = "settle";
+/// Root element `type` attribute for the Void flow. Same endpoint and envelope again — a `void`
+/// reverses an authorization that has not been settled yet (tech spec §12.2).
+pub const REQUEST_TYPE_VOID: &str = "void";
 /// Ecommerce channel. The other documented value is `MOTO`, which is out of scope.
 pub const CHANNEL_ECOM: &str = "ECOM";
 /// `<cvn><presind>` — `1` means "CVN present on the card and supplied by the cardholder".
@@ -181,22 +184,24 @@ fn build_auth_request_hash(
     ))
 }
 
-/// Digest for `type="settle"`.
+/// Digest for the request types that reference an existing transaction rather than a card —
+/// `settle` (Capture) and `void` (Void).
 ///
 /// The blueprint is the same six positional slots as `auth`
-/// (`timestamp.merchantid.orderid.amount.currency.cardnumber`), but the slot must mirror the body
-/// **exactly**:
+/// (`timestamp.merchantid.orderid.amount.currency.cardnumber`), but the amount slot must mirror the
+/// body **exactly**:
 ///
-/// * `<amount>` omitted (full settle)  -> `timestamp.merchantid.orderid...`
-/// * `<amount>` present (any settle)   -> `timestamp.merchantid.orderid.<amount>..`
+/// * `<amount>` omitted -> `timestamp.merchantid.orderid...`
+/// * `<amount>` present -> `timestamp.merchantid.orderid.<amount>..`
 ///
-/// Both variants were **verified live** against the sandbox while implementing this flow; the
-/// documentation's partial-settle worked example is a placeholder and could not be used
+/// Both variants were **verified live** against the sandbox while implementing the Capture flow;
+/// the documentation's partial-settle worked example is a placeholder and could not be used
 /// (tech spec §16 item 6). Filling the amount slot while omitting `<amount>` — or filling the
 /// currency slot at all — is rejected with `505 sha1hash incorrect`.
 ///
-/// This connector always sends `<amount>`, so it always uses the amount-filled blueprint.
-fn build_settle_request_hash(
+/// Capture always sends `<amount>` and therefore always uses the amount-filled blueprint; `void`
+/// carries no `<amount>` at all, so it passes `None` and the slot stays empty (tech spec §12.2).
+fn build_reference_request_hash(
     timestamp: &str,
     merchant_id: &str,
     order_id: &str,
@@ -209,8 +214,8 @@ fn build_settle_request_hash(
             merchant_id,
             order_id,
             amount.unwrap_or_default(),
-            // `settle` carries no currency attribute and no card number; both slots stay empty but
-            // their separators are still emitted.
+            // Neither `settle` nor `void` carries a currency attribute or a card number; both slots
+            // stay empty but their separators are still emitted.
             "",
             "",
         ],
@@ -701,8 +706,9 @@ pub struct GlobalpaymentsRealexPaymentsResponse {
     pub pasref: Option<String>,
     /// Issuer authorization code. Required by a later `rebate`.
     pub authcode: Option<String>,
-    /// Settlement batch id. Can be negative (`-1` from `query` when not yet batched) and comes
-    /// back as an **empty element** on declines, hence the tolerant deserializer.
+    /// Settlement batch id. Can be negative (`-1` from `query` when not yet batched), is `0` on a
+    /// successful `void`, and comes back as an **empty element** on declines, hence the tolerant
+    /// deserializer.
     #[serde(default, deserialize_with = "deserialize_optional_i64")]
     pub batchid: Option<i64>,
     pub cvnresult: Option<String>,
@@ -965,32 +971,28 @@ impl GetSoapXml for GlobalpaymentsRealexCaptureRequest {
 /// Recovers the `<orderid>` / `<authcode>` that Authorize published as `connector_metadata`.
 ///
 /// The gRPC layer hands the same JSON back on either `connector_feature_data` (where the Authorize
-/// response emits it) or `metadata`, so both are accepted, in that order.
-fn extract_capture_metadata(
-    request: &PaymentsCaptureData,
+/// response emits it) or `metadata`, so both are accepted, in that order. This is the **single**
+/// metadata channel for every follow-up flow — Capture and Void both go through here.
+fn extract_followup_metadata(
+    connector_feature_data: Option<&SecretSerdeValue>,
+    metadata: Option<&SecretSerdeValue>,
 ) -> Option<GlobalpaymentsRealexPaymentMetadata> {
-    request
-        .connector_feature_data
-        .as_ref()
-        .or(request.metadata.as_ref())
-        .and_then(|value| {
-            match serde_json::from_value::<GlobalpaymentsRealexPaymentMetadata>(
-                value.peek().clone(),
-            ) {
-                Ok(metadata) => Some(metadata),
-                Err(error) => {
-                    // Not fatal: the caller may be passing unrelated metadata, in which case the
-                    // order id falls back to `merchant_capture_id` below.
-                    tracing::warn!(
-                        connector = "globalpayments_realex",
-                        ?error,
-                        "GlobalpaymentsRealex capture metadata did not contain an <orderid>; \
-                         falling back to the capture reference"
-                    );
-                    None
-                }
+    connector_feature_data.or(metadata).and_then(|value| {
+        match serde_json::from_value::<GlobalpaymentsRealexPaymentMetadata>(value.peek().clone()) {
+            Ok(metadata) => Some(metadata),
+            Err(error) => {
+                // Not fatal: the caller may be passing unrelated metadata, in which case the
+                // order id falls back to the flow's own merchant reference below.
+                tracing::warn!(
+                    connector = "globalpayments_realex",
+                    ?error,
+                    "GlobalpaymentsRealex follow-up metadata did not contain an <orderid>; \
+                     falling back to the request reference"
+                );
+                None
             }
-        })
+        }
+    })
 }
 
 impl<T>
@@ -1031,7 +1033,10 @@ where
         }
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
-        let metadata = extract_capture_metadata(request);
+        let metadata = extract_followup_metadata(
+            request.connector_feature_data.as_ref(),
+            request.metadata.as_ref(),
+        );
 
         // `<orderid>` must be the original one. Preferred source is the metadata Authorize
         // published; `merchant_capture_id` is accepted as a fallback for callers that echo the
@@ -1066,12 +1071,12 @@ where
             })?;
 
         // Always sent explicitly, so full and partial settles share one code path and one digest
-        // blueprint (both verified live — see `build_settle_request_hash`).
+        // blueprint (both verified live — see `build_reference_request_hash`).
         let amount = format_amount(request.minor_amount_to_capture, request.currency)?;
 
         let timestamp = current_timestamp()?;
         let merchant_id = auth.merchant_id.clone().expose();
-        let sha1hash = build_settle_request_hash(
+        let sha1hash = build_reference_request_hash(
             &timestamp,
             &merchant_id,
             &order_id,
@@ -1195,6 +1200,304 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexCaptureResponse, Self>>
                 ..router_data.resource_common_data
             },
             response: capture_response,
+            ..router_data
+        })
+    }
+}
+
+// =============================================================================
+// VOID — `type="void"` (tech spec §12.2)
+// =============================================================================
+
+/// The documented `<reasoncode>` enum. RealEx defaults to `NOTGIVEN` when the element is absent, so
+/// an unrecognised free-text cancellation reason is dropped rather than guessed at — sending an
+/// unknown value is rejected by the schema.
+const VOID_REASON_CODES: [&str; 6] = [
+    "FRAUD",
+    "OUTOFSTOCK",
+    "DUPLICATE",
+    "MISTAKE",
+    "OTHER",
+    "NOTGIVEN",
+];
+
+/// Maps `cancellation_reason` onto `<reasoncode>` when — and only when — it is one of the six
+/// documented values (case-insensitively). Anything else yields `None` and the element is omitted.
+///
+/// Verified live: sending `<reasoncode>FRAUD</reasoncode>` does not change the digest — the
+/// blueprint stays `timestamp.merchantid.orderid...` and the void still returns `00`.
+fn map_void_reason_code(cancellation_reason: Option<&str>) -> Option<&'static str> {
+    let reason = cancellation_reason?.trim();
+    VOID_REASON_CODES
+        .into_iter()
+        .find(|code| code.eq_ignore_ascii_case(reason))
+}
+
+/// The `void` request.
+///
+/// Reuses the shared envelope and, like `settle`, references an existing authorization by its
+/// original `<orderid>` plus the gateway's `<pasref>`. It carries **no `<amount>`** — a void always
+/// reverses the full authorization — and no card data.
+///
+/// `<authcode>` is documented as optional for `void` and is deliberately not sent; the sandbox
+/// accepts the request without it (verified live).
+///
+/// **`<pasref>` must be the pasref minted by the original `auth`.** A `settle` mints a *new*
+/// pasref, and voiding with that one returns `508 Original transaction not found.` — verified live.
+/// Since UCS surfaces the settle pasref as the Capture response's `connector_transaction_id`, a
+/// caller that wants to reverse a captured payment must pass the **Authorize** transaction id here.
+#[derive(Debug, Serialize)]
+#[serde(rename = "request")]
+pub struct GlobalpaymentsRealexVoidRequest {
+    #[serde(rename = "@type")]
+    pub request_type: String,
+    #[serde(rename = "@timestamp")]
+    pub timestamp: String,
+    pub merchantid: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account: Option<Secret<String>>,
+    /// The `<orderid>` of the transaction being voided, not a new one.
+    pub orderid: String,
+    /// The gateway reference returned by the original `auth`.
+    pub pasref: String,
+    /// One of the six documented reason codes; omitted entirely when the caller supplied none, in
+    /// which case the gateway applies its `NOTGIVEN` default.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoncode: Option<String>,
+    pub sha1hash: Secret<String>,
+}
+
+impl GetSoapXml for GlobalpaymentsRealexVoidRequest {
+    fn to_soap_xml(&self) -> String {
+        // Mirrors the other flows: a serialization failure emits a minimal well-formed document
+        // that the gateway answers with `502 Mandatory Fields missing`, rather than panicking.
+        quick_xml::se::to_string_with_root("request", self).unwrap_or_else(|error| {
+            tracing::error!(
+                connector = "globalpayments_realex",
+                ?error,
+                "Failed to serialize the GlobalpaymentsRealex void request to XML"
+            );
+            "<request/>".to_string()
+        })
+    }
+}
+
+/// The `void` response is the **same document shape** as every other response on this API, so it
+/// reuses the one response struct — including the tolerant `<batchid>` deserializer, which matters
+/// here because a successful void returns `<batchid>0</batchid>` while a failure returns the small
+/// error document with no `<batchid>` at all.
+pub type GlobalpaymentsRealexVoidResponse = GlobalpaymentsRealexPaymentsResponse;
+
+impl<T>
+    TryFrom<
+        GlobalpaymentsRealexRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for GlobalpaymentsRealexVoidRequest
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: GlobalpaymentsRealexRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
+
+        // Exactly the same metadata channel Capture uses: Authorize publishes the original
+        // `<orderid>` as `connector_metadata`, which comes back on `connector_feature_data`.
+        let metadata = extract_followup_metadata(
+            request.connector_feature_data.as_ref(),
+            request.metadata.as_ref(),
+        );
+
+        // `<orderid>` must be the reference we originally sent — never the gateway echo, which is
+        // prefixed (`_void_…` / `_settle_…`) on error documents. `merchant_void_id` (surfaced as
+        // `connector_request_reference_id`) is accepted as a fallback for callers that echo the
+        // original reference there.
+        let order_id = match metadata.as_ref().map(|metadata| metadata.orderid.clone()) {
+            Some(order_id) => sanitize_order_id(&order_id)?,
+            None => sanitize_order_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )
+            .attach_printable(
+                "GlobalpaymentsRealex void needs the original <orderid>: echo the Authorize \
+                 response's connector_feature_data back on the void request, or set \
+                 merchant_void_id to the original order id",
+            )?,
+        };
+
+        // `<pasref>` is the gateway reference, i.e. the connector_transaction_id.
+        let pasref = request.connector_transaction_id.trim().to_string();
+        if pasref.is_empty() {
+            return Err(report!(IntegrationError::MissingConnectorTransactionID {
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "GlobalpaymentsRealex void needs the original <pasref> as the \
+                         connector_transaction_id"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }));
+        }
+
+        let timestamp = current_timestamp()?;
+        let merchant_id = auth.merchant_id.clone().expose();
+        // No `<amount>` on the wire, so the amount slot of the digest stays empty:
+        // `timestamp.merchantid.orderid...` (tech spec §12.2).
+        let sha1hash = build_reference_request_hash(
+            &timestamp,
+            &merchant_id,
+            &order_id,
+            None,
+            auth.shared_secret.peek(),
+        );
+
+        Ok(Self {
+            request_type: REQUEST_TYPE_VOID.to_string(),
+            timestamp,
+            merchantid: auth.merchant_id,
+            account: Some(auth.account),
+            orderid: order_id,
+            pasref,
+            reasoncode: map_void_reason_code(request.cancellation_reason.as_deref())
+                .map(str::to_string),
+            sha1hash,
+        })
+    }
+}
+
+/// `result` → `AttemptStatus` for `void` (tech spec §9.4).
+///
+/// As with `auth` and `settle` there is no asynchronous state: a void either succeeds
+/// (`00 Voided Successfully`) or fails outright, so `Pending` is never correct here. Every non-`00`
+/// code is a plain `VoidFailed` carrying the gateway's own code and message — never a
+/// transport-level error and never silently mapped to success.
+///
+/// Failure codes observed live, all as the small error document (HTTP 200, no `<sha1hash>`,
+/// no `<batchid>`):
+///
+/// | Scenario | `result` | `message` |
+/// |---|---|---|
+/// | Voiding an already-voided transaction | `508` | `That transaction has already been voided.` |
+/// | Voiding with the pasref a `settle` minted | `508` | `Original transaction not found.` |
+/// | Unparseable `<pasref>` | `506` | `… does not conform to the schema` |
+///
+/// The documented `513 Can't void a settled transaction` could **not** be reproduced: an
+/// `auth` + `settle` pair is still voidable through its *original* pasref (`00 Voided
+/// Successfully`) because `settle` only queues the transaction into the open batch. `513` presumably
+/// only appears once that batch has actually been closed, which a merchant cannot trigger on
+/// demand. Either way it lands in the same `VoidFailed` branch as the codes above.
+fn map_void_attempt_status(result: &str) -> AttemptStatus {
+    if result == RESULT_SUCCESS {
+        AttemptStatus::Voided
+    } else {
+        AttemptStatus::VoidFailed
+    }
+}
+
+impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        // Same check-hash blueprint as `auth` and `settle`, and the same "no <sha1hash> on the
+        // small 5xx error document" rule.
+        let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
+
+        let status = match hash_verification {
+            HashVerification::Mismatch => AttemptStatus::IntegrityFailure,
+            HashVerification::Verified | HashVerification::Skipped => {
+                map_void_attempt_status(&response.result)
+            }
+        };
+
+        if hash_verification == HashVerification::Mismatch {
+            tracing::warn!(
+                connector = "globalpayments_realex",
+                order_id = ?response.orderid,
+                "GlobalpaymentsRealex void response sha1hash did not match the computed digest"
+            );
+        }
+
+        let message = response
+            .message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+
+        let void_response =
+            if response.is_success() && hash_verification != HashVerification::Mismatch {
+                // Keep the payment referenceable: a void response echoes a `<pasref>`, but fall back to
+                // the one we sent if the gateway omits it.
+                let resource_id = DomainResponseId::ConnectorTransactionId(
+                    response
+                        .pasref
+                        .clone()
+                        .unwrap_or_else(|| router_data.request.connector_transaction_id.clone()),
+                );
+
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id,
+                    redirection_data: None,
+                    connector_metadata: None,
+                    mandate_reference: None,
+                    network_txn_id: response.srd.clone(),
+                    network_txn_link_id: None,
+                    connector_response_reference_id: response.orderid.clone(),
+                    incremental_authorization_allowed: None,
+                    splits: None,
+                    status_code: http_code,
+                    payment_account_reference: None,
+                })
+            } else {
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    // The `<result>` code verbatim — e.g. `"513"` for an already-settled transaction.
+                    code: response.result.clone(),
+                    message: message.clone(),
+                    reason: response.message.clone(),
+                    attempt_status: Some(FlowStatus::Payment(status)),
+                    connector_transaction_id: response.pasref.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: void_response,
             ..router_data
         })
     }
