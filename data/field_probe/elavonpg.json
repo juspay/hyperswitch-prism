@@ -1,0 +1,794 @@
+{
+  "connector": "elavonpg",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for elavon_pg"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "Payment method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(AchBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "Payment method PayLater(AffirmRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "Payment method PayLater(AfterpayClearpayRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Alfamart(AlfamartVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(AliPayRedirect(AliPayRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(AmazonPayRedirect(AmazonPayRedirectData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0=\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "Payment method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(BacsBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(BcaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(BillDeskRedirect(BillDeskRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Bizum) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(BluecodeRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(BniVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(BriVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"sale\",\"total\":{\"amount\":\"10.00\",\"currencyCode\":\"USD\"},\"card\":{\"holderName\":\"John Doe\",\"number\":\"4111111111111111\",\"expirationMonth\":3,\"expirationYear\":2030,\"securityCode\":\"737\"},\"shopperInteraction\":\"ecommerce\",\"doCapture\":true,\"customReference\":\"probe_txn_001\"}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(CashappQr(CashappQr)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(CashfreeRedirect(CashfreeRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(CimbVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "Payment method Reward is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(DanaRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(DanamonVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "Payment method Reward is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(EaseBuzzRedirect(EaseBuzzRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Efecty) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Eft { provider: \"ozow\" }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Eps { bank_name: None, country: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(FamilyMart(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(GcashRedirect(GcashRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(GoPayRedirect(GoPayRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Ideal { bank_name: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Indomaret(IndomaretVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(IndonesianBankTransfer { bank_name: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(InstantBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(InstantBankTransferFinland) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(InstantBankTransferPoland) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Interac { country: None, email: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(KakaoPayRedirect(KakaoPayRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "Payment method PayLater(KlarnaRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Lawson(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(LazyPayRedirect(LazyPayRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(LocalBankRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(LocalBankTransfer { bank_code: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(MandiriVaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(MbWay(MbWayData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(MiniStop(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(MomoRedirect(MomoRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(MultibancoBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Netbanking { issuer: HdfcBank }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingFpx { issuer: Maybank }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingSlovakia { issuer: TatraPay }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OnlineBankingThailand { issuer: BangkokBank }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(OpenBankingUk { issuer: None, country: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Oxxo) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(PagoEfectivo) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(PayEasy(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "Payment method GiftCard(PaySafeCard) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(PayURedirect(PayURedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(PermataBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(PhonePeRedirect(PhonePeRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Przelewy24 { bank_name: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(Pse) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(RedCompra) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(RedPagos) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(RevolutPay(RevolutPayData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(Satispay(SatispayData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(Seicomart(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "Payment method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "Payment method BankTransfer(SepaBankTransfer) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "Payment method BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "Payment method Voucher(SevenEleven(JCSVoucherData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(Skrill(SkrillData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Sofort { country: None, preferred_language: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(SwishQr(SwishQrData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(TouchNGoRedirect(TouchNGoRedirection)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "Payment method BankRedirect(Trustly { country: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(TwintRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "Payment method Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "Payment method Upi(UpiIntent(UpiIntentData { upi_source: None, app_name: None })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "Payment method Upi(UpiQr(UpiQrData { upi_source: None })) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(VippsRedirect) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(WeChatPayQr(WeChatPayQr)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "Payment method Wallet(Wero(WeroData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/partial-captures",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"transaction\":\"probe_connector_txn_001\",\"total\":{\"amount\":\"10.00\",\"currencyCode\":\"USD\"},\"isFinal\":true}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for elavon_pg"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for elavon_pg"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for elavon_pg"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for elavon_pg"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for elavon_pg"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for elavon_pg"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by elavon_pg connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by elavon_pg connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by elavon_pg connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by elavon_pg connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for elavon_pg"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for elavon_pg"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for elavon_pg"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"sale\",\"total\":{\"amount\":\"10.00\",\"currencyCode\":\"USD\"},\"card\":{\"holderName\":\"John Doe\",\"number\":\"{{$card_number}}\",\"expirationMonth\":3,\"expirationYear\":2030,\"securityCode\":\"{{$card_cvc}}\"},\"shopperInteraction\":\"ecommerce\",\"doCapture\":true,\"customReference\":\"probe_proxy_txn_001\"}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for elavon_pg"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for elavon_pg"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for elavon_pg"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"refund\",\"total\":{\"amount\":\"10.00\",\"currencyCode\":\"USD\"},\"parentTransaction\":\"probe_connector_txn_001\",\"shopperInteraction\":\"ecommerce\",\"customReference\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for elavon_pg"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for elavon_pg"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String ***, token_payment_method_type: None }) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for elavon_pg"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.elavonpayments.com/transactions",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "accept-version": "1",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"void\",\"parentTransaction\":\"probe_connector_txn_001\",\"shopperInteraction\":\"ecommerce\"}"
+        }
+      }
+    }
+  }
+}

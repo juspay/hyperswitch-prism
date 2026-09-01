@@ -58,6 +58,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 citigate.base_url = "https://gw-test.cgate.tech"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
