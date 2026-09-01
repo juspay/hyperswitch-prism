@@ -2170,7 +2170,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct DatatransTokenizeResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overview: Option<DatatransTokenizeOverview>,
-    #[serde(default)]
     pub responses: Vec<DatatransTokenizeResponseItem>,
 }
 
