@@ -6486,16 +6486,17 @@ grpc-status: 0
                         continue;
                     }
 
-                    let mut grpc_req =
-                        match get_the_grpc_req_for_connector(suite, scenario, connector) {
-                            Ok(req) => req,
-                            Err(error) => {
-                                failures.push(format!(
+                    let mut grpc_req = match get_the_grpc_req_for_connector(
+                        suite, scenario, connector,
+                    ) {
+                        Ok(req) => req,
+                        Err(error) => {
+                            failures.push(format!(
                                 "{connector}/{suite}/{scenario}: failed to materialize request with override: {error}"
                             ));
-                                continue;
-                            }
-                        };
+                            continue;
+                        }
+                    };
 
                     // Real execution resolves auto_generate/auto_generate_numeric
                     // sentinels before sending the request; this static check must
