@@ -2155,7 +2155,7 @@ pub fn generate_payout_stage_response(
                 connector_payout_id: response.connector_payout_id,
                 error: None,
                 status_code: u32::from(response.status_code),
-                connector_metadata: response.connector_metadata,
+                connector_metadata: response.payout_connector_metadata,
             })
         }
         Err(err) => Ok(grpc_api_types::payouts::PayoutServiceStageResponse {

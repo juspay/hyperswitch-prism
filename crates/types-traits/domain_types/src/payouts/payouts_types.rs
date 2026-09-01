@@ -397,7 +397,7 @@ pub struct PayoutStageResponse {
     pub payout_status: common_enums::PayoutStatus,
     pub connector_payout_id: Option<String>,
     pub status_code: u16,
-    pub connector_metadata: Option<Secret<String>>,
+    pub payout_connector_metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]

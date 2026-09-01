@@ -357,7 +357,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
             http_code,
         } = item;
 
-        let connector_metadata = serde_json::to_string(&GigadatPayoutMeta {
+        let payout_connector_metadata = serde_json::to_string(&GigadatPayoutMeta {
             token: response.token.clone(),
         })
         .change_context(ConnectorError::ResponseHandlingFailed {
@@ -374,7 +374,7 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
             payout_status: PayoutStatus::RequiresCreation,
             connector_payout_id: Some(response.data.transaction_id),
             status_code: http_code,
-            connector_metadata: Some(Secret::new(connector_metadata)),
+            payout_connector_metadata: Some(Secret::new(payout_connector_metadata)),
         });
         Ok(router_data)
     }
