@@ -43,11 +43,15 @@ pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 
 /// Kount auth. `api_key` is the base64 of `CLIENT_ID:CLIENT_SECRET` (Kount's
 /// "API Key"); it is used directly as the `Authorization: Basic {api_key}`
-/// value on the token request. `auth_server_id` is the account/environment
-/// specific OAuth authorization-server id (sandbox vs production differ).
+/// value on the token request. `client_id` is the Kount-assigned merchant CID
+/// rendered into the Device Data Collection script as the Web SDK `clientID`;
+/// it is required and only ever read from the connector config.
+/// `auth_server_id` is the account/environment specific OAuth
+/// authorization-server id (sandbox vs production differ).
 #[derive(Debug, Clone)]
 pub struct KountAuthType {
     pub api_key: Secret<String>,
+    pub client_id: String,
     pub auth_server_id: Option<String>,
 }
 
@@ -58,10 +62,12 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
         match auth_type {
             ConnectorSpecificConfig::Kount {
                 api_key,
+                client_id,
                 auth_server_id,
                 ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
+                client_id: client_id.to_owned(),
                 auth_server_id: auth_server_id.to_owned(),
             }),
             _ => Err(error_stack::report!(
@@ -74,8 +80,8 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
                                 .to_owned(),
                         ),
                         suggested_action: Some(
-                            "Send the Kount connector config (api_key, optional auth_server_id) \
-                             for Kount FRM flows"
+                            "Send the Kount connector config (api_key, client_id, optional \
+                             auth_server_id) for Kount FRM flows"
                                 .to_owned(),
                         ),
                         doc_url: Some(KOUNT_DOC_URL.to_owned()),
@@ -894,14 +900,29 @@ pub struct KountEvaluateOrderRequest {
     /// Merchant details (id), when provided.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant: Option<KountMerchant>,
+    /// Arbitrary merchant-supplied custom fields, sourced from the Pre Risk
+    /// Check request's `metadata` blob. See [`kount_custom_fields`] for
+    /// Kount's constraints (key ≤32 chars, string values ≤256 chars, no
+    /// nested objects/arrays).
+    #[serde(rename = "customFields", skip_serializing_if = "Option::is_none")]
+    pub custom_fields: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
-/// Kount `merchant` object. Only `id` for now (matches the FRM `MerchantDetails`
-/// contract); the Kount schema also allows name/storeName/websiteUrl/etc.
-#[derive(Debug, Clone, Serialize)]
+/// Kount `merchant` object. `id` comes from the FRM `MerchantDetails` contract;
+/// `name` / `contactPhoneNumber` come from the Pre Risk Check's
+/// `connector_feature_data` and so are only ever set on the Evaluate Order path
+/// — Update Order and refund leave them unset, keeping those bodies unchanged.
+/// The Kount schema also allows storeName/websiteUrl/contactEmail.
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct KountMerchant {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+    /// Merchant display name. Masked in logs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    /// Merchant contact phone number. Masked in logs.
+    #[serde(rename = "contactPhoneNumber", skip_serializing_if = "Option::is_none")]
+    pub contact_phone_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -918,12 +939,15 @@ pub struct KountAccount {
     pub id: Option<String>,
     #[serde(rename = "type")]
     pub account_type: KountAccountType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub username: Option<String>,
     /// Whether the account is active. Omitted when unknown (the FRM request
     /// carries no account-status signal).
     #[serde(rename = "accountIsActive", skip_serializing_if = "Option::is_none")]
     pub account_is_active: Option<bool>,
+    /// When the customer's account was created (RFC 3339, UTC), from the Pre
+    /// Risk Check's `connector_feature_data.customerDataCreated`. Distinct from
+    /// the order-level `creationDateTime` on [`KountEvaluateOrderRequest`].
+    #[serde(rename = "creationDateTime", skip_serializing_if = "Option::is_none")]
+    pub creation_date_time: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1001,6 +1025,79 @@ fn format_kount_date(date: time::PrimitiveDateTime) -> Result<String, Error> {
                 },
             })
         })
+}
+
+/// Epoch values whose magnitude reaches this are milliseconds; below it, they
+/// are seconds. 1e11 seconds is the year 5138 and 1e11 milliseconds is 1973, so
+/// every realistic millisecond timestamp sits above the threshold and every
+/// realistic second one below it.
+const KOUNT_EPOCH_MILLIS_THRESHOLD: u64 = 100_000_000_000;
+
+/// Normalise a caller-supplied timestamp into the RFC 3339 (UTC) string Kount's
+/// `account.creationDateTime` expects. Accepted, in order:
+///
+/// 1. RFC 3339 with an explicit offset (`2019-08-24T19:45:22+05:30` becomes
+///    `2019-08-24T14:15:22Z`).
+/// 2. `YYYY-MM-DD HH:MM:SS` or `YYYY-MM-DDTHH:MM:SS` with no offset — assumed
+///    UTC, the same convention [`format_kount_date`] uses.
+/// 3. Epoch seconds or milliseconds. The caller may send these as a JSON number
+///    or a numeric string; [`de_stringy`] delivers both here as a string.
+///
+/// Returns `None` (with a warning) when nothing parses, so a bad value drops the
+/// field instead of failing the Evaluate Order call — the same warn-and-omit
+/// convention the notify path uses for its feature data.
+pub(super) fn normalize_kount_timestamp(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+
+    // `format_description!` results are bound to locals rather than named in a
+    // type: `FormatItem` is deprecated in this version of `time`, and naming it
+    // would trip the crate's deny-warnings build.
+    let parsed = OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+        .ok()
+        .or_else(|| {
+            let space_separated =
+                time::macros::format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+            let t_separated =
+                time::macros::format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]");
+            time::PrimitiveDateTime::parse(value, &space_separated)
+                .or_else(|_| time::PrimitiveDateTime::parse(value, &t_separated))
+                .ok()
+                .map(time::PrimitiveDateTime::assume_utc)
+        })
+        .or_else(|| {
+            // Tolerate a fractional epoch ("1566656122.25") by truncating.
+            let whole = value.split_once('.').map_or(value, |(whole, _)| whole);
+            let epoch: i64 = whole.parse().ok()?;
+            if epoch.unsigned_abs() >= KOUNT_EPOCH_MILLIS_THRESHOLD {
+                OffsetDateTime::from_unix_timestamp_nanos(i128::from(epoch) * 1_000_000).ok()
+            } else {
+                OffsetDateTime::from_unix_timestamp(epoch).ok()
+            }
+        });
+
+    match parsed {
+        Some(date_time) => date_time
+            .to_offset(time::UtcOffset::UTC)
+            .format(&time::format_description::well_known::Rfc3339)
+            .inspect_err(|err| {
+                tracing::warn!(
+                    error = %err,
+                    "Kount failed to format customerDataCreated as RFC 3339; \
+                     account.creationDateTime will not be sent"
+                );
+            })
+            .ok(),
+        None => {
+            tracing::warn!(
+                "Kount customerDataCreated is neither RFC 3339, `YYYY-MM-DD HH:MM:SS`, nor an \
+                 epoch timestamp; account.creationDateTime will not be sent"
+            );
+            None
+        }
+    }
 }
 
 /// Maps the domain mandate status to Kount's `recurring.status` string.
@@ -1084,6 +1181,13 @@ pub struct KountPayment {
     /// Kount link/score the instrument across orders. See [`payment_token_hash`].
     #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
     pub payment_token: Option<Secret<String>>,
+    /// Card expiry month as an integer (Kount's schema types it int32, not `MM`).
+    /// Card data, masked.
+    #[serde(rename = "expirationMonth", skip_serializing_if = "Option::is_none")]
+    pub expiration_month: Option<Secret<i32>>,
+    /// Card expiry year as a four-digit integer. Card data, masked.
+    #[serde(rename = "expirationYear", skip_serializing_if = "Option::is_none")]
+    pub expiration_year: Option<Secret<i32>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1096,6 +1200,19 @@ pub struct KountPerson {
     pub phone_number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<KountAddress>,
+}
+
+impl KountPerson {
+    /// Fill missing contact fields from a fallback person, leaving name and
+    /// postal address untouched. The receiver's own values always win, so an
+    /// address-supplied email or phone is never overwritten.
+    fn fill_contact_from(mut self, fallback: &Self) -> Self {
+        self.email_address = self
+            .email_address
+            .or_else(|| fallback.email_address.clone());
+        self.phone_number = self.phone_number.or_else(|| fallback.phone_number.clone());
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1175,12 +1292,10 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         .email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = addr.phone.as_ref().and_then(|phone| {
-        phone
-            .number
-            .as_ref()
-            .map(|num| Secret::new(num.peek().to_string()))
-    });
+    let phone_number = addr
+        .phone
+        .as_ref()
+        .and_then(|phone| e123_phone(phone.country_code.as_deref(), phone.number.as_ref()?.peek()));
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -1196,8 +1311,11 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
     })
 }
 
-/// Fallback person block from customer info (name / email / phone, no address).
-/// `None` when the customer carries no usable fields.
+/// Person block from customer info (name / email / phone, no address). Serves
+/// the billed person two ways: wholesale when there is no billing address at
+/// all, and via [`KountPerson::fill_contact_from`] to supply an email or phone
+/// the billing address left out. `None` when the customer carries no usable
+/// fields.
 fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     let first = customer
         .first_name
@@ -1211,10 +1329,12 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
         .customer_email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = customer
-        .customer_phone_number
-        .as_ref()
-        .map(|phone| Secret::new(phone.peek().to_string()));
+    let phone_number = customer.customer_phone_number.as_ref().and_then(|phone| {
+        e123_phone(
+            customer.customer_phone_country_code.as_deref(),
+            phone.peek(),
+        )
+    });
     if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
         return None;
     }
@@ -1254,11 +1374,46 @@ fn kount_merchant(details: Option<&MerchantDetails>) -> (Option<KountMerchant>, 
         Some(details) => (
             details.merchant_id.as_ref().map(|id| KountMerchant {
                 id: Some(id.clone()),
+                ..Default::default()
             }),
             details.merchant_category_code,
         ),
         None => (None, None),
     }
+}
+
+/// Overlay the Pre Risk Check feature-data merchant fields onto the object
+/// [`kount_merchant`] built from `MerchantDetails`.
+///
+/// Kount's `merchant` block is emitted whenever *any* of id / name / contact
+/// number is present, so a merchant carrying only a name still gets a block,
+/// while a request carrying none of the three omits it entirely. Fields other
+/// than the two set here are carried over from `base`, so this stays correct if
+/// [`kount_merchant`] later learns to set more of them.
+pub(super) fn merge_pre_risk_merchant(
+    base: Option<KountMerchant>,
+    name: Option<Secret<String>>,
+    contact_phone_number: Option<Secret<String>>,
+) -> Option<KountMerchant> {
+    if name.is_none() && contact_phone_number.is_none() {
+        // Nothing to overlay — identical to the notify and refund paths, which
+        // never carry these fields.
+        return base;
+    }
+    Some(KountMerchant {
+        name,
+        contact_phone_number,
+        ..base.unwrap_or_default()
+    })
+}
+
+/// Card expiry as Kount's `expirationMonth` / `expirationYear` integers. The
+/// year is expanded to four digits first. Either part that isn't numeric — a
+/// vault template token, say — yields `None` rather than failing the order.
+fn card_expiry<T: PaymentMethodDataTypes>(card: &Card<T>) -> (Option<i32>, Option<i32>) {
+    let month = card.card_exp_month.peek().trim().parse().ok();
+    let year = card.get_expiry_year_4_digit().peek().trim().parse().ok();
+    (month, year)
 }
 
 /// Kount payment type for a card, from its (optional) `card_type`. Falls back to
@@ -1359,6 +1514,203 @@ fn kount_instrument<T: PaymentMethodDataTypes>(
     })
 }
 
+/// Connector-specific feature data accepted on the FRM Pre Risk Check request.
+/// Carries the customer's account-creation timestamp plus merchant identity, so
+/// Evaluate Order can populate `account.creationDateTime`, `merchant.name`, and
+/// `merchant.contactPhoneNumber`.
+///
+/// Keys are camelCase to match the caller's blob, which is a *shared* object
+/// also carrying unrelated keys (`enableDdc`, `apiVersion`, …) that serde
+/// ignores. Every field is optional and parsed leniently through [`de_stringy`]
+/// / [`de_stringy_secret`], so one caller typo cannot take the other two fields
+/// down with it, and a blob that simply omits all three — or sends them as
+/// explicit `null`, which is what the caller emits for an absent value — yields
+/// an all-`None` value with no warning.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(super) struct KountPreRiskCheckFeatureData {
+    /// Customer account creation timestamp, normalised by
+    /// [`normalize_kount_timestamp`]. `customerDataCreated` is accepted as an
+    /// alias — both spellings have been in use by the caller.
+    #[serde(
+        default,
+        alias = "customerDataCreated",
+        deserialize_with = "de_stringy"
+    )]
+    pub(super) customer_creating_time: Option<String>,
+    /// Merchant display name — Kount `merchant.name`.
+    #[serde(default, deserialize_with = "de_stringy_secret")]
+    pub(super) merchant_name: Option<Secret<String>>,
+    /// Merchant contact phone number — Kount `merchant.contactPhoneNumber`.
+    /// `merchantContactNo` is accepted as an alias, as above.
+    #[serde(
+        default,
+        alias = "merchantContactNo",
+        deserialize_with = "de_stringy_secret"
+    )]
+    pub(super) merchant_contact_number: Option<Secret<String>>,
+}
+
+/// Parse the Pre Risk Check `connector_feature_data` blob.
+///
+/// Unlike the notify path ([`kount_update_transactions`]) an all-`None` result
+/// is not suspicious here: the caller sends a shared feature-data object and
+/// these three keys are optional additions to it, so their absence is silent.
+/// Only malformed JSON warns, and then the whole block is dropped rather than
+/// failing the Evaluate Order call.
+pub(super) fn kount_pre_risk_feature_data(
+    connector_feature_data: Option<&Secret<String>>,
+) -> KountPreRiskCheckFeatureData {
+    connector_feature_data
+        .map(|data| data.peek().trim().to_owned())
+        .filter(|data| !data.is_empty())
+        .and_then(|data| {
+            serde_json::from_str::<KountPreRiskCheckFeatureData>(&data)
+                .inspect_err(|err| {
+                    tracing::warn!(
+                        error = %err,
+                        "Kount pre risk check connector_feature_data is not valid JSON; \
+                         account.creationDateTime, merchant.name and merchant.contactPhoneNumber \
+                         will not be sent"
+                    );
+                })
+                .ok()
+        })
+        .unwrap_or_default()
+}
+
+/// Pull Kount's `customFields` out of the Pre Risk Check `metadata` blob.
+///
+/// `metadata` is a *shared* object (it already carries `merchantOrderId` /
+/// `userIp` from the caller, and may carry more keys later) — only its
+/// `customFields` key is used here; every sibling key is ignored. That key's
+/// value must itself be a JSON object of caller-supplied key/value pairs.
+/// Kount constrains it: keys ≤32 chars; values are string (≤256 chars),
+/// number, or boolean — no nested objects/arrays. Entries that violate this
+/// are dropped individually (with a warning) rather than losing every custom
+/// field over one bad entry. An explicit JSON `null` value is dropped
+/// silently — the caller's convention elsewhere is to emit `null` for an
+/// absent value, not to omit the key.
+pub(super) fn kount_custom_fields(
+    metadata: Option<&Secret<String>>,
+) -> Option<serde_json::Map<String, serde_json::Value>> {
+    let raw = metadata
+        .map(|m| m.peek().trim().to_owned())
+        .filter(|s| !s.is_empty())?;
+
+    let parsed = serde_json::from_str::<serde_json::Value>(&raw)
+        .inspect_err(|err| {
+            tracing::warn!(
+                error = %err,
+                "Kount metadata is not valid JSON; customFields will not be sent"
+            );
+        })
+        .ok()?;
+
+    let metadata_obj = match parsed {
+        serde_json::Value::Object(map) => map,
+        _ => {
+            tracing::warn!("Kount metadata is not a JSON object; customFields will not be sent");
+            return None;
+        }
+    };
+
+    // Absent is normal/silent — most callers won't send this key yet.
+    let custom_fields = metadata_obj.get("customFields")?;
+
+    let obj = match custom_fields {
+        serde_json::Value::Object(map) => map.clone(),
+        _ => {
+            tracing::warn!(
+                "Kount metadata.customFields is not a JSON object; customFields will not be sent"
+            );
+            return None;
+        }
+    };
+
+    let filtered: serde_json::Map<String, serde_json::Value> = obj
+        .into_iter()
+        .filter(|(key, value)| match value {
+            serde_json::Value::Null => false,
+            serde_json::Value::String(s) => {
+                let ok = key.len() <= 32 && s.len() <= 256;
+                if !ok {
+                    tracing::warn!(
+                        key = %key,
+                        "Kount custom field dropped: exceeds Kount's length limits"
+                    );
+                }
+                ok
+            }
+            serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
+                let ok = key.len() <= 32;
+                if !ok {
+                    tracing::warn!(
+                        key = %key,
+                        "Kount custom field dropped: key exceeds Kount's 32-char limit"
+                    );
+                }
+                ok
+            }
+            serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
+                tracing::warn!(
+                    key = %key,
+                    "Kount custom field dropped: array/object values are not allowed"
+                );
+                false
+            }
+        })
+        .collect();
+
+    (!filtered.is_empty()).then_some(filtered)
+}
+
+/// Trim a caller-supplied secret and drop it when empty, so Kount never
+/// receives `"name": ""` or `"contactPhoneNumber": ""`.
+pub(super) fn non_empty_secret(value: Option<Secret<String>>) -> Option<Secret<String>> {
+    value.and_then(|value| {
+        let trimmed = value.peek().trim();
+        (!trimmed.is_empty()).then(|| Secret::new(trimmed.to_owned()))
+    })
+}
+
+/// Format a phone number in E.123 international notation (`+<country><number>`),
+/// which is the format Kount documents for its `phoneNumber` fields. Fail-soft
+/// like the rest of this module: an unusable part yields the best string we can
+/// build rather than dropping the number or failing the order.
+///
+/// The number is emitted *compact* (`+447700900123`), without E.123's optional
+/// visual separators — grouping digits correctly is country-specific and we have
+/// no phone-number library here. The `+` and country code are the parts that
+/// carry meaning for Kount's cross-order matching.
+///
+/// A national trunk `0` is deliberately **not** stripped, so a caller sending
+/// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
+/// the zero is wrong for the countries that keep it (Italy, notably), and the
+/// separate `phone_country_code` field implies callers send the national
+/// significant number rather than the dialling form.
+pub(super) fn e123_phone(country_code: Option<&str>, number: &str) -> Option<Secret<String>> {
+    let number = number.trim();
+    if number.is_empty() {
+        return None;
+    }
+    // Already international — the caller did the work, don't double-prefix.
+    if number.starts_with('+') {
+        return Some(Secret::new(number.to_owned()));
+    }
+    // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
+    let country_code = country_code
+        .map(str::trim)
+        .map(|code| code.trim_start_matches('+'))
+        .map(|code| code.strip_prefix("00").unwrap_or(code))
+        .filter(|code| !code.is_empty());
+    Some(Secret::new(match country_code {
+        Some(code) => format!("+{code}{number}"),
+        // No country to prefix — send the bare number rather than nothing.
+        None => number.to_owned(),
+    }))
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         KountRouterData<
@@ -1393,6 +1745,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         })?;
 
+        // Connector-specific feature data (customer account-creation date +
+        // merchant name / contact number). Parsed once, up front, so both the
+        // account block below and the merchant block further down can use it.
+        let feature_data = kount_pre_risk_feature_data(req.connector_feature_data.as_ref());
+        let custom_fields = kount_custom_fields(req.metadata.as_ref());
+        let account_created_at = feature_data
+            .customer_creating_time
+            .as_deref()
+            .and_then(normalize_kount_timestamp);
+        if account_created_at.is_some() && req.customer_info.is_none() {
+            tracing::warn!(
+                "Kount pre risk check carried customerDataCreated but the request has no \
+                 customer_info, so there is no account block to attach it to; \
+                 account.creationDateTime will not be sent"
+            );
+        }
+
         // Device / IP from browser info.
         let browser = req.browser_info.as_ref();
         let user_ip = browser.and_then(|info| info.ip_address.map(|ip| ip.to_string()));
@@ -1416,13 +1785,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            username: customer
-                .customer_email
-                .as_ref()
-                .map(|email| email.peek().to_string())
-                .or_else(|| customer.get_full_name().map(|name| name.peek().to_string())),
             // No account-status signal in the FRM request, so leave it unset.
             account_is_active: None,
+            creation_date_time: account_created_at,
         });
 
         let currency = req.amount.currency;
@@ -1477,14 +1842,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // carries a real PaymentAddress with independently-set billing and
         // shipping addresses (see FrmServicePreRiskCheckRequest.address).
         let address = req.address.as_ref();
-        let billed_person = address
+        let customer_person = req
+            .customer_info
+            .as_ref()
+            .and_then(kount_person_from_customer);
+        let billed_person = match address
             .and_then(|addr| addr.get_payment_billing())
             .and_then(kount_person_from_address)
-            .or_else(|| {
-                req.customer_info
-                    .as_ref()
-                    .and_then(kount_person_from_customer)
-            });
+        {
+            // The billing address wins per field; customer info fills only the
+            // gaps, so an address carrying just a name still sends Kount the
+            // customer's email and phone. Name and postal address stay as the
+            // address supplied them.
+            Some(person) => Some(match customer_person.as_ref() {
+                Some(customer) => person.fill_contact_from(customer),
+                None => person,
+            }),
+            // No usable billing address — fall back to the customer wholesale.
+            None => customer_person,
+        };
         // Fulfillment recipient: built entirely from the shipping address (name,
         // email, phone, and postal address) — no fallback to customer_info or to
         // billing. If no shipping address was supplied, no fulfillment recipient
@@ -1507,19 +1883,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let salted_token = |source: &str| payment_token_hash(&api_key, source);
         let payment = req.payment_method.as_ref().and_then(|pm| {
             kount_instrument(pm, req.payment_method_type).map(|instrument| {
-                // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
-                let (bin, last4, payment_token) = match pm {
+                // Cards carry BIN/last4 + expiry + a PAN-derived token; the type
+                // reflects credit/debit.
+                let (bin, last4, payment_token, exp_month, exp_year) = match pm {
                     PaymentMethodData::Card(card) => {
                         let pan = card.card_number.peek();
                         let (bin, last4) = card_bin_last4(pan);
-                        (bin, last4, salted_token(pan))
+                        let (exp_month, exp_year) = card_expiry(card);
+                        (bin, last4, salted_token(pan), exp_month, exp_year)
                     }
                     // Non-card methods: salted token of the instrument identifier
                     // (payer email, IBAN, account number, …) when one is available.
+                    // No expiry — Kount only defines it for cards.
                     _ => (
                         None,
                         None,
                         instrument.token_source.as_deref().and_then(salted_token),
+                        None,
+                        None,
                     ),
                 };
                 KountPayment {
@@ -1527,6 +1908,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     bin: bin.map(Secret::new),
                     last4: last4.map(Secret::new),
                     payment_token: payment_token.map(Secret::new),
+                    expiration_month: exp_month.map(Secret::new),
+                    expiration_year: exp_year.map(Secret::new),
                 }
             })
         });
@@ -1545,6 +1928,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .unwrap_or_default();
 
         let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
+        let merchant = merge_pre_risk_merchant(
+            merchant,
+            non_empty_secret(feature_data.merchant_name),
+            non_empty_secret(feature_data.merchant_contact_number),
+        );
 
         Ok(Self {
             order_id: order_id.clone(),
@@ -1559,6 +1947,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             device,
             merchant_category_code,
             merchant,
+            custom_fields,
         })
     }
 }
@@ -1718,6 +2107,34 @@ pub struct KountAuthorizationStatus {
         skip_serializing_if = "Option::is_none"
     )]
     pub verification_response: Option<KountVerificationResponse>,
+    /// The payment processor-provided authorization code.
+    #[serde(rename = "processorAuthCode", skip_serializing_if = "Option::is_none")]
+    pub processor_auth_code: Option<String>,
+    /// The unique ID the payment processor or gateway uses for the order.
+    ///
+    /// Kount documents this on the Evaluate Order (`POST`) authorization status
+    /// but omits it from `OrderPatchBody.AuthorizationStatus`. We send it on the
+    /// Update Order call regardless: the PATCH schema reads as a trimmed
+    /// projection of the same object, so Kount is expected to accept the
+    /// superset. If Kount ever validates the patch body strictly, this is the
+    /// field to drop first — it would fail the whole notify call, not just
+    /// itself.
+    #[serde(
+        rename = "processorTransactionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub processor_transaction_id: Option<String>,
+    /// Gateway that processed the authorization.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<KountGateway>,
+}
+
+/// Kount `transactions[].authorizationStatus.gateway`. Only `id` is populated
+/// from the notify feature data; the schema also allows `response`.
+#[derive(Debug, Clone, Serialize)]
+pub struct KountGateway {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 }
 
 /// Kount authorization outcome (`transactions[].authorizationStatus.authResult`).
@@ -1789,61 +2206,95 @@ impl KountCvvStatus {
 }
 
 /// Connector-specific feature data accepted on the FRM notify request. Carries
-/// AVS/CVV verification results (from the payment connector's authorization) so
-/// Kount's Update Order call can relay them under
-/// `transactions[].authorizationStatus.verificationResponse`.
-#[derive(Debug, Clone, Deserialize)]
+/// the payment connector's authorization results so Kount's Update Order call
+/// can relay them under `transactions[].authorizationStatus`: AVS/CVV as
+/// `verificationResponse`, plus `processorAuthCode` and `gateway.id`.
+///
+/// Keys are snake_case here — unlike the camelCase Pre Risk Check blob
+/// ([`KountPreRiskCheckFeatureData`]) — because the caller builds the two
+/// objects separately. Do not "harmonise" the casing.
+///
+/// `processor_transaction_id` is relayed even though Kount omits
+/// `processorTransactionId` from `OrderPatchBody.AuthorizationStatus` — see the
+/// field's doc comment on [`KountAuthorizationStatus`].
+///
+/// Every field parses leniently through [`de_stringy`] so that one value
+/// arriving as a JSON number (a numeric `gateway_id`, say) cannot fail the whole
+/// struct and silently stop AVS/CVV from being relayed.
+#[derive(Debug, Clone, Default, Deserialize)]
 struct KountNotifyFeatureData {
+    #[serde(default, deserialize_with = "de_stringy")]
     avs_result: Option<String>,
+    #[serde(default, deserialize_with = "de_stringy")]
     cvv_result: Option<String>,
+    #[serde(default, deserialize_with = "de_stringy")]
+    processor_auth_code: Option<String>,
+    #[serde(default, deserialize_with = "de_stringy")]
+    processor_transaction_id: Option<String>,
+    #[serde(default, deserialize_with = "de_stringy")]
+    gateway_id: Option<String>,
 }
 
-/// Build the `transactions[].authorizationStatus` block from the payment
-/// status (`authResult`) and the notify request's `connector_feature_data`
-/// (`verificationResponse` — a JSON string carrying `avs_result`/`cvv_result`).
-/// Empty when neither a mappable payment status nor AVS/CVV data is present —
-/// matching the request's `skip_serializing_if` convention.
+/// Build the `transactions[].authorizationStatus` block from the payment status
+/// (`authResult`) and the notify request's `connector_feature_data` — AVS/CVV as
+/// `verificationResponse`, plus `processorAuthCode` and `gateway.id`. Empty when
+/// none of those is present, matching the request's `skip_serializing_if`
+/// convention.
 fn kount_update_transactions(
     payment_status: Option<AttemptStatus>,
     connector_feature_data: Option<&Secret<String>>,
 ) -> Vec<KountUpdateTransaction> {
     let auth_result = payment_status.map(KountAuthResult::from_attempt_status);
 
-    // Malformed `connector_feature_data` (bad JSON, or keys that don't match
-    // `avs_result`/`cvv_result`) would otherwise silently deserialize to
-    // `KountNotifyFeatureData { avs_result: None, cvv_result: None }` —
-    // indistinguishable from a caller who simply didn't send AVS/CVV data.
-    // Surface the parse failure so a caller keying mistake is visible instead
-    // of the block just vanishing from the Update Order call.
-    let feature_data = connector_feature_data.and_then(|data| {
-        serde_json::from_str::<KountNotifyFeatureData>(data.peek())
-            .inspect_err(|err| {
-                tracing::warn!(
-                    error = %err,
-                    "Kount notify connector_feature_data failed to parse as {{avs_result, cvv_result}}; AVS/CVV will not be relayed to Kount"
-                );
-            })
-            .ok()
-    });
-    let verification_response = feature_data.and_then(|feature_data| {
-        (feature_data.avs_result.is_some() || feature_data.cvv_result.is_some()).then_some(
-            KountVerificationResponse {
-                cvv_status: feature_data
-                    .cvv_result
-                    .as_deref()
-                    .map(KountCvvStatus::from_str),
-                avs_status: feature_data.avs_result,
-            },
-        )
-    });
+    // Malformed `connector_feature_data` (bad JSON, or keys that don't match the
+    // ones modelled above) would otherwise silently deserialize to an all-`None`
+    // `KountNotifyFeatureData` — indistinguishable from a caller who simply sent
+    // no authorization data. Surface the parse failure so a caller keying
+    // mistake is visible instead of the block just vanishing from the call.
+    let feature_data = connector_feature_data
+        .and_then(|data| {
+            serde_json::from_str::<KountNotifyFeatureData>(data.peek())
+                .inspect_err(|err| {
+                    tracing::warn!(
+                        error = %err,
+                        "Kount notify connector_feature_data failed to parse; AVS/CVV, \
+                         processorAuthCode and gateway.id will not be relayed to Kount"
+                    );
+                })
+                .ok()
+        })
+        .unwrap_or_default();
 
-    if auth_result.is_none() && verification_response.is_none() {
+    let verification_response = (feature_data.avs_result.is_some()
+        || feature_data.cvv_result.is_some())
+    .then(|| KountVerificationResponse {
+        cvv_status: feature_data
+            .cvv_result
+            .as_deref()
+            .map(KountCvvStatus::from_str),
+        avs_status: feature_data.avs_result,
+    });
+    let gateway = feature_data
+        .gateway_id
+        .map(|id| KountGateway { id: Some(id) });
+    let processor_auth_code = feature_data.processor_auth_code;
+    let processor_transaction_id = feature_data.processor_transaction_id;
+
+    if auth_result.is_none()
+        && verification_response.is_none()
+        && processor_auth_code.is_none()
+        && processor_transaction_id.is_none()
+        && gateway.is_none()
+    {
         return Vec::new();
     }
     vec![KountUpdateTransaction {
         authorization_status: Some(KountAuthorizationStatus {
             auth_result,
             verification_response,
+            processor_auth_code,
+            processor_transaction_id,
+            gateway,
         }),
     }]
 }

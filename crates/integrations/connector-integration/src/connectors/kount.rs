@@ -4,8 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::BASE64_ENGINE_URL_SAFE_NO_PAD, errors::CustomResult, events, ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -53,7 +52,12 @@ pub(crate) mod headers {
 }
 
 // Kount endpoints / constants.
-/// Sandbox OAuth authorization-server id (from the Kount integration guide).
+/// Production OAuth token endpoint path (Equifax PingFederate), appended to the
+/// login host configured as `kount.secondary_base_url`.
+const KOUNT_TOKEN_PATH_PROD: &str = "/as/token";
+/// Sandbox OAuth authorization-server id (from the Kount integration guide),
+/// used to build the Okta token path when the connector config carries no
+/// `auth_server_id`.
 const KOUNT_SANDBOX_AUTH_SERVER_ID: &str = "ausdppkujzCPQuIrY357";
 const KOUNT_ORDERS_PATH: &str = "/commerce/v2/orders";
 const FORM_URL_ENCODED: &str = "application/x-www-form-urlencoded";
@@ -81,9 +85,9 @@ const KOUNT_WEB_SDK_URL: &str =
 /// it; DDC correlates purely by `sessionID`.
 pub fn build_ddc_script(client_id: &str, session_id: &str, sandbox: bool) -> String {
     let environment = if sandbox { "TEST" } else { "PROD" };
-    // Contextual output-encoding: `client_id` (from the access-token JWT) and
-    // `session_id` are interpolated into a JS string literal — encode for that
-    // context so no value can break out of the string.
+    // Contextual output-encoding: `client_id` (from the Kount connector config)
+    // and `session_id` are interpolated into a JS string literal — encode for
+    // that context so no value can break out of the string.
     let client_id = js_string_escape(client_id);
     let session_id = js_string_escape(session_id);
     format!(
@@ -120,40 +124,6 @@ fn js_string_escape(input: &str) -> String {
         }
     }
     out
-}
-
-/// Decode the (unverified) OAuth access-token JWT claims. Reads the payload
-/// segment only — no signature verification.
-fn access_token_claims(access_token: &str) -> Option<serde_json::Value> {
-    use base64::Engine;
-    let payload_segment = access_token.split('.').nth(1)?;
-    let decoded = BASE64_ENGINE_URL_SAFE_NO_PAD.decode(payload_segment).ok()?;
-    serde_json::from_slice(&decoded).ok()
-}
-
-/// Extract the Kount-assigned client/merchant id from the OAuth access token
-/// (the JWT `client_id` claim) for use as the DDC SDK `clientID`.
-pub fn client_id_from_access_token(access_token: &str) -> Option<String> {
-    access_token_claims(access_token)?
-        .get("client_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-}
-
-/// Whether the access token was issued by the Kount **sandbox** authorization
-/// server — this drives the DDC SDK `environment` (`TEST` vs `PROD`) so it always
-/// matches the environment the Orders API call runs against. The token's `iss`
-/// claim embeds the authorization-server id; sandbox uses
-/// [`KOUNT_SANDBOX_AUTH_SERVER_ID`]. Defaults to sandbox (`TEST`) when the issuer
-/// cannot be determined, which is the safe default.
-fn access_token_is_sandbox(access_token: &str) -> bool {
-    access_token_claims(access_token)
-        .and_then(|c| {
-            c.get("iss")
-                .and_then(|v| v.as_str())
-                .map(|iss| iss.contains(KOUNT_SANDBOX_AUTH_SERVER_ID))
-        })
-        .unwrap_or(true)
 }
 
 /// Resolve the Kount order id for an Update Order (`PATCH .../orders/{id}`) call.
@@ -476,21 +446,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .clone()
             });
         let session_id = kount::hash_session_id(&session_ref);
-        // Access token threaded via state.access_token → PaymentFlowData.access_token.
-        let token = data
-            .resource_common_data
-            .access_token
-            .as_ref()
-            .map(|t| t.access_token.peek().to_owned());
-        let client_id = token
-            .as_deref()
-            .and_then(client_id_from_access_token)
-            .unwrap_or_default();
-        // DDC `environment` follows the access token's environment, not a hardcode.
-        let sandbox = token
-            .as_deref()
-            .map(access_token_is_sandbox)
-            .unwrap_or(true);
+        // DDC `clientID` is the Kount-assigned merchant CID, read only from the
+        // connector config (`x-connector-config`). There is deliberately no
+        // fallback: an absent CID renders a script that silently collects
+        // nothing, so a missing value is rejected when the config is parsed
+        // (`ConnectorSpecificConfig::Kount.client_id` is a non-optional `String`)
+        // rather than defaulted to an empty string here.
+        //
+        // The only way this conversion fails is a non-Kount config reaching the
+        // Kount flow, which would be a routing bug rather than bad merchant data.
+        let client_id = kount::KountAuthType::try_from(&data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "expected a Kount connector config while rendering the DDC script"
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .client_id;
+        // DDC `environment` follows the deployment environment: only a production
+        // deployment gets PROD, everything else (development/sandbox) gets TEST.
+        // Deliberately `!matches!(.., Production)` rather than listing the non-prod
+        // variants, so a future `Env` variant defaults to TEST — the safe direction.
+        let sandbox = !matches!(
+            common_utils::consts::Env::current_env(),
+            common_utils::consts::Env::Production
+        );
         let script = build_ddc_script(&client_id, &session_id, sandbox);
 
         let mut router_data = data.clone();
@@ -604,9 +587,8 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // The OAuth login host is configured via `secondary_base_url` (the
             // Orders API host is the primary `base_url`); it is required, so the
-            // token endpoint host is never guessed. Auth-server id is
-            // account/environment specific, falling back to the sandbox server
-            // only when unset.
+            // token endpoint host is never guessed. The path is environment
+            // specific and is selected below.
             let login_base_url = req
                 .resource_common_data
                 .connectors
@@ -618,8 +600,10 @@ macros::macro_connector_implementation!(
                         config: "secondary_base_url",
                         context: IntegrationErrorContext {
                             additional_context: Some(
-                                "Kount needs secondary_base_url (the OAuth login host, e.g. \
-                                 https://login.kount.com) to build the token endpoint"
+                                "Kount needs secondary_base_url (the OAuth login host: \
+                                 https://login.equifax.com in production, \
+                                 https://login.kount.com in sandbox) to build the token \
+                                 endpoint"
                                     .to_owned(),
                             ),
                             suggested_action: Some(
@@ -629,14 +613,29 @@ macros::macro_connector_implementation!(
                         },
                     }
                 })?;
-            let auth = kount::KountAuthType::try_from(&req.connector_config)?;
-            let auth_server_id = auth
-                .auth_server_id
-                .as_deref()
-                .unwrap_or(KOUNT_SANDBOX_AUTH_SERVER_ID);
-            Ok(format!(
-                "{login_base_url}/oauth2/{auth_server_id}/v1/token"
-            ))
+            // Sandbox and production do not share a token endpoint shape: production
+            // is Equifax PingFederate (`/as/token`), sandbox is Kount's Okta
+            // authorization server, whose path embeds the account's auth-server id.
+            // Matched with a `_` arm rather than by listing the non-prod variants so
+            // a future `Env` variant defaults to sandbox — the safe direction, same
+            // reasoning as the DDC `environment` flag above.
+            //
+            // NOTE: the host comes from config and the path from `Env`, so the two
+            // must agree; see the comment on `kount.secondary_base_url` in the
+            // environment config files.
+            match common_utils::consts::Env::current_env() {
+                common_utils::consts::Env::Production => {
+                    Ok(format!("{login_base_url}{KOUNT_TOKEN_PATH_PROD}"))
+                }
+                _ => {
+                    let auth = kount::KountAuthType::try_from(&req.connector_config)?;
+                    let auth_server_id = auth
+                        .auth_server_id
+                        .as_deref()
+                        .unwrap_or(KOUNT_SANDBOX_AUTH_SERVER_ID);
+                    Ok(format!("{login_base_url}/oauth2/{auth_server_id}/v1/token"))
+                }
+            }
         }
     }
 );

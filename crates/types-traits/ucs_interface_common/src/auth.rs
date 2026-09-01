@@ -429,4 +429,76 @@ mod tests {
             _ => panic!("expected stripe config"),
         }
     }
+
+    /// Build a MetadataMap carrying a Kount `X-Connector-Config` header.
+    fn kount_metadata(config_json: &str) -> MetadataMap {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_CONNECTOR_CONFIG,
+            config_json
+                .parse()
+                .expect("valid x-connector-config header"),
+        );
+        metadata
+    }
+
+    #[test]
+    fn kount_config_carries_client_id() {
+        let metadata =
+            kount_metadata(r#"{"config":{"Kount":{"api_key":"kount-key","client_id":"900900"}}}"#);
+
+        let (connector, config) =
+            connector_and_config_from_metadata(&metadata).expect("kount config should resolve");
+
+        assert_eq!(
+            connector,
+            connector_types::ConnectorVariant::Payment(connector_types::ConnectorEnum::Kount)
+        );
+        match config {
+            ConnectorSpecificConfig::Kount {
+                api_key, client_id, ..
+            } => {
+                assert_eq!(api_key.expose(), "kount-key");
+                assert_eq!(client_id, "900900");
+            }
+            _ => panic!("expected kount config"),
+        }
+    }
+
+    /// The DDC script is unusable without the merchant CID, so a config that
+    /// omits `client_id` must be rejected outright rather than rendering an
+    /// empty `clientID`.
+    #[test]
+    fn kount_config_without_client_id_is_rejected() {
+        let metadata = kount_metadata(r#"{"config":{"Kount":{"api_key":"kount-key"}}}"#);
+
+        assert!(
+            connector_and_config_from_metadata(&metadata).is_err(),
+            "kount config without client_id must be rejected"
+        );
+    }
+
+    /// Kount is only reachable through the typed config header: the legacy
+    /// `x-auth` / `x-api-key` headers cannot carry a `client_id`.
+    #[test]
+    fn kount_legacy_auth_headers_are_rejected() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            consts::X_AUTH,
+            "header-key".parse().expect("valid x-auth header"),
+        );
+        metadata.insert(
+            consts::X_API_KEY,
+            "kount-key".parse().expect("valid x-api-key header"),
+        );
+        metadata.insert(
+            consts::X_CONNECTOR_NAME,
+            "kount".parse().expect("valid x-connector header"),
+        );
+
+        assert!(
+            connector_and_config_from_metadata(&metadata).is_err(),
+            "kount must require the x-connector-config header"
+        );
+    }
 }

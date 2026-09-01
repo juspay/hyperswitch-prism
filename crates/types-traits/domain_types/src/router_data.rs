@@ -947,6 +947,10 @@ pub enum ConnectorSpecificConfig {
     },
     Kount {
         api_key: Secret<String>,
+        /// Kount-assigned merchant CID, used as the DDC Web SDK `clientID`.
+        /// Required — Device Data Collection cannot run without it, and the
+        /// connector config is the only accepted source.
+        client_id: String,
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
@@ -2462,6 +2466,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Kount(kount) => Ok(Self::Kount {
                 api_key: kount.api_key.ok_or_else(err)?,
+                // A blank CID renders `clientID: ""` — a DDC script that loads and
+                // silently collects nothing. Treat empty/whitespace as missing, the
+                // same way the Paysafe account ids do in `get_account_id` above.
+                client_id: kount
+                    .client_id
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(err)?,
                 auth_server_id: kount.auth_server_id,
                 base_url: kount.base_url,
             }),
@@ -3689,14 +3700,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::Kount => match auth {
-                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
-                        api_key: api_key.clone(),
-                        auth_server_id: None,
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
+                // Kount is only reachable via the typed `x-connector-config`
+                // header: the legacy `x-auth`/`x-api-key` headers carry no
+                // `client_id`, which DDC requires.
+                ConnectorEnum::Kount => Err(err().into()),
                 ConnectorEnum::Hyperswitch => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
                         api_key: api_key.clone(),
@@ -3868,14 +3875,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
             },
             connector_types::ConnectorVariant::Frm(connector_enum) => match connector_enum {
-                connector_types::FrmConnectorEnum::Kount => match auth {
-                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
-                        api_key: api_key.clone(),
-                        auth_server_id: None,
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
+                // Same as the payment variant: the legacy headers cannot carry
+                // `client_id`, so Kount requires `x-connector-config`.
+                connector_types::FrmConnectorEnum::Kount => Err(err().into()),
             },
             connector_types::ConnectorVariant::Authenticator(connector_enum) => {
                 match connector_enum {
