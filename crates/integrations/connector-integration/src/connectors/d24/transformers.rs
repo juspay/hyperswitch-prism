@@ -314,7 +314,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount,
             currency: request.currency,
             invoice_id: sanitize_invoice_id(
-                &router_data.resource_common_data.connector_request_reference_id,
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
             ),
             payer: D24Payer {
                 id: sanitize_payer_id(

@@ -185,7 +185,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         let reason = response.reason();
 
         Ok(ErrorResponse {
@@ -215,7 +216,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // =============================================================================
 // BODY DECODING IMPLEMENTATION
 // =============================================================================
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding for D24<T> {}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for D24<T>
+{
+}
 
 // =============================================================================
 // AUTHORIZE — POST /v3/deposits (PCI / Server2Server card deposit)
