@@ -36,15 +36,37 @@ const DEFAULT_PAYMENT_DESCRIPTION: &str = "Payment";
 /// Saferpay caps `OrderId` at 80 characters and rejects longer values outright.
 const ORDER_ID_MAX_LEN: usize = 80;
 
-/// `Transaction.Type` for a payment leg.
-const TRANSACTION_TYPE_PAYMENT: &str = "PAYMENT";
+/// `Transaction.Type` — which leg of the payment a transaction object describes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SaferpayTransactionType {
+    #[serde(rename = "PAYMENT")]
+    Payment,
+    #[serde(rename = "REFUND")]
+    Refund,
+    /// Anything Saferpay adds later. Kept so an unknown type is reported rather
+    /// than failing the whole response parse.
+    #[serde(other)]
+    Unknown,
+}
 
-/// `Transaction.Status` values. Saferpay spells the cancelled state `CANCELED`
-/// with a single `L`.
-const STATUS_AUTHORIZED: &str = "AUTHORIZED";
-const STATUS_CAPTURED: &str = "CAPTURED";
-const STATUS_PENDING: &str = "PENDING";
-const STATUS_CANCELED: &str = "CANCELED";
+/// `Transaction.Status`. Saferpay spells the cancelled state `CANCELED` with a
+/// single `L`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SaferpayTransactionStatus {
+    #[serde(rename = "AUTHORIZED")]
+    Authorized,
+    #[serde(rename = "CAPTURED")]
+    Captured,
+    #[serde(rename = "PENDING")]
+    Pending,
+    #[serde(rename = "CANCELED")]
+    Canceled,
+    /// Unrecognised status. Treated as pending rather than rejected, so a status
+    /// Saferpay introduces later degrades to "still in flight" instead of
+    /// failing the response.
+    #[serde(other)]
+    Unknown,
+}
 
 /// Key under which the Capture flow publishes the `CaptureId` in
 /// `connector_metadata`, and under which the Refund flow expects to find it in
@@ -247,9 +269,9 @@ pub struct SaferpayCardDetails<T: PaymentMethodDataTypes> {
     #[serde(rename = "Number")]
     pub number: RawCardNumber<T>,
     #[serde(rename = "ExpYear")]
-    pub exp_year: u16,
+    pub exp_year: Secret<u16>,
     #[serde(rename = "ExpMonth")]
-    pub exp_month: u8,
+    pub exp_month: Secret<u8>,
     #[serde(rename = "VerificationCode", skip_serializing_if = "Option::is_none")]
     pub verification_code: Option<Secret<String>>,
     #[serde(rename = "HolderName", skip_serializing_if = "Option::is_none")]
@@ -311,8 +333,10 @@ pub enum SaferpayAuthorizeRequest<T: PaymentMethodDataTypes> {
     Settle {
         #[serde(rename = "RequestHeader")]
         request_header: SaferpayRequestHeader,
+        /// The `Initialize` session token. Presenting it is what finalises and
+        /// authorizes the payment, so it is a bearer credential.
         #[serde(rename = "Token")]
-        token: String,
+        token: Secret<String>,
     },
 }
 
@@ -371,7 +395,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .ok_or_else(|| missing_field("connector_feature_data.saferpay_token"))?;
             return Ok(Self::Settle {
                 request_header: SaferpayRequestHeader::new(&auth),
-                token,
+                token: Secret::new(token),
             });
         }
 
@@ -467,8 +491,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_means: SaferpayPaymentMeans {
                 card: SaferpayCardDetails {
                     number: card.card_number.clone(),
-                    exp_year,
-                    exp_month,
+                    exp_year: Secret::new(exp_year),
+                    exp_month: Secret::new(exp_month),
                     verification_code: Some(card.card_cvc.clone()),
                     holder_name: card.get_optional_cardholder_name(),
                 },
@@ -489,9 +513,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaferpayTransaction {
     #[serde(rename = "Type")]
-    pub transaction_type: Option<String>,
+    pub transaction_type: Option<SaferpayTransactionType>,
     #[serde(rename = "Status")]
-    pub status: Option<String>,
+    pub status: Option<SaferpayTransactionStatus>,
     #[serde(rename = "Id")]
     pub id: String,
     #[serde(rename = "CaptureId")]
@@ -513,20 +537,21 @@ pub struct SaferpayTransaction {
 }
 
 impl SaferpayTransaction {
-    fn status_str(&self) -> &str {
-        self.status.as_deref().unwrap_or_default()
+    fn transaction_status(&self) -> SaferpayTransactionStatus {
+        self.status.unwrap_or(SaferpayTransactionStatus::Unknown)
     }
 
     /// Payment-leg status. Saferpay never auto-captures on this interface: an
     /// `AuthorizeDirect` / token `Authorize` always answers `AUTHORIZED`, and the
     /// caller settles with an explicit Capture regardless of `capture_method`.
     fn attempt_status(&self) -> AttemptStatus {
-        match self.status_str() {
-            STATUS_AUTHORIZED => AttemptStatus::Authorized,
-            STATUS_CAPTURED => AttemptStatus::Charged,
-            STATUS_CANCELED => AttemptStatus::Voided,
-            STATUS_PENDING => AttemptStatus::Pending,
-            _ => AttemptStatus::Pending,
+        match self.transaction_status() {
+            SaferpayTransactionStatus::Authorized => AttemptStatus::Authorized,
+            SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            SaferpayTransactionStatus::Canceled => AttemptStatus::Voided,
+            SaferpayTransactionStatus::Pending | SaferpayTransactionStatus::Unknown => {
+                AttemptStatus::Pending
+            }
         }
     }
 
@@ -534,11 +559,12 @@ impl SaferpayTransaction {
     /// money — Saferpay requires the refund transaction itself to be captured — so
     /// it is reported as `Pending`, never `Success`.
     fn refund_status(&self) -> RefundStatus {
-        match self.status_str() {
-            STATUS_CAPTURED => RefundStatus::Success,
-            STATUS_AUTHORIZED | STATUS_PENDING => RefundStatus::Pending,
-            STATUS_CANCELED => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+        match self.transaction_status() {
+            SaferpayTransactionStatus::Captured => RefundStatus::Success,
+            SaferpayTransactionStatus::Authorized
+            | SaferpayTransactionStatus::Pending
+            | SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
+            SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
         }
     }
 
@@ -940,8 +966,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_means: SaferpayPaymentMeans {
                 card: SaferpayCardDetails {
                     number: card.card_number.clone(),
-                    exp_year,
-                    exp_month,
+                    exp_year: Secret::new(exp_year),
+                    exp_month: Secret::new(exp_month),
                     verification_code: Some(card.card_cvc.clone()),
                     holder_name: card.get_optional_cardholder_name(),
                 },
@@ -1079,18 +1105,20 @@ pub struct SaferpayCaptureResponse {
     #[serde(rename = "CaptureId")]
     pub capture_id: String,
     #[serde(rename = "Status")]
-    pub status: Option<String>,
+    pub status: Option<SaferpayTransactionStatus>,
     #[serde(rename = "Date")]
     pub date: Option<String>,
 }
 
 impl SaferpayCaptureResponse {
     fn attempt_status(&self, is_partial: bool) -> AttemptStatus {
-        match self.status.as_deref().unwrap_or_default() {
-            STATUS_CAPTURED if is_partial => AttemptStatus::PartialCharged,
-            STATUS_CAPTURED => AttemptStatus::Charged,
-            STATUS_PENDING => AttemptStatus::Pending,
-            _ => AttemptStatus::Pending,
+        match self.status.unwrap_or(SaferpayTransactionStatus::Unknown) {
+            SaferpayTransactionStatus::Captured if is_partial => AttemptStatus::PartialCharged,
+            SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            SaferpayTransactionStatus::Authorized
+            | SaferpayTransactionStatus::Pending
+            | SaferpayTransactionStatus::Canceled
+            | SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
         }
     }
 }
@@ -1433,11 +1461,14 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
             // The settling Capture succeeded: Saferpay returns only a CaptureId and
             // a status, so the refund id is the one we already hold.
             SaferpayRefundSyncResponse::Settled(capture) => {
-                let refund_status = match capture.status.as_deref().unwrap_or_default() {
-                    STATUS_CAPTURED => RefundStatus::Success,
-                    STATUS_PENDING => RefundStatus::Pending,
-                    _ => RefundStatus::Pending,
-                };
+                let refund_status =
+                    match capture.status.unwrap_or(SaferpayTransactionStatus::Unknown) {
+                        SaferpayTransactionStatus::Captured => RefundStatus::Success,
+                        SaferpayTransactionStatus::Authorized
+                        | SaferpayTransactionStatus::Pending
+                        | SaferpayTransactionStatus::Canceled
+                        | SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
+                    };
 
                 return Ok(Self {
                     response: Ok(RefundsResponseData {
@@ -1465,7 +1496,7 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
 
         // Guard against being pointed at the payment leg: only a `Type: REFUND`
         // transaction may be reported as a refund state.
-        if transaction.transaction_type.as_deref() == Some(TRANSACTION_TYPE_PAYMENT) {
+        if transaction.transaction_type == Some(SaferpayTransactionType::Payment) {
             return Err(error_stack::report!(
                 crate::utils::unexpected_response_fail(
                     item.http_code,
