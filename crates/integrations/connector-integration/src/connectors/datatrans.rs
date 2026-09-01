@@ -146,9 +146,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Datatrans<T>
 {
     /// Google Pay payments are tokenized into a Datatrans alias
-    /// (`POST /v1/aliases/tokenize`) before Authorize. Charging the alias as an
-    /// `ALIAS` card is the Datatrans path that supports a native 3DS challenge
-    /// for Google Pay (the raw `PAY` payload cannot be 3DS-authenticated).
+    /// (`POST /v1/aliases/tokenize`) before Authorize / SetupMandate. Charging or
+    /// registering the alias as an `ALIAS` card is the Datatrans path that supports a
+    /// native 3DS challenge for Google Pay (the raw `PAY` payload cannot be
+    /// 3DS-authenticated).
     fn should_do_payment_method_token(
         &self,
         payment_method: PaymentMethod,

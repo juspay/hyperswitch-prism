@@ -536,9 +536,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ///   card (`PLAIN`) charge. Wallet payload (`PAY` / `APL`) charges never set
 ///   `createAlias` — unchanged from the pre-refactor `is_card()` gating.
 ///
-/// Never required for an `ALIAS` card charge (Secure Fields token / Google Pay
-/// `/v1/aliases/tokenize` alias): the alias was already created up front, so
-/// `createAlias` is omitted there. MIT charges (`RepeatPayment`) reuse an existing
+/// Never required for an `ALIAS` card charge or registration (Secure Fields token /
+/// Google Pay `/v1/aliases/tokenize` alias): the alias was already created up front,
+/// so `createAlias` is omitted there. MIT charges (`RepeatPayment`) reuse an existing
 /// alias and likewise never set it.
 fn should_create_alias<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
@@ -674,8 +674,9 @@ fn get_authorize_status(
 ///   `createAlias` CIT, or an echo of the charged alias), or
 /// - the request's `payment_method_token`: a tokenize-sourced alias
 ///   (`POST /v1/aliases/tokenize`, e.g. Google Pay) is created upstream of the
-///   Authorize call, so the sent token is itself the mandate reference. This is the
-///   only source on a 3DS-enrolled response, which carries no `card` object.
+///   Authorize / SetupMandate call, so the sent token is itself the mandate
+///   reference. This is the only source on a 3DS-enrolled response, which carries no
+///   `card` object.
 ///
 /// The token fallback applies only to mandate payments: surfacing a mandate
 /// reference for a plain one-off payment would misreport a single-use charge as
@@ -830,6 +831,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
 
+        // Zero-auth alias registration always runs Datatrans-native 3DS: send the
+        // cardholder details so Datatrans can drive the ACS challenge. Shared by the
+        // raw-card (`PLAIN`) and the Google Pay alias (`ALIAS`) registration, since
+        // SetupMandate never carries passthrough external authentication artifacts.
+        // Evaluated lazily so an unsupported payment method still reports
+        // `NotImplemented` rather than a missing-billing-field error.
+        let native_three_ds =
+            || -> Result<Option<ThreeDSecureData>, error_stack::Report<IntegrationError>> {
+                Ok(Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+                    cardholder: CardHolder {
+                        cardholder_name: router_data
+                            .resource_common_data
+                            .get_billing_full_name()?,
+                        email: router_data.resource_common_data.get_billing_email()?,
+                    },
+                })))
+            };
+
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => DatatransCard {
                 alias: None,
@@ -838,16 +857,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
                 cvv: Some(card_data.card_cvc.clone()),
                 card_type: Some(CARD_TYPE_PLAIN.to_string()),
-                // Zero-auth alias creation always runs Datatrans-native 3DS: send the
-                // cardholder details so Datatrans can drive the ACS challenge.
-                three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
-                    cardholder: CardHolder {
-                        cardholder_name: router_data
-                            .resource_common_data
-                            .get_billing_full_name()?,
-                        email: router_data.resource_common_data.get_billing_email()?,
-                    },
-                })),
+                three_ds: native_three_ds()?,
+            },
+            // Google Pay zero-auth registration: the PaymentMethodToken flow already
+            // tokenized the Google Pay payload into a Datatrans alias
+            // (`POST /v1/aliases/tokenize`), and this token carries it. The alias is
+            // registered as an `ALIAS` card — the Datatrans path that supports a native
+            // 3DS challenge for Google Pay — and is itself the reusable mandate
+            // reference, so no `createAlias` is requested (see `should_create_alias`).
+            PaymentMethodData::PaymentMethodToken(token_data) => DatatransCard {
+                alias: Some(token_data.token.clone()),
+                number: None,
+                // A tokenize-sourced alias carries no expiry/CVV of its own.
+                expiry_month: None,
+                expiry_year: None,
+                cvv: None,
+                card_type: Some(CARD_TYPE_ALIAS.to_string()),
+                three_ds: native_three_ds()?,
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::Wallet(_)
@@ -862,7 +888,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardWithNoCvc(_)
@@ -872,7 +897,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Err(IntegrationError::NotImplemented(
                     UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
                     datatrans_context(
-                        "Datatrans SetupMandate (zero-auth alias creation) supports raw card payment method only",
+                        "Datatrans SetupMandate (zero-auth alias registration) supports raw card and Google Pay (tokenized alias) payment methods only",
                     ),
                 ))?
             }
@@ -896,7 +921,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             // Ask Datatrans to persist a reusable alias for later MIT/RepeatPayment.
             // SetupMandate is by construction the zero-auth mandate-registration
-            // CIT, so the mandate intent holds trivially true here.
+            // CIT, so the mandate intent holds trivially true here; the Google Pay
+            // alias registration still opts out (its alias already exists).
             option: should_create_alias(&router_data.request.payment_method_data, true).then_some(
                 DatatransPaymentOptions {
                     create_alias: Some(true),
@@ -930,9 +956,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             DatatransPaymentsResponse::TransactionResponse(response) => {
                 // Surface the alias immediately when Datatrans echoes `card.alias` on the
                 // zero-auth response; otherwise it is recovered later via PSync
-                // (`card.alias`). SetupMandate is the mandate-registration CIT by
-                // construction (and its payment method is always a raw card, so the
-                // `payment_method_token` fallback cannot apply).
+                // (`card.alias`). A Google Pay registration needs no echo at all: its
+                // alias was minted up front by `/v1/aliases/tokenize`, so the request
+                // token itself is the mandate reference. SetupMandate is the
+                // mandate-registration CIT by construction, hence `is_mandate_payment`
+                // is passed as `true`.
                 let mandate_reference = connector_mandate_reference(
                     response.card.as_ref(),
                     &item.router_data.request.payment_method_data,
@@ -955,6 +983,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
             }
             DatatransPaymentsResponse::ThreeDSResponse(response) => {
+                // A raw-card registration has no alias yet — a zero-auth `createAlias`
+                // only materializes once the transaction completes after the challenge,
+                // so the alias is recovered later via PSync (`card.alias`). A Google Pay
+                // registration is different: the enrolled response carries no `card`
+                // object, but its alias already exists (minted by
+                // `/v1/aliases/tokenize`), so surface it now rather than relying on a
+                // PSync echo — mirroring the Authorize GPay-alias path.
+                let mandate_reference = connector_mandate_reference(
+                    None,
+                    &item.router_data.request.payment_method_data,
+                    true,
+                );
                 // Native 3DS: redirect the cardholder to the Datatrans challenge page.
                 // Host is derived from the connector's configured API base_url (not
                 // `test_mode`, which HS omits from the SetupRecurring request) so the
@@ -977,14 +1017,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         response.transaction_id.clone(),
                     ),
                     redirection_data: Some(Box::new(redirection_data)),
-                    // No alias to surface at challenge time: a zero-auth `createAlias`
-                    // only materializes once the transaction completes after the
-                    // challenge, and SetupMandate is card-only by construction (the
-                    // request builder rejects `PaymentMethodToken`), so no pre-existing
-                    // tokenize-sourced alias can apply — unlike the Authorize GPay-alias
-                    // path. The alias is recovered after the challenge via PSync
-                    // (`card.alias`).
-                    mandate_reference: None,
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
