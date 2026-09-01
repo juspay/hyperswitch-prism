@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+d24.base_url = "https://cc-api.directa24.com"
 citigate.base_url = "https://gw.cgate.tech"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
