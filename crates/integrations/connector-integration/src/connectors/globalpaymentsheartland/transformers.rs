@@ -66,9 +66,16 @@ const ISSUER_RSP_CODE_APPROVAL: &str = "00";
 /// here, but treated as an approval so a stray `85` is never read as a decline.
 const ISSUER_RSP_CODE_CARD_OK: &str = "85";
 
-/// `ReportTxnDetail` `Data/TxnStatus` for an approved / active transaction. The **only**
-/// value observed live — every other value deliberately falls through to `Pending`.
+/// `ReportTxnDetail` `Data/TxnStatus` for an approved / active transaction.
 const TXN_STATUS_ACTIVE: &str = "A";
+
+/// `ReportTxnDetail` `Data/TxnStatus` for a transaction that has been reversed — i.e. voided.
+///
+/// This is reported on the **original** transaction (the `CreditAuth` / `CreditSale` that was
+/// voided), alongside a non-zero `Data/ReversalAmtInfo`. Verified live: `200139845260`
+/// (voided `CreditSale`) and `200139841418` (voided `CreditAuth`) both report `R`, while
+/// `200139837897` (an auth that was captured, not voided) still reports `A`.
+const TXN_STATUS_REVERSED: &str = "R";
 
 /// `ReportTxnDetail` `ServiceName` values.
 const SERVICE_NAME_CREDIT_AUTH: &str = "CreditAuth";
@@ -1173,8 +1180,15 @@ pub struct GlobalpaymentsHeartlandReportTransaction {
 /// PSync status derivation.
 ///
 /// `ServiceName` alone is not enough and `TxnStatus` alone is not enough: an auth and a
-/// sale both report `A` and they mean different UCS statuses. Only `A` was observed live,
-/// so every other value falls through to `Pending` — a conservative `Pending` is
+/// sale both report `A` and they mean different UCS statuses, and both report `R` once
+/// voided.
+///
+/// Observed live: `A` (active) and `R` (reversed/voided) on the original transaction, and
+/// `I` on a `CreditVoid` record. A `ReportTxnDetail` fetched by a `CreditVoid` id *is* the
+/// void record, so its mere existence proves the void — hence that arm matches any
+/// `TxnStatus` rather than pinning one.
+///
+/// Genuinely unobserved values still fall through to `Pending`: a conservative `Pending` is
 /// recoverable, a wrong `Charged`/`Failure` is not.
 fn map_psync_status(body: Option<&GlobalpaymentsHeartlandReportBody>) -> AttemptStatus {
     let Some(body) = body else {
@@ -1188,7 +1202,13 @@ fn map_psync_status(body: Option<&GlobalpaymentsHeartlandReportBody>) -> Attempt
     match (body.service_name.as_deref(), txn_status) {
         (Some(SERVICE_NAME_CREDIT_AUTH), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Authorized,
         (Some(SERVICE_NAME_CREDIT_SALE), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Charged,
-        (Some(SERVICE_NAME_CREDIT_VOID), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Voided,
+        // A voided auth/sale reports `R` on the ORIGINAL transaction. Without these two arms
+        // a PSync after a successful Void reports `Pending` forever.
+        (Some(SERVICE_NAME_CREDIT_AUTH), Some(TXN_STATUS_REVERSED))
+        | (Some(SERVICE_NAME_CREDIT_SALE), Some(TXN_STATUS_REVERSED)) => AttemptStatus::Voided,
+        // Syncing the void record itself. `I` is what the gateway reports here; matching any
+        // status keeps this correct if other values surface.
+        (Some(SERVICE_NAME_CREDIT_VOID), _) => AttemptStatus::Voided,
         // The underlying payment stays charged; the refund itself is tracked by RSync.
         (Some(SERVICE_NAME_CREDIT_RETURN), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Charged,
         _ => AttemptStatus::Pending,
