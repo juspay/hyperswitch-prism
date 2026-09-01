@@ -2314,7 +2314,12 @@ pub enum StripePaymentStatus {
 impl From<StripePaymentStatus> for common_enums::AttemptStatus {
     fn from(item: StripePaymentStatus) -> Self {
         match item {
-            StripePaymentStatus::Succeeded => Self::Charged,
+            // DIVERGENCE PROBE — deliberate regression, never merge. The
+            // correct mapping is Succeeded => Charged; this simulates a status
+            // mapping bug, the classic connector regression. Expected replay
+            // verdict: diverged — a $.status diff on every succeeded-authorize
+            // correlation (Charged recorded vs Authorized replayed).
+            StripePaymentStatus::Succeeded => Self::Authorized,
             StripePaymentStatus::Failed => Self::Failure,
             StripePaymentStatus::Processing => Self::Authorizing,
             StripePaymentStatus::RequiresCustomerAction => Self::AuthenticationPending,
