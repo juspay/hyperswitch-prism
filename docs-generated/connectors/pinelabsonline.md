@@ -22,9 +22,13 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     pinelabsonline=payment_pb2.PinelabsonlineConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        pinelabs_online=payment_pb2.PinelabsOnlineConfig(
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            client_secret=payment_methods_pb2.SecretString(value="YOUR_CLIENT_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 ```
@@ -41,9 +45,15 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.PINELABSONLINE,
+    connector: Connector.PINELABS_ONLINE,
     environment: Environment.SANDBOX,
-    // auth: { pinelabsonline: { apiKey: { value: 'YOUR_API_KEY' } } },
+    auth: {
+        pinelabsOnline: {
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 });
 ```
 
@@ -57,7 +67,15 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Pinelabsonline credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPinelabsOnline(PinelabsOnlineConfig.newBuilder()
+                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setClientSecret(SecretString.newBuilder().setValue("YOUR_CLIENT_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 ```
 
@@ -73,7 +91,14 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::PinelabsOnline(PinelabsOnlineConfig {
+                client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
+                client_secret: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -103,4 +128,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L28) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L27) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)
+**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L34) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L37) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)

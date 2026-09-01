@@ -13,7 +13,17 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { jpmorganorbital: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        jpmorganOrbital: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            bin: 'YOUR_BIN',
+            terminalId: 'YOUR_TERMINAL_ID',
+            baseUrl: 'YOUR_BASE_URL',
+            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
+        }
+    },
 };
 
 

@@ -17,13 +17,27 @@ import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.JpmorganOrbitalConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "proxy_authorize")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Jpmorganorbital credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setJpmorganOrbital(JpmorganOrbitalConfig.newBuilder()
+                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBin("YOUR_BIN")
+                .setTerminalId("YOUR_TERMINAL_ID")
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .build())
+            .build()
+    )
     .build()
 
 

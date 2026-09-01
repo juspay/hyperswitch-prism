@@ -22,9 +22,17 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     jpmorganorbital=payment_pb2.JpmorganorbitalConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        jpmorgan_orbital=payment_pb2.JpmorganOrbitalConfig(
+            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            bin="YOUR_BIN",
+            terminal_id="YOUR_TERMINAL_ID",
+            base_url="YOUR_BASE_URL",
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+        ),
+    ),
 )
 
 ```
@@ -41,9 +49,19 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.JPMORGANORBITAL,
+    connector: Connector.JPMORGAN_ORBITAL,
     environment: Environment.SANDBOX,
-    // auth: { jpmorganorbital: { apiKey: { value: 'YOUR_API_KEY' } } },
+    auth: {
+        jpmorganOrbital: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            bin: 'YOUR_BIN',
+            terminalId: 'YOUR_TERMINAL_ID',
+            baseUrl: 'YOUR_BASE_URL',
+            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
+        }
+    },
 });
 ```
 
@@ -57,7 +75,19 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Jpmorganorbital credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setJpmorganOrbital(JpmorganOrbitalConfig.newBuilder()
+                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBin("YOUR_BIN")
+                .setTerminalId("YOUR_TERMINAL_ID")
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .build())
+            .build()
+    )
     .build()
 ```
 
@@ -73,7 +103,18 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::JpmorganOrbital(JpmorganOrbitalConfig {
+                username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
+                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
+                bin: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                terminal_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -102,13 +143,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L81) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L70) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L107)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L89) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L84) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L118)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L100) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L86) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L123)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L108) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L100) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L134)
 
 ## API Reference
 
@@ -250,7 +291,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L126) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L104) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L136) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L118) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.Get
 
@@ -261,7 +302,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L135) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L116) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L145) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L130) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -272,4 +313,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L144) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L124) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L154) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L138) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)

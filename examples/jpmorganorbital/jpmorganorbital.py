@@ -14,9 +14,17 @@ SUPPORTED_FLOWS = ["authorize", "get", "proxy_authorize"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     jpmorganorbital=payment_pb2.JpmorganorbitalConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        jpmorgan_orbital=payment_pb2.JpmorganOrbitalConfig(
+            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            bin="YOUR_BIN",
+            terminal_id="YOUR_TERMINAL_ID",
+            base_url="YOUR_BASE_URL",
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+        ),
+    ),
 )
 
 
