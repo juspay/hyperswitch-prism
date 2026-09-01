@@ -305,8 +305,8 @@ fn validate_currency(
     if request_currency != configured_currency {
         return Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!(
-                "currency {request_currency} does not match the currency \
-                 {configured_currency} this JP Morgan Orbital MID is provisioned for"
+                "Currency {request_currency} (this MID is provisioned for \
+                 {configured_currency})"
             ),
             connector: "jpmorganorbital",
             context: IntegrationErrorContext::default(),
@@ -607,8 +607,8 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
     let eci = map_eci(raw_eci, brand).ok_or_else(|| {
         error_stack::report!(IntegrationError::NotSupported {
             message: format!(
-                "authentication_data.eci {raw_eci:?} cannot be mapped onto JP Morgan \
-                 Orbital's authenticationECIInd scale for card brand {brand:?}"
+                "3DS ECI {raw_eci:?} for card brand {brand:?} (no mapping onto \
+                 Orbital's authenticationECIInd scale)"
             ),
             connector: "jpmorganorbital",
             context: IntegrationErrorContext::default(),
@@ -692,7 +692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => card,
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Only card payments are supported by jpmorganorbital".to_string(),
+                    message: "This payment method".to_string(),
                     connector: "jpmorganorbital",
                     context: IntegrationErrorContext {
                         suggested_action: Some(
@@ -1353,6 +1353,19 @@ mod currency_validation_tests {
     #[test]
     fn mismatched_currency_is_rejected() {
         assert!(validate_currency(Currency::EUR, Some("USD")).is_err());
+    }
+
+    #[test]
+    fn mismatch_message_reads_as_a_sentence() {
+        // `IntegrationError::NotSupported` renders as "{message} is not supported by
+        // {connector}", so `message` must be a noun phrase rather than a full
+        // sentence, or the rendered error is garbled.
+        let err =
+            validate_currency(Currency::EUR, Some("USD")).expect_err("mismatch should be rejected");
+        assert_eq!(
+            err.current_context().to_string(),
+            "Currency EUR (this MID is provisioned for USD) is not supported by jpmorganorbital"
+        );
     }
 
     #[test]

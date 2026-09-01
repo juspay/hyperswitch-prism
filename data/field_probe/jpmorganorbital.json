@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "AchBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Alfamart": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "AliPayRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BacsBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BancontactCard": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BcaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BillDeskRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Bizum": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Bluecode": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BniVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Card": {
         "status": "supported",
@@ -135,19 +135,19 @@
       },
       "CashappQr": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "CashfreeRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "ClassicReward": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Crypto": {
         "status": "not_supported",
@@ -155,11 +155,11 @@
       },
       "Dana": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -167,35 +167,35 @@
       },
       "EVoucher": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "EaseBuzzRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Efecty": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Eft": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Eps": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "FamilyMart": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "GCash": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Giropay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Givex": {
         "status": "not_supported",
@@ -203,87 +203,87 @@
       },
       "GoPay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Indomaret": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "InstantBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "InstantBankTransferFinland": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "InstantBankTransferPoland": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Interac": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "KakaoPay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Lawson": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "LazyPayRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "MandiriVaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "MbWay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Mifinity": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "MiniStop": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -291,43 +291,43 @@
       },
       "Momo": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Netbanking": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingFinland": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingFpx": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingPoland": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingSlovakia": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OnlineBankingThailand": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -335,35 +335,35 @@
       },
       "OpenBankingUk": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Oxxo": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PagoEfectivo": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PayEasy": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PayURedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PaypalSdk": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Paysera": {
         "status": "not_supported",
@@ -375,111 +375,111 @@
       },
       "PermataBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "PhonePeRedirect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Pix": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Przelewy24": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Pse": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "RedCompra": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "RedPagos": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "RevolutPay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Satispay": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Seicomart": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "SepaBankTransfer": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "SepaGuaranteedDebit": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "SevenEleven": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Sofort": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Swish": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "TouchNGo": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Trustly": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Twint": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "UpiIntent": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "UpiQr": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Vipps": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "WeChatPayQr": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       },
       "Wero": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       }
     },
     "capture": {
@@ -699,7 +699,7 @@
     "token_authorize": {
       "default": {
         "status": "not_supported",
-        "error": "Only card payments are supported by jpmorganorbital is not supported by jpmorganorbital"
+        "error": "This payment method is not supported by jpmorganorbital"
       }
     },
     "token_setup_recurring": {
