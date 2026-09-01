@@ -136,12 +136,28 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
 // AMOUNT — two implied decimals for EVERY currency
 // =============================================================================
 
-pub fn orbital_amount(
-    minor_amount: MinorUnit,
-    currency: Currency,
-) -> Result<String, error_stack::Report<IntegrationError>> {
-    let major = JpmorganOrbitalAmountConvertor::convert(minor_amount, currency)?;
-    shift_two_decimal_places(&major.get_amount_as_string())
+/// `order.amount` as Orbital requires it on the wire: a numeric JSON **string**
+/// carrying two implied decimals for every currency, including zero-exponent ones
+/// (USD 100.00 and JPY 100 are both `"10000"`).
+///
+/// The inner value is private and the only constructor is [`Self::from_minor`], so a
+/// value of this type cannot exist unless it went through the scaling and the
+/// 12-digit length check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct JpmorganOrbitalAmount(String);
+
+impl JpmorganOrbitalAmount {
+    pub fn from_minor(
+        minor_amount: MinorUnit,
+        currency: Currency,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let major = JpmorganOrbitalAmountConvertor::convert(minor_amount, currency)?;
+        shift_two_decimal_places(&major.get_amount_as_string()).map(Self)
+    }
+
+    pub fn get_amount_as_string(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Multiply a decimal string by 100 without floating point, and without a decimal
@@ -325,8 +341,8 @@ pub struct JpmorganOrbitalPaymentInstrument<T: PaymentMethodDataTypes> {
 pub struct JpmorganOrbitalOrder {
     #[serde(rename = "orderID")]
     pub order_id: String,
-    /// Two implied decimals for every currency. See [`orbital_amount`].
-    pub amount: String,
+    /// Two implied decimals for every currency. See [`JpmorganOrbitalAmount`].
+    pub amount: JpmorganOrbitalAmount,
     #[serde(rename = "industryType")]
     pub industry_type: String,
     /// Idempotency key **and** the `/inquiry` lookup key. Always sent.
@@ -615,7 +631,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: orbital_amount(request.minor_amount, request.currency)?,
+                amount: JpmorganOrbitalAmount::from_minor(request.minor_amount, request.currency)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },
@@ -1099,5 +1115,64 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
             },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod amount_tests {
+    use super::*;
+
+    fn wire(minor: i64, currency: Currency) -> String {
+        JpmorganOrbitalAmount::from_minor(MinorUnit::new(minor), currency)
+            .expect("amount should convert")
+            .get_amount_as_string()
+            .to_string()
+    }
+
+    #[test]
+    fn two_implied_decimals_for_every_currency() {
+        // Exponent-2 currency: USD 100.00 is minor 10_000 -> "10000".
+        assert_eq!(wire(10_000, Currency::USD), "10000");
+        // Zero-exponent currency: JPY 100 is minor 100, but Orbital still wants
+        // two implied decimals -> "10000", NOT "100". StringMinorUnit would be a
+        // 100x under-charge here.
+        assert_eq!(wire(100, Currency::JPY), "10000");
+        // Another zero-exponent currency: KRW 5000 -> "500000".
+        assert_eq!(wire(5_000, Currency::KRW), "500000");
+    }
+
+    #[test]
+    fn serialises_as_a_json_string_not_a_number() {
+        let amount = JpmorganOrbitalAmount::from_minor(MinorUnit::new(10_000), Currency::USD)
+            .expect("amount should convert");
+        assert_eq!(
+            serde_json::to_string(&amount).expect("serialisation should succeed"),
+            "\"10000\""
+        );
+    }
+
+    #[test]
+    fn rejects_amounts_longer_than_twelve_digits() {
+        // 12 digits is the documented maximum and must be accepted.
+        assert_eq!(wire(999_999_999_999, Currency::USD), "999999999999");
+        // 13 digits must be rejected rather than silently truncated.
+        assert!(JpmorganOrbitalAmount::from_minor(
+            MinorUnit::new(1_000_000_000_000),
+            Currency::USD
+        )
+        .is_err());
+        // A zero-exponent currency overflows sooner, because of the extra x100.
+        assert!(
+            JpmorganOrbitalAmount::from_minor(MinorUnit::new(100_000_000_000), Currency::JPY)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn rejects_negative_amounts() {
+        assert!(JpmorganOrbitalAmount::from_minor(MinorUnit::new(-1), Currency::USD).is_err());
     }
 }

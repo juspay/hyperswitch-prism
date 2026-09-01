@@ -84,7 +84,7 @@ const ORBITAL_INQUIRY_PATH: &str = "/inquiry";
 // including zero-exponent ones: $100.00 and ¥100 are both sent as "10000".
 // `StringMinorUnit` would emit "100" for ¥100 — a 100x under-charge — so the
 // connector converts to a major-unit string here and applies the fixed x100 shift in
-// `transformers::orbital_amount`. Currency itself is never sent; it is implied by
+// `transformers::JpmorganOrbitalAmount`. Currency itself is never sent; it is implied by
 // the Merchant ID setup.
 macros::create_amount_converter_wrapper!(
     connector_name: JpmorganOrbital,
