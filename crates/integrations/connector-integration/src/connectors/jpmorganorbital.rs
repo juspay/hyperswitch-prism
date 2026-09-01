@@ -31,9 +31,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
-};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
@@ -78,20 +76,6 @@ const ORBITAL_PAYMENTS_PATH: &str = "/payments";
 const ORBITAL_INQUIRY_PATH: &str = "/inquiry";
 
 // =============================================================================
-// AMOUNT CONVERTER
-// =============================================================================
-// Orbital's `order.amount` uses **two implied decimals for every currency**,
-// including zero-exponent ones: $100.00 and ¥100 are both sent as "10000".
-// `StringMinorUnit` would emit "100" for ¥100 — a 100x under-charge — so the
-// connector converts to a major-unit string here and applies the fixed x100 shift in
-// `transformers::JpmorganOrbitalAmount`. Currency itself is never sent; it is implied by
-// the Merchant ID setup.
-macros::create_amount_converter_wrapper!(
-    connector_name: JpmorganOrbital,
-    amount_type: StringMajorUnit
-);
-
-// =============================================================================
 // PREREQUISITES: struct, flow bridges, shared helpers
 // =============================================================================
 macros::create_all_prerequisites!(
@@ -113,9 +97,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         )
     ],
-    amount_converters: [
-        amount_converter: StringMajorUnit
-    ],
+    amount_converters: [],
     member_functions: {
         /// `Content-Type` plus the three credential headers, identical on every
         /// Orbital request. The username and password are masked; `merchantID` is a
@@ -155,8 +137,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
-        // The wire amount is derived from the major-unit value; see the amount
-        // converter note above for why it is not `Minor`.
+        // Orbital's wire amount is the major-unit value with two implied decimals
+        // for every currency; see `transformers::JpmorganOrbitalAmountForConnector`.
         CurrencyUnit::Base
     }
 

@@ -1,5 +1,8 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
-use common_utils::types::MinorUnit;
+use common_utils::{
+    errors::ParsingError,
+    types::{AmountConvertor, MinorUnit},
+};
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
@@ -12,14 +15,13 @@ use domain_types::{
     router_request_types::AuthenticationData,
     utils::{get_card_issuer, CardIssuer},
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 
-use crate::connectors::jpmorganorbital::{
-    JpmorganOrbitalAmountConvertor, JpmorganOrbitalRouterData,
-};
+use crate::connectors::jpmorganorbital::JpmorganOrbitalRouterData;
 use crate::types::ResponseRouterData;
 
 /// Feature release version. Required to receive v4 / Feature Version 5.2 response
@@ -150,83 +152,112 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
 /// carrying two implied decimals for every currency, including zero-exponent ones
 /// (USD 100.00 and JPY 100 are both `"10000"`).
 ///
-/// The inner value is private and the only constructor is [`Self::from_minor`], so a
-/// value of this type cannot exist unless it went through the scaling and the
-/// 12-digit length check.
+/// The inner value is private and the only constructor is
+/// [`JpmorganOrbitalAmountForConnector::convert`], so a value of this type cannot
+/// exist unless it went through the scaling and the 12-digit length check.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct JpmorganOrbitalAmount(String);
 
 impl JpmorganOrbitalAmount {
-    pub fn from_minor(
-        minor_amount: MinorUnit,
-        currency: Currency,
-    ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let major = JpmorganOrbitalAmountConvertor::convert(minor_amount, currency)?;
-        shift_two_decimal_places(&major.get_amount_as_string()).map(Self)
-    }
-
     pub fn get_amount_as_string(&self) -> &str {
         &self.0
     }
 }
 
-/// Multiply a decimal string by 100 without floating point, and without a decimal
-/// point, sign, separator or currency symbol in the result.
-fn shift_two_decimal_places(major: &str) -> Result<String, error_stack::Report<IntegrationError>> {
-    let invalid = |reason: &str| {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "order.amount",
-            context: IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "JP Morgan Orbital amount `{major}` could not be rendered with two implied \
-                     decimals: {reason}"
-                )),
-                ..Default::default()
-            },
-        })
-    };
+/// Orbital's unit in the amount framework, the connector-local counterpart of
+/// `StringMinorUnitForConnector` and friends. There is no stock equivalent in
+/// `common_utils` because the framework has no "always exponent 2" unit, and the
+/// gateway wants exactly that regardless of the currency's own ISO 4217 exponent.
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct JpmorganOrbitalAmountForConnector;
 
-    let value = major.trim();
-    if value.starts_with('-') {
-        return Err(invalid("Orbital's order.amount is unsigned"));
-    }
+/// The number of implied decimals Orbital's wire format always carries.
+const ORBITAL_WIRE_EXPONENT: u32 = 2;
 
-    let (integral, fractional) = value.split_once('.').unwrap_or((value, ""));
-    if integral.is_empty() && fractional.is_empty() {
-        return Err(invalid("empty amount"));
-    }
-    if !integral.bytes().all(|b| b.is_ascii_digit())
-        || !fractional.bytes().all(|b| b.is_ascii_digit())
-    {
-        return Err(invalid("non-numeric characters"));
-    }
+fn amount_parse_error(reason: String) -> error_stack::Report<ParsingError> {
+    error_stack::report!(ParsingError::StructParseFailure("order.amount"))
+        .attach_printable(format!("JP Morgan Orbital order.amount: {reason}"))
+}
 
-    let mut cents = fractional.to_string();
-    if cents.len() > 2 {
-        if cents[2..].bytes().any(|b| b != b'0') {
-            return Err(invalid(
-                "the currency has more than two decimal places and the sub-cent digits are \
-                 non-zero; Orbital cannot represent this amount",
+/// `10^exponent` for the currency's own ISO 4217 exponent (0, 2, 3 or 4). Errors for
+/// a currency UCS has no decimal configuration for rather than assuming 2.
+fn currency_scale(currency: Currency) -> Result<i128, error_stack::Report<ParsingError>> {
+    let exponent = currency
+        .number_of_digits_after_decimal_point()
+        .map_err(|_| {
+            amount_parse_error(format!(
+                "{currency:?} has no ISO 4217 decimal configuration in UCS"
+            ))
+        })?;
+    Ok(10_i128.pow(u32::from(exponent)))
+}
+
+impl AmountConvertor for JpmorganOrbitalAmountForConnector {
+    type Output = JpmorganOrbitalAmount;
+
+    /// `wire = minor * 100 / 10^currency_exponent` — the major-unit value rendered
+    /// with exactly two decimals and the point dropped. Kept in `i128` so there is
+    /// neither a float hop nor an intermediate decimal string to re-parse.
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let minor = i128::from(amount.get_amount_as_i64());
+        if minor < 0 {
+            return Err(amount_parse_error(
+                "Orbital's order.amount is unsigned".to_string(),
             ));
         }
-        cents.truncate(2);
-    }
-    while cents.len() < 2 {
-        cents.push('0');
+
+        let scale = currency_scale(currency)?;
+        let scaled = minor * 10_i128.pow(ORBITAL_WIRE_EXPONENT);
+        // Currencies with more than two decimals cannot always be expressed here,
+        // so refuse instead of silently dropping the sub-cent digits.
+        if scaled % scale != 0 {
+            return Err(amount_parse_error(format!(
+                "{currency:?} minor amount {minor} has non-zero digits below the two decimals \
+                 Orbital can represent"
+            )));
+        }
+
+        let rendered = (scaled / scale).to_string();
+        if rendered.len() > MAX_AMOUNT_LEN {
+            return Err(amount_parse_error(format!(
+                "`{rendered}` exceeds the {MAX_AMOUNT_LEN}-character maximum"
+            )));
+        }
+        Ok(JpmorganOrbitalAmount(rendered))
     }
 
-    let combined = format!("{integral}{cents}");
-    let trimmed = combined.trim_start_matches('0');
-    let rendered = if trimmed.is_empty() {
-        "0".to_string()
-    } else {
-        trimmed.to_string()
-    };
+    /// The inverse, `minor = wire * 10^currency_exponent / 100`. The asymmetry lives
+    /// entirely in the currency: because the wire value is always the major amount
+    /// times 100, for USD (exponent 2) it already *is* the minor amount, while for
+    /// JPY (exponent 0) the minor amount is `wire / 100`.
+    fn convert_back(
+        &self,
+        amount: Self::Output,
+        currency: Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let wire = amount.get_amount_as_string().parse::<i128>().map_err(|_| {
+            amount_parse_error(format!(
+                "`{}` is not an integer",
+                amount.get_amount_as_string()
+            ))
+        })?;
 
-    if rendered.len() > MAX_AMOUNT_LEN {
-        return Err(invalid("exceeds the 12-character maximum"));
+        let scaled = wire * currency_scale(currency)?;
+        let divisor = 10_i128.pow(ORBITAL_WIRE_EXPONENT);
+        if scaled % divisor != 0 {
+            return Err(amount_parse_error(format!(
+                "`{wire}` is not a whole number of {currency:?} minor units"
+            )));
+        }
+
+        let minor = i64::try_from(scaled / divisor)
+            .map_err(|_| amount_parse_error(format!("`{wire}` overflows a 64-bit minor amount")))?;
+        Ok(MinorUnit::new(minor))
     }
-    Ok(rendered)
 }
 
 // =============================================================================
@@ -768,7 +799,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: JpmorganOrbitalAmount::from_minor(request.minor_amount, request.currency)?,
+                amount: JpmorganOrbitalAmountForConnector
+                    .convert(request.minor_amount, request.currency)
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "order.amount",
+                        context: IntegrationErrorContext::default(),
+                    })?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },
@@ -1233,11 +1269,14 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
 mod amount_tests {
     use super::*;
 
-    fn wire(minor: i64, currency: Currency) -> String {
-        JpmorganOrbitalAmount::from_minor(MinorUnit::new(minor), currency)
+    fn convert(minor: i64, currency: Currency) -> JpmorganOrbitalAmount {
+        JpmorganOrbitalAmountForConnector
+            .convert(MinorUnit::new(minor), currency)
             .expect("amount should convert")
-            .get_amount_as_string()
-            .to_string()
+    }
+
+    fn wire(minor: i64, currency: Currency) -> String {
+        convert(minor, currency).get_amount_as_string().to_string()
     }
 
     #[test]
@@ -1253,11 +1292,53 @@ mod amount_tests {
     }
 
     #[test]
-    fn serialises_as_a_json_string_not_a_number() {
-        let amount = JpmorganOrbitalAmount::from_minor(MinorUnit::new(10_000), Currency::USD)
-            .expect("amount should convert");
+    fn convert_back_round_trips_every_exponent() {
+        // The wire value is always major x 100, so the way back is
+        // currency-dependent even though the way out looks uniform.
+        for (minor, currency) in [
+            (10_000_i64, Currency::USD),
+            (100, Currency::JPY),
+            (5_000, Currency::KRW),
+            // Three-decimal currency: 1.230 dinars is minor 1_230, wire "123".
+            (1_230, Currency::KWD),
+        ] {
+            let amount = convert(minor, currency);
+            assert_eq!(
+                JpmorganOrbitalAmountForConnector
+                    .convert_back(amount, currency)
+                    .expect("amount should convert back"),
+                MinorUnit::new(minor),
+                "round trip failed for {currency:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn convert_back_reads_the_same_wire_value_differently_per_currency() {
+        // "10000" is USD 100.00 (minor 10_000) but JPY 100 (minor 100). Currency is
+        // never on the wire, so it is the only thing that disambiguates them.
+        let usd = convert(10_000, Currency::USD);
+        let jpy = convert(100, Currency::JPY);
+        assert_eq!(usd.get_amount_as_string(), jpy.get_amount_as_string());
         assert_eq!(
-            serde_json::to_string(&amount).expect("serialisation should succeed"),
+            JpmorganOrbitalAmountForConnector
+                .convert_back(usd, Currency::USD)
+                .expect("amount should convert back"),
+            MinorUnit::new(10_000)
+        );
+        assert_eq!(
+            JpmorganOrbitalAmountForConnector
+                .convert_back(jpy, Currency::JPY)
+                .expect("amount should convert back"),
+            MinorUnit::new(100)
+        );
+    }
+
+    #[test]
+    fn serialises_as_a_json_string_not_a_number() {
+        assert_eq!(
+            serde_json::to_string(&convert(10_000, Currency::USD))
+                .expect("serialisation should succeed"),
             "\"10000\""
         );
     }
@@ -1267,21 +1348,29 @@ mod amount_tests {
         // 12 digits is the documented maximum and must be accepted.
         assert_eq!(wire(999_999_999_999, Currency::USD), "999999999999");
         // 13 digits must be rejected rather than silently truncated.
-        assert!(JpmorganOrbitalAmount::from_minor(
-            MinorUnit::new(1_000_000_000_000),
-            Currency::USD
-        )
-        .is_err());
+        assert!(JpmorganOrbitalAmountForConnector
+            .convert(MinorUnit::new(1_000_000_000_000), Currency::USD)
+            .is_err());
         // A zero-exponent currency overflows sooner, because of the extra x100.
-        assert!(
-            JpmorganOrbitalAmount::from_minor(MinorUnit::new(100_000_000_000), Currency::JPY)
-                .is_err()
-        );
+        assert!(JpmorganOrbitalAmountForConnector
+            .convert(MinorUnit::new(100_000_000_000), Currency::JPY)
+            .is_err());
     }
 
     #[test]
     fn rejects_negative_amounts() {
-        assert!(JpmorganOrbitalAmount::from_minor(MinorUnit::new(-1), Currency::USD).is_err());
+        assert!(JpmorganOrbitalAmountForConnector
+            .convert(MinorUnit::new(-1), Currency::USD)
+            .is_err());
+    }
+
+    #[test]
+    fn rejects_sub_cent_precision_the_wire_format_cannot_carry() {
+        // The Kuwaiti dinar has three decimals; 1.234 has a non-zero digit below
+        // the two decimals Orbital can express, so it must not be truncated.
+        assert!(JpmorganOrbitalAmountForConnector
+            .convert(MinorUnit::new(1_234), Currency::KWD)
+            .is_err());
     }
 }
 
