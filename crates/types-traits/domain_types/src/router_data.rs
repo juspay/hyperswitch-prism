@@ -1006,6 +1006,12 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1371,6 +1377,11 @@ impl ConnectorSpecificConfig {
             Worldpayraft {
                 license,
                 merchant_id
+            },
+            D24 {
+                api_key,
+                key1,
+                api_secret
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1860,6 +1871,11 @@ impl ConnectorSpecificConfig {
                 Worldpayraft {
                     license,
                     merchant_id
+                },
+                D24 {
+                    api_key,
+                    key1,
+                    api_secret
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2513,6 +2529,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
+            }),
+            AuthType::D24(d24) => Ok(Self::D24 {
+                api_key: d24.api_key.ok_or_else(err)?,
+                key1: d24.key1.ok_or_else(err)?,
+                api_secret: d24.api_secret.ok_or_else(err)?,
+                base_url: d24.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3774,6 +3796,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::D24 => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::D24 {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

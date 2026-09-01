@@ -313,3 +313,6 @@ pub use self::ilixium::Ilixium;
 
 pub mod worldpayraft;
 pub use self::worldpayraft::Worldpayraft;
+
+pub mod d24;
+pub use self::d24::D24;
