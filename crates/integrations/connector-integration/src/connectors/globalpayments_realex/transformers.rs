@@ -9,11 +9,11 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, RefundStatus};
 use common_utils::{pii::SecretSerdeValue, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
-        ResponseId as DomainResponseId,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId as DomainResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
@@ -61,6 +61,10 @@ pub const DEFAULT_CARDHOLDER_NAME: &str = "Cardholder";
 const ORDER_ID_MAX_LEN: usize = 50;
 /// Success result code. Every other value is a decline or an error (tech spec §9).
 const RESULT_SUCCESS: &str = "00";
+/// `508 Original transaction not found.` — on a `type="query"` this means the gateway holds no
+/// transaction under the `<orderid>` we sent. On the `_rebate_` leg it is the "no successful refund
+/// exists for this order" signal (tech spec §12.6.3, controls D / E / G).
+const RESULT_ORIGINAL_TRANSACTION_NOT_FOUND: &str = "508";
 
 // =============================================================================
 // AUTH
@@ -2304,6 +2308,486 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexPSyncResponse, Self>>
                 ..router_data.resource_common_data
             },
             response: sync_response,
+            ..router_data
+        })
+    }
+}
+
+// =============================================================================
+// RSYNC — `type="query"` on the `_rebate_` leg (tech spec §12.6)
+// =============================================================================
+
+/// The synthetic order-id prefix under which the gateway stores a **successful** `rebate`.
+///
+/// A `rebate` does not merely mutate the payment it refunds: the gateway records it as its own
+/// transaction, keyed by the original order id with this prefix, and that transaction is readable
+/// with an ordinary `type="query"` (tech spec §12.4.6 / §12.6). It is the **only** gateway-side
+/// evidence of a refund's state, and therefore the whole basis of this flow.
+///
+/// Lowercase, no separator beyond the underscores, no numbering and no suffix. Eight alternative
+/// spellings (`_rebate__rebate_…`, `_rebate_1_…`, `…_1`, `_rebate2_…`, …) were tried live and every
+/// one returned `508 Original transaction not found.` The lookup happens to be case-insensitive on
+/// the prefix, but the gateway echoes it back lowercased, so lowercase is what we always emit.
+const REBATE_LEG_ORDER_ID_PREFIX: &str = "_rebate_";
+
+/// The synthetic prefixes the gateway puts on the order id it **echoes** in an error document.
+///
+/// Every failed `settle` / `void` / `rebate` answers with `<orderid>_settle_…` / `_void_…` /
+/// `_rebate_…` rather than the value we sent. A caller that persists that echo and feeds it back
+/// would have us build `_rebate__rebate_<ORIG>`, which returns `508 Original transaction not found.`
+/// — a silent "this refund does not exist" for a refund that does. The order id must always come
+/// from the metadata Authorize published, so an already-prefixed value is rejected outright rather
+/// than prefixed again (tech spec §12.6.2 item 4).
+const GATEWAY_ECHO_ORDER_ID_PREFIXES: [&str; 3] = ["_rebate_", "_settle_", "_void_"];
+
+/// The longest **unprefixed** original order id that can still be synced.
+///
+/// `<orderid>` accepts 50 characters and `_rebate_` consumes 8 of them, so an original order id
+/// longer than 42 characters cannot be addressed on the rebate leg at all. UCS order ids are 26
+/// characters, so this is headroom rather than a live constraint — but it must be an explicit,
+/// actionable error rather than a silently truncated request that would `508`
+/// (tech spec §12.6.2 item 3).
+const RSYNC_ORIGINAL_ORDER_ID_MAX_LEN: usize = ORDER_ID_MAX_LEN - REBATE_LEG_ORDER_ID_PREFIX.len();
+
+/// The RSync request is **byte-identical in shape** to the PSync request — same `type="query"`,
+/// same elements, same digest blueprint. Only the `<orderid>` value differs: RSync sends
+/// `_rebate_<ORIGINAL_ORDER_ID>` instead of `<ORIGINAL_ORDER_ID>`.
+///
+/// The alias exists because the macro layer derives per-flow helper types from the request type's
+/// name and therefore needs a distinct identifier per flow; there is deliberately **no** second
+/// struct and **no** RSync-specific hash builder (tech spec §12.6.1, §12.6.8 item 2).
+pub type GlobalpaymentsRealexRSyncRequest = GlobalpaymentsRealexPSyncRequest;
+
+/// The `_rebate_` leg's response is a **subset** of the shared response document, so the existing
+/// struct parses it unchanged (tech spec §12.6.5).
+///
+/// A success carries `<result>00</result>`, `<message>AUTH CODE: nnnnnn</message>`, a real issuer
+/// `<authcode>`, a `<batchid>` and — the field this whole flow turns on — `<pasref>`, which is the
+/// pasref the `rebate` itself minted, i.e. exactly what UCS stores as `connector_refund_id`. A
+/// failure is the small error document with only `@timestamp`, `<result>`, `<message>` and
+/// `<orderid>`.
+///
+/// Two absences matter more than anything present:
+///
+/// * **No `<amount>` and no currency.** No `query` response on this API carries either, so a
+///   partial refund is indistinguishable from a full one and no amount-based integrity object can
+///   be populated (tech spec §12.6.7). It is not faked here.
+/// * **No usable `<sha1hash>` semantics.** The `query` response digest blueprint is unrecovered
+///   (see [`GlobalpaymentsRealexPSyncResponse`]); a mismatch is logged at `debug` and never decides
+///   the status. The `IntegrityFailure` mapping on `auth` / `settle` / `void` / `rebate` is
+///   untouched.
+///
+/// Ten elements come back as **empty elements** on this sandbox (`<cardissuer>`'s five children,
+/// `<tss><result>`, `<threedsecure>`'s three children, `<srd>`), which is why the tolerant
+/// deserialization the shared struct already applies is mandatory rather than advisory.
+pub type GlobalpaymentsRealexRSyncResponse = GlobalpaymentsRealexPaymentsResponse;
+
+impl<T>
+    TryFrom<
+        GlobalpaymentsRealexRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    > for GlobalpaymentsRealexRSyncRequest
+where
+    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: GlobalpaymentsRealexRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
+
+        // Exactly the resolution order the Refund flow implements — it has to be, because a refund
+        // accepted under order id `X` is only ever readable back under `_rebate_X`.
+        let metadata = extract_followup_metadata(
+            request.connector_feature_data.as_ref(),
+            request.refund_connector_metadata.as_ref(),
+        );
+
+        let metadata_order_id = metadata.as_ref().map(|metadata| metadata.orderid.clone());
+
+        // `connector_order_id` is not a mere convenience here: hyperswitch hard-codes
+        // `connector_feature_data: None` on the refund-sync request it builds — RSync is the one
+        // follow-up flow that does *not* receive the Authorize metadata — while populating
+        // `connector_order_id` from the same reference the order id is derived from. So the
+        // fallback below is the **live** path when this connector is driven from hyperswitch, and
+        // the metadata branch is what direct gRPC callers exercise. Both must work.
+        //
+        // When both are present and disagree, the metadata wins — it is literally the string
+        // Authorize sent as `<orderid>`, whereas `connector_order_id` is the caller's rendering of
+        // it — but the divergence is loud, because it means one of the two channels is carrying a
+        // reference this payment was never booked under and every RSync built from the wrong one
+        // will `508`.
+        if let (Some(metadata_order_id), Some(connector_order_id)) = (
+            metadata_order_id.as_ref(),
+            request.connector_order_id.as_ref(),
+        ) {
+            if metadata_order_id != connector_order_id {
+                tracing::warn!(
+                    connector = "globalpayments_realex",
+                    metadata_order_id = %metadata_order_id,
+                    connector_order_id = %connector_order_id,
+                    "GlobalpaymentsRealex refund sync was given two different original order ids; \
+                     using the one from connector_feature_data, which is the value Authorize sent \
+                     as <orderid>"
+                );
+            }
+        }
+
+        let original_order_id = metadata_order_id
+            .or_else(|| request.connector_order_id.clone())
+            .ok_or_else(|| {
+                // A request built without it is guaranteed to `508`, which rule 5 would then have
+                // to surface as "contradictory" — so fail here, naming the field, instead.
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "connector_feature_data.orderid",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalpaymentsRealex refund sync needs the original <orderid>: echo \
+                             the Authorize response's connector_feature_data back on the refund \
+                             sync request, or set connector_order_id to the original order id"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })?;
+
+        // Charset and length are validated on the **unprefixed** value, so the 8 characters
+        // `_rebate_` costs are accounted for against the gateway's 50-character limit.
+        let original_order_id = sanitize_order_id(&original_order_id)?;
+
+        if GATEWAY_ECHO_ORDER_ID_PREFIXES
+            .iter()
+            .any(|prefix| original_order_id.starts_with(prefix))
+        {
+            return Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "connector_feature_data.orderid",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "GlobalpaymentsRealex refund sync was given an already-prefixed order id \
+                         ('{original_order_id}'), which is a gateway echo from a failed follow-up \
+                         request rather than the order id sent on the original auth; prefixing it \
+                         again would query a transaction that cannot exist"
+                    )),
+                    ..Default::default()
+                },
+            }));
+        }
+
+        if original_order_id.len() > RSYNC_ORIGINAL_ORDER_ID_MAX_LEN {
+            return Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "connector_feature_data.orderid",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "GlobalpaymentsRealex refund sync needs the original <orderid> to be at \
+                         most {RSYNC_ORIGINAL_ORDER_ID_MAX_LEN} characters: the rebate leg is \
+                         addressed as '{REBATE_LEG_ORDER_ID_PREFIX}<orderid>' and <orderid> \
+                         accepts {ORDER_ID_MAX_LEN} characters in total"
+                    )),
+                    ..Default::default()
+                },
+            }));
+        }
+
+        // THE lookup key. `query` keys on `<orderid>` and nothing else.
+        let order_id = format!("{REBATE_LEG_ORDER_ID_PREFIX}{original_order_id}");
+
+        // Sent purely for shape uniformity with `settle` / `void` / `rebate`. The gateway ignores
+        // `<pasref>` on a query — verified live on the `_rebate_` leg exactly as on the auth leg:
+        // garbage, a foreign pasref, an empty element and omission all return the same document —
+        // so a pasref can never be a lookup key here, only the identity check the response mapping
+        // performs (tech spec §12.6.2).
+        let pasref = Some(request.connector_refund_id.trim().to_string())
+            .filter(|pasref| !pasref.is_empty());
+
+        let timestamp = current_timestamp()?;
+        let merchant_id = auth.merchant_id.clone().expose();
+        // The order-id slot carries the **prefixed** string, character for character as it appears
+        // in `<orderid>` — the ordinary mirror rule. A query carries no amount and no currency, so
+        // both of those slots stay empty and the blueprint is the one Void and PSync already use:
+        // `timestamp.merchantid.orderid...` (tech spec §12.6.1).
+        let sha1hash = build_reference_request_hash(
+            &timestamp,
+            &merchant_id,
+            &order_id,
+            None,
+            None,
+            auth.shared_secret.peek(),
+        );
+
+        Ok(Self {
+            request_type: REQUEST_TYPE_QUERY.to_string(),
+            timestamp,
+            merchantid: auth.merchant_id,
+            account: Some(auth.account),
+            orderid: order_id,
+            pasref,
+            sha1hash,
+        })
+    }
+}
+
+/// What the `_rebate_` leg's answer tells us about **our** refund.
+///
+/// The three variants exist because the gateway can only answer two questions — "does a rebate leg
+/// exist for this order?" and "which pasref does it carry?" — and neither is by itself a statement
+/// about the refund UCS is syncing.
+#[derive(Debug, Clone)]
+enum GlobalpaymentsRealexRSyncOutcome {
+    /// Rule 1: the leg exists **and** its own reference is our `connector_refund_id`.
+    Refunded,
+    /// Rule 4: no leg exists and we hold no gateway reference, so no money moved.
+    NotRefunded,
+    /// Rules 2, 3, 5, 6 and 7: the gateway's answer does not identify our refund. The refund status
+    /// is left **unchanged** and the connector's own code and message are surfaced instead.
+    Indeterminate(String),
+}
+
+/// `query` result on the `_rebate_` leg → `RefundStatus` (tech spec §12.6.6).
+///
+/// > **HARD CORRECTNESS BAR.** A fully refunded payment must not sync back as merely charged. A
+/// > partial refund must be distinguishable from a full one **if the gateway makes that
+/// > observable**. If the gateway genuinely cannot express a state, the mapping must **leave the
+/// > status unchanged** and surface an actionable error rather than inventing a terminal state.
+/// > **Never map an ambiguous response to success.**
+///
+/// The inputs are only these: `<result>`, `<message>` and `<pasref>` from the query, and
+/// `RefundSyncData::connector_refund_id` — the pasref the `rebate` minted. `RefundSyncData::
+/// refund_status` is **not** an input: the gRPC conversion hard-codes it to `Pending`, exactly as
+/// `PaymentFlowData::status` is for PSync, so "leave the status unchanged" cannot be expressed by
+/// echoing it back. It is expressed the only way this surface allows — an `ErrorResponse` with
+/// `attempt_status: None`, which surfaces the connector code and message without asserting any
+/// refund state (the gRPC layer then reports `REFUND_STATUS_UNSPECIFIED`).
+///
+/// | # | Condition | Outcome |
+/// |---|---|---|
+/// | 1 | `00` **and** `pasref == connector_refund_id` | `Success` |
+/// | 2 | `00` **and** `connector_refund_id` empty/absent | unchanged — the leg is someone else's refund |
+/// | 3 | `00` **and** `pasref != connector_refund_id` | unchanged — the leg is a *different* rebate |
+/// | 4 | `508` **and** `connector_refund_id` empty/absent | `Failure` |
+/// | 5 | `508` **and** `connector_refund_id` present | unchanged — contradictory, most likely a wrong `<orderid>` |
+/// | 6 | any other `5xx` (`505`, `506`, `503`, `502`) | unchanged — integration/config fault, not a refund outcome |
+/// | 7 | `1xx` / `2xx` / `3xx` | unchanged — never observed; a leg only exists for a *successful* rebate |
+/// | 8 | `<sha1hash>` mismatch | ignored for status purposes, logged at `debug` |
+///
+/// **Rule 3 is not hypothetical.** The gateway mints exactly one `_rebate_<ORIGINAL>` key per
+/// payment, and on an account not enabled for multiple refunds a second rebate is refused with
+/// `512 This transaction has already been rebated and cannot be rebated again.` while the leg keeps
+/// answering `00` with the **first** rebate's pasref. Without the identity check, syncing that
+/// rejected second refund would report `Success`. The same rule catches a refund raised out of band
+/// — through the merchant portal or another integration — which lands in the same gateway-side leg.
+///
+/// **Rule 4 is not a race.** The leg is readable ~1 s after the rebate response and does not change
+/// afterwards, and a *failed* rebate creates no leg at all (verified against three controls: no
+/// rebate, an over-refund rejected `512`, and a rebate of an uncaptured auth rejected `512`). So
+/// `508` reliably means "no successful rebate exists for this order" — its one ambiguity, a wrong
+/// order id, is exactly what rule 5 refuses to guess about.
+///
+/// `RefundStatus::Pending` is **never** produced. This API has no asynchronous refund state: a
+/// `rebate` is decided in its own HTTP 200 and its leg is queryable immediately.
+fn map_rsync_outcome(
+    result: &str,
+    response_pasref: Option<&str>,
+    connector_refund_id: &str,
+) -> GlobalpaymentsRealexRSyncOutcome {
+    let connector_refund_id = connector_refund_id.trim();
+    let response_pasref = response_pasref.map(str::trim).filter(|p| !p.is_empty());
+
+    match result {
+        RESULT_SUCCESS => {
+            if connector_refund_id.is_empty() {
+                // Rule 2. A refund with no gateway reference never got a `00` from `rebate`, so a
+                // leg that exists must belong to a different refund. Reporting `Success` here would
+                // credit our refund with someone else's money movement.
+                return GlobalpaymentsRealexRSyncOutcome::Indeterminate(
+                    "GlobalpaymentsRealex holds a rebate leg for this order, but this refund has \
+                     no connector_refund_id, so the leg cannot be attributed to it; the refund \
+                     status is left unchanged"
+                        .to_string(),
+                );
+            }
+
+            match response_pasref {
+                // Rule 1. The gateway holds a rebate leg whose own reference is *our* refund's
+                // reference — the only condition under which it has confirmed **this** refund.
+                Some(pasref) if pasref == connector_refund_id => {
+                    GlobalpaymentsRealexRSyncOutcome::Refunded
+                }
+                // Rule 3. A different rebate on the same payment: a prior successful refund (after
+                // which ours would have been rejected `512 already been rebated`), or an out-of-band
+                // refund. This is the trap the identity check exists to catch.
+                other => GlobalpaymentsRealexRSyncOutcome::Indeterminate(format!(
+                    "GlobalpaymentsRealex rebate leg reports pasref {} but this refund's \
+                     connector_refund_id is {connector_refund_id}; the leg belongs to a different \
+                     rebate on the same payment, so the refund status is left unchanged",
+                    other.unwrap_or("<absent>")
+                )),
+            }
+        }
+        RESULT_ORIGINAL_TRANSACTION_NOT_FOUND => {
+            if connector_refund_id.is_empty() {
+                // Rule 4. No leg exists and we hold no reference: the refund provably did not move
+                // money. The leg appears with no lag, so this is not a race with settlement.
+                GlobalpaymentsRealexRSyncOutcome::NotRefunded
+            } else {
+                // Rule 5. Contradictory: we hold a pasref the gateway minted, yet it reports no
+                // leg. The overwhelmingly likely cause is a wrong `<orderid>` — dropped or
+                // incorrect metadata — not a vanished refund. Flipping an already-successful refund
+                // to `Failure` on that evidence would be inventing a terminal state.
+                GlobalpaymentsRealexRSyncOutcome::Indeterminate(format!(
+                    "GlobalpaymentsRealex reports no rebate leg for this order, yet this refund \
+                     holds connector_refund_id {connector_refund_id}; the <orderid> the sync was \
+                     built from is most likely wrong, so the refund status is left unchanged"
+                ))
+            }
+        }
+        // Rules 6 and 7. `505` (digest), `506` (schema/account), `503` (not allowed) and `502`
+        // (mandatory field) are integration or configuration faults, not refund outcomes — mapping
+        // them onto a refund state would encode "our request was malformed" as "the customer's
+        // money did/did not move". A `1xx`/`2xx`/`3xx` on a `_rebate_` query has never been
+        // observed and is treated as unknown rather than guessed at.
+        other => GlobalpaymentsRealexRSyncOutcome::Indeterminate(format!(
+            "GlobalpaymentsRealex answered the rebate leg query with result {other}, which is not \
+             a refund outcome; the refund status is left unchanged"
+        )),
+    }
+}
+
+impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRSyncResponse, Self>>
+    for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        value: ResponseRouterData<GlobalpaymentsRealexRSyncResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+
+        let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: Default::default(),
+            })?;
+
+        // Rule 8. The `query` response digest blueprint is unrecovered (see
+        // `GlobalpaymentsRealexPSyncResponse`), and a mismatch is indistinguishable from "blueprint
+        // unknown", so letting it decide the status would fail 100% of syncs. Computed and logged
+        // at `debug` only; the `IntegrityFailure` mapping on the four money-moving flows is
+        // untouched.
+        if verify_response_hash(&response, auth.shared_secret.peek()) == HashVerification::Mismatch
+        {
+            tracing::debug!(
+                connector = "globalpayments_realex",
+                order_id = ?response.orderid,
+                "GlobalpaymentsRealex rebate-leg query response sha1hash did not match the \
+                 documented response blueprint; `query` digests are not reproducible, so the check \
+                 is informational for this flow and the response is processed on its merits"
+            );
+        }
+
+        let outcome = map_rsync_outcome(
+            &response.result,
+            response.pasref.as_deref(),
+            &router_data.request.connector_refund_id,
+        );
+
+        let message = response
+            .message
+            .clone()
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string());
+
+        let previous_status = router_data.resource_common_data.status;
+
+        let (status, refund_response) = match outcome {
+            GlobalpaymentsRealexRSyncOutcome::Refunded => (
+                RefundStatus::Success,
+                Ok(RefundsResponseData {
+                    // Proven identical to `<pasref>` by rule 1's check, so this is the leg's own
+                    // reference and not an alias for anything else.
+                    connector_refund_id: router_data.request.connector_refund_id.clone(),
+                    refund_status: RefundStatus::Success,
+                    status_code: http_code,
+                    // No amount and no currency are returned by any `query` on this API, so no
+                    // amount-based integrity object can be populated. It is not faked.
+                    acquirer_reference_number: None,
+                }),
+            ),
+            GlobalpaymentsRealexRSyncOutcome::NotRefunded => (
+                RefundStatus::Failure,
+                Err(ErrorResponse {
+                    status_code: http_code,
+                    code: response.result.clone(),
+                    message: message.clone(),
+                    reason: response.message.clone(),
+                    attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
+                    connector_transaction_id: response.pasref.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+            ),
+            GlobalpaymentsRealexRSyncOutcome::Indeterminate(diagnostic) => {
+                tracing::warn!(
+                    connector = "globalpayments_realex",
+                    order_id = ?response.orderid,
+                    result = %response.result,
+                    diagnostic = %diagnostic,
+                    "GlobalpaymentsRealex refund sync could not attribute the rebate leg to this \
+                     refund; leaving the refund status unchanged"
+                );
+
+                (
+                    // Nothing is asserted about the refund: the status UCS already holds is carried
+                    // through untouched and `attempt_status: None` tells the gRPC layer to report
+                    // `REFUND_STATUS_UNSPECIFIED` rather than a terminal state.
+                    previous_status,
+                    Err(ErrorResponse {
+                        status_code: http_code,
+                        // The `<result>` code verbatim — `"00"` for rules 2 and 3, `"508"` for
+                        // rule 5, `"505"` / `"506"` / … for rule 6.
+                        code: response.result.clone(),
+                        // The connector's `<message>` verbatim. On a `505` this text is the only
+                        // thing separating a bad `sha1hash` from other causes.
+                        message: message.clone(),
+                        // The diagnostic names both references where rule 3 applies, so an operator
+                        // can see which rebate the gateway is reporting.
+                        reason: Some(diagnostic),
+                        attempt_status: None,
+                        connector_transaction_id: response.pasref.clone(),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
+                    }),
+                )
+            }
+        };
+
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                status,
+                ..router_data.resource_common_data
+            },
+            response: refund_response,
             ..router_data
         })
     }
