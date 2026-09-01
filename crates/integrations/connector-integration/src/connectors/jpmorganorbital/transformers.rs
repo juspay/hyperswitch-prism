@@ -14,6 +14,8 @@ use domain_types::{
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::str::FromStr;
 
 use crate::connectors::jpmorganorbital::{
     JpmorganOrbitalAmountConvertor, JpmorganOrbitalRouterData,
@@ -59,6 +61,10 @@ pub struct JpmorganOrbitalAuthType {
     pub merchant_id: Secret<String>,
     pub bin: String,
     pub terminal_id: String,
+    /// ISO-4217 alphabetic code the MID is provisioned for. `None` disables the
+    /// currency check entirely, which is the behaviour for every config that does
+    /// not set it.
+    pub merchant_config_currency: Option<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
@@ -72,6 +78,7 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                 merchant_id,
                 bin,
                 terminal_id,
+                merchant_config_currency,
                 ..
             } => {
                 let bin = bin
@@ -113,6 +120,9 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                     merchant_id: merchant_id.clone(),
                     bin: bin.trim().to_string(),
                     terminal_id: terminal_id.trim().to_string(),
+                    merchant_config_currency: merchant_config_currency
+                        .clone()
+                        .filter(|value| !value.trim().is_empty()),
                 })
             }
             _ => Err(error_stack::report!(
@@ -262,16 +272,67 @@ fn build_order_id(reference: &str) -> Result<String, error_stack::Report<Integra
     Ok(order_id)
 }
 
-pub fn build_retry_trace(reference: &str) -> String {
-    const FNV_OFFSET_BASIS: u64 = 0xcbf2_9ce4_8422_2325;
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-
-    let mut hash = FNV_OFFSET_BASIS;
-    for byte in reference.as_bytes() {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(FNV_PRIME);
+/// Reject a payment whose currency does not match what the MID is provisioned for.
+///
+/// Orbital derives the currency from the Merchant ID setup and has no request field to
+/// receive it, so a EUR request routed to a USD MID would be authorized as USD at the
+/// same numeric amount. When `merchant_config_currency` is not configured this is a
+/// no-op, preserving the behaviour of every existing config.
+fn validate_currency(
+    request_currency: Currency,
+    merchant_config_currency: Option<&str>,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    // A blank string is treated as "not configured", so a config that sets the key to
+    // "" behaves like one that omits it rather than failing every payment.
+    let Some(configured) = merchant_config_currency
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(());
+    };
+    let configured_currency =
+        Currency::from_str(configured.to_uppercase().as_str()).map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidConnectorConfig {
+                config: "jpmorganorbital.merchant_config_currency",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "{configured:?} is not an ISO-4217 alphabetic currency code"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+    if request_currency != configured_currency {
+        return Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "currency {request_currency} does not match the currency \
+                 {configured_currency} this JP Morgan Orbital MID is provisioned for"
+            ),
+            connector: "jpmorganorbital",
+            context: IntegrationErrorContext::default(),
+        }));
     }
-    let trace = 1_000_000_000_000_000_u64 + (hash % 9_000_000_000_000_000_u64);
+    Ok(())
+}
+
+/// Derive `order.retryTrace` from the attempt reference.
+///
+/// `retryTrace` is both the idempotency key and the only `/inquiry` lookup key, so a
+/// collision inside Orbital's 48-hour window makes the gateway echo a different
+/// payment's approval back as this payment's result. SHA-256 is used rather than a
+/// short non-cryptographic hash because the modulo fold below keeps only the low bits,
+/// which is exactly where a hash like FNV-1a is weakest.
+///
+/// The derivation must stay deterministic: PSync recomputes it from the same reference.
+pub fn build_retry_trace(reference: &str) -> String {
+    let digest = Sha256::digest(reference.as_bytes());
+    // The digest is 32 bytes, so the first 8 always exist; fall back rather than panic.
+    let leading = digest
+        .get(..8)
+        .and_then(|bytes| <[u8; 8]>::try_from(bytes).ok())
+        .map_or(0_u64, u64::from_be_bytes);
+    // Fold into [1e15, 1e16) so the value is numeric and exactly 16 characters.
+    let trace = 1_000_000_000_000_000_u64 + (leading % 9_000_000_000_000_000_u64);
     trace.to_string()
 }
 
@@ -479,19 +540,80 @@ fn map_eci(eci: &str, brand: OrbitalBrand) -> Option<&'static str> {
     }
 }
 
+/// Orbital carries the CAVV in a brand-specific cryptogram field, so a brand this
+/// connector cannot resolve has nowhere to put it.
+fn unsupported_three_ds_brand() -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: "3DS authentication data for an unrecognised card brand".to_string(),
+        connector: "jpmorganorbital",
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "Orbital carries the CAVV in a brand-specific cryptogram field; the card \
+                 network could not be resolved to Visa, Mastercard, Discover or Amex"
+                    .to_string(),
+            ),
+            ..Default::default()
+        },
+    })
+}
+
 /// Build the two 3DS objects from externally produced authentication data.
 ///
-/// Returns `None` when the payment is effectively non-3DS: no CAVV, or an ECI that
-/// does not map onto Orbital's scale. Orbital's own rule is that the CAVV and the
+/// Called only when `authentication_data` is `Some`, i.e. 3DS was attempted. If the
+/// data cannot be encoded for Orbital this returns an error rather than falling back
+/// to a plain non-3DS authorization: a silent downgrade costs the merchant the
+/// liability shift it already paid for. Orbital's own rule is that the CAVV and the
 /// ECI must always travel together, so a half-populated pair is never emitted.
 fn build_three_ds_objects<T: PaymentMethodDataTypes>(
     card: &Card<T>,
     authentication_data: &AuthenticationData,
     bin: &str,
-) -> Option<(JpmorganOrbitalCryptogram, JpmorganOrbitalAdditionalAuthInfo)> {
-    let cavv = authentication_data.cavv.as_ref()?;
+) -> Result<
+    (JpmorganOrbitalCryptogram, JpmorganOrbitalAdditionalAuthInfo),
+    error_stack::Report<IntegrationError>,
+> {
+    let cavv = authentication_data.cavv.as_ref().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.cavv",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "JP Morgan Orbital requires a CAVV to encode a 3DS authorization; \
+                     downgrading to non-3DS would silently forfeit the liability shift"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })
+    })?;
     let brand = resolve_brand(card);
-    let eci = map_eci(authentication_data.eci.as_deref()?, brand)?;
+    // Checked before the ECI so an unresolvable brand reports itself rather than
+    // surfacing as an unmappable-ECI error (`map_eci` also rejects `Other`).
+    if brand == OrbitalBrand::Other {
+        return Err(unsupported_three_ds_brand());
+    }
+    let raw_eci = authentication_data.eci.as_deref().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.eci",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "JP Morgan Orbital requires an ECI alongside the CAVV; the two must \
+                     always travel together"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })
+    })?;
+    let eci = map_eci(raw_eci, brand).ok_or_else(|| {
+        error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "authentication_data.eci {raw_eci:?} cannot be mapped onto JP Morgan \
+                 Orbital's authenticationECIInd scale for card brand {brand:?}"
+            ),
+            connector: "jpmorganorbital",
+            context: IntegrationErrorContext::default(),
+        })
+    })?;
 
     let mut cryptogram = JpmorganOrbitalCryptogram::default();
     let mut additional = JpmorganOrbitalAdditionalAuthInfo {
@@ -505,6 +627,12 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
             // the 3DS server. Re-encoding it is the single most likely bug here and
             // surfaces as a respCode 37/245 decline, not as an error.
             cryptogram.verify_by_visa_cavv = Some(cavv.clone());
+            // `verifyByVisaXID` is Conditional, not Mandatory, and a non-Base64 value
+            // is a guaranteed respCode 245 decline. Under 3DS 2.x there is no XID at
+            // all and the 3DS server transaction id is a UUID, so omitting it here is
+            // the documented behaviour and does not cost the liability shift — the
+            // CAVV and ECI still travel. Unlike a missing CAVV/ECI this is not a
+            // silent downgrade, so it stays a filter rather than an error.
             cryptogram.verify_by_visa_xid = authentication_data
                 .threeds_server_transaction_id
                 .as_deref()
@@ -539,10 +667,10 @@ fn build_three_ds_objects<T: PaymentMethodDataTypes>(
             cryptogram.digital_token_cryptogram = Some(cavv.clone());
             additional.pymt_brand_program_code = Some(BRAND_PROGRAM_AMEX_SAFEKEY.to_string());
         }
-        OrbitalBrand::Other => return None,
+        OrbitalBrand::Other => return Err(unsupported_three_ds_brand()),
     }
 
-    Some((cryptogram, additional))
+    Ok((cryptogram, additional))
 }
 
 type AuthorizeRouterData<T> =
@@ -562,9 +690,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card,
-            other => {
+            _ => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: format!("Payment method {}", payment_method_label(other)),
+                    message: "Only card payments are supported by jpmorganorbital".to_string(),
                     connector: "jpmorganorbital",
                     context: IntegrationErrorContext {
                         suggested_action: Some(
@@ -589,9 +717,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let auth = JpmorganOrbitalAuthType::try_from(&router_data.connector_config)?;
+        validate_currency(request.currency, auth.merchant_config_currency.as_deref())?;
         let common = &router_data.resource_common_data;
 
-        let cc_exp = card.get_expiry_date_as_yyyymm("");
+        // `ccExp` is a fixed 6-char YYYYMM field. `get_expiry_date_as_yyyymm` interpolates
+        // the raw month, so a single-digit month would yield 5 chars ("20257"). Build it
+        // from the zero-padding helpers instead.
+        let cc_exp = Secret::new(format!(
+            "{}{}",
+            card.get_expiry_year_4_digit().peek(),
+            card.get_card_expiry_month_2_digit()?.peek()
+        ));
 
         let cvc = card.card_cvc.peek().trim().to_string();
         let cardholder_verification =
@@ -603,12 +739,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Orbital 3DS is a passthrough: the challenge (if any) already happened in the
         // merchant's own MPI / the UCS external-authentication flow. There is no
         // second call and no redirect to build here.
+        // No authentication data at all is a plain non-3DS payment and stays valid.
+        // Authentication data that cannot be encoded is an error, never a downgrade.
         let (cryptogram, additional_auth_info) = match request.authentication_data.as_ref() {
             Some(authentication_data) => {
-                match build_three_ds_objects(card, authentication_data, &auth.bin) {
-                    Some((cryptogram, additional)) => (Some(cryptogram), Some(additional)),
-                    None => (None, None),
-                }
+                let (cryptogram, additional) =
+                    build_three_ds_objects(card, authentication_data, &auth.bin)?;
+                (Some(cryptogram), Some(additional))
             }
             None => (None, None),
         };
@@ -639,35 +776,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cryptogram,
             additional_auth_info,
         })
-    }
-}
-
-/// Human-readable label for the unsupported-payment-method error.
-fn payment_method_label<T: PaymentMethodDataTypes>(data: &PaymentMethodData<T>) -> &'static str {
-    match data {
-        PaymentMethodData::Card(_) => "card",
-        PaymentMethodData::CardWithNoCvc(_) => "card without CVC",
-        PaymentMethodData::CardDetailsForNetworkTransactionId(_) => "network transaction id card",
-        PaymentMethodData::CardRedirect(_) => "card redirect",
-        PaymentMethodData::Wallet(_) => "wallet",
-        PaymentMethodData::PayLater(_) => "pay later",
-        PaymentMethodData::BankRedirect(_) => "bank redirect",
-        PaymentMethodData::BankDebit(_) => "bank debit",
-        PaymentMethodData::BankTransfer(_) => "bank transfer",
-        PaymentMethodData::Crypto(_) => "crypto",
-        PaymentMethodData::MandatePayment => "mandate payment",
-        PaymentMethodData::Reward => "reward",
-        PaymentMethodData::RealTimePayment(_) => "real time payment",
-        PaymentMethodData::Upi(_) => "UPI",
-        PaymentMethodData::Voucher(_) => "voucher",
-        PaymentMethodData::GiftCard(_) => "gift card",
-        PaymentMethodData::PaymentMethodToken(_) => "payment method token",
-        PaymentMethodData::OpenBanking(_) => "open banking",
-        PaymentMethodData::NetworkToken(_) => "network token",
-        PaymentMethodData::MobilePayment(_) => "mobile payment",
-        PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
-            "decrypted wallet token"
-        }
     }
 }
 
@@ -1174,5 +1282,148 @@ mod amount_tests {
     #[test]
     fn rejects_negative_amounts() {
         assert!(JpmorganOrbitalAmount::from_minor(MinorUnit::new(-1), Currency::USD).is_err());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod retry_trace_tests {
+    use super::*;
+
+    #[test]
+    fn is_deterministic_for_the_same_reference() {
+        // PSync recomputes retryTrace from the same reference, so the derivation
+        // must be stable across calls and across processes.
+        let a = build_retry_trace("pay_9B21C7D4E018");
+        let b = build_retry_trace("pay_9B21C7D4E018");
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn stays_within_the_sixteen_digit_numeric_window() {
+        for reference in [
+            "",
+            "a",
+            "pay_9B21C7D4E018",
+            "an-unusually-long-connector-request-reference-identifier-0123456789",
+        ] {
+            let trace = build_retry_trace(reference);
+            let value: u64 = trace.parse().expect("retryTrace must be numeric");
+            assert!((1_000_000_000_000_000..10_000_000_000_000_000).contains(&value));
+            assert_eq!(trace.len(), 16);
+        }
+    }
+
+    #[test]
+    fn distinct_references_produce_distinct_traces() {
+        assert_ne!(
+            build_retry_trace("pay_0000000000001"),
+            build_retry_trace("pay_0000000000002")
+        );
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod currency_validation_tests {
+    use super::*;
+
+    #[test]
+    fn absent_config_disables_validation() {
+        // Backward compatibility: existing configs carry no merchant_config_currency
+        // and must keep working for every currency.
+        assert!(validate_currency(Currency::EUR, None).is_ok());
+    }
+
+    #[test]
+    fn blank_config_is_treated_as_absent() {
+        assert!(validate_currency(Currency::EUR, Some("   ")).is_ok());
+    }
+
+    #[test]
+    fn matching_currency_is_accepted() {
+        assert!(validate_currency(Currency::USD, Some("USD")).is_ok());
+        assert!(validate_currency(Currency::USD, Some("usd")).is_ok());
+    }
+
+    #[test]
+    fn mismatched_currency_is_rejected() {
+        assert!(validate_currency(Currency::EUR, Some("USD")).is_err());
+    }
+
+    #[test]
+    fn unparseable_config_is_rejected() {
+        assert!(validate_currency(Currency::USD, Some("DOLLARS")).is_err());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+mod cc_exp_tests {
+    use domain_types::payment_method_data::DefaultPCIHolder;
+
+    use super::*;
+
+    fn card(exp_month: &str, exp_year: &str) -> Card<DefaultPCIHolder> {
+        Card {
+            card_number: RawCardNumber(
+                cards::CardNumber::from_str("4444444444444448").expect("valid test PAN"),
+            ),
+            card_exp_month: Secret::new(exp_month.to_string()),
+            card_exp_year: Secret::new(exp_year.to_string()),
+            card_cvc: Secret::new("123".to_string()),
+            card_issuer: None,
+            card_network: None,
+            card_type: None,
+            card_issuing_country: None,
+            bank_code: None,
+            nick_name: None,
+            card_holder_name: None,
+            co_badged_card_data: None,
+        }
+    }
+
+    fn cc_exp(exp_month: &str, exp_year: &str) -> String {
+        let card = card(exp_month, exp_year);
+        format!(
+            "{}{}",
+            card.get_expiry_year_4_digit().peek(),
+            card.get_card_expiry_month_2_digit()
+                .expect("month should parse")
+                .peek()
+        )
+    }
+
+    #[test]
+    fn single_digit_month_is_zero_padded() {
+        // The bug this guards: an unpadded month yields "20257", five characters in a
+        // fixed six-character YYYYMM field.
+        assert_eq!(cc_exp("7", "2025"), "202507");
+        assert_eq!(cc_exp("1", "2030"), "203001");
+    }
+
+    #[test]
+    fn two_digit_month_is_unchanged() {
+        assert_eq!(cc_exp("07", "2025"), "202507");
+        assert_eq!(cc_exp("12", "2025"), "202512");
+    }
+
+    #[test]
+    fn two_digit_year_is_expanded_and_year_comes_first() {
+        // Orbital wants YYYYMM, not MMYYYY.
+        assert_eq!(cc_exp("07", "25"), "202507");
+    }
+
+    #[test]
+    fn every_output_is_exactly_six_characters() {
+        for month in 1..=12 {
+            assert_eq!(cc_exp(&month.to_string(), "2025").len(), 6);
+        }
     }
 }
