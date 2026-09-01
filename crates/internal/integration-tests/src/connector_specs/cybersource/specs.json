@@ -25,7 +25,7 @@
       "threeds_card_authenticate": "out of scope for this certification pass — not part of the core Authorize/PSync/Capture/Void/Refund/SetupMandate flows being certified; not yet verified live."
     },
     "PaymentMethodAuthenticationService/PreAuthenticate": {
-      "threeds_card_pre_authenticate": "out of scope for this certification pass — not verified live; a prior local run of this exact scenario crashed the server with a stack overflow (mitigated process-wide by RUST_MIN_STACK, but the request itself is still unverified)."
+      "threeds_card_pre_authenticate": "out of scope for this certification pass — not part of the core Authorize/PSync/Capture/Void/Refund/SetupMandate flows being certified; not yet verified live."
     },
     "PaymentMethodAuthenticationService/PostAuthenticate": {
       "threeds_card_post_authenticate": "out of scope for this certification pass — not part of the core flows being certified; not yet verified live."
