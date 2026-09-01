@@ -4,24 +4,27 @@ use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
 use common_utils::{pii::Email, request::Method, MinorUnit};
-use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext,
+};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     types::{AdditionalCardInfo, AdditionalPaymentData},
@@ -378,12 +381,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 (Some(card), redirect, None, None)
             }
-            // TODO: CardToken flow for Datatrans Secure Fields SDK.
-            // When the client SDK collects card data via Secure Fields, the transactionId
-            // from secureFieldsInit is used as an alias. The authorize-split endpoint
-            // (POST /v1/transactions/{transactionId}/authorize) should be called instead
-            // of the regular authorize endpoint. The PaymentMethodToken carries the
-            // transactionId from the client authentication token response.
+            // Google Pay alias charge: the PaymentMethodToken flow tokenized the Google
+            // Pay payload via POST /v1/aliases/tokenize, and this token carries the
+            // resulting alias. The alias is charged as an `ALIAS` card — the Datatrans
+            // path that supports a native 3DS challenge for Google Pay.
             PaymentMethodData::PaymentMethodToken(token_data) => {
                 let token = token_data.token.clone();
 
@@ -393,10 +394,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     expiry_month: None,
                     expiry_year: None,
                     cvv: None,
-                    card_type: None,
-                    three_ds: None,
+                    card_type: Some(CARD_TYPE_ALIAS.to_string()),
+                    three_ds: build_three_ds_data(router_data)?,
                 };
-                (Some(card), None, None, None)
+                // Native 3DS on the alias follows the same redirect contract as a
+                // raw-card 3DS charge (the alias itself carries no expiry/CVV, so the
+                // CIT-mandate `createAlias` branch is not applicable here).
+                let redirect = is_native_three_ds.then(|| RedirectUrls {
+                    success_url: router_data.request.router_return_url.clone(),
+                    cancel_url: router_data.request.router_return_url.clone(),
+                    error_url: router_data.request.router_return_url.clone(),
+                });
+                (Some(card), redirect, None, None)
             }
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 WalletData::GooglePay(google_pay_data) => {
@@ -503,15 +512,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // CIT mandate registration asks Datatrans to persist a reusable alias
             // (surfaced later via PSync as `connector_mandate_id`); non-mandate Authorize
             // sends `option: null`.
-            option: (is_mandate_payment && router_data.request.is_card()).then_some(
-                DatatransPaymentOptions {
-                    create_alias: Some(true),
-                },
-            ),
+            option: should_create_alias(
+                &router_data.request.payment_method_data,
+                is_mandate_payment,
+            )
+            .then_some(DatatransPaymentOptions {
+                create_alias: Some(true),
+            }),
             pay,
             apl,
         })
     }
+}
+
+/// Decides whether a `DatatransPaymentsRequest` should ask Datatrans to persist a
+/// reusable alias (`option.createAlias = true`). Reused by every flow that builds
+/// this request type (Authorize / SetupMandate).
+///
+/// Required iff both:
+/// - the merchant declared mandate intent (`customer_acceptance` +
+///   `setup_future_usage = off_session`, i.e. `is_mandate_payment()`), and
+/// - the charged instrument is not itself already a Datatrans alias, i.e. a raw
+///   card (`PLAIN`) charge. Wallet payload (`PAY` / `APL`) charges never set
+///   `createAlias` — unchanged from the pre-refactor `is_card()` gating.
+///
+/// Never required for an `ALIAS` card charge (Secure Fields token / Google Pay
+/// `/v1/aliases/tokenize` alias): the alias was already created up front, so
+/// `createAlias` is omitted there. MIT charges (`RepeatPayment`) reuse an existing
+/// alias and likewise never set it.
+fn should_create_alias<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    is_mandate_payment: bool,
+) -> bool {
+    is_mandate_payment && matches!(payment_method_data, PaymentMethodData::Card(_))
 }
 
 /// Builds the optional `3D` object for a raw-card Authorize request.
@@ -633,6 +666,44 @@ fn get_authorize_status(
     }
 }
 
+/// Resolves the connector `MandateReference` for an Authorize/SetupMandate response.
+///
+/// The reusable Datatrans alias (the `connector_mandate_id` that MIT/RepeatPayment
+/// later charges) comes from whichever is available, in order:
+/// - the response echo (`card.alias`) — returned once the alias exists (a completed
+///   `createAlias` CIT, or an echo of the charged alias), or
+/// - the request's `payment_method_token`: a tokenize-sourced alias
+///   (`POST /v1/aliases/tokenize`, e.g. Google Pay) is created upstream of the
+///   Authorize call, so the sent token is itself the mandate reference. This is the
+///   only source on a 3DS-enrolled response, which carries no `card` object.
+///
+/// The token fallback applies only to mandate payments: surfacing a mandate
+/// reference for a plain one-off payment would misreport a single-use charge as
+/// reusable.
+fn connector_mandate_reference<T: PaymentMethodDataTypes>(
+    response_card: Option<&DatatransCardResponse>,
+    payment_method_data: &PaymentMethodData<T>,
+    is_mandate_payment: bool,
+) -> Option<Box<MandateReference>> {
+    response_card
+        .and_then(|card| card.alias.as_ref())
+        .map(|alias| alias.peek().clone())
+        .or_else(|| match payment_method_data {
+            PaymentMethodData::PaymentMethodToken(token_data) if is_mandate_payment => {
+                Some(token_data.token.peek().clone())
+            }
+            _ => None,
+        })
+        .map(|alias| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(alias),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<DatatransPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
@@ -647,25 +718,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payments_response_data = match &item.response {
             DatatransPaymentsResponse::TransactionResponse(response) => {
-                let mandate_reference = response
-                    .card
-                    .as_ref()
-                    .and_then(|card| card.alias.as_ref())
-                    .map(|alias| MandateReference {
-                        connector_mandate_id: Some(alias.peek().clone()),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
-                        mandate_metadata: None,
-                    });
+                let mandate_reference = connector_mandate_reference(
+                    response.card.as_ref(),
+                    &item.router_data.request.payment_method_data,
+                    item.router_data.request.is_mandate_payment(),
+                );
 
-                // Non-3DS / passthrough external 3DS: no redirect. The alias (for mandates)
-                // is surfaced later via PSync, not on this response.
+                // Non-3DS / passthrough external 3DS: no redirect. For raw-card mandate
+                // CITs (createAlias), the alias may only be surfaced later via PSync,
+                // not on this response.
                 PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         response.transaction_id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: mandate_reference.map(Box::new),
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -677,6 +744,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             DatatransPaymentsResponse::ThreeDSResponse(response) => {
                 // Native 3DS: redirect the cardholder to the Datatrans challenge page.
+                // The enrolled response carries no `card` object, but a tokenize-sourced
+                // alias mandate survives the challenge: the alias already exists (created
+                // by `/v1/aliases/tokenize`), so surface the mandate reference now rather
+                // than relying on PSync to echo `card.alias` (Datatrans only echoes it on
+                // `card_check`/createAlias syncs, not on a settled `payment`).
+                let mandate_reference = connector_mandate_reference(
+                    None,
+                    &item.router_data.request.payment_method_data,
+                    item.router_data.request.is_mandate_payment(),
+                );
                 // Host is derived from the connector's configured API base_url so the
                 // sandbox challenge stays on the sandbox host (see
                 // `datatrans_redirection_host`).
@@ -698,7 +775,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         response.transaction_id.clone(),
                     ),
                     redirection_data: Some(Box::new(redirection_data)),
-                    mandate_reference: None,
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -816,12 +893,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 error_url: router_data.request.router_return_url.clone(),
             }),
             // Ask Datatrans to persist a reusable alias for later MIT/RepeatPayment.
-            option: router_data
-                .request
-                .is_card()
-                .then_some(DatatransPaymentOptions {
+            // SetupMandate is by construction the zero-auth mandate-registration
+            // CIT, so the mandate intent holds trivially true here.
+            option: should_create_alias(&router_data.request.payment_method_data, true).then_some(
+                DatatransPaymentOptions {
                     create_alias: Some(true),
-                }),
+                },
+            ),
             pay: None,
             apl: None,
         })
@@ -848,14 +926,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payments_response_data = match &item.response {
             DatatransPaymentsResponse::TransactionResponse(response) => {
-                // The reusable alias is surfaced later via PSync (`card.alias`),
-                // not on this setup response — matching the reference behaviour.
+                // Surface the alias immediately when Datatrans echoes `card.alias` on the
+                // zero-auth response; otherwise it is recovered later via PSync
+                // (`card.alias`). SetupMandate is the mandate-registration CIT by
+                // construction (and its payment method is always a raw card, so the
+                // `payment_method_token` fallback cannot apply).
+                let mandate_reference = connector_mandate_reference(
+                    response.card.as_ref(),
+                    &item.router_data.request.payment_method_data,
+                    true,
+                );
                 PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(
                         response.transaction_id.clone(),
                     ),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -888,6 +974,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         response.transaction_id.clone(),
                     ),
                     redirection_data: Some(Box::new(redirection_data)),
+                    // No alias to surface at challenge time: a zero-auth `createAlias`
+                    // only materializes once the transaction completes after the
+                    // challenge, and SetupMandate is card-only by construction (the
+                    // request builder rejects `PaymentMethodToken`), so no pre-existing
+                    // tokenize-sourced alias can apply — unlike the Authorize GPay-alias
+                    // path. The alias is recovered after the challenge via PSync
+                    // (`card.alias`).
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
@@ -1030,11 +1123,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 })?;
                 let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
-
                 (Some(expiry_month), Some(expiry_year))
             }
         };
-
         let card = DatatransCard {
             alias: Some(Secret::new(alias)),
             expiry_month,
@@ -1057,7 +1148,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
             // Manual/ManualMultiple/Scheduled -> false.
             auto_settle: Some(router_data.request.is_auto_capture()),
-            // MIT never redirects and never re-creates an alias.
+            // MIT never redirects and never re-creates an alias: the charged instrument is
+            // the stored alias itself, so `should_create_alias` trivially holds false here.
             redirect: None,
             option: None,
             pay: None,
@@ -1950,5 +2042,181 @@ impl TryFrom<ResponseRouterData<DatatransClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+// ===== PAYMENT METHOD TOKEN (GOOGLE PAY ALIAS TOKENIZATION) FLOW STRUCTURES =====
+// POST /v1/aliases/tokenize converts the Google Pay payload into a Datatrans alias.
+// The alias is then charged as an `ALIAS` card in Authorize — the Datatrans path
+// that supports a native 3DS challenge for Google Pay.
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransTokenizeRequest {
+    pub requests: Vec<DatatransTokenizeRequestItem>,
+}
+
+/// A single tokenization request item. The `type` discriminator is always
+/// `"GOOGLE_PAY"` for this connector (Datatrans also supports CARD/CVV/CUSTOM items,
+/// which this connector does not tokenize).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransTokenizeRequestItem {
+    #[serde(rename = "type")]
+    pub item_type: String,
+    /// The full Google Pay payment-data token, forwarded verbatim as a JSON string.
+    pub token: String,
+}
+
+/// `type` value of a Google Pay item in a `/v1/aliases/tokenize` request.
+const TOKENIZE_ITEM_TYPE_GOOGLE_PAY: &str = "GOOGLE_PAY";
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::DatatransRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    > for DatatransTokenizeRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::DatatransRouterData<
+            RouterDataV2<
+                PaymentMethodToken,
+                PaymentFlowData,
+                PaymentMethodTokenizationData<T>,
+                PaymentMethodTokenResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                let token = google_pay_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "google_pay.tokenization_data.token",
+                        context: datatrans_context(
+                            "Datatrans Google Pay tokenization requires the encrypted Google Pay tokenization_data.token",
+                        ),
+                    })?;
+                Ok(Self {
+                    requests: vec![DatatransTokenizeRequestItem {
+                        item_type: TOKENIZE_ITEM_TYPE_GOOGLE_PAY.to_string(),
+                        token,
+                    }],
+                })
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
+                datatrans_context(
+                    "Datatrans alias tokenization (/v1/aliases/tokenize) supports Google Pay wallets only",
+                ),
+            ))?,
+        }
+    }
+}
+
+/// Response of POST /v1/aliases/tokenize. Datatrans replies with the bulk container
+/// even for a single request; per-item success or failure is carried on each entry
+/// (an HTTP 200 response can still contain per-item errors).
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransTokenizeResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overview: Option<DatatransTokenizeOverview>,
+    #[serde(default)]
+    pub responses: Vec<DatatransTokenizeResponseItem>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransTokenizeOverview {
+    pub total: u32,
+    pub successful: u32,
+    pub failed: u32,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransTokenizeResponseItem {
+    /// The tokenized alias, charged later as `card.alias`. Masked in logs; the
+    /// domain token boundary requires the plain value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<Secret<String>>,
+    /// Per-item failure detail (e.g. an invalid Google Pay payload) when the item
+    /// could not be tokenized.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<DatatransErrorDetail>,
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<DatatransTokenizeResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodToken,
+        PaymentFlowData,
+        PaymentMethodTokenizationData<T>,
+        PaymentMethodTokenResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<DatatransTokenizeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // We always send exactly one item, so its echo entry decides the outcome.
+        match item.response.responses.first() {
+            Some(DatatransTokenizeResponseItem {
+                alias: Some(alias), ..
+            }) => Ok(Self {
+                response: Ok(PaymentMethodTokenResponse {
+                    token: alias.peek().to_owned(),
+                    connector_payment_method_id: None,
+                    status_code: item.http_code,
+                }),
+                ..item.router_data
+            }),
+            Some(DatatransTokenizeResponseItem {
+                error: Some(error), ..
+            }) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(ErrorResponse {
+                    code: error.code.clone(),
+                    message: error.message.clone(),
+                    reason: Some(error.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                }),
+                ..item.router_data
+            }),
+            // Neither alias nor error on the echoed item — contract violation.
+            _ => Err(error_stack::report!(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Datatrans /v1/aliases/tokenize response item carries neither an alias nor an error"
+                            .to_string(),
+                    ),
+                },
+            })),
+        }
     }
 }
