@@ -11,6 +11,11 @@ BODY = json.dumps({
     "currency": "usd",
     "latest_charge": "ch_mock_1",
     "client_secret": "pi_mock_secret",
+    # Required by the Stripe transformer's PaymentIntentResponse (a missing
+    # `metadata` fails deserialization with RESPONSE_DESERIALIZATION_FAILED,
+    # which made every local authorize record as grpc_status 13 and kept the
+    # SUCCESS path of the transformer unexercised by the local rig).
+    "metadata": {},
 }).encode()
 
 class Handler(BaseHTTPRequestHandler):
