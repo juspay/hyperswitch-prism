@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, RefundStatus};
-use common_utils::{types::StringMinorUnit, Method};
+use common_utils::{
+    types::{MinorUnit, StringMinorUnit},
+    Method,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
@@ -24,9 +27,11 @@ use crate::types::ResponseRouterData;
 /// Saferpay JSON API contract version this integration is pinned to. Every
 /// `RequestHeader` must carry it; bumping it changes the wire contract.
 pub const SAFERPAY_SPEC_VERSION: &str = "1.44";
+const SAFERPAY_TRANSACTION_DOC_URL: &str =
+    "https://docs.saferpay.com/home/open-api-specification-beta/transaction";
 
 /// `RetryIndicator` for a first attempt. Saferpay allows 0-9, incremented per retry
-/// of the *same* `RequestId`; UCS generates a fresh `RequestId` per call instead.
+/// of the *same* `RequestId`. The caller supplies the stable logical request id.
 const RETRY_INDICATOR_FIRST_ATTEMPT: u8 = 0;
 
 /// `Payment.Description` is documented as optional but the Saferpay Backoffice needs
@@ -72,16 +77,26 @@ pub enum SaferpayTransactionStatus {
 /// `connector_metadata`, and under which the Refund flow expects to find it in
 /// `RefundsData::refund_connector_metadata`.
 pub const CAPTURE_ID_METADATA_KEY: &str = "capture_id";
+/// Authorized total used to distinguish a full Capture from a partial Capture.
+pub const AUTHORIZED_AMOUNT_METADATA_KEY: &str = "authorized_amount";
 /// Marks which leg of the flow last wrote the metadata blob.
 pub const SAFERPAY_STAGE_METADATA_KEY: &str = "stage";
 /// Stage written by the 3DS `Initialize` leg, while the session token is live.
 pub const STAGE_INITIALIZED: &str = "initialized";
+/// Stage written after RSync has captured the refund transaction successfully.
+pub const STAGE_REFUND_SETTLED: &str = "refund_settled";
 /// Key under which the 3DS `Initialize` response publishes the Saferpay session
 /// token in `connector_metadata`.
 pub const SAFERPAY_TOKEN_METADATA_KEY: &str = "saferpay_token";
 
 fn context() -> IntegrationErrorContext {
-    IntegrationErrorContext::default()
+    IntegrationErrorContext {
+        additional_context: Some("while building a Saferpay Transaction API request".to_string()),
+        suggested_action: Some(
+            "Check the required Saferpay fields and the connector flow configuration".to_string(),
+        ),
+        doc_url: Some(SAFERPAY_TRANSACTION_DOC_URL.to_string()),
+    }
 }
 
 fn missing_field(field_name: &'static str) -> error_stack::Report<IntegrationError> {
@@ -111,7 +126,7 @@ fn capture_method_not_supported(method: CaptureMethod) -> error_stack::Report<In
             suggested_action: Some(
                 "Set capture_method = manual and issue the Capture explicitly".to_string(),
             ),
-            doc_url: None,
+            doc_url: Some(SAFERPAY_TRANSACTION_DOC_URL.to_string()),
         },
     })
 }
@@ -183,8 +198,8 @@ impl SaferpayAuthType {
 
 /// Mandatory envelope on every Saferpay request.
 ///
-/// `RequestId` must be unique per **HTTP request** (not per payment), so a fresh
-/// UUID is generated for each outbound call.
+/// `RequestId` identifies one logical connector request. Retries must reuse it so
+/// Saferpay can recognize the retry instead of executing the operation twice.
 #[derive(Debug, Clone, Serialize)]
 pub struct SaferpayRequestHeader {
     #[serde(rename = "SpecVersion")]
@@ -198,14 +213,39 @@ pub struct SaferpayRequestHeader {
 }
 
 impl SaferpayRequestHeader {
-    fn new(auth: &SaferpayAuthType) -> Self {
+    fn new(auth: &SaferpayAuthType, request_id: String) -> Self {
         Self {
             spec_version: SAFERPAY_SPEC_VERSION.to_string(),
             customer_id: auth.customer_id.clone(),
-            request_id: uuid::Uuid::new_v4().to_string(),
+            request_id,
             retry_indicator: RETRY_INDICATOR_FIRST_ATTEMPT,
         }
     }
+}
+
+fn stable_request_id(
+    merchant_request_id: Option<&str>,
+    connector_request_reference_id: &str,
+) -> String {
+    merchant_request_id
+        .map(str::trim)
+        .filter(|request_id| !request_id.is_empty())
+        .unwrap_or(connector_request_reference_id)
+        .to_string()
+}
+
+fn payment_request_id(common: &PaymentFlowData) -> String {
+    stable_request_id(
+        common.merchant_request_id.as_deref(),
+        &common.connector_request_reference_id,
+    )
+}
+
+fn refund_request_id(common: &RefundFlowData) -> String {
+    stable_request_id(
+        common.merchant_request_id.as_deref(),
+        &common.connector_request_reference_id,
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -394,7 +434,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let token = settle_token(request)
                 .ok_or_else(|| missing_field("connector_feature_data.saferpay_token"))?;
             return Ok(Self::Settle {
-                request_header: SaferpayRequestHeader::new(&auth),
+                request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
                 token: Secret::new(token),
             });
         }
@@ -478,7 +518,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         Ok(Self::Direct(Box::new(SaferpayCardAuthorizationRequest {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
             terminal_id: auth.terminal_id.clone(),
             payment: SaferpayPaymentDetails {
                 amount: SaferpayAmount {
@@ -569,9 +609,27 @@ impl SaferpayTransaction {
     }
 
     fn connector_metadata(&self) -> Option<serde_json::Value> {
-        self.capture_id
+        let mut metadata = serde_json::Map::new();
+
+        if let Some(capture_id) = self.capture_id.as_ref() {
+            metadata.insert(
+                CAPTURE_ID_METADATA_KEY.to_string(),
+                serde_json::Value::String(capture_id.clone()),
+            );
+        }
+
+        if let Some(authorized_amount) = self
+            .amount
             .as_ref()
-            .map(|capture_id| serde_json::json!({ CAPTURE_ID_METADATA_KEY: capture_id }))
+            .and_then(|amount| amount.value.as_ref())
+        {
+            metadata.insert(
+                AUTHORIZED_AMOUNT_METADATA_KEY.to_string(),
+                serde_json::Value::String(authorized_amount.clone()),
+            );
+        }
+
+        (!metadata.is_empty()).then_some(serde_json::Value::Object(metadata))
     }
 }
 
@@ -800,7 +858,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map_err(|_| missing_field("connector_transaction_id"))?;
 
         Ok(Self {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                payment_request_id(&router_data.resource_common_data),
+            ),
             transaction_reference: SaferpayTransactionReference { transaction_id },
         })
     }
@@ -950,7 +1011,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| missing_field("continue_redirection_url"))?;
 
         Ok(Self(SaferpayCardAuthorizationRequest {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
             terminal_id: auth.terminal_id.clone(),
             payment: SaferpayPaymentDetails {
                 amount: SaferpayAmount {
@@ -1086,7 +1147,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             SaferpayAmountConvertor::convert(request.minor_amount_to_capture, request.currency)?;
 
         Ok(Self {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                payment_request_id(&router_data.resource_common_data),
+            ),
             transaction_reference: SaferpayTransactionReference { transaction_id },
             amount: Some(SaferpayAmount {
                 value: amount,
@@ -1115,12 +1179,26 @@ impl SaferpayCaptureResponse {
         match self.status.unwrap_or(SaferpayTransactionStatus::Unknown) {
             SaferpayTransactionStatus::Captured if is_partial => AttemptStatus::PartialCharged,
             SaferpayTransactionStatus::Captured => AttemptStatus::Charged,
+            SaferpayTransactionStatus::Canceled => AttemptStatus::Failure,
             SaferpayTransactionStatus::Authorized
             | SaferpayTransactionStatus::Pending
-            | SaferpayTransactionStatus::Canceled
             | SaferpayTransactionStatus::Unknown => AttemptStatus::Pending,
         }
     }
+}
+
+fn authorized_amount_from_metadata(request: &PaymentsCaptureData) -> Option<MinorUnit> {
+    let value = request
+        .connector_feature_data
+        .as_ref()?
+        .peek()
+        .get(AUTHORIZED_AMOUNT_METADATA_KEY)?;
+
+    value
+        .as_str()
+        .and_then(|amount| amount.parse::<i64>().ok())
+        .or_else(|| value.as_i64())
+        .map(MinorUnit::new)
 }
 
 impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRouterData {
@@ -1132,15 +1210,21 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
         let response = item.response;
         let request = &item.router_data.request;
 
-        // `minor_amount_authorized` is a response-reporting field and is `None` on
-        // every request path, so a capture can only be classified as partial when
-        // the caller told us the payment total.
-        let is_partial = item
+        // Capture carries only the amount being captured, not the authorization
+        // total. Prefer the common-data total when a caller supplies it, otherwise
+        // use the total persisted from Authorize/PSync connector metadata. If an old
+        // caller supplies neither, report PartialCharged conservatively rather than
+        // claiming that the entire authorization was settled.
+        let authorized_amount = item
             .router_data
             .resource_common_data
             .amount
             .as_ref()
-            .is_some_and(|money| money.amount > request.minor_amount_to_capture);
+            .map(|money| money.amount)
+            .or_else(|| authorized_amount_from_metadata(request));
+        let is_partial = authorized_amount
+            .map(|amount| amount > request.minor_amount_to_capture)
+            .unwrap_or(true);
 
         let status = response.attempt_status(is_partial);
 
@@ -1199,7 +1283,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                payment_request_id(&router_data.resource_common_data),
+            ),
             transaction_reference: SaferpayTransactionReference {
                 transaction_id: router_data.request.connector_transaction_id.clone(),
             },
@@ -1323,7 +1410,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             SaferpayAmountConvertor::convert(request.minor_refund_amount, request.currency)?;
 
         Ok(Self {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                refund_request_id(&router_data.resource_common_data),
+            ),
             refund: SaferpayRefundDetails {
                 amount: SaferpayAmount {
                     value: amount,
@@ -1402,15 +1492,36 @@ type RefundSyncRouterData =
 /// `POST /Transaction/Capture` is issued against the refund's own transaction id.
 ///
 /// UCS has no dedicated "capture a refund" flow and the Refund flow itself is a
-/// single request, so the settling Capture is issued from RSync — the same shape
-/// as the 3DS second leg in PSync. While the caller still reports the refund as
-/// `Pending`, RSync issues the Capture; once it has settled, RSync reverts to a
-/// plain `Inquire`.
+/// single request, so the settling Capture is issued from RSync. A persisted
+/// metadata stage records that Capture succeeded; later syncs then use `Inquire`.
 ///
 /// Without this, a Saferpay refund can never reach `Success` through the normal
 /// refund lifecycle.
 pub fn refund_needs_settlement(request: &RefundSyncData) -> bool {
-    matches!(request.refund_status, RefundStatus::Pending)
+    !request
+        .refund_connector_metadata
+        .as_ref()
+        .and_then(|metadata| {
+            metadata
+                .peek()
+                .get(SAFERPAY_STAGE_METADATA_KEY)
+                .and_then(serde_json::Value::as_str)
+        })
+        .is_some_and(|stage| stage == STAGE_REFUND_SETTLED)
+}
+
+fn settled_refund_metadata(request: &RefundSyncData) -> common_utils::pii::SecretSerdeValue {
+    let mut metadata = request
+        .refund_connector_metadata
+        .clone()
+        .map(ExposeInterface::expose)
+        .and_then(|metadata| metadata.as_object().cloned())
+        .unwrap_or_default();
+    metadata.insert(
+        SAFERPAY_STAGE_METADATA_KEY.to_string(),
+        serde_json::Value::String(STAGE_REFUND_SETTLED.to_string()),
+    );
+    Secret::new(serde_json::Value::Object(metadata))
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -1425,7 +1536,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Both `Capture` and `Inquire` take the same body shape, keyed on the
         // refund's own transaction id; only the endpoint differs (see `get_url`).
         Ok(Self {
-            request_header: SaferpayRequestHeader::new(&auth),
+            request_header: SaferpayRequestHeader::new(
+                &auth,
+                refund_request_id(&router_data.resource_common_data),
+            ),
             transaction_reference: SaferpayTransactionReference {
                 transaction_id: router_data.request.connector_refund_id.clone(),
             },
@@ -1464,24 +1578,30 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
                 let refund_status =
                     match capture.status.unwrap_or(SaferpayTransactionStatus::Unknown) {
                         SaferpayTransactionStatus::Captured => RefundStatus::Success,
+                        SaferpayTransactionStatus::Canceled => RefundStatus::Failure,
                         SaferpayTransactionStatus::Authorized
                         | SaferpayTransactionStatus::Pending
-                        | SaferpayTransactionStatus::Canceled
                         | SaferpayTransactionStatus::Unknown => RefundStatus::Pending,
                     };
 
+                let mut router_data = item.router_data;
+                if refund_status == RefundStatus::Success {
+                    let refund_metadata = settled_refund_metadata(&router_data.request);
+                    router_data.request.refund_connector_metadata = Some(refund_metadata);
+                }
+
                 return Ok(Self {
                     response: Ok(RefundsResponseData {
-                        connector_refund_id: item.router_data.request.connector_refund_id.clone(),
+                        connector_refund_id: router_data.request.connector_refund_id.clone(),
                         refund_status,
                         status_code: item.http_code,
                         acquirer_reference_number: None,
                     }),
                     resource_common_data: RefundFlowData {
                         status: refund_status,
-                        ..item.router_data.resource_common_data
+                        ..router_data.resource_common_data
                     },
-                    ..item.router_data
+                    ..router_data
                 });
             }
             SaferpayRefundSyncResponse::Inquired(inquired) => inquired,

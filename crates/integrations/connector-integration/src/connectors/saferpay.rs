@@ -147,6 +147,23 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.saferpay.base_url
         }
+
+        pub fn build_refund_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: saferpay::SaferpayErrorResponse = res
+                .response
+                .parse_struct("SaferpayErrorResponse")
+                .change_context(crate::utils::response_deserialization_fail(
+                    res.status_code,
+                    "saferpay: refund error body did not match the expected format.",
+                ))?;
+
+            with_error_response_body!(event_builder, response);
+            Ok(response.to_refund_error_response(res.status_code))
+        }
     }
 );
 
@@ -389,7 +406,7 @@ macros::macro_connector_implementation!(
 // `Type: REFUND` transaction at `Status: AUTHORIZED`, which is reported as `Pending`
 // because no money has moved until that refund transaction is itself captured.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Saferpay,
     curl_request: Json(SaferpayRefundRequest),
     curl_response: SaferpayRefundResponse,
@@ -418,12 +435,21 @@ macros::macro_connector_implementation!(
                 PATH_REFUND
             ))
         }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_refund_error_response(res, event_builder)
+        }
     }
 );
 
 // RSync Flow — the same `Inquire` as PSync, keyed on the refund transaction id.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Saferpay,
     curl_request: Json(SaferpayRefundSyncRequest),
     curl_response: SaferpayRefundSyncResponse,
@@ -456,6 +482,15 @@ macros::macro_connector_implementation!(
                 PATH_INQUIRE
             };
             Ok(format!("{}{}", self.connector_base_url_refunds(req), path))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_refund_error_response(res, event_builder)
         }
     }
 );
