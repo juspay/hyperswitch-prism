@@ -906,14 +906,58 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\"},\"autoSettle\":true,\"option\":null}"
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_txn_001\",\"amount\":1000,\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\"},\"autoSettle\":true,\"option\":null}"
         }
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans SetupMandate (zero-auth alias creation) supports raw card payment method only"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_tokenized_mandate_001\",\"card\":{\"alias\":\"pm_1AbcXyzStripeTestToken\",\"type\":\"ALIAS\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":null}"
+        }
       }
     },
     "verify_redirect": {
