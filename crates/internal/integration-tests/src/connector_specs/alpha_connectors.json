@@ -67,6 +67,9 @@
     "payconex": {},
     "payload": {},
     "payme": {},
+    "paynearme": {
+      "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
+    },
     "paypal": {},
     "paysafe": {},
     "paytm": {},
@@ -81,9 +84,6 @@
     "rapyd": {},
     "razorpay": {},
     "razorpayv2": {},
-    "paynearme": {
-      "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
-    },
     "redsys": {},
     "revolut": {},
     "revolv3": {},
