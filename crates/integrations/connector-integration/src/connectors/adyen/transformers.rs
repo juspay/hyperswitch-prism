@@ -2200,11 +2200,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?;
                 Ok(Self::AlmaPayLater)
             }
-            PayLaterData::TamaraRedirect { .. } => Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("Adyen"),
-                Default::default(),
-            )
-            .into()),
+            PayLaterData::TamaraRedirect { .. } | PayLaterData::PayLaterRedirect {} => {
+                Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Adyen"),
+                    Default::default(),
+                )
+                .into())
+            }
             PayLaterData::AtomeRedirect { .. } => {
                 router_data
                     .resource_common_data

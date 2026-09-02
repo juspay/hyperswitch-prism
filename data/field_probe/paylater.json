@@ -1,0 +1,648 @@
+{
+  "connector": "paylater",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for paylater"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by paylater connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for paylater"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for paylater"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://connect.uat.paylaterapp.com/auth/realms/api/protocol/openid-connect/token",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials&client_id=probe_key&client_secret=probe_key"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for paylater"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paylater"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for paylater"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by paylater connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by paylater connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by paylater connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paylater connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by paylater connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for paylater"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for paylater"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paylater"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for paylater"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paylater"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by paylater connector"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by paylater connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paylater"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "PayLater only supports PayLaterRedirect BNPL payments is not supported by paylater"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paylater"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by paylater connector"
+      }
+    }
+  }
+}

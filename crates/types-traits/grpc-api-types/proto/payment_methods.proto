@@ -192,6 +192,7 @@ message PaymentMethod {
     Alma alma = 113;                                           // Alma - French BNPL service
     TamaraRedirect tamara_redirect = 114;                                       // Tamara - Middle Eastern BNPL service
     Atome atome = 115;                                         // Atome - Asian BNPL service
+    PayLaterRedirect pay_later_redirect = 116;                 // PayLater - Qatar BNPL service (redirect)
 
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
@@ -1125,6 +1126,11 @@ message Alma {
 // Tamara - Middle Eastern BNPL service (redirect-based)
 message TamaraRedirect {
   // Fields will be added as needed for tamara integration
+}
+
+// PayLater - Qatar BNPL service (redirect-based)
+message PayLaterRedirect {
+  // Fields will be added as needed for paylater integration
 }
 
 // Atome - Asian BNPL service

@@ -771,7 +771,8 @@ fn paylater_to_juspay(
         | PayLaterData::PayBrightRedirect {}
         | PayLaterData::WalleyRedirect {}
         | PayLaterData::AlmaRedirect {}
-        | PayLaterData::TamaraRedirect {}) => Err(error_stack::report!(
+        | PayLaterData::TamaraRedirect {}
+        | PayLaterData::PayLaterRedirect {}) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!(
                     "Juspay CONSUMER_FINANCE does not map cleanly from {other:?} \

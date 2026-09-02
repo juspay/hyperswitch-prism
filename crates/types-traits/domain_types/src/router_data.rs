@@ -1018,6 +1018,11 @@ pub enum ConnectorSpecificConfig {
         key2: Secret<String>,
         base_url: Option<String>,
     },
+    Paylater {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1390,6 +1395,7 @@ impl ConnectorSpecificConfig {
                 api_secret,
                 key2
             },
+            Paylater { api_key, key1 },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1885,6 +1891,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     key2
                 },
+                Paylater { api_key, key1 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2544,6 +2551,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: saferpay.api_secret.ok_or_else(err)?,
                 key2: saferpay.key2.ok_or_else(err)?,
                 base_url: saferpay.base_url,
+            }),
+            AuthType::Paylater(paylater) => Ok(Self::Paylater {
+                api_key: paylater.api_key.ok_or_else(err)?,
+                key1: paylater.key1.ok_or_else(err)?,
+                base_url: paylater.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3820,6 +3832,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paylater => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paylater {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

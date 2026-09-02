@@ -825,5 +825,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key2: k(),
             base_url: None,
         },
+        ConnectorEnum::Paylater => ConnectorSpecificConfig::Paylater {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
     }
 }

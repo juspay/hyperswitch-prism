@@ -815,6 +815,7 @@ pub enum PayLaterData {
     AlmaRedirect {},
     TamaraRedirect {},
     AtomeRedirect {},
+    PayLaterRedirect {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]

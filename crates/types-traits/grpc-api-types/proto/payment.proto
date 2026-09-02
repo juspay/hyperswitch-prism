@@ -905,6 +905,7 @@ enum Connector {
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
   SAFERPAY = 140;
+  PAYLATER = 141;
 }
 
 // Payment method types
@@ -5885,6 +5886,12 @@ message SaferpayConfig {
   optional string base_url = 50;
 }
 
+message PaylaterConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6213,6 +6220,8 @@ message ConnectorSpecificConfig {
     GotymeSanlamConfig gotyme_sanlam = 150;
     // SAFERPAY = 140
     SaferpayConfig saferpay = 151;
+    // PAYLATER = 141
+    PaylaterConfig paylater = 152;
   }
 }
 
