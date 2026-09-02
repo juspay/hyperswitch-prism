@@ -46,6 +46,9 @@
     "hyperpg": {},
     "hyperswitch": {},
     "iatapay": {},
+    "ilixium": {
+      "reason": "Ilixium sandbox credentials are not configured in CI, so certification cannot run at all; it fails before any scenario executes. Remove this entry once credentials are added."
+    },
     "imerchantsolutions": {},
     "itaubank": {},
     "jpmorgan": {},
