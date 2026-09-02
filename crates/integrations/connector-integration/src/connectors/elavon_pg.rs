@@ -14,8 +14,6 @@
 
 pub mod transformers;
 
-mod test;
-
 use std::fmt::Debug;
 
 use base64::Engine;
