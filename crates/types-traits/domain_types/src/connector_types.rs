@@ -5927,6 +5927,15 @@ pub struct RecipientDetails {
 pub struct AdditionalConnectorDetails {
     /// Checkout.com-specific additional information.
     pub checkout: Option<CheckoutAdditionalInformation>,
+    /// Worldpayxml-specific additional information.
+    pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
+}
+
+/// Worldpayxml-specific additional information.
+#[derive(Debug, Clone)]
+pub struct WorldpayxmlAdditionalInformation {
+    pub funding_transaction_type: Option<String>,
+    pub payment_purpose: Option<String>,
 }
 
 /// Checkout.com-specific additional information.

@@ -14056,6 +14056,12 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                 .map(|c| connector_types::CheckoutAdditionalInformation {
                     purpose_of_payment: c.purpose_of_payment,
                 }),
+            worldpayxml: value.worldpayxml.map(|w| {
+                connector_types::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: w.funding_transaction_type,
+                    payment_purpose: w.payment_purpose,
+                }
+            }),
         }
     }
 }
