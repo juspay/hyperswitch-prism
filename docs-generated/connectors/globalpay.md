@@ -246,7 +246,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Generic | ⚠ |
 | Local | ⚠ |
 | iDEAL | ✓ |
-| Sofort | ✓ |
+| Sofort | x |
 | Trustly | ⚠ |
 | Giropay | ✓ |
 | EPS | ✓ |
