@@ -35,6 +35,7 @@ use crate::{types::ResponseRouterData, utils};
 use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
 
 const API_VERSION: &str = "1.4";
+const WORLDPAYXML_SUPPORTED_3DS_MAJOR_VERSION: u64 = 2;
 
 /// `captureDelay` value that leaves the order uncaptured, for manual capture.
 const CAPTURE_DELAY_MANUAL: &str = "OFF";
@@ -129,7 +130,7 @@ fn get_worldpayxml_info_3d_secure(
         .into());
     };
 
-    if message_version.get_major() != 2 {
+    if message_version.get_major() != WORLDPAYXML_SUPPORTED_3DS_MAJOR_VERSION {
         return Err(IntegrationError::FlowNotSupported {
             flow: format!("External 3DS {} authorization", message_version),
             connector: "worldpayxml".to_string(),
