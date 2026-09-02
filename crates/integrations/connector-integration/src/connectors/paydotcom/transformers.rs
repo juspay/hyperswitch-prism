@@ -857,7 +857,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let resource =
             pending_resource_id_from_authentication_data(item.request.authentication_data.as_ref())
-                .or_else(|| pending_resource_id(item.resource_common_data.connector_feature_data.as_ref()))
+                .or_else(|| {
+                    pending_resource_id(item.resource_common_data.connector_feature_data.as_ref())
+                })
                 .ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "authentication_data.transaction_id",
@@ -1418,7 +1420,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
 // ===== RESPONSE: AUTHENTICATE (gateway 3DS, leg 2) =====
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
-    for RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        Authenticate,
+        PaymentFlowData,
+        PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
