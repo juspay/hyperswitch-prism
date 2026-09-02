@@ -756,7 +756,7 @@ fn get_worldpayxml_account_reference(
         ),
         RecipientAccount::Email { email } => (
             WORLDPAYXML_ACCOUNT_TYPE_EMAIL,
-            Secret::new(email.clone().expose().expose()),
+            Secret::new(email.peek().to_string()),
         ),
         RecipientAccount::Phone { phone_number } => {
             (WORLDPAYXML_ACCOUNT_TYPE_PHONE, phone_number.clone())
