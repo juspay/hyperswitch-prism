@@ -23,7 +23,9 @@
 //! 3-D Secure does not exist anywhere in the PayNearMe API surface, so a
 //! `ThreeDs` authorize is rejected outright rather than silently downgraded.
 
-use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, Currency, RefundStatus};
+use common_enums::{
+    AttemptStatus, AuthenticationType, CaptureMethod, Currency, FutureUsage, RefundStatus,
+};
 use common_utils::{crypto::SignMessage, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, Void},
@@ -364,10 +366,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Hyperswitch hardcodes it to `true` on every card authorize
         // (`router/src/core/payments/transformers.rs`), so keying off it
         // rejected every single PayNearMe payment that came from Hyperswitch.
-        if common.auth_type == AuthenticationType::ThreeDs
-            || request.authentication_data.is_some()
+        if common.auth_type == AuthenticationType::ThreeDs || request.authentication_data.is_some()
         {
             return Err(not_supported("Three DS payments"));
+        }
+
+        // Mandates / MIT / stored credentials are out of scope for this
+        // integration: `SetupMandate` and `RepeatPayment` are `not_implemented`
+        // and `mandates` is declared `NotSupported` in `paynearme.rs`. Nothing
+        // here reads `mandate_id` / `setup_mandate_details` / `setup_future_usage`,
+        // so without this guard an off-session or credential-storing authorize
+        // would be charged as a plain one-off and come back with
+        // `mandate_reference: None` — the merchant would believe a credential
+        // was stored when none was. Refuse, for the same reason 3DS is refused
+        // above rather than silently downgraded.
+        if request.mandate_id.is_some()
+            || request.setup_mandate_details.is_some()
+            || request.setup_future_usage == Some(FutureUsage::OffSession)
+        {
+            return Err(not_supported("Mandates / stored credentials"));
         }
 
         // There is no capture endpoint anywhere in the API (see `Capture` in
@@ -1010,11 +1027,29 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
         // was tokenised but not charged; report Pending and let PSync resolve it
         // rather than claiming Charged.
         let (status, resource_id, connector_metadata) = match payment {
-            Some(payment) => (
-                payment.attempt_status(),
-                payment.resource_id().unwrap_or(ResponseId::NoResponseId),
-                payment.connector_metadata_with_order(order_identifier.as_ref()),
-            ),
+            // A money-moved status is only trustworthy if it comes with an
+            // identifier to reconcile against. `pnm_payment_identifier` is
+            // absent — or an empty string, which `deserialize_string_or_number`
+            // also reports as absent — on a malformed 201, and pairing
+            // `Charged` with `NoResponseId` would record an unreconcilable,
+            // unrefundable charge that PSync, Void and Refund can never key on.
+            // Fall back to the order id and report Pending so PSync can resolve
+            // it, exactly as the `None` arm below already does.
+            Some(payment) => match payment.resource_id() {
+                Some(resource_id) => (
+                    payment.attempt_status(),
+                    resource_id,
+                    payment.connector_metadata_with_order(order_identifier.as_ref()),
+                ),
+                None => (
+                    AttemptStatus::Pending,
+                    order_identifier
+                        .clone()
+                        .map(ResponseId::ConnectorTransactionId)
+                        .unwrap_or(ResponseId::NoResponseId),
+                    payment.connector_metadata_with_order(order_identifier.as_ref()),
+                ),
+            },
             None => (
                 AttemptStatus::Pending,
                 order_identifier
@@ -1095,13 +1130,13 @@ impl TryFrom<ResponseRouterData<PaynearmeSyncResponse, Self>> for SyncRouterData
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Payment(AttemptStatus::Failure),
+                        FlowStatus::Payment(AttemptStatus::Pending),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
                     )),
                     resource_common_data: PaymentFlowData {
-                        status: AttemptStatus::Failure,
+                        status: AttemptStatus::Pending,
                         ..item.router_data.resource_common_data
                     },
                     ..item.router_data
@@ -1222,13 +1257,13 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundResponse, Self>> for RefundRouter
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Refund(RefundStatus::Failure),
+                        FlowStatus::Refund(RefundStatus::Pending),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
                     )),
                     resource_common_data: RefundFlowData {
-                        status: RefundStatus::Failure,
+                        status: RefundStatus::Pending,
                         ..item.router_data.resource_common_data
                     },
                     ..item.router_data
@@ -1292,13 +1327,13 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundSyncResponse, Self>> for RefundSy
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Refund(RefundStatus::Failure),
+                        FlowStatus::Refund(RefundStatus::Pending),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
                     )),
                     resource_common_data: RefundFlowData {
-                        status: RefundStatus::Failure,
+                        status: RefundStatus::Pending,
                         ..item.router_data.resource_common_data
                     },
                     ..item.router_data
