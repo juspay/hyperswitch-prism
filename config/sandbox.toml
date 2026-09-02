@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+paylater.base_url = "https://connect.uat.paylaterapp.com"
 citigate.base_url = "https://gw-test.cgate.tech"
 saferpay.base_url = "https://test.saferpay.com/api"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"

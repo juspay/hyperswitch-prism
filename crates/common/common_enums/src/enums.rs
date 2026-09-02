@@ -1547,6 +1547,7 @@ pub enum PaymentMethodType {
     Paysera,
     Paymaya,
     QwikcilverWallet,
+    PayLater,
 }
 
 impl PaymentMethodType {

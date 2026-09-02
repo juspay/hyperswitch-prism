@@ -168,6 +168,7 @@ pub enum ConnectorEnum {
     Ilixium,
     Worldpayraft,
     Saferpay,
+    Paylater,
 }
 
 // snake case for enum variants
@@ -539,6 +540,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
+            grpc_api_types::payments::Connector::Paylater => Ok(Self::Paylater),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -4203,6 +4205,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
                 payment_method_data::PayLaterData::TamaraRedirect {} => Self::TamaraRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
+                payment_method_data::PayLaterData::PayLaterRedirect {} => Self::PayLaterRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
                 payment_method_data::BankRedirectData::BancontactCard { .. } => {
@@ -5834,6 +5837,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
+            AuthType::Paylater(_) => Ok(Self::Payment(ConnectorEnum::Paylater)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

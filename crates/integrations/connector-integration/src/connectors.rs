@@ -316,3 +316,6 @@ pub use self::worldpayraft::Worldpayraft;
 
 pub mod saferpay;
 pub use self::saferpay::Saferpay;
+
+pub mod paylater;
+pub use self::paylater::Paylater;
