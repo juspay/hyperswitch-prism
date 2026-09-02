@@ -137,7 +137,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
     fn get_currency_unit(&self) -> CurrencyUnit {
         // Orbital's wire amount is the major-unit value with two implied decimals
-        // for every currency; see `transformers::JpmorganOrbitalAmountForConnector`.
+        // for every currency; see `common_utils::types::StringTwoDecimalUnit`.
         CurrencyUnit::Base
     }
 

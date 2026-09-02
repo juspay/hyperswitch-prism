@@ -412,8 +412,8 @@ impl StringMajorUnit {
     }
 }
 
-/// The number of implied decimals [`StringImpliedDecimal`] always carries.
-const IMPLIED_DECIMAL_EXPONENT: u32 = 2;
+/// The number of implied decimals [`StringTwoDecimalUnit`] always carries.
+const TWO_DECIMAL_EXPONENT: u32 = 2;
 
 /// `10^exponent` for a currency's own ISO 4217 exponent (0, 2, 3 or 4). Errors for a
 /// currency with no decimal configuration rather than assuming two.
@@ -426,12 +426,13 @@ fn currency_scale(currency: enums::Currency) -> Result<i128, error_stack::Report
     Ok(10_i128.pow(u32::from(exponent)))
 }
 
-/// Connector specific types to send
+/// An amount fixed at **exactly two** implied decimal places, whatever the currency's own
+/// ISO 4217 exponent is.
 ///
-/// The major amount rendered with exactly two decimal places and the decimal point
-/// dropped, i.e. `minor * 100 / 10^currency_exponent`. The two decimals are implied for
-/// **every** currency, including zero-exponent ones: USD 1234 and JPY 1234 serialize as
-/// `"1234"` and `"123400"` respectively.
+/// The major amount rendered with two decimal places and the decimal point dropped, i.e.
+/// `minor * 100 / 10^currency_exponent`. The scale is two for **every** currency,
+/// including zero-exponent ones: USD 1234 and JPY 1234 serialize as `"1234"` and
+/// `"123400"` respectively.
 ///
 /// Use this for gateways that fix the scale of the amount field instead of taking the
 /// currency's own exponent. Field constraints that belong to a particular gateway rather
@@ -439,9 +440,9 @@ fn currency_scale(currency: enums::Currency) -> Result<i128, error_stack::Report
 /// applied here; call [`Self::validate_max_len`] and [`Self::validate_unsigned`] at the
 /// point of use so each connector's own rules stay visible in its transformer.
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq)]
-pub struct StringImpliedDecimal(String);
+pub struct StringTwoDecimalUnit(String);
 
-impl StringImpliedDecimal {
+impl StringTwoDecimalUnit {
     /// forms a new implied-decimal unit from amount
     fn new(value: String) -> Self {
         Self(value)
@@ -484,21 +485,21 @@ impl StringImpliedDecimal {
         Ok(self)
     }
 
-    /// Converts to minor unit as i64 from StringImpliedDecimal
+    /// Converts to minor unit as i64 from StringTwoDecimalUnit
     fn to_minor_unit_as_i64(
         &self,
         currency: enums::Currency,
     ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
         let wire = self.0.parse::<i128>().map_err(|_| {
-            error_stack::report!(ParsingError::StructParseFailure("implied decimal amount"))
+            error_stack::report!(ParsingError::StructParseFailure("two-decimal amount"))
                 .attach_printable(format!("`{}` is not an integer", self.0))
         })?;
 
         let scaled = wire * currency_scale(currency)?;
-        let divisor = 10_i128.pow(IMPLIED_DECIMAL_EXPONENT);
+        let divisor = 10_i128.pow(TWO_DECIMAL_EXPONENT);
         if scaled % divisor != 0 {
             return Err(error_stack::report!(ParsingError::StructParseFailure(
-                "implied decimal amount"
+                "two-decimal amount"
             ))
             .attach_printable(format!(
                 "`{wire}` is not a whole number of {currency:?} minor units"
@@ -513,10 +514,10 @@ impl StringImpliedDecimal {
 
 /// Connector required amount type
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq)]
-pub struct StringImpliedDecimalForConnector;
+pub struct StringTwoDecimalUnitForConnector;
 
-impl AmountConvertor for StringImpliedDecimalForConnector {
-    type Output = StringImpliedDecimal;
+impl AmountConvertor for StringTwoDecimalUnitForConnector {
+    type Output = StringTwoDecimalUnit;
 
     /// `wire = minor * 100 / 10^currency_exponent`, kept in `i128` so there is neither a
     /// float hop nor an intermediate decimal string to re-parse.
@@ -527,21 +528,21 @@ impl AmountConvertor for StringImpliedDecimalForConnector {
     ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
         let minor = i128::from(amount.get_amount_as_i64());
         let scale = currency_scale(currency)?;
-        let scaled = minor * 10_i128.pow(IMPLIED_DECIMAL_EXPONENT);
+        let scaled = minor * 10_i128.pow(TWO_DECIMAL_EXPONENT);
         // A currency with more than two decimals cannot always be expressed with two
         // implied ones, so refuse rather than silently dropping the sub-unit digits.
         // Unlike a length or sign limit this is intrinsic to the encoding, so no caller
         // can meaningfully opt out of it.
         if scaled % scale != 0 {
             return Err(error_stack::report!(ParsingError::StructParseFailure(
-                "implied decimal amount"
+                "two-decimal amount"
             ))
             .attach_printable(format!(
                 "{currency:?} minor amount {minor} has non-zero digits below the two \
                  decimals this format can represent"
             )));
         }
-        Ok(StringImpliedDecimal::new((scaled / scale).to_string()))
+        Ok(StringTwoDecimalUnit::new((scaled / scale).to_string()))
     }
 
     fn convert_back(

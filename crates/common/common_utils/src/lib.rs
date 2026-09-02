@@ -40,8 +40,8 @@ pub use superposition_config::{
 };
 pub use types::{
     AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
-    StringImpliedDecimal, StringImpliedDecimalForConnector, StringMajorUnit,
-    StringMajorUnitForConnector, StringMinorUnit,
+    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
+    StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;
 pub mod events;

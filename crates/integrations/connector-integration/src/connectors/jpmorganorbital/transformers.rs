@@ -1,7 +1,7 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
 use common_utils::{
     pii::SecretSerdeValue,
-    types::{AmountConvertor, StringImpliedDecimal, StringImpliedDecimalForConnector},
+    types::{AmountConvertor, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},
@@ -371,8 +371,8 @@ pub struct JpmorganOrbitalPaymentInstrument<T: PaymentMethodDataTypes> {
 pub struct JpmorganOrbitalOrder {
     #[serde(rename = "orderID")]
     pub order_id: String,
-    /// Two implied decimals for every currency. See [`JpmorganOrbitalAmount`].
-    pub amount: StringImpliedDecimal,
+    /// Two implied decimals for every currency. See [`StringTwoDecimalUnit`].
+    pub amount: StringTwoDecimalUnit,
     #[serde(rename = "industryType")]
     pub industry_type: String,
     /// Idempotency key **and** the `/inquiry` lookup key. Always sent.
@@ -773,7 +773,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Merchant ID setup and has no field to receive it.
                 // The encoding is shared; the unsigned and 12-character rules are
                 // Orbital's own field constraints, so they stay visible here.
-                amount: StringImpliedDecimalForConnector
+                amount: StringTwoDecimalUnitForConnector
                     .convert(request.minor_amount, request.currency)
                     .and_then(|amount| amount.validate_unsigned("order.amount"))
                     .and_then(|amount| amount.validate_max_len(MAX_AMOUNT_LEN, "order.amount"))
