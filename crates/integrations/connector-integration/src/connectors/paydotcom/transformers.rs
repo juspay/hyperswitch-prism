@@ -634,16 +634,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             context: Default::default(),
                         })
                     })?;
-                // Without a return_url the shopper has nowhere to land after the challenge.
+                // Where the shopper lands after the challenge. This MUST be the
+                // continue-redirection ("complete authorize") URL, not the plain return
+                // URL: landing on the plain one makes the orchestrator treat the return as
+                // a sync and leg 3 (`/confirm`) never runs, so the resource is left parked
+                // on `requires_authentication` forever. `router_return_url` is only a
+                // fallback for callers that drive the flow themselves and set nothing else.
                 let return_url = item
                     .request
-                    .router_return_url
+                    .complete_authorize_url
                     .clone()
-                    .or_else(|| item.request.complete_authorize_url.clone())
+                    .or_else(|| item.request.router_return_url.clone())
                     .or_else(|| item.resource_common_data.return_url.clone())
                     .ok_or_else(|| {
                         error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "router_return_url",
+                            field_name: "complete_authorize_url",
                             context: Default::default(),
                         })
                     })?;
@@ -1197,13 +1202,18 @@ impl PaydotcomPaymentsResponse {
                 })
             }),
             mandate_reference: None,
-            connector_metadata: match self {
+            // While the gateway-3DS journey is unfinished the resource id has to be
+            // republished HERE, not only on `PaymentFlowData::connector_feature_data`:
+            // the Authorize response maps `PaymentsResponseData::connector_metadata` (and
+            // only that) onto the gRPC `connector_feature_data`, so anything left on the
+            // flow data is dropped and the caller cannot drive the `/confirm` leg.
+            connector_metadata: self.pending_metadata().or_else(|| match self {
                 Self::Charge(charge) => charge
                     .hold
                     .as_ref()
                     .map(|hold| serde_json::json!({ "hold": hold })),
                 Self::Hold(_) | Self::AuthenticationSession(_) => None,
-            },
+            }),
             network_txn_id: None,
             network_txn_link_id: None,
             connector_response_reference_id: self.reference(),

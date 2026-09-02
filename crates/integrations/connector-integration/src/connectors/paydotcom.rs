@@ -31,12 +31,24 @@
 //!   | 2 | `Authorize` | `POST /v1/sessions/authentication/linked` `{resource, return_url, confirm:false}` | the challenge `url` → `RedirectForm` |
 //!   | 3 | `Authorize` | `POST /v1/{charges\|holds}/{id}/confirm` | the final status, read synchronously |
 //!
-//!   The resource id travels between legs on `PaymentFlowData::connector_feature_data`:
-//!   the connector publishes it, the caller persists it as the attempt's
-//!   `connector_metadata`, and hands it back on the next Authorize. This is exactly the
-//!   channel Saferpay uses for its session token
-//!   (`saferpay/transformers.rs::settle_token`), and it is read back here by
-//!   `transformers::pending_resource_id`.
+//!   The resource id travels between legs as `{"paydotcom_resource": "<id>"}`: the
+//!   connector publishes it, the caller persists it as the attempt's
+//!   `connector_metadata`, and hands it back on the next Authorize, where
+//!   `transformers::pending_resource_id` reads it out of `connector_feature_data`. This is
+//!   the channel Saferpay uses for its session token
+//!   (`saferpay/transformers.rs::settle_token`).
+//!
+//!   It has to be published on **two** channels, because the gRPC response mapping differs
+//!   per flow: PreAuthenticate serialises `PaymentFlowData::connector_feature_data`, while
+//!   Authorize serialises `PaymentsResponseData::TransactionResponse::connector_metadata`
+//!   (`domain_types/src/types.rs`). Publishing on only one of them silently drops the id on
+//!   the other leg, and leg 3 then has nothing to confirm.
+//!
+//!   Leg 2's `return_url` is the caller's **continue-redirection** URL
+//!   (`complete_authorize_url`), not its plain return URL: Hyperswitch runs its
+//!   CompleteAuthorize operation — which is what drives leg 3 — only for shoppers who come
+//!   back on that URL. A plain return URL is treated as a sync and the charge stays parked
+//!   on `requires_authentication`.
 //!
 //!   `confirm: false` is deliberate: with `confirm: true` Pay.com authorizes on its own and
 //!   reports only via webhooks, which are out of scope here. `false` keeps the settle on
