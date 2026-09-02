@@ -75,6 +75,8 @@ pub struct WorldpayxmlOrder {
     pub create_token: Option<WorldpayxmlCreateToken>,
     #[serde(rename = "additional3DSData", skip_serializing_if = "Option::is_none")]
     pub additional_threeds_data: Option<WorldpayxmlAdditionalThreeDSData>,
+    #[serde(rename = "fundingTransfer", skip_serializing_if = "Option::is_none")]
+    pub funding_transfer: Option<WorldpayxmlFundingTransfer>,
 }
 
 #[derive(Debug, Serialize)]
@@ -294,6 +296,141 @@ pub struct WorldpayxmlDate {
     pub month: Secret<String>,
     #[serde(rename = "@year")]
     pub year: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingTransfer {
+    #[serde(rename = "@type")]
+    pub transfer_type: String,
+    #[serde(rename = "@category")]
+    pub category: String,
+    pub payment_purpose: String,
+    pub funding_party: Vec<WorldpayxmlFundingParty>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorldpayxmlFundingPartyType {
+    Sender,
+    Recipient,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingParty {
+    #[serde(rename = "@type")]
+    pub party_type: WorldpayxmlFundingPartyType,
+    pub account_reference: WorldpayxmlAccountReference,
+    pub full_name: WorldpayxmlFullName,
+    pub funding_address: WorldpayxmlFundingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub funding_data: Option<WorldpayxmlFundingData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlAccountReference {
+    #[serde(rename = "@accountType")]
+    pub account_type: String,
+    #[serde(rename = "$text")]
+    pub value: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFullName {
+    pub first: Secret<String>,
+    pub last: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingAddress {
+    pub address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    pub city: String,
+    pub state: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth_date: Option<WorldpayxmlBirthDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlBirthDate {
+    pub date: WorldpayxmlFundingDate,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlFundingDate {
+    #[serde(rename = "@dayOfMonth")]
+    pub day_of_month: Secret<String>,
+    #[serde(rename = "@month")]
+    pub month: Secret<String>,
+    #[serde(rename = "@year")]
+    pub year: Secret<String>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlFundingTransactionType {
+    CreditCardBillRepayment,
+    GiftCardPurchase,
+    GiftCardPurchaseForAnother,
+    NonReloadablePrepaidCard,
+    ReloadablePrepaidCardOrAccount,
+    GamingChipsPurchase,
+    GamingStoredValueWallet,
+    GamingStagedDigitalWallet,
+    LiquidAndCryptoAssetsPurchase,
+    LiquidAndCryptoStoredValueWalletLoad,
+    StoredValueDigitalWalletLoad,
+    StoredValueDigitalWalletLoadNonSecurities,
+    SecuritiesStoredValueDigitalWalletLoad,
+    SecuritiesStagedDigitalWalletLoad,
+    SingleMerchantWalletLoad,
+    DebitCardLoad,
+    TransferToOwnDebitAccount,
+    FundsTransferMeToMe,
+    AccountToAccount,
+    BackToBackP2pWithoutWallet,
+    BackToBackP2pWithWallet,
+    AgentCashOut,
+    StagedDigitalWalletLoad,
+    StagedDigitalWalletPurchase,
+    BackToBackCardPurchase,
+    PayrollDisbursementFunding,
+    BusinessToConsumerDisbursement,
+    BusinessToBusinessInvoicePayment,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlPaymentPurpose {
+    FamilySupport,
+    RegularLabourTransfers,
+    TravelAndTourism,
+    Education,
+    HospitalisationAndMedicalTreatment,
+    EmergencyNeed,
+    Savings,
+    Gifts,
+    Other,
+    Salary,
+    CrowdLending,
+    CryptoCurrency,
+    HighRiskSecurities,
 }
 
 #[derive(Debug, Serialize)]
