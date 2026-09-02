@@ -649,6 +649,18 @@ pub struct TruelayerPSyncResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TruelayerPaymentMethod {
     provider_selection: Option<TruelayerProviderSelection>,
+    /// Webhook payloads flatten `provider_id` onto `payment_method`, while the
+    /// payments API nests it under `provider_selection`. Accept both shapes.
+    provider_id: Option<String>,
+}
+
+impl TruelayerPaymentMethod {
+    fn get_provider_id(&self) -> Option<String> {
+        self.provider_selection
+            .as_ref()
+            .and_then(|selection| selection.provider_id.clone())
+            .or_else(|| self.provider_id.clone())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1383,71 +1395,11 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         ..item.router_data
                     })
                 } else {
-                    let account_holder_name = response
-                        .payment_source
-                        .as_ref()
-                        .and_then(|s| s.account_holder_name.clone());
-
-                    let mut sort_code: Option<Secret<String>> = None;
-                    let mut account_number: Option<Secret<String>> = None;
-                    let mut iban: Option<Secret<String>> = None;
-
-                    if let Some(source) = response.payment_source.as_ref() {
-                        for identifier in source.account_identifiers.iter().flatten() {
-                            match identifier.identifier_type {
-                                TruelayerAccountIdentifierType::SortCodeAccountNumber => {
-                                    sort_code = identifier.sort_code.clone();
-                                    account_number = identifier.account_number.clone();
-                                }
-                                TruelayerAccountIdentifierType::Iban => {
-                                    iban = identifier.iban.clone();
-                                }
-                                TruelayerAccountIdentifierType::Unknown => {}
-                            }
-                        }
-                    }
-
-                    let provider_id = response
-                        .payment_method
-                        .as_ref()
-                        .and_then(|pm| pm.provider_selection.as_ref())
-                        .and_then(|ps| ps.provider_id.clone());
-
-                    let bank_name = provider_id.as_ref().and_then(|pid| {
-                        map_truelayer_provider_id_to_bank_name(pid)
-                            .map_err(|error| {
-                                tracing::warn!(
-                                    %error,
-                                    provider_id = %pid,
-                                    "Failed to map TrueLayer provider_id to BankNames"
-                                );
-                            })
-                            .ok()
-                    });
-
-                    let has_returned_open_banking_details = bank_name.is_some()
-                        || (account_holder_name.is_some()
-                            && ((account_number.is_some() && sort_code.is_some())
-                                || iban.is_some()));
-
-                    let additional_details = provider_id
-                        .map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
-
                     let connector_returned_payment_method_details =
-                        if has_returned_open_banking_details {
-                            Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
-                                BankRedirectData::OpenBanking {
-                                    bank_name,
-                                    account_number,
-                                    sort_code,
-                                    iban,
-                                    account_holder_name,
-                                    additional_details,
-                                },
-                            ))
-                        } else {
-                            None
-                        };
+                        extract_returned_open_banking_details(
+                            response.payment_source.as_ref(),
+                            response.payment_method.as_ref(),
+                        );
 
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
@@ -1872,6 +1824,7 @@ pub struct TruelayerWebhookBody {
     pub failure_stage: Option<String>,
     pub user_id: Option<String>,
     pub payment_source: Option<TruelayerPaymentSource>,
+    pub payment_method: Option<TruelayerPaymentMethod>,
 }
 
 /// Discriminator for the type of account identifier provided in a payment source.
@@ -1889,6 +1842,68 @@ pub struct TruelayerPaymentSource {
     pub id: Option<String>,
     pub account_holder_name: Option<Secret<String>>,
     pub account_identifiers: Option<Vec<TruelayerAccountIdentifier>>,
+}
+
+pub fn extract_returned_open_banking_details(
+    payment_source: Option<&TruelayerPaymentSource>,
+    payment_method: Option<&TruelayerPaymentMethod>,
+) -> Option<PaymentMethodData<DefaultPCIHolder>> {
+    let account_holder_name = payment_source.and_then(|source| source.account_holder_name.clone());
+
+    let mut sort_code: Option<Secret<String>> = None;
+    let mut account_number: Option<Secret<String>> = None;
+    let mut iban: Option<Secret<String>> = None;
+
+    if let Some(source) = payment_source {
+        for identifier in source.account_identifiers.iter().flatten() {
+            match identifier.identifier_type {
+                TruelayerAccountIdentifierType::SortCodeAccountNumber => {
+                    sort_code = identifier.sort_code.clone();
+                    account_number = identifier.account_number.clone();
+                }
+                TruelayerAccountIdentifierType::Iban => {
+                    iban = identifier.iban.clone();
+                }
+                TruelayerAccountIdentifierType::Unknown => {}
+            }
+        }
+    }
+
+    let provider_id = payment_method.and_then(|method| method.get_provider_id());
+
+    let bank_name = provider_id.as_ref().and_then(|pid| {
+        map_truelayer_provider_id_to_bank_name(pid)
+            .map_err(|error| {
+                tracing::warn!(
+                    %error,
+                    provider_id = %pid,
+                    "Failed to map TrueLayer provider_id to BankNames"
+                );
+            })
+            .ok()
+    });
+
+    let has_returned_open_banking_details = bank_name.is_some()
+        || (account_holder_name.is_some()
+            && ((account_number.is_some() && sort_code.is_some()) || iban.is_some()));
+
+    let additional_details =
+        provider_id.map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
+
+    if has_returned_open_banking_details {
+        Some(PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+            BankRedirectData::OpenBanking {
+                bank_name,
+                account_number,
+                sort_code,
+                iban,
+                account_holder_name,
+                additional_details,
+            },
+        ))
+    } else {
+        None
+    }
 }
 
 pub fn get_webhook_event(

@@ -28,7 +28,27 @@ pub struct WorldpayxmlOrderStatus {
     pub payment: Option<WorldpayxmlPayment>,
     /// Present when the order asked Worldpay to create a payment token.
     pub token: Option<WorldpayxmlToken>,
+    /// Present when 3DS authentication demands a shopper challenge.
+    #[serde(rename = "challengeRequired")]
+    pub challenge_required: Option<WorldpayxmlChallengeRequired>,
     pub error: Option<WorldpayxmlError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlChallengeRequired {
+    #[serde(rename = "threeDSChallengeDetails")]
+    pub three_ds_challenge_details: Option<WorldpayxmlThreeDSChallengeDetails>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct WorldpayxmlThreeDSChallengeDetails {
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: Option<String>,
+    #[serde(rename = "acsURL")]
+    pub acs_url: Option<String>,
+    #[serde(rename = "transactionId3DS")]
+    pub transaction_id_3ds: Option<String>,
+    pub payload: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -78,6 +98,7 @@ pub struct WorldpayxmlPayment {
     pub payment_method_detail: Option<WorldpayxmlPaymentMethodDetail>,
     pub balance: Option<Vec<WorldpayxmlBalance>>,
     pub scheme_response: Option<WorldpayxmlSchemeResponse>,
+    pub card_p_a_r: Option<String>,
 }
 
 /// `lastEvent`/`PaymentStatus` values Worldpay reports for an order. Unmodelled values
@@ -469,4 +490,21 @@ pub struct WorldpayxmlPayoutVoidReply {
 #[serde(rename_all = "camelCase")]
 pub struct WorldpayxmlPayoutCancelOk {
     pub cancel_received: WorldpayxmlCancelReceived,
+}
+
+/// Payload the device-data-collection page posts back on the shopper's return.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlDdcRedirectResponse {
+    pub action_code: String,
+    pub session_id: Option<Secret<String>>,
+}
+
+/// Payload the ACS posts back after a 3DS challenge.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayxmlRedirectionResponse {
+    pub m_d: Option<String>,
+    pub response: String,
+    pub transaction_id: Option<String>,
 }

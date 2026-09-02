@@ -72,7 +72,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><APPLEPAY-SSL><header><ephemeralPublicKey>probe</ephemeralPublicKey><publicKeyHash>probe</publicKeyHash><transactionId>probe_txn_id</transactionId></header><signature>probe</signature><version>EC_v1</version><data>probe</data></APPLEPAY-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><APPLEPAY-SSL><header><ephemeralPublicKey>probe</ephemeralPublicKey><publicKeyHash>probe</publicKeyHash><transactionId>probe_txn_id</transactionId></header><signature>probe</signature><version>EC_v1</version><data>probe</data></APPLEPAY-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       },
       "ApplePayDecrypted": {
@@ -119,7 +119,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"APPLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"APPLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -206,7 +206,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       },
       "CashappQr": {
@@ -320,7 +320,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><PAYWITHGOOGLE-SSL><protocolVersion>ECv2</protocolVersion><signature>probe</signature><signedMessage>probe</signedMessage></PAYWITHGOOGLE-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><PAYWITHGOOGLE-SSL><protocolVersion>ECv2</protocolVersion><signature>probe</signature><signedMessage>probe</signedMessage></PAYWITHGOOGLE-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       },
       "GooglePayDecrypted": {
@@ -365,7 +365,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"GOOGLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><EMVCO_TOKEN-SSL type=\"GOOGLEPAY\"><tokenNumber>4111111111111111</tokenNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cryptogram>AAAAAA==</cryptogram><eciIndicator>05</eciIndicator></EMVCO_TOKEN-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -777,8 +777,7 @@
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for worldpayxml"
+        "status": "supported"
       }
     },
     "proxy_authorize": {
@@ -813,7 +812,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL></paymentDetails><shopper/></order></submit></paymentService>"
         }
       }
     },
@@ -855,7 +854,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>probe_customer_001</authenticatedShopperID></shopper><billingAddress><address/></billingAddress><createToken tokenScope=\"shopper\"><tokenEventReference>probe_proxy_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>probe_customer_001</authenticatedShopperID></shopper><createToken tokenScope=\"shopper\"><tokenEventReference>probe_proxy_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
         }
       }
     },
@@ -1013,7 +1012,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>cust_probe_123</authenticatedShopperID></shopper><billingAddress><address/></billingAddress><createToken tokenScope=\"shopper\"><tokenEventReference>probe_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_mandate_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"0\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>737</cvc></CARD-SSL><storedCredentials usage=\"FIRST\" cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"UNSCHEDULED\"/></paymentDetails><shopper><authenticatedShopperID>cust_probe_123</authenticatedShopperID></shopper><createToken tokenScope=\"shopper\"><tokenEventReference>probe_mandate_001</tokenEventReference></createToken></order></submit></paymentService>"
         }
       }
     },
