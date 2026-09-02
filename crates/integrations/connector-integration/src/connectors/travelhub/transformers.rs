@@ -11,7 +11,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -556,6 +556,48 @@ fn map_travelhub_refund_status(result: &TravelhubResult) -> RefundStatus {
     }
 }
 
+/// Wire-format code for a failure `result`. TravelHub reports business failures on HTTP 200
+/// through the `result` field alone — the payments envelope has no error code/message fields
+/// to deserialize — so the result literal itself is carried as the error code rather than
+/// inventing phantom response fields. (Real HTTP-error failures already surface with full
+/// detail via the Spring Boot envelope parsed in `build_error_response`.)
+fn travelhub_result_code(result: &TravelhubResult) -> &'static str {
+    match result {
+        TravelhubResult::Declined => "DECLINED",
+        TravelhubResult::Error => "ERROR",
+        TravelhubResult::Invalid => "INVALID",
+        _ => "UNKNOWN",
+    }
+}
+
+/// Builds the `Err(ErrorResponse)` for an HTTP-200 business failure (DECLINED / ERROR /
+/// INVALID), citigate-style: failures are surfaced as `Err` rather than as an
+/// Ok-with-Failure response, so the merchant receives an actual error payload instead of an
+/// unexplained failure status with empty code/message/reason.
+fn travelhub_error_response(
+    result: &TravelhubResult,
+    http_code: u16,
+    transaction_id: Option<String>,
+    attempt_status: Option<FlowStatus>,
+) -> ErrorResponse {
+    let code = travelhub_result_code(result);
+    ErrorResponse {
+        status_code: http_code,
+        code: code.to_string(),
+        message: format!("TravelHub reported the transaction as {code}"),
+        reason: None,
+        attempt_status,
+        connector_transaction_id: transaction_id,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
 // Authorize Response Transformation
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResponse, Self>>
@@ -571,6 +613,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TravelhubPaymentsResp
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                )),
+                resource_common_data: PaymentFlowData {
+                    status: map_travelhub_status(result),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
 
         let redirection_data = item.response.response3ds.as_ref().and_then(|r3ds| {
             r3ds.acs_url.as_ref().map(|acs_url| {
@@ -681,7 +742,33 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
-        let status = map_travelhub_status(result);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                )),
+                resource_common_data: PaymentFlowData {
+                    status: map_travelhub_status(result),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let status = match result {
+            // A capture TravelHub approved means the funds are captured on its side; mapping
+            // it to Authorized (the shared mapper's meaning: merely held) would invite a
+            // second capture call.
+            TravelhubResult::Approved => AttemptStatus::Charged,
+            other => map_travelhub_status(other),
+        };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -755,7 +842,32 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
-        let status = map_travelhub_status(result);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                )),
+                resource_common_data: PaymentFlowData {
+                    status: map_travelhub_status(result),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let status = match result {
+            // An approved /cancel is a successful void; the shared mapper would leave it
+            // Authorized, looking capturable.
+            TravelhubResult::Approved => AttemptStatus::Voided,
+            other => map_travelhub_status(other),
+        };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -829,6 +941,26 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                )),
+                resource_common_data: PaymentFlowData {
+                    status: map_travelhub_status(result),
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
         let status = if result == &TravelhubResult::Approved {
             let is_auto_capture =
                 !crate::utils::is_manual_capture(item.router_data.request.capture_method);
@@ -871,6 +1003,49 @@ impl TryFrom<ResponseRouterData<TravelhubPSyncResponse, Self>>
 
 // Refund Request
 
+/// TravelHub binds a refund (and its status lookup) to the original payment by `orderId`
+/// alone — the same reference that the Authorize call sent as `orderId`, carried by the
+/// refund body as its only pointer to the original transaction.
+///
+/// `RefundFlowData::connector_request_reference_id` cannot serve here: the framework derives
+/// it from `merchant_refund_id`, so it identifies *this refund*, not the payment.
+///
+/// The payment reference is instead taken from the refund request's `connector_order_id` —
+/// the field whose documented purpose is exactly this ("connector-side identifier for the
+/// original payment that this refund targets"). Both `RefundsData` (Refund) and
+/// `RefundSyncData` (RSync) carry it, so this helper is shared by both. When it is absent,
+/// the request is refused locally rather than sending TravelHub a reference that can never
+/// match an order.
+fn resolve_original_order_id(
+    connector_order_id: Option<&str>,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    connector_order_id
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass the original Authorize call's order reference (the \
+                         merchant_transaction_id that was sent to TravelHub as `orderId`) as \
+                         `connector_order_id` on the refund (or refund-get) request."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "TravelHub resolves refunds by `orderId` alone, the only \
+                         original-payment identifier the refund body carries. \
+                         `RefundFlowData::connector_request_reference_id` is derived from \
+                         `merchant_refund_id` and identifies this refund call, so it cannot \
+                         locate the original payment."
+                            .to_string(),
+                    ),
+                },
+            })
+        })
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubRefundRequest {
@@ -892,10 +1067,7 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
 
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
-            order_id: item
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
             amount: item.request.minor_refund_amount,
             currency: item.request.currency,
         })
@@ -917,6 +1089,22 @@ impl TryFrom<ResponseRouterData<TravelhubRefundResponse, Self>>
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Refund(map_travelhub_refund_status(result))),
+                )),
+                ..item.router_data
+            });
+        }
+
         let refund_status = map_travelhub_refund_status(result);
 
         let connector_refund_id = item.response.transaction_id.clone().ok_or_else(|| {
@@ -959,10 +1147,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
 
         Ok(Self {
             merchant_id: auth.get_merchant_id(),
-            order_id: item
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            order_id: resolve_original_order_id(item.request.connector_order_id.as_deref())?,
         })
     }
 }
@@ -982,6 +1167,22 @@ impl TryFrom<ResponseRouterData<TravelhubRSyncResponse, Self>>
             .result
             .as_ref()
             .unwrap_or(&TravelhubResult::Pending);
+
+        if matches!(
+            result,
+            TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
+        ) {
+            return Ok(Self {
+                response: Err(travelhub_error_response(
+                    result,
+                    item.http_code,
+                    item.response.transaction_id.clone(),
+                    Some(FlowStatus::Refund(map_travelhub_refund_status(result))),
+                )),
+                ..item.router_data
+            });
+        }
+
         let refund_status = map_travelhub_refund_status(result);
 
         let connector_refund_id = item.response.transaction_id.clone().ok_or_else(|| {

@@ -108,6 +108,7 @@ pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRef
     PaymentServiceRefundRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
         connector_transaction_id: connector_transaction_id.to_string(),
+        connector_order_id: Some("probe_merchant_txn_001".to_string()), // Original payment's order reference (= merchant_transaction_id sent as orderId to TravelHub at Authorize) — refunds resolve by orderId alone.
         payment_amount: 1000, // Amount Information.
         refund_amount: Some(Money {
             minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
@@ -122,6 +123,7 @@ pub fn build_refund_get_request() -> RefundServiceGetRequest {
     RefundServiceGetRequest {
         merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
         connector_transaction_id: "probe_connector_txn_001".to_string(),
+        connector_order_id: Some("probe_merchant_txn_001".to_string()), // Original payment's order reference (= merchant_transaction_id sent as orderId to TravelHub at Authorize) — refund status lookups resolve by orderId alone.
         refund_id: "probe_refund_id_001".to_string(), // Deprecated.
         ..Default::default()
     }

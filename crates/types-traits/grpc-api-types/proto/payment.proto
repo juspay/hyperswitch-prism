@@ -6168,9 +6168,9 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
-    // GOTYME_SANLAM = 140
+    // GOTYME_SANLAM = 141 (enum entry pending; 140 is TRAVELHUB)
     GotymeSanlamConfig gotyme_sanlam = 150;
-    // TRAVELHUB = 141
+    // TRAVELHUB = 140
     TravelhubConfig travelhub = 151;
   }
 }
