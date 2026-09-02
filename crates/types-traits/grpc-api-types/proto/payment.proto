@@ -5838,9 +5838,17 @@ message WorldpayraftConfig {
 }
 
 message TravelhubConfig {
+  // Basic-auth credential — sent in the Authorization header as
+  // `Basic base64(username:password)`. Identifies the caller, never the order.
   SecretString username = 1;
+  // Basic-auth credential, paired with `username` in the Authorization header.
   SecretString password = 2;
+  // TravelHub merchant identifier — goes in every API request BODY as `merchantId`
+  // (authorize, capture, status, cancel, refund, refund-status). This is what resolves
+  // which merchant account the orderId belongs to; distinct from the Basic-auth username.
   SecretString merchant_id = 3;
+  // Optional endpoint override. When unset, the server's configured TravelHub base URL
+  // is used (e.g. https://preprod.travel.worldline-solutions.com/travelhub).
   optional string base_url = 50;
 }
 

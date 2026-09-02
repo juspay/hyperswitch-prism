@@ -303,34 +303,57 @@ pub struct TravelhubPaymentsRequest<T: PaymentMethodDataTypes> {
     pub travel: Option<TravelhubTravel>,
 }
 
+/// Resolve TravelHub's `paymentMethodCode` for a card from the supplied card network,
+/// falling back to BIN detection when the network is not provided by the caller
+/// (citigate/mirrors the same pattern).
 fn get_card_payment_method_code<T: PaymentMethodDataTypes>(
     card: &domain_types::payment_method_data::Card<T>,
-) -> Result<&str, IntegrationError> {
-    match card.card_network {
-        Some(common_enums::CardNetwork::Visa) => Ok("108"),
-        Some(common_enums::CardNetwork::Mastercard) => Ok("102"),
-        Some(common_enums::CardNetwork::AmericanExpress) => Ok("117"),
-        Some(common_enums::CardNetwork::Discover) => Ok("159"),
-        Some(common_enums::CardNetwork::DinersClub) => Ok("115"),
-        Some(common_enums::CardNetwork::JCB) => Ok("123"),
-        Some(common_enums::CardNetwork::CartesBancaires) => Ok("130"),
-        Some(common_enums::CardNetwork::UnionPay) => Ok("197"),
-        _ => Err(IntegrationError::NotSupported {
-            message: "card network".to_string(),
-            connector: "travelhub",
-            context: IntegrationErrorContext {
-                suggested_action: Some(
-                    "Use a card from a supported network: Visa, Mastercard, American Express, Discover, Diners Club, JCB, Cartes Bancaires, or UnionPay"
-                        .to_string(),
-                ),
-                doc_url: None,
-                additional_context: Some(
-                    "The provided card network is not supported by travelhub card payments"
-                        .to_string(),
-                ),
-            },
-        }),
+) -> Result<&str, error_stack::Report<IntegrationError>> {
+    if let Some(network) = card.card_network.as_ref() {
+        return match network {
+            common_enums::CardNetwork::Visa => Ok("108"),
+            common_enums::CardNetwork::Mastercard => Ok("102"),
+            common_enums::CardNetwork::AmericanExpress => Ok("117"),
+            common_enums::CardNetwork::Discover => Ok("159"),
+            common_enums::CardNetwork::DinersClub => Ok("115"),
+            common_enums::CardNetwork::JCB => Ok("123"),
+            common_enums::CardNetwork::CartesBancaires => Ok("130"),
+            common_enums::CardNetwork::UnionPay => Ok("197"),
+            other => Err(invalid_card_network_error(format!(
+                "Card network {other:?}"
+            ))),
+        };
     }
+
+    // Network omitted by the caller (valid in UCS) — infer from the card BIN.
+    match domain_types::utils::get_card_issuer(card.card_number.peek())? {
+        domain_types::utils::CardIssuer::Visa => Ok("108"),
+        domain_types::utils::CardIssuer::Master => Ok("102"),
+        domain_types::utils::CardIssuer::AmericanExpress => Ok("117"),
+        domain_types::utils::CardIssuer::Discover => Ok("159"),
+        domain_types::utils::CardIssuer::DinersClub => Ok("115"),
+        domain_types::utils::CardIssuer::JCB => Ok("123"),
+        domain_types::utils::CardIssuer::CartesBancaires => Ok("130"),
+        domain_types::utils::CardIssuer::UnionPay => Ok("197"),
+        other => Err(invalid_card_network_error(format!("Card issuer {other:?}"))),
+    }
+}
+
+fn invalid_card_network_error(detail: String) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: "card network".to_string(),
+        connector: "travelhub",
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Use a card from a supported network: Visa, Mastercard, American Express, Discover, Diners Club, JCB, Cartes Bancaires, or UnionPay"
+                    .to_string(),
+            ),
+            doc_url: None,
+            additional_context: Some(
+                format!("{detail} is not supported by travelhub card payments"),
+            ),
+        },
+    })
 }
 
 impl<T: PaymentMethodDataTypes>
