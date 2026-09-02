@@ -676,7 +676,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"order\":\"connector_order_id\",\"returnUrl\":\"https://example.com/3ds-return\",\"cancelUrl\":\"https://example.com/3ds-return\",\"doThreeDSecure\":true,\"doCreateTransaction\":false}"
+          "body": "{\"order\":\"connector_order_id\",\"returnUrl\":\"https://example.com/3ds-return\",\"cancelUrl\":\"https://example.com/3ds-return\",\"doThreeDSecure\":true,\"doCreateTransaction\":false,\"doCapture\":true}"
         }
       }
     },
