@@ -736,7 +736,17 @@ fn get_worldpayxml_account_reference(
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "a truncated PAN as a recipient account identifier".to_string(),
                     connector: "Worldpayxml",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "worldpayxml funds transfer needs a full recipient account identifier"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "send the recipient account as a full PAN, IBAN, or account number"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }))?
             }
         },
@@ -875,7 +885,16 @@ fn build_worldpayxml_funding_transfer<
                 _ => Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "account funded transactions for non-card payment methods".to_string(),
                     connector: "Worldpayxml",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "worldpayxml derives the funds transfer sender from the card"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "authorize the account funding transaction with a card".to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 })),
             }?;
 
