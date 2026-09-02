@@ -151,11 +151,11 @@ pub struct WorldpayxmlPaymentDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session: Option<WorldpayxmlSession>,
     #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
-    pub info_3d_secure: Option<WorldpayxmlInfo3DSecure>,
+    pub info_3d_secure: Option<WorldpayxmlExternalInfo3DSecure>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct WorldpayxmlInfo3DSecure {
+pub struct WorldpayxmlExternalInfo3DSecure {
     #[serde(rename = "threeDSVersion")]
     pub three_ds_version: String,
     #[serde(rename = "dsTransactionId", skip_serializing_if = "Option::is_none")]

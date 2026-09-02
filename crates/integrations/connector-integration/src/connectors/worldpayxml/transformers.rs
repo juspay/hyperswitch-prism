@@ -95,7 +95,7 @@ impl From<&common_enums::TransactionStatus> for requests::WorldpayxmlTransaction
 
 fn get_worldpayxml_info_3d_secure(
     authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
-) -> Result<Option<requests::WorldpayxmlInfo3DSecure>, Report<IntegrationError>> {
+) -> Result<Option<requests::WorldpayxmlExternalInfo3DSecure>, Report<IntegrationError>> {
     let Some(authentication_data) = authentication_data else {
         return Ok(None);
     };
@@ -170,7 +170,7 @@ fn get_worldpayxml_info_3d_secure(
         .into());
     }
 
-    Ok(Some(requests::WorldpayxmlInfo3DSecure {
+    Ok(Some(requests::WorldpayxmlExternalInfo3DSecure {
         three_ds_version: message_version.to_string(),
         ds_transaction_id: authentication_data.ds_trans_id.clone(),
         cavv: authentication_data.cavv.clone(),
