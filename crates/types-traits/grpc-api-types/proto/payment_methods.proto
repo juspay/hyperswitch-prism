@@ -99,6 +99,7 @@ message PaymentMethod {
     VenmoRedirectWallet venmo_redirect = 173;            // Venmo
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
+    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
     PaymayaRedirectWallet paymaya_redirect = 186;      // Paymaya Redirect
 
     // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
@@ -727,6 +728,11 @@ message MobilePayRedirectWallet {
 // Skrill Redirect - Digital wallet for online payments
 message SkrillRedirectWallet {
   // Fields will be added as needed for Skrill Redirect integration
+}
+
+// Neteller Redirect - Digital wallet for online payments
+message NetellerRedirectWallet {
+  // Consumer email is sourced from billing details.
 }
 
 // Paysera Redirect - European digital wallet and payment service

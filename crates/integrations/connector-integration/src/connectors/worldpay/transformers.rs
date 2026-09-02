@@ -236,7 +236,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
             | WalletDataPaymentMethod::PaymayaRedirect(_)
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-            | WalletDataPaymentMethod::Skrill(_) => {
+            | WalletDataPaymentMethod::Skrill(_)
+            | WalletDataPaymentMethod::Neteller(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",

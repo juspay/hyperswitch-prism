@@ -1023,6 +1023,7 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
+  NETELLER = 117;
   PAYMAYA = 115;
   GRAB_PAY = 116;
 }
@@ -5230,6 +5231,8 @@ message PaysafePaymentMethodDetails {
   map<string, PaysafeRedirectAccountId> skrill = 5;
   // paysafecard processing accounts, keyed by currency.
   map<string, PaysafeRedirectAccountId> pay_safe_card = 6;
+  // Neteller wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> neteller = 7;
 }
 
 message LoonioConfig {
