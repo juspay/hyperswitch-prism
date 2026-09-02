@@ -272,6 +272,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for ElavonPg<T>
 {
+    /// Card 3DS runs through EPG's hosted payment page, which is opened against an
+    /// Order. `order` is the single required member of `PaymentSessionInput` and there
+    /// is no inline-create, so CreateOrder has to run before PreAuthenticate.
+    ///
+    /// This is the composite-service counterpart of the Hyperswitch-side
+    /// `is_order_create_flow_required` gate: without it the composite loop skips
+    /// CreateOrder and PreAuthenticate entirely and a `three_ds` card goes straight to
+    /// Authorize, which then fails on the missing authentication data.
+    fn should_do_order_create(&self) -> bool {
+        true
+    }
+
+    /// Card 3DS: PreAuthenticate opens the hosted payment session and returns the
+    /// shopper URL; once the shopper comes back, the settle Authorize completes the sale
+    /// with `POST /transactions {"paymentSession": <href>}`.
+    ///
+    /// There is no Authenticate or PostAuthenticate leg — EPG runs the challenge inside
+    /// its own page and hands back a payment session, not an ACS handshake. Every other
+    /// payment method and auth type goes straight to Authorize: non-3DS card sales and
+    /// external / pass-through 3DS both settle in a single call.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        _completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            return match redirect_state {
+                RedirectState::InitialRequest => AuthenticationStep::PreAuthenticate,
+                // Shopper returned from the hosted page: settle against the payment session.
+                RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams => {
+                    AuthenticationStep::Authorize
+                }
+            };
+        }
+        AuthenticationStep::Authorize
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

@@ -98,7 +98,6 @@ const ELAVON_PG_URL_SCHEMES: [&str; 2] = ["https://", "http://"];
 /// EPG resource names, used only to make the "href missing, using id" warning say
 /// which resource it is talking about.
 const ELAVON_PG_ORDER_RESOURCE: &str = "Order";
-const ELAVON_PG_PAYMENT_SESSION_RESOURCE: &str = "PaymentSession";
 
 /// Diagnostic for the one unverifiable assumption in the hosted-payment-page flow:
 /// that `POST /payment-sessions` really does return the shopper `url`.
@@ -109,6 +108,17 @@ const ELAVON_PG_MISSING_HOSTED_PAGE_URL: &str =
      published example and has not been verified against a live sandbox. Nothing can be \
      substituted for it, so the attempt fails here rather than redirecting the shopper to a \
      guessed URL.";
+
+/// The payment-session reference must be an absolute `href`. The settle Authorize
+/// recognises a hosted session only by an absolute URL containing `/payment-sessions/`
+/// (see `elavon_pg_payment_session_href`), so a bare id stashed here would be silently
+/// ignored downstream: the settle would fall through to the card branch and fail with an
+/// unrelated "unsupported payment method". Failing here names the real cause instead.
+const ELAVON_PG_MISSING_PAYMENT_SESSION_HREF: &str =
+    "elavon_pg: PreAuthenticate created the payment session but the 201 carried no `href`. \
+     The settle Authorize references the session by its absolute resource URL and cannot use \
+     a bare id, so the attempt fails here rather than stashing a reference the settle would \
+     silently ignore.";
 
 // =============================================================================
 // AUTHENTICATION
@@ -489,6 +499,14 @@ pub struct ElavonPgPreAuthenticateRequest {
     pub cancel_url: String,
     pub do_three_d_secure: bool,
     pub do_create_transaction: bool,
+    /// Capture intent for the sale the hosted page will create.
+    ///
+    /// EPG defaults this to `true`, so it must be sent explicitly (spec §4.2): a
+    /// `capture_method = manual` payment would otherwise be auto-captured on the
+    /// hosted page and the merchant's later Capture would fail against an
+    /// already-captured transaction. The settle call carries only the payment-session
+    /// URL, so this is the one place capture intent can be expressed on this path.
+    pub do_capture: bool,
 }
 
 /// `PaymentSession` — the PreAuthenticate `201` (spec §5.2 step 2).
@@ -1321,13 +1339,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Cancellation lands on the merchant return URL — the shopper abandoned the
-        // hosted page, so there is nothing for complete-authorize to settle.
-        let cancel_url = request
-            .router_return_url
-            .as_ref()
-            .map(|url| url.to_string())
-            .or_else(|| router_data.resource_common_data.get_return_url())
+        // Cancellation must NOT land on the complete-authorize continuation: the shopper
+        // abandoned the hosted page, so there is no session to settle and sending them
+        // there would try to charge a card that was never entered. Fall back to the
+        // merchant return URL, and only to `return_url` if the merchant configured
+        // nothing else — in which case the two are the same URL by the merchant's own
+        // choice rather than by our silent default.
+        let cancel_url = router_data
+            .resource_common_data
+            .get_return_url()
+            .or_else(|| {
+                request
+                    .router_return_url
+                    .as_ref()
+                    .map(|url| url.to_string())
+            })
             .unwrap_or_else(|| return_url.clone());
 
         Ok(Self {
@@ -1336,6 +1362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             cancel_url,
             do_three_d_secure: ELAVON_PG_HPP_DO_THREE_D_SECURE,
             do_create_transaction: ELAVON_PG_HPP_DO_CREATE_TRANSACTION,
+            do_capture: request.is_auto_capture()?,
         })
     }
 }
@@ -1370,11 +1397,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .attach_printable(ELAVON_PG_MISSING_HOSTED_PAGE_URL)?;
 
-        let payment_session_reference = elavon_pg_resource_reference(
-            response.href,
-            &response.id,
-            ELAVON_PG_PAYMENT_SESSION_RESOURCE,
-        );
+        // Deliberately NOT `elavon_pg_resource_reference`: the bare-id fallback is right
+        // for the Order (EPG accepts either an href or an id there) but harmful for the
+        // PaymentSession, which the settle can only recognise as an absolute URL.
+        let payment_session_reference = response
+            .href
+            .filter(|href| !href.trim().is_empty())
+            .ok_or_else(|| {
+                ConnectorError::unexpected_response_error_with_context(
+                    http_code,
+                    Some(ELAVON_PG_MISSING_PAYMENT_SESSION_HREF.to_string()),
+                )
+            })
+            .attach_printable(ELAVON_PG_MISSING_PAYMENT_SESSION_HREF)?;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::PreAuthenticateResponse {
