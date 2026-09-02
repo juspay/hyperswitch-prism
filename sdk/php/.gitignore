@@ -1,0 +1,16 @@
+# Composer dependencies
+/vendor/
+
+# Generated native FFI library (binary, not committed)
+/src/Payments/Generated/*.so
+/src/Payments/Generated/*.dylib
+/src/Payments/Generated/*.dll
+# Types/ and GPBMetadata/ proto stubs ARE committed
+
+# Build artifacts
+/build/
+*.zip
+*.tar.gz
+
+# PHPUnit cache
+.phpunit.cache/

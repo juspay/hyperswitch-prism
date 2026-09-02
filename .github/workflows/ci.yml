@@ -975,6 +975,13 @@ jobs:
           cd sdk/javascript && npm ci && cd ../..
           cd sdk/tests && npm install && cd ../..
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: ffi
+          ini-values: ffi.enable=1
+
       - uses: Swatinem/rust-cache@v2.7.8
         with:
           shared-key: "ci-release-fast"
@@ -1054,6 +1061,8 @@ jobs:
         run: |
           echo "Running SDK mock tests (no real HTTP calls)"
           python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+          echo "Running PHP SDK mock test..."
+          FFI_SKIP_BUILD=1 make -C sdk/php test-package-mock CONNECTORS=stripe PROFILE=release-fast
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
