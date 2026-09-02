@@ -557,6 +557,13 @@ pub enum D24DepositStatus {
     Expired,
     EarlyReleased,
     ForReview,
+    /// Directa24 may add deposit statuses without notice. Without this arm an
+    /// unannounced value fails the whole PSync deserialization and strands the
+    /// payment at its previous status. Degrading to `Pending` keeps the poll
+    /// alive and never invents a terminal state — the same rule the refund
+    /// enums below follow.
+    #[serde(other)]
+    Unknown,
 }
 
 impl D24DepositStatus {
@@ -570,6 +577,7 @@ impl D24DepositStatus {
             Self::Expired => "EXPIRED",
             Self::EarlyReleased => "EARLY_RELEASED",
             Self::ForReview => "FOR_REVIEW",
+            Self::Unknown => "UNKNOWN",
         }
     }
 }
@@ -603,6 +611,9 @@ impl From<D24DepositStatus> for AttemptStatus {
             // DECLINED on its own. NOT Unresolved (Hyperswitch reads that as
             // needing merchant action) and NOT Failure (it may still succeed).
             D24DepositStatus::ForReview => Self::Pending,
+            // An undocumented status. Keep polling rather than guessing a
+            // terminal outcome in either direction.
+            D24DepositStatus::Unknown => Self::Pending,
         }
     }
 }
