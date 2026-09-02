@@ -97,8 +97,39 @@
         "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "card network is not supported by travelhub. The provided card network is not supported by travelhub card payments"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_txn_001\",\"amount\":1000,\"currency\":\"USD\",\"capture\":true,\"payment\":{\"paymentMethod\":{\"code\":\"108\"},\"paymentCard\":{\"cardName\":\"John Doe\",\"cardNumber\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvc\":\"737\",\"authentication\":false}}}"
+        }
       },
       "CashappQr": {
         "status": "not_supported",
@@ -663,7 +694,8 @@
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "reason": "customer_request"
+          "reason": "customer_request",
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
           "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/refund",
@@ -673,28 +705,14 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_refund_001\",\"amount\":1000,\"currency\":\"USD\"}"
+          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"connector_order_id\",\"amount\":1000,\"currency\":\"USD\"}"
         }
       }
     },
     "refund_get": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
-        },
-        "sample": {
-          "url": "https://preprod.travel.worldline-solutions.com/travelhub/tpa/api/v1/status",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"merchantId\":\"probe_key\",\"orderId\":\"probe_refund_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. TravelHub resolves refunds by `orderId` alone, the only original-payment identifier the refund body carries. `RefundFlowData::connector_request_reference_id` is derived from `merchant_refund_id` and identifies this refund call, so it cannot locate the original payment. — Missing required field: connector_order_id. TravelHub resolves refunds by `orderId` alone, the only original-payment identifier the refund body carries. `RefundFlowData::connector_request_reference_id` is derived from `merchant_refund_id` and identifies this refund call, so it cannot locate the original payment."
       }
     },
     "reverse": {
