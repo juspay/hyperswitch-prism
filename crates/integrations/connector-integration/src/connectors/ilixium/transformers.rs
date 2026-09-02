@@ -8,9 +8,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RawConnectorStatus,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RawConnectorStatus, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -1620,6 +1621,14 @@ pub struct IlixiumPaymentAttempt {
     pub operation_ref: Option<String>,
     #[serde(rename = "paymentMethodType")]
     pub payment_method_type: Option<String>,
+    /// Ilixium's reusable payment-method token: "The token can be stored and used for direct
+    /// API transactions in the future." The vendor guarantees the element is always present
+    /// but documents the value as empty when the payment method is not reusable, so an empty
+    /// string is normalised away by [`IlixiumPaymentResponse::payment_method_token`].
+    ///
+    /// Deliberately unvalidated: the spec types the request-side token as exactly 32
+    /// characters but the response-side as `maxLength: 255`, so store whatever arrives.
+    pub token: Option<Secret<String>>,
     #[serde(rename = "cardResponse")]
     pub card_response: Option<IlixiumCardResponse>,
 }
@@ -1708,6 +1717,14 @@ impl IlixiumPaymentResponse {
     pub fn card_response(&self) -> Option<&IlixiumCardResponse> {
         self.latest_attempt()
             .and_then(|attempt| attempt.card_response.as_ref())
+    }
+
+    /// The reusable card token from the latest attempt, or `None` when the payment method is
+    /// not reusable — Ilixium sends the element with an empty value in that case.
+    pub fn payment_method_token(&self) -> Option<Secret<String>> {
+        self.latest_attempt()
+            .and_then(|attempt| attempt.token.clone())
+            .filter(|token| !token.peek().is_empty())
     }
 
     pub fn gateway_ref(&self) -> Option<String> {
@@ -2268,7 +2285,16 @@ impl<T: PaymentMethodDataTypes>
                     .map(ResponseId::ConnectorTransactionId)
                     .unwrap_or(ResponseId::NoResponseId),
                 redirection_data,
-                mandate_reference: None,
+                // Ilixium returns a reusable card token on every authorisation. Surface it as
+                // the `connector_mandate_id` so it is not lost, the way finix and jpmorgan do.
+                mandate_reference: response.payment_method_token().map(|token| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(token.expose()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })
+                }),
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -2386,6 +2412,8 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumVoidResponse, Self>>
                     }),
                 ),
                 redirection_data: None,
+                // Same envelope carries the same token, but the reference belongs to the
+                // authorize that established it.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -2433,6 +2461,8 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumCaptureResponse, Self>>
                     .map(ResponseId::ConnectorTransactionId)
                     .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone()),
                 redirection_data: None,
+                // The token is recorded at authorize; a deferred capture follows one, so
+                // re-emitting the same reference here would be noise.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -2783,9 +2813,9 @@ impl IlixiumHistoryStatus {
 }
 
 /// `HistoryTransaction` — a different schema from the `transactionDetails` echoed by
-/// `paymentResponse`, and much thinner: there is no `paymentHistory` and no `cardResponse`
-/// anywhere in a history entry, so PSync can recover **no** `authCode`, `iso8583code`, 3-D Secure
-/// field or card token.
+/// `paymentResponse`, and much thinner: there is no `paymentHistory` anywhere in a history
+/// entry, so PSync can recover **no** payment-method token (it hangs off `paymentAttempt`),
+/// and no `cardResponse` either, hence no `authCode`, `iso8583code` or 3-D Secure field.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IlixiumHistoryTransaction {
     pub amount: Option<String>,
@@ -3232,6 +3262,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
                     ResponseId::ConnectorTransactionId,
                 ),
                 redirection_data: None,
+                // The History API carries no `paymentHistory`, so PSync has no token to recover.
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
@@ -3785,5 +3816,83 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
             },
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+// Test fixtures panic on malformed literal JSON rather than threading a Result through
+// every case.
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Builds a `paymentResponse` envelope with the given `paymentAttempt` array body.
+    /// Shaped after the vendor's own `/direct/auth` success example.
+    fn response_with_attempts(attempts: &str) -> IlixiumPaymentResponse {
+        let body = format!(
+            r#"{{
+                "version": 2,
+                "type": "AUTH_CAP",
+                "transaction": {{ "merchantRef": "QCY59hK6izpwkOKDWkzh", "gatewayRef": "33412341234123" }},
+                "status": {{ "code": "SUCCESS", "message": "Approved" }},
+                "paymentHistory": {{ "paymentAttempt": {attempts} }}
+            }}"#
+        );
+        serde_json::from_str(&body).expect("fixture is a valid paymentResponse envelope")
+    }
+
+    /// The token hangs off `paymentAttempt`, a sibling of `cardResponse` — not inside it.
+    /// This pins both the field name and the nesting depth against the vendor's example.
+    #[test]
+    fn extracts_token_from_latest_attempt() {
+        let response = response_with_attempts(
+            r#"[{
+                "order": 1,
+                "code": "SUCCESS",
+                "paymentMethodType": "CARD",
+                "token": "c4804efc867743b39815b6c59c83b36e",
+                "cardResponse": { "cardBin": "400001", "cardLastFour": "3227", "authCode": "86394" }
+            }]"#,
+        );
+
+        assert_eq!(
+            response.payment_method_token().map(|token| token.expose()),
+            Some("c4804efc867743b39815b6c59c83b36e".to_string())
+        );
+    }
+
+    /// Ilixium documents the element as always present but empty when the payment method is
+    /// not reusable. An empty string must not become an empty `connector_mandate_id`.
+    #[test]
+    fn treats_empty_token_as_absent() {
+        let response =
+            response_with_attempts(r#"[{ "order": 1, "code": "SUCCESS", "token": "" }]"#);
+
+        assert!(response.payment_method_token().is_none());
+    }
+
+    /// The field stays `Option` so an attempt that omits it still deserialises.
+    #[test]
+    fn tolerates_missing_token() {
+        let response = response_with_attempts(r#"[{ "order": 1, "code": "SUCCESS" }]"#);
+
+        assert!(response.payment_method_token().is_none());
+    }
+
+    /// `latest_attempt` picks the highest `order`, so a retried payment surfaces the token
+    /// of the attempt that actually succeeded rather than the first one tried.
+    #[test]
+    fn takes_token_from_the_highest_order_attempt() {
+        let response = response_with_attempts(
+            r#"[
+                { "order": 1, "code": "DECLINED", "token": "firsttokenfirsttokenfirsttoken00" },
+                { "order": 2, "code": "SUCCESS", "token": "secondtokensecondtokensecondtok0" }
+            ]"#,
+        );
+
+        assert_eq!(
+            response.payment_method_token().map(|token| token.expose()),
+            Some("secondtokensecondtokensecondtok0".to_string())
+        );
     }
 }
