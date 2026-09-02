@@ -1,11 +1,11 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py globalpaymentsheartland
+// Regenerate: python3 scripts/generate-connector-docs.py globalpayments_heartland
 //
-// Globalpaymentsheartland — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="globalpaymentsheartland processCheckoutCard"
+// GlobalpaymentsHeartland — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="globalpayments_heartland processCheckoutCard"
 
-package examples.globalpaymentsheartland
+package examples.globalpayments_heartland
 
 import types.Payment.*
 import types.PaymentMethods.*
@@ -24,7 +24,7 @@ val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "proxy_autho
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Globalpaymentsheartland credentials here
+    // .setConnectorConfig(...) — set your GlobalpaymentsHeartland credentials here
     .build()
 
 

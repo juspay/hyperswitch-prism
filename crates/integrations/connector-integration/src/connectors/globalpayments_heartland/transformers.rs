@@ -116,7 +116,7 @@ fn normalize_eci(eci: &str) -> Result<String, Report<IntegrationError>> {
         field_name: "authentication_data.eci",
         context: IntegrationErrorContext {
             additional_context: Some(format!(
-                "globalpaymentsheartland: ECI {eci:?} is not a single digit. Portico's eciType \
+                "globalpayments_heartland: ECI {eci:?} is not a single digit. Portico's eciType \
                  is xs:length 1 with pattern [0-9]; only a bare digit (5) or a zero-padded \
                  digit (05) can be sent."
             )),
@@ -155,7 +155,7 @@ fn secure_3d_version(
 
     match (version.get_major(), version.get_minor()) {
         (1, _) => Err(error_stack::report!(IntegrationError::NotImplemented(
-            "globalpaymentsheartland: 3DS 1.x is not supported by Portico. Its Secure3D block \
+            "globalpayments_heartland: 3DS 1.x is not supported by Portico. Its Secure3D block \
              carries 3DS 2.x only; v1 results belong in the SecureECommerce block, which this \
              connector does not implement."
                 .to_string(),
@@ -171,7 +171,7 @@ fn secure_3d_version(
             field_name: "authentication_data.message_version",
             context: IntegrationErrorContext {
                 additional_context: Some(format!(
-                    "globalpaymentsheartland: 3DS major version {other} has no Secure3D/Version \
+                    "globalpayments_heartland: 3DS major version {other} has no Secure3D/Version \
                      mapping; the enum covers 3DS 1.x and 2.2-2.9 only."
                 )),
                 ..Default::default()
@@ -571,7 +571,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => card,
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    "Only card payments are supported by globalpaymentsheartland".to_string(),
+                    "Only card payments are supported by globalpayments_heartland".to_string(),
                     IntegrationErrorContext::default(),
                 )))
             }
@@ -635,7 +635,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             field_name: "authentication_data.ds_transaction_id",
                             context: IntegrationErrorContext {
                                 additional_context: Some(
-                                    "globalpaymentsheartland: Portico requires \
+                                    "globalpayments_heartland: Portico requires \
                                      Secure3D/DirectoryServerTxnId for Mastercard Identity \
                                      Check authorizations."
                                         .to_string(),
@@ -790,7 +790,7 @@ impl<T: PaymentMethodDataTypes>
             .ok_or_else(|| {
                 crate::utils::response_deserialization_fail(
                     item.http_code,
-                    "globalpaymentsheartland: gateway accepted the request but the response carried no CreditAuth/CreditSale element.",
+                    "globalpayments_heartland: gateway accepted the request but the response carried no CreditAuth/CreditSale element.",
                 )
             })?;
 
@@ -825,7 +825,7 @@ impl<T: PaymentMethodDataTypes>
         let connector_transaction_id = header.gateway_txn_id.clone().ok_or_else(|| {
             crate::utils::response_deserialization_fail(
                 item.http_code,
-                "globalpaymentsheartland: approved response missing Header/GatewayTxnId.",
+                "globalpayments_heartland: approved response missing Header/GatewayTxnId.",
             )
         })?;
 
@@ -1218,7 +1218,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRefundResponse, Self>> fo
         let connector_refund_id = header.gateway_txn_id.clone().ok_or_else(|| {
             crate::utils::response_deserialization_fail(
                 item.http_code,
-                "globalpaymentsheartland: CreditReturn response missing Header/GatewayTxnId; it is required as connector_refund_id.",
+                "globalpayments_heartland: CreditReturn response missing Header/GatewayTxnId; it is required as connector_refund_id.",
             )
         })?;
 

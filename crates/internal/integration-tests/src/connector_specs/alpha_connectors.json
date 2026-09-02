@@ -41,7 +41,7 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
-    "globalpaymentsheartland": {
+    "globalpayments_heartland": {
       "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
     },
     "glomopay": {},

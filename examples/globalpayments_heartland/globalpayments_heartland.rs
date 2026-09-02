@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py globalpaymentsheartland
+// Regenerate: python3 scripts/generate-connector-docs.py globalpayments_heartland
 //
-// Globalpaymentsheartland — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example globalpaymentsheartland -- process_checkout_card
+// GlobalpaymentsHeartland — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example globalpayments_heartland -- process_checkout_card
 use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::payment_method;

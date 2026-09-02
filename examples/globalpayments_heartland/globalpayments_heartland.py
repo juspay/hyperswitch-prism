@@ -1,9 +1,9 @@
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
-# Regenerate: python3 scripts/generate-connector-docs.py globalpaymentsheartland
+# Regenerate: python3 scripts/generate-connector-docs.py globalpayments_heartland
 #
-# Globalpaymentsheartland — all integration scenarios and flows in one file.
-# Run a scenario:  python3 globalpaymentsheartland.py checkout_card
+# GlobalpaymentsHeartland — all integration scenarios and flows in one file.
+# Run a scenario:  python3 globalpayments_heartland.py checkout_card
 
 import asyncio
 import sys
@@ -16,7 +16,7 @@ SUPPORTED_FLOWS = ["authorize", "capture", "get", "proxy_authorize", "refund", "
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     globalpaymentsheartland=payment_pb2.GlobalpaymentsheartlandConfig(api_key=...),
+    #     globalpayments_heartland=payment_pb2.GlobalpaymentsHeartlandConfig(api_key=...),
     # ),
 )
 

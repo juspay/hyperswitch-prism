@@ -1,5 +1,5 @@
 {
-  "connector": "globalpaymentsheartland",
+  "connector": "globalpayments_heartland",
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Get",

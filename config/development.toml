@@ -60,7 +60,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 [connectors]
 citigate.base_url = "https://gw-test.cgate.tech"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
-globalpaymentsheartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
+globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg-sandbox.paymaya.com"

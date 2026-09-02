@@ -2509,7 +2509,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: ilixium.api_secret.ok_or_else(err)?,
                 base_url: ilixium.base_url,
             }),
-            AuthType::Globalpaymentsheartland(config) => Ok(Self::GlobalpaymentsHeartland {
+            AuthType::GlobalpaymentsHeartland(config) => Ok(Self::GlobalpaymentsHeartland {
                 api_key: config.api_key.ok_or_else(err)?,
                 base_url: config.base_url,
             }),
@@ -3744,7 +3744,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::Globalpaymentsheartland => match auth {
+                ConnectorEnum::GlobalpaymentsHeartland => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
                         api_key: api_key.clone(),
                         base_url: None,

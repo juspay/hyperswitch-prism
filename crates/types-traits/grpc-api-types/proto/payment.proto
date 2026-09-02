@@ -904,7 +904,7 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
-  GLOBALPAYMENTSHEARTLAND = 140;
+  GLOBALPAYMENTS_HEARTLAND = 140;
 }
 
 // Payment method types
@@ -6170,8 +6170,8 @@ message ConnectorSpecificConfig {
     WorldpayraftConfig worldpayraft = 149;
     // GOTYME_SANLAM = 140
     GotymeSanlamConfig gotyme_sanlam = 150;
-    // GLOBALPAYMENTSHEARTLAND = 140
-    GlobalpaymentsHeartlandConfig globalpaymentsheartland = 151;
+    // GLOBALPAYMENTS_HEARTLAND = 140
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 151;
   }
 }
 

@@ -151,14 +151,14 @@ macros::create_all_prerequisites!(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.globalpaymentsheartland.base_url
+            &req.resource_common_data.connectors.globalpayments_heartland.base_url
         }
 
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> &'a str {
-            &req.resource_common_data.connectors.globalpaymentsheartland.base_url
+            &req.resource_common_data.connectors.globalpayments_heartland.base_url
         }
     }
 );
@@ -209,7 +209,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     for GlobalpaymentsHeartland<T>
 {
     fn id(&self) -> &'static str {
-        "globalpaymentsheartland"
+        "globalpayments_heartland"
     }
 
     /// Major units — see the amount converter above.
@@ -222,7 +222,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.globalpaymentsheartland.base_url.as_ref()
+        connectors.globalpayments_heartland.base_url.as_ref()
     }
 
     /// **Empty on purpose.** Portico authenticates from the SOAP body

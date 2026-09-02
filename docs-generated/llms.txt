@@ -342,13 +342,13 @@ payment_methods: Card, Eps, Ideal
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
 
-## Globalpaymentsheartland
-connector_id: globalpaymentsheartland
-doc: docs/connectors/globalpaymentsheartland.md
+## GlobalpaymentsHeartland
+connector_id: globalpayments_heartland
+doc: docs/connectors/globalpayments_heartland.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
-examples_python: examples/globalpaymentsheartland/globalpaymentsheartland.py
+examples_python: examples/globalpayments_heartland/globalpayments_heartland.py
 
 ## Glomopay
 connector_id: glomopay
