@@ -927,8 +927,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = item.router_data.request.currency;
 
-        // Handle different mandate reference types with appropriate MIT structures
-        let (profile, processing_options, subsequent_auth_information) = match &item
+        let customer_id_string = validate_customer_id_length(
+            item.router_data
+                .resource_common_data
+                .customer_id
+                .as_ref()
+                .map(|cid| cid.get_string_repr().to_owned()),
+        );
+
+        let customer_details = customer_id_string.map(|cid| CustomerDetails {
+            id: cid,
+            email: item.router_data.request.email.clone(),
+        });
+
+        // Handle different mandate reference types with appropriate MIT structures.
+        // `customer` mirrors Hyperswitch: omitted for the ConnectorMandateId (stored
+        // customer profile) path, sent for the NetworkMandateId path.
+        let (profile, processing_options, subsequent_auth_information, customer) = match &item
             .router_data
             .request
             .mandate_reference
@@ -968,6 +983,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         is_subsequent_auth: true,
                     }),
                     None, // No network transaction ID for mandate-based flow
+                    None, // Hyperswitch omits `customer` for the stored-profile MIT path
                 )
             }
 
@@ -983,6 +999,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ),
                     reason: Reason::Resubmission,
                 }),
+                customer_details, // Hyperswitch sends `customer` on the network-mandate path
             ),
 
             // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
@@ -1034,19 +1051,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         )
         .filter(|id| id.len() <= MAX_ID_LENGTH);
 
-        let customer_id_string = validate_customer_id_length(
-            item.router_data
-                .resource_common_data
-                .customer_id
-                .as_ref()
-                .map(|cid| cid.get_string_repr().to_owned()),
-        );
-
-        let customer_details = customer_id_string.map(|cid| CustomerDetails {
-            id: cid,
-            email: item.router_data.request.email.clone(),
-        });
-
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::AuthOnlyTransaction,
             Some(enums::CaptureMethod::Automatic)
@@ -1081,7 +1085,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency_code: currency,
             profile,
             order: Some(order),
-            customer: customer_details,
+            customer,
             user_fields,
             processing_options,
             subsequent_auth_information,
