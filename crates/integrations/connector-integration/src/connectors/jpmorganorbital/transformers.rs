@@ -1,7 +1,7 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
 use common_utils::{
     pii::SecretSerdeValue,
-    types::{AmountConvertor, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringTwoDecimalUnit, StringTwoDecimalUnitForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},
@@ -15,7 +15,6 @@ use domain_types::{
     router_request_types::AuthenticationData,
     utils::{get_card_issuer, CardIssuer},
 };
-use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -245,32 +244,43 @@ fn build_order_id(reference: &str) -> Result<String, error_stack::Report<Integra
 ///
 /// Orbital derives the currency from the Merchant ID setup and has no request field to
 /// receive it, so a EUR request routed to a USD MID would be authorized as USD at the
-/// same numeric amount. When `merchant_config_currency` is not configured this is a
-/// no-op, preserving the behaviour of every existing config.
+/// same numeric amount.
+///
+/// The provisioned currency is read from the request first and from the connector config only
+/// as a fallback — the precedence Braintree already uses for the same field. Reading the
+/// config copy alone would leave a caller who sets the standard `merchant_config_currency`
+/// request field with no guard at all, which is the wrong-currency charge this exists to
+/// prevent. Configured in neither place, this stays a no-op, preserving the behaviour of
+/// every existing config.
 fn validate_currency(
     request_currency: Currency,
-    merchant_config_currency: Option<&str>,
+    request_config_currency: Option<Currency>,
+    connector_config_currency: Option<&str>,
 ) -> Result<(), error_stack::Report<IntegrationError>> {
-    // A blank string is treated as "not configured", so a config that sets the key to
-    // "" behaves like one that omits it rather than failing every payment.
-    let Some(configured) = merchant_config_currency
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    else {
-        return Ok(());
+    let configured_currency = match request_config_currency {
+        Some(currency) => currency,
+        None => {
+            // A blank string is treated as "not configured", so a config that sets the key to
+            // "" behaves like one that omits it rather than failing every payment.
+            let Some(configured) = connector_config_currency
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+            else {
+                return Ok(());
+            };
+            Currency::from_str(configured.to_uppercase().as_str()).map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidConnectorConfig {
+                    config: "jpmorganorbital.merchant_config_currency",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "{configured:?} is not an ISO-4217 alphabetic currency code"
+                        )),
+                        ..Default::default()
+                    },
+                })
+            })?
+        }
     };
-    let configured_currency =
-        Currency::from_str(configured.to_uppercase().as_str()).map_err(|_| {
-            error_stack::report!(IntegrationError::InvalidConnectorConfig {
-                config: "jpmorganorbital.merchant_config_currency",
-                context: IntegrationErrorContext {
-                    additional_context: Some(format!(
-                        "{configured:?} is not an ISO-4217 alphabetic currency code"
-                    )),
-                    ..Default::default()
-                },
-            })
-        })?;
     if request_currency != configured_currency {
         return Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!(
@@ -282,6 +292,59 @@ fn validate_currency(
         }));
     }
     Ok(())
+}
+
+/// Encode `order.amount`.
+///
+/// Orbital's amount field carries two implied decimals for **every** currency, and is an
+/// unsigned string of at most [`MAX_AMOUNT_LEN`] characters. The encoding is shared; the
+/// unsigned and length rules are Orbital's own field constraints, so they stay here.
+///
+/// Each of the three ways this can fail carries its own reason all the way to the gRPC
+/// `error_message`. Collapsing them into one bare `InvalidDataFormat` leaves the caller
+/// unable to tell a negative amount from an over-long one from a currency that cannot be
+/// expressed with two decimals at all.
+fn build_amount(
+    minor_amount: MinorUnit,
+    currency: Currency,
+) -> Result<StringTwoDecimalUnit, error_stack::Report<IntegrationError>> {
+    let minor = minor_amount.get_amount_as_i64();
+    let amount = StringTwoDecimalUnitForConnector
+        .convert(minor_amount, currency)
+        .map_err(|_| {
+            invalid_amount(format!(
+                "{currency} has more than two decimal places, so {minor} minor units cannot be \
+                 expressed in the two decimals order.amount implies"
+            ))
+        })?;
+    let amount = amount.validate_unsigned("order.amount").map_err(|_| {
+        invalid_amount(format!(
+            "order.amount is unsigned at Orbital, but {minor} minor units of {currency} is \
+             negative"
+        ))
+    })?;
+    // `validate_max_len` consumes the amount, so keep the encoded form for the message.
+    let encoded = amount.get_amount_as_string().to_string();
+    amount
+        .validate_max_len(MAX_AMOUNT_LEN, "order.amount")
+        .map_err(|_| {
+            invalid_amount(format!(
+                "order.amount holds at most {MAX_AMOUNT_LEN} characters, but {minor} minor \
+                 units of {currency} encodes to `{encoded}` ({} characters)",
+                encoded.len()
+            ))
+        })
+}
+
+/// One `order.amount` rejection, carrying `detail` through to `error_message`.
+fn invalid_amount(detail: String) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name: "order.amount",
+        context: IntegrationErrorContext {
+            additional_context: Some(detail),
+            ..Default::default()
+        },
+    })
 }
 
 /// Derive `order.retryTrace` from the attempt reference.
@@ -720,7 +783,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let auth = JpmorganOrbitalAuthType::try_from(&router_data.connector_config)?;
-        validate_currency(request.currency, auth.merchant_config_currency.as_deref())?;
+        validate_currency(
+            request.currency,
+            request.merchant_config_currency,
+            auth.merchant_config_currency.as_deref(),
+        )?;
         let common = &router_data.resource_common_data;
 
         // `ccExp` is a fixed 6-char YYYYMM field. `get_expiry_date_as_yyyymm` interpolates
@@ -771,16 +838,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                // The encoding is shared; the unsigned and 12-character rules are
-                // Orbital's own field constraints, so they stay visible here.
-                amount: StringTwoDecimalUnitForConnector
-                    .convert(request.minor_amount, request.currency)
-                    .and_then(|amount| amount.validate_unsigned("order.amount"))
-                    .and_then(|amount| amount.validate_max_len(MAX_AMOUNT_LEN, "order.amount"))
-                    .change_context(IntegrationError::InvalidDataFormat {
-                        field_name: "order.amount",
-                        context: IntegrationErrorContext::default(),
-                    })?,
+                amount: build_amount(request.minor_amount, request.currency)?,
                 industry_type: INDUSTRY_TYPE_ECOMMERCE.to_string(),
                 retry_trace: build_retry_trace(&common.connector_request_reference_id),
             },
@@ -1094,11 +1152,44 @@ impl JpmorganOrbitalPaymentsResponse {
         }
     }
 
+    /// The same question asked of an `/inquiry` answer, where a non-zero `procStatus` means
+    /// something different than it does on `/payments`.
+    ///
+    /// On `/inquiry` a non-zero `procStatus` says the **inquiry** did not complete: no record
+    /// for this `retryTrace`, past Orbital's 48-hour window, or a lookup keyed on a different
+    /// reference. It says nothing at all about the payment. A payment that was found and
+    /// declined answers `procStatus "0"` with `approvalStatus "0"` instead, and that is the
+    /// only PSync answer that may be recorded as terminal.
+    ///
+    /// Reusing [`Self::failure_status`] here would stamp `Failure` on exactly the
+    /// charged-but-response-lost payment PSync exists to recover, so anything short of a
+    /// completed inquiry stays `Unresolved`.
+    fn inquiry_failure_status(&self) -> AttemptStatus {
+        if self.gateway_accepted() {
+            self.failure_status()
+        } else {
+            AttemptStatus::Unresolved
+        }
+    }
+
     /// Build an `ErrorResponse` covering all three of Orbital's failure layers:
     /// a non-2xx with the flat `messages` body, a 200 whose `procStatus != "0"`
     /// (gateway edit-check failure) and a 200 whose `approvalStatus != "1"`
     /// (issuer decline or host error).
     pub fn to_error_response(&self, http_code: u16) -> ErrorResponse {
+        self.error_response_with_status(http_code, self.failure_status())
+    }
+
+    /// [`Self::to_error_response`] with the attempt status supplied by the caller, for flows
+    /// that read a failure differently than Authorize does — see
+    /// [`Self::inquiry_failure_status`]. `PaymentFlowData.status` and the status carried on
+    /// the `ErrorResponse` are set independently, so both must come from the same decision or
+    /// they drift apart.
+    fn error_response_with_status(
+        &self,
+        http_code: u16,
+        attempt_status: AttemptStatus,
+    ) -> ErrorResponse {
         let gateway_failure = !self.gateway_accepted();
 
         let (code, message, reason) = if gateway_failure {
@@ -1136,7 +1227,7 @@ impl JpmorganOrbitalPaymentsResponse {
             // authorization may still land, so the attempt is left unresolved for PSync
             // to settle. 5xx never reaches here — the framework default handles it.
             attempt_status: (http_code != HTTP_REQUEST_TIMEOUT)
-                .then(|| FlowStatus::Payment(self.failure_status())),
+                .then_some(FlowStatus::Payment(attempt_status)),
             // The attempt exists at the gateway whenever a txRefNum came back, even
             // on a decline, so surface it.
             connector_transaction_id: self.connector_transaction_id(),
@@ -1245,10 +1336,11 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
         });
 
         if !response.is_success() {
+            let status = response.inquiry_failure_status();
             return Ok(Self {
-                response: Err(response.to_error_response(item.http_code)),
+                response: Err(response.error_response_with_status(item.http_code, status)),
                 resource_common_data: PaymentFlowData {
-                    status: response.failure_status(),
+                    status,
                     ..item.router_data.resource_common_data
                 },
                 ..item.router_data
