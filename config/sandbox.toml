@@ -25,6 +25,7 @@ bypass_urls = ["localhost", "local"]
 [connectors]
 elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 citigate.base_url = "https://gw-test.cgate.tech"
+saferpay.base_url = "https://test.saferpay.com/api"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 grabpay.base_url = "https://partner-api.stg-myteksi.com/grabpay/partner/v2"

@@ -8,15 +8,22 @@
     "PaymentMethodService/Tokenize",
     {
       "suite": "PaymentService/Authorize",
-      "scenario": "no3ds_auto_capture_credit_card"
+      "scenario": "no3ds_auto_capture_credit_card",
+      "context_map": {
+        "connector_transaction_id": "res.connector_transaction_id",
+        "amount.minor_amount": "req.amount.minor_amount",
+        "amount.currency": "req.amount.currency"
+      }
     },
     {
       "suite": "PaymentService/Refund",
       "context_map": {
+        "connector_refund_id": "res.connector_refund_id",
+        "connector_transaction_id": "res.connector_transaction_id",
         "refund_id": "res.connector_refund_id"
       }
     }
   ],
   "dependency_scope": "scenario",
-  "strict_dependencies": false
+  "strict_dependencies": true
 }

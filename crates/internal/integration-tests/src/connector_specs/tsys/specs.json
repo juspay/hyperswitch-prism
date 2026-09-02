@@ -12,5 +12,12 @@
   ],
   "supported_payment_methods": [
     "card"
-  ]
+  ],
+  "sync_poll_until_terminal_seconds": 15,
+  "request_id_source_field": "merchant_transaction_id",
+  "unsupported_scenarios": {
+    "PaymentService/Authorize": {
+      "threeds_manual_capture_credit_card": "implemented but not yet verified against the live sandbox."
+    }
+  }
 }

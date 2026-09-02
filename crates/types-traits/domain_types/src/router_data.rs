@@ -747,6 +747,12 @@ pub enum ConnectorSpecificConfig {
         api_password: Secret<String>,
         merchant_code: Secret<String>,
         base_url: Option<String>,
+        /// Cardinal JWT issuer for 3DS device data collection and challenges.
+        issuer_id: Option<Secret<String>>,
+        /// Cardinal organisational unit for the 3DS JWTs.
+        organizational_unit_id: Option<Secret<String>>,
+        /// HMAC key the 3DS JWTs are signed with.
+        jwt_mac_key: Option<Secret<String>>,
     },
     Zift {
         user_name: Secret<String>,
@@ -1007,6 +1013,18 @@ pub enum ConnectorSpecificConfig {
     Worldpayraft {
         license: Secret<String>,
         merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Saferpay (SIX Payment Services) Transaction interface.
+    /// `api_key`    = API username (HTTP Basic username)
+    /// `key1`       = API password (HTTP Basic password)
+    /// `api_secret` = CustomerId   (`RequestHeader.CustomerId`)
+    /// `key2`       = TerminalId   (request body `TerminalId`)
+    Saferpay {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1374,6 +1392,12 @@ impl ConnectorSpecificConfig {
             Worldpayraft {
                 license,
                 merchant_id
+            },
+            Saferpay {
+                api_key,
+                key1,
+                api_secret,
+                key2
             },
             ElavonPg { api_key, key1 },
             Imerchantsolutions { api_key },
@@ -1865,6 +1889,12 @@ impl ConnectorSpecificConfig {
                     license,
                     merchant_id
                 },
+                Saferpay {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2
+                },
                 ElavonPg { api_key, key1 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2317,6 +2347,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_password: worldpayxml.api_password.ok_or_else(err)?,
                 merchant_code: worldpayxml.merchant_code.ok_or_else(err)?,
                 base_url: worldpayxml.base_url,
+                issuer_id: worldpayxml.issuer_id,
+                organizational_unit_id: worldpayxml.organizational_unit_id,
+                jwt_mac_key: worldpayxml.jwt_mac_key,
             }),
             AuthType::Revolut(revolut) => Ok(Self::Revolut {
                 secret_api_key: revolut.secret_api_key.ok_or_else(err)?,
@@ -2515,6 +2548,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
+            }),
+            AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
+                api_key: saferpay.api_key.ok_or_else(err)?,
+                key1: saferpay.key1.ok_or_else(err)?,
+                api_secret: saferpay.api_secret.ok_or_else(err)?,
+                key2: saferpay.key2.ok_or_else(err)?,
+                base_url: saferpay.base_url,
             }),
             AuthType::ElavonPg(elavon_pg) => Ok(Self::ElavonPg {
                 api_key: elavon_pg.api_key.ok_or_else(err)?,
@@ -3459,6 +3499,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3563,6 +3606,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_key: key1.clone(),
                         website: api_secret.clone(),
                         client_id: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Saferpay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Saferpay {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        key2: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3989,6 +4047,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },

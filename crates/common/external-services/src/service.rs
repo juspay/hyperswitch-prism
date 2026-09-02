@@ -403,12 +403,11 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_raw_connector_response(raw_response_string.map(Into::into));
-
-                        // Set response headers if available
-                        updated_router_data
-                            .resource_common_data
-                            .set_connector_response_headers(body.headers.clone());
                     }
+                    // Set response headers if available
+                    updated_router_data
+                        .resource_common_data
+                        .set_connector_response_headers(body.headers.clone());
 
                     // typed_connector_response is now set inside handle_response_v2
                     // (serialized once and used for both event logging and typed response)
@@ -436,7 +435,16 @@ where
                         }
                     }
 
-                    handle_response_result?
+                    let mut handled_router_data = handle_response_result?;
+                    // Headers always reach response transformers; they stay on the
+                    // response only when the deployment returns raw connector data,
+                    // matching the exposure before headers were always captured.
+                    if !(all_keys_required.unwrap_or(true) && return_raw) {
+                        handled_router_data
+                            .resource_common_data
+                            .set_connector_response_headers(None);
+                    }
+                    handled_router_data
                 }
                 Err(body) => {
                     // Record metrics only if event_params is provided

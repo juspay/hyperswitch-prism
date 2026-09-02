@@ -25,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.DatatransConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_client_authentication_token", "get", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -416,6 +416,48 @@ fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: PaymentService.TokenSetupRecurring
+fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceTokenSetupRecurringRequest.newBuilder().apply {
+        merchantRecurringPaymentId = "probe_tokenized_mandate_001"
+        amountBuilder.apply {
+            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+                firstNameBuilder.value = "John"  // Personal Information.
+                emailBuilder.value = "test@example.com"  // Contact Information.
+            }
+        }
+        customerAcceptanceBuilder.apply {
+            acceptanceType = AcceptanceType.ONLINE  // Type of acceptance (e.g., online, offline).
+            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            onlineMandateDetailsBuilder.apply {  // Details if the acceptance was an online mandate.
+                ipAddress = "127.0.0.1"  // IP address from which the mandate was accepted.
+                userAgent = "Mozilla/5.0"  // User agent string of the browser used for mandate acceptance.
+            }
+        }
+        setupMandateDetailsBuilder.apply {
+            mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
+                multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
+                    amount = 0L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
+                    amountMoneyBuilder.apply {  // Amount in Money type.
+                        minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+                        currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
+                }
+            }
+        }
+        setupFutureUsage = FutureUsage.OFF_SESSION
+    }.build()
+    val response = client.token_setup_recurring(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -447,7 +489,8 @@ fun main(args: Array<String>) {
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
+        "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createClientAuthenticationToken, get, proxyAuthorize, proxySetupRecurring, refund, refundGet, reverse, setupRecurring, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

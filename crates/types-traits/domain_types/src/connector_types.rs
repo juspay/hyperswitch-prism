@@ -167,6 +167,7 @@ pub enum ConnectorEnum {
     Citigate,
     Ilixium,
     Worldpayraft,
+    Saferpay,
     ElavonPg,
 }
 
@@ -538,6 +539,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
+            grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -1744,6 +1746,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -2132,6 +2138,13 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
     pub metadata: Option<Secret<String>>,
+}
+
+impl<T: PaymentMethodDataTypes> PaymentMethodTokenizationData<T> {
+    pub fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -2875,6 +2888,10 @@ pub struct WebhookDetailsResponse {
     pub network_txn_id: Option<String>,
     pub payment_method_update: Option<PaymentMethodUpdate>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Payment method details reported by the connector mid-payment, intended for saving
+    /// for the returning-customer flow. Mirrors the field of the same name on
+    /// `PaymentFlowData`, which carries it on the PSync path.
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
 }
 
 /// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
@@ -3627,6 +3644,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3734,6 +3755,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -5829,6 +5854,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
+            AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
@@ -5897,4 +5923,18 @@ pub struct RecipientDetails {
     pub phone_number: Option<Secret<String>>,
     pub tax_id: Option<Secret<String>>,
     pub address: Option<AddressDetails>,
+}
+
+/// Connector-specific additional details passed through the payment request.
+#[derive(Debug, Clone)]
+pub struct AdditionalConnectorDetails {
+    /// Checkout.com-specific additional information.
+    pub checkout: Option<CheckoutAdditionalInformation>,
+}
+
+/// Checkout.com-specific additional information.
+#[derive(Debug, Clone)]
+pub struct CheckoutAdditionalInformation {
+    /// Free-text description of the reason or intent behind the payment.
+    pub purpose_of_payment: Option<String>,
 }
