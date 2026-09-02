@@ -1744,6 +1744,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -3638,6 +3642,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3745,6 +3753,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -5908,4 +5920,18 @@ pub struct RecipientDetails {
     pub phone_number: Option<Secret<String>>,
     pub tax_id: Option<Secret<String>>,
     pub address: Option<AddressDetails>,
+}
+
+/// Connector-specific additional details passed through the payment request.
+#[derive(Debug, Clone)]
+pub struct AdditionalConnectorDetails {
+    /// Checkout.com-specific additional information.
+    pub checkout: Option<CheckoutAdditionalInformation>,
+}
+
+/// Checkout.com-specific additional information.
+#[derive(Debug, Clone)]
+pub struct CheckoutAdditionalInformation {
+    /// Free-text description of the reason or intent behind the payment.
+    pub purpose_of_payment: Option<String>,
 }
