@@ -2132,6 +2132,13 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub metadata: Option<Secret<String>>,
 }
 
+impl<T: PaymentMethodDataTypes> PaymentMethodTokenizationData<T> {
+    pub fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenResponse {
     pub token: String,

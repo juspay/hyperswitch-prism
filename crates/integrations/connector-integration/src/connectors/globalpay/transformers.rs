@@ -1,6 +1,6 @@
 use crate::{connectors::globalpay::GlobalpayRouterData, types::ResponseRouterData};
-use common_enums::{AttemptStatus, FutureUsage, RefundStatus};
-use common_utils::consts::NO_ERROR_CODE;
+use common_enums::{AttemptStatus, RefundStatus};
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
 use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
@@ -753,7 +753,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone())
-                    .unwrap_or_else(|| "Transaction failed".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .payment_method
@@ -854,7 +854,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone())
-                    .unwrap_or_else(|| "Transaction failed".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .payment_method
@@ -939,7 +939,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone())
-                    .unwrap_or_else(|| "Capture failed".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .payment_method
@@ -1203,7 +1203,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone())
-                    .unwrap_or_else(|| "Void failed".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .payment_method
@@ -1766,7 +1766,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone())
-                    .unwrap_or_else(|| "Repeat payment failed".to_string()),
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item
                     .response
                     .payment_method
@@ -1871,22 +1871,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &wrapper.router_data;
         let request = &item.request;
 
-        let is_mandate_setup = request.setup_future_usage == Some(FutureUsage::OffSession)
-            || request.setup_mandate_details.is_some()
-            || request.customer_acceptance.is_some();
-
-        if !is_mandate_setup {
+        if !request.is_customer_initiated_mandate_payment() {
             return Err(error_stack::report!(IntegrationError::NotImplemented(
-                "GlobalPay PaymentMethodToken only supports mandate/recurring tokenization \
-                 (setup_future_usage: OffSession or mandate details required)"
+                "GlobalPay PaymentMethodToken only supports mandate/recurring tokenization"
                     .to_string(),
                 IntegrationErrorContext {
                     additional_context: Some(
-                        "Set setup_future_usage to OffSession or provide mandate/customer_acceptance \
-                         details to enable GlobalPay card tokenization via POST /payment-methods"
+                        "Both a mandate signal (customer_acceptance or setup_mandate_details) \
+                         and setup_future_usage=OffSession are required to tokenize a card via \
+                         GlobalPay POST /payment-methods"
                             .to_string(),
                     ),
-                    suggested_action: None,
+                    suggested_action: Some(
+                        "Set setup_future_usage to OffSession and provide either \
+                         customer_acceptance or setup_mandate_details"
+                            .to_string(),
+                    ),
                     doc_url: None,
                 },
             )));
