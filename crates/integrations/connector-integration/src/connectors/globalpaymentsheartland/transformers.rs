@@ -127,9 +127,21 @@ fn normalize_eci(eci: &str) -> Result<String, Report<IntegrationError>> {
 
 /// Map a 3DS message version onto Portico's `Secure3D/Version` enum.
 ///
-/// The enum is **not** a semantic major version: `1` = 3DS 1.x (documented as no longer
-/// supported), `2` = 3DS 2.2, `3`-`9` = 3DS 2.3-2.9. Every 2.x authentication therefore maps
-/// to `2`, which is also the schema default.
+/// The enum encodes the **3DS 2.x minor** version, not a semantic major:
+///
+/// | Value | Protocol            | Value | Protocol            |
+/// |-------|---------------------|-------|---------------------|
+/// | `1`   | 3DS 1.x (withdrawn) | `6`   | 3DS 2.6             |
+/// | `2`   | 3DS **2.2**         | `7`   | 3DS 2.7             |
+/// | `3`   | 3DS **2.3**         | `8`   | 3DS 2.8             |
+/// | `4`   | 3DS 2.4             | `9`   | 3DS 2.9             |
+/// | `5`   | 3DS 2.5             |       |                     |
+///
+/// So `2.3.1` must be sent as `3`, not `2`. Mapping the major version instead would report
+/// every 2.x as 2.2 — schema-valid, and therefore silently wrong on the wire.
+///
+/// 3DS 2.0 and 2.1 have no value of their own (`1` is taken by the withdrawn v1), so they
+/// map to `2`, which is also the schema default.
 ///
 /// 3DS 1.x is refused outright. Portico carries v1 results in the separate
 /// `SecureECommerce` block, which this connector does not implement, so emitting
@@ -141,21 +153,26 @@ fn secure_3d_version(
         return Ok(SECURE_3D_DEFAULT_VERSION.to_string());
     };
 
-    match version.get_major() {
-        1 => Err(error_stack::report!(IntegrationError::NotImplemented(
+    match (version.get_major(), version.get_minor()) {
+        (1, _) => Err(error_stack::report!(IntegrationError::NotImplemented(
             "globalpaymentsheartland: 3DS 1.x is not supported by Portico. Its Secure3D block \
              carries 3DS 2.x only; v1 results belong in the SecureECommerce block, which this \
              connector does not implement."
                 .to_string(),
             IntegrationErrorContext::default(),
         ))),
-        major @ 2..=9 => Ok(major.to_string()),
-        other => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+        // 2.0 and 2.1 have no enum value of their own; 2.2 is the value `2`.
+        (2, 0..=2) => Ok(SECURE_3D_DEFAULT_VERSION.to_string()),
+        (2, minor @ 3..=9) => Ok(minor.to_string()),
+        // No 3DS 2.10+ exists. Fall back to the schema default rather than fail an otherwise
+        // valid authentication over a version the enum simply has no room for.
+        (2, _) => Ok(SECURE_3D_DEFAULT_VERSION.to_string()),
+        (other, _) => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
             field_name: "authentication_data.message_version",
             context: IntegrationErrorContext {
                 additional_context: Some(format!(
                     "globalpaymentsheartland: 3DS major version {other} has no Secure3D/Version \
-                     mapping; the schema enumerates 1-9 only."
+                     mapping; the enum covers 3DS 1.x and 2.2-2.9 only."
                 )),
                 ..Default::default()
             },
@@ -456,6 +473,11 @@ pub struct GlobalpaymentsHeartlandSecure3D {
     pub version: String,
     /// CAVV / AEVV / UCAF. **Optional** in the schema (`minOccurs="0"`): a frictionless or
     /// attempted authentication can carry an ECI with no cryptogram.
+    ///
+    /// Sent as a bare element with no `EncodingType` attribute. The published schema docs
+    /// describe one (defaulting to `base64`), but the deployed cert gateway rejects it —
+    /// `Message failed validation. The 'EncodingType' attribute is not declared.` — so the
+    /// value is always base64 by convention, not by declaration.
     #[serde(
         rename = "AuthenticationValue",
         skip_serializing_if = "Option::is_none"
@@ -602,6 +624,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .and_then(|auth_data| auth_data.eci.as_ref().map(|eci| (auth_data, eci)))
             .map(|(auth_data, eci)| {
+                // Mastercard Identity Check requires the directory-server transaction id on
+                // the authorization. Assert this only when the network is actually known —
+                // `card_network` is frequently absent, and guessing must not fail a payment.
+                if auth_data.ds_trans_id.is_none()
+                    && card.card_network == Some(common_enums::CardNetwork::Mastercard)
+                {
+                    return Err(error_stack::report!(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "authentication_data.ds_transaction_id",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "globalpaymentsheartland: Portico requires \
+                                     Secure3D/DirectoryServerTxnId for Mastercard Identity \
+                                     Check authorizations."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        }
+                    ));
+                }
+
                 Ok::<_, Report<IntegrationError>>(GlobalpaymentsHeartlandSecure3D {
                     version: secure_3d_version(auth_data.message_version.as_ref())?,
                     authentication_value: auth_data.cavv.clone(),
