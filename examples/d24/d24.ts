@@ -5,9 +5,9 @@
 // D24 — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx d24.ts checkout_autocapture
 
-import { PaymentClient, types } from 'hyperswitch-prism';
+import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["get"];
+export const SUPPORTED_FLOWS = ["get", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -35,6 +35,14 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
+function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
+    return {
+        "merchantRefundId": "probe_refund_001",  // Identification.
+        "connectorTransactionId": "probe_connector_txn_001",
+        "refundId": "probe_refund_id_001"  // Deprecated.
+    };
+}
+
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Get
@@ -46,10 +54,19 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: RefundService.Get
+async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const refundClient = new RefundClient(config);
+
+    const refundResponse = await refundClient.refundGet(_buildRefundGetRequest());
+
+    return refundResponse;
+}
+
 
 // Export all process* functions for the smoke test
 export {
-    get, _buildGetRequest
+    get, refundGet, _buildGetRequest, _buildRefundGetRequest
 };
 
 // CLI runner

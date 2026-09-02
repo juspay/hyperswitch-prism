@@ -609,14 +609,30 @@
     },
     "refund": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund flow for d24"
+        "status": "error",
+        "error": "Invalid data format: connector_transaction_id"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: refund_sync flow for d24"
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api-stg.directa24.com/v3/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "D24 a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-date": "2020-01-01T00:00:00+00:00",
+            "x-login": "probe_key"
+          },
+          "body": null
+        }
       }
     },
     "reverse": {
