@@ -831,10 +831,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_feature_data
             .and_then(|data| serde_json::from_str::<serde_json::Value>(data.peek()).ok())
             .map(|feature_data| {
-                feature_data
-                    .get("code")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some()
+                // `code` comes from the browser redirect; `o_auth_code` is recovered
+                // via the HMAC one-time-charge status inquiry (missed redirect).
+                ["code", "o_auth_code"].iter().any(|key| {
+                    feature_data
+                        .get(key)
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| !value.is_empty())
+                })
             })
             .unwrap_or(false)
     }
