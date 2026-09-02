@@ -86,6 +86,83 @@ const SERVICE_NAME_CREDIT_RETURN: &str = "CreditReturn";
 const NO_ERROR_CODE: &str = "NO_ERROR_CODE";
 const NO_ERROR_MESSAGE: &str = "NO_ERROR_MESSAGE";
 
+/// `Secure3D/Version` when the authentication carries no message version. The schema
+/// declares `2` as the default, so this matches the gateway's own assumption.
+const SECURE_3D_DEFAULT_VERSION: &str = "2";
+
+/// Normalise an ECI to Portico's `eciType`.
+///
+/// `eciType` is `xs:string` with `xs:length value="1"` and `xs:pattern value="[0-9]"` — a
+/// **single** digit. 3DS servers almost universally emit two digits (`05`, `06`, `02`), so
+/// the leading zero has to come off or Portico rejects the whole message at schema
+/// validation, before it ever reaches the issuer.
+///
+/// Anything that is not a 1- or 2-digit number is surfaced as an error rather than
+/// truncated: silently reshaping an unrecognised ECI would assert an authentication outcome
+/// the 3DS server never reported.
+fn normalize_eci(eci: &str) -> Result<String, Report<IntegrationError>> {
+    let trimmed = eci.trim();
+    let normalized = match trimmed.len() {
+        1 => trimmed,
+        2 if trimmed.starts_with('0') => &trimmed[1..],
+        _ => "",
+    };
+
+    if normalized.len() == 1 && normalized.chars().all(|c| c.is_ascii_digit()) {
+        return Ok(normalized.to_string());
+    }
+
+    Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name: "authentication_data.eci",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "globalpaymentsheartland: ECI {eci:?} is not a single digit. Portico's eciType \
+                 is xs:length 1 with pattern [0-9]; only a bare digit (5) or a zero-padded \
+                 digit (05) can be sent."
+            )),
+            ..Default::default()
+        },
+    }))
+}
+
+/// Map a 3DS message version onto Portico's `Secure3D/Version` enum.
+///
+/// The enum is **not** a semantic major version: `1` = 3DS 1.x (documented as no longer
+/// supported), `2` = 3DS 2.2, `3`-`9` = 3DS 2.3-2.9. Every 2.x authentication therefore maps
+/// to `2`, which is also the schema default.
+///
+/// 3DS 1.x is refused outright. Portico carries v1 results in the separate
+/// `SecureECommerce` block, which this connector does not implement, so emitting
+/// `Version = 1` here would send a value the gateway documents as unsupported.
+fn secure_3d_version(
+    message_version: Option<&common_utils::types::SemanticVersion>,
+) -> Result<String, Report<IntegrationError>> {
+    let Some(version) = message_version else {
+        return Ok(SECURE_3D_DEFAULT_VERSION.to_string());
+    };
+
+    match version.get_major() {
+        1 => Err(error_stack::report!(IntegrationError::NotImplemented(
+            "globalpaymentsheartland: 3DS 1.x is not supported by Portico. Its Secure3D block \
+             carries 3DS 2.x only; v1 results belong in the SecureECommerce block, which this \
+             connector does not implement."
+                .to_string(),
+            IntegrationErrorContext::default(),
+        ))),
+        major @ 2..=9 => Ok(major.to_string()),
+        other => Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.message_version",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "globalpaymentsheartland: 3DS major version {other} has no Secure3D/Version \
+                     mapping; the schema enumerates 1-9 only."
+                )),
+                ..Default::default()
+            },
+        })),
+    }
+}
+
 // =============================================================================
 // AUTH
 // =============================================================================
@@ -373,14 +450,21 @@ impl GlobalpaymentsHeartlandCardHolderData {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename = "Secure3D")]
 pub struct GlobalpaymentsHeartlandSecure3D {
-    /// 3DS message-version **major** digit — `1` or `2`.
+    /// `Secure3D/Version` enum value — see [`secure_3d_version`]. Optional in the schema
+    /// (default `2`), always sent here so the version is explicit on the wire.
     #[serde(rename = "Version")]
     pub version: String,
-    /// CAVV.
-    #[serde(rename = "AuthenticationValue")]
-    pub authentication_value: Secret<String>,
-    #[serde(rename = "ECI", skip_serializing_if = "Option::is_none")]
-    pub eci: Option<String>,
+    /// CAVV / AEVV / UCAF. **Optional** in the schema (`minOccurs="0"`): a frictionless or
+    /// attempted authentication can carry an ECI with no cryptogram.
+    #[serde(
+        rename = "AuthenticationValue",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authentication_value: Option<Secret<String>>,
+    /// **Required** by the schema (`minOccurs="1"`), so it is not optional here. Always a
+    /// single digit — see [`normalize_eci`].
+    #[serde(rename = "ECI")]
+    pub eci: String,
     #[serde(
         rename = "DirectoryServerTxnId",
         skip_serializing_if = "Option::is_none"
@@ -508,21 +592,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `<Secure3D>` is emitted only when external authentication results are actually
         // present. There is no redirect leg for this connector: 3DS here means the
         // authentication already completed elsewhere.
-        let secure_3d = request.authentication_data.as_ref().and_then(|auth_data| {
-            auth_data
-                .cavv
-                .as_ref()
-                .map(|cavv| GlobalpaymentsHeartlandSecure3D {
-                    version: auth_data
-                        .message_version
-                        .as_ref()
-                        .map(|version| version.get_major().to_string())
-                        .unwrap_or_else(|| "2".to_string()),
-                    authentication_value: cavv.clone(),
-                    eci: auth_data.eci.clone(),
+        //
+        // The gate is the **ECI**, not the cryptogram. `ECI` is the one required child of
+        // `Secure3DType`; `AuthenticationValue` is optional. Gating on the CAVV instead would
+        // both drop a frictionless/attempted result that has an ECI but no cryptogram, and
+        // let a CAVV-without-ECI through as schema-invalid XML.
+        let secure_3d = request
+            .authentication_data
+            .as_ref()
+            .and_then(|auth_data| auth_data.eci.as_ref().map(|eci| (auth_data, eci)))
+            .map(|(auth_data, eci)| {
+                Ok::<_, Report<IntegrationError>>(GlobalpaymentsHeartlandSecure3D {
+                    version: secure_3d_version(auth_data.message_version.as_ref())?,
+                    authentication_value: auth_data.cavv.clone(),
+                    eci: normalize_eci(eci)?,
                     directory_server_txn_id: auth_data.ds_trans_id.clone(),
                 })
-        });
+            })
+            .transpose()?;
 
         let body = GlobalpaymentsHeartlandCreditBody {
             block1: GlobalpaymentsHeartlandPaymentBlock1 {
