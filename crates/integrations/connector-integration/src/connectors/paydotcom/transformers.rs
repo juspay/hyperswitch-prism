@@ -18,9 +18,9 @@
 //! * `POST /v1/holds/{id}/capture` answers with a **Charge carrying a brand-new id**;
 //!   the Capture transformer rewrites `connector_transaction_id` to it, otherwise a
 //!   later refund (which requires a `chrg_` id) is rejected by Pay.com.
-//! * Gateway-driven 3DS spans three flow executions (PreAuthenticate then two Authorize
-//!   legs); the `chrg_`/`hld_` id travels between them on `connector_feature_data`. See
-//!   `PaydotcomAuthorizeLeg` and the connector module docs.
+//! * Gateway-driven 3DS spans three flow executions (PreAuthenticate -> Authenticate ->
+//!   Authorize); the `chrg_`/`hld_` id travels between them on `authentication_data`.
+//!   See `PaydotcomAuthorizeLeg` and the connector module docs.
 
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
@@ -29,11 +29,13 @@ use common_utils::{
     types::{MinorUnit, StringMinorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -62,6 +64,8 @@ pub type PaydotcomCaptureResponse = PaydotcomPaymentsResponse;
 pub type PaydotcomVoidResponse = PaydotcomPaymentsResponse;
 /// PreAuthenticate answers with the Charge/Hold it parked on `requires_authentication`.
 pub type PaydotcomPreAuthenticateResponse = PaydotcomPaymentsResponse;
+/// Authenticate answers with the authentication session carrying the challenge URL.
+pub type PaydotcomAuthenticateResponse = PaydotcomPaymentsResponse;
 /// RSync reuses the Refund object returned by `POST /v1/refunds`.
 pub type PaydotcomRefundSyncResponse = PaydotcomRefundResponse;
 
@@ -145,9 +149,10 @@ pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
 }
 
 /// Body of `POST /v1/sessions/authentication/linked` — mints the challenge URL for a
-/// charge/hold already parked on `requires_authentication`.
+/// charge/hold already parked on `requires_authentication`. This is the Authenticate
+/// flow's request body (gateway 3DS leg 2).
 #[derive(Debug, Serialize)]
-pub struct PaydotcomLinkedSessionRequest {
+pub struct PaydotcomAuthenticateRequest {
     /// The `chrg_…` / `hld_…` id the session authenticates.
     pub resource: String,
     pub return_url: String,
@@ -162,15 +167,13 @@ pub struct PaydotcomLinkedSessionRequest {
 #[derive(Debug, Serialize)]
 pub struct PaydotcomConfirmRequest {}
 
-/// The Authorize flow covers three different HTTP calls (see `PaydotcomAuthorizeLeg`),
-/// so its request body is a union. `untagged` keeps each variant's own JSON shape.
+/// The Authorize flow covers two different HTTP calls (see `PaydotcomAuthorizeLeg`), so
+/// its request body is a union. `untagged` keeps each variant's own JSON shape.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum PaydotcomAuthorizeRequest<T: PaymentMethodDataTypes> {
     /// No-3DS or external-MPI 3DS: create the Charge/Hold outright.
     Create(Box<PaydotcomCreateResourceRequest<T>>),
-    /// Gateway 3DS leg 2: mint the challenge URL for the resource PreAuthenticate created.
-    LinkedSession(PaydotcomLinkedSessionRequest),
     /// Gateway 3DS leg 3: settle after the shopper came back from the challenge.
     Confirm(PaydotcomConfirmRequest),
 }
@@ -456,15 +459,17 @@ fn build_authentication_context(
     })
 }
 
-/// Metadata key under which the `chrg_…` / `hld_…` id minted by PreAuthenticate is
-/// published, so the caller can hand it back on the following Authorize legs.
+/// Metadata key under which the `chrg_…` / `hld_…` id is mirrored on
+/// `connector_feature_data`, for callers that drive the gRPC flows directly instead of
+/// letting an orchestrator carry `authentication_data` between them.
 pub const PAYDOTCOM_RESOURCE_METADATA_KEY: &str = "paydotcom_resource";
 
-/// Reads the PreAuthenticate-minted resource id back out of `connector_feature_data`.
+/// Reads a mirrored resource id back out of `connector_feature_data`.
 ///
-/// This is the same channel Saferpay uses to carry its session token across the redirect:
-/// the connector publishes it on `PaymentFlowData::connector_feature_data`, the caller
-/// persists it as the attempt's `connector_metadata`, and hands it back on Authorize.
+/// This is a *fallback* channel. The primary one is `authentication_data.transaction_id`
+/// (see `resource_id_authentication_data`), which is what an orchestrator such as
+/// Hyperswitch already carries from PreAuthenticate into Authenticate, and from
+/// Authenticate into the settling Authorize, with no connector-specific plumbing.
 pub fn pending_resource_id(
     connector_feature_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Option<String> {
@@ -479,36 +484,88 @@ pub fn pending_resource_id(
     })
 }
 
-/// Which of Pay.com's three gateway-3DS calls this Authorize execution is.
+/// Reads the pending `chrg_`/`hld_` id out of `authentication_data.transaction_id`.
+///
+/// Field 8 of the wire `AuthenticationData` message is documented as "transaction
+/// identifier generated by the 3DS system", which is exactly what this id is on Pay.com:
+/// the resource the linked authentication session authenticates. Every other member of
+/// that message stays empty — Pay.com performs the authentication itself and hands the
+/// merchant no CAVV/ECI.
+pub fn pending_resource_id_from_authentication_data(
+    authentication_data: Option<&AuthenticationData>,
+) -> Option<String> {
+    authentication_data
+        .and_then(|data| data.transaction_id.as_deref())
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+}
+
+/// Builds the `AuthenticationData` that carries the pending resource id to the next leg.
+///
+/// Only `transaction_id` is populated, deliberately: an `eci`/`cavv` here would be
+/// indistinguishable from a merchant-supplied external-MPI authentication (see
+/// `three_ds_mode`), and Pay.com does not return either on this journey anyway.
+pub fn resource_id_authentication_data(resource_id: &str) -> AuthenticationData {
+    AuthenticationData {
+        trans_status: None,
+        eci: None,
+        cavv: None,
+        ucaf_collection_indicator: None,
+        threeds_server_transaction_id: None,
+        message_version: None,
+        ds_trans_id: None,
+        acs_transaction_id: None,
+        transaction_id: Some(resource_id.to_string()),
+        network_params: None,
+        exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+/// The pending resource id for an Authorize execution, from either channel.
+pub fn authorize_pending_resource_id<T: PaymentMethodDataTypes>(
+    request: &PaymentsAuthorizeData<T>,
+) -> Option<String> {
+    pending_resource_id_from_authentication_data(request.authentication_data.as_ref())
+        .or_else(|| pending_resource_id(request.connector_feature_data.as_ref()))
+}
+
+/// Which of Pay.com's calls this Authorize execution is.
 ///
 /// Gateway-driven 3DS needs three HTTP calls and `ConnectorIntegrationV2` issues exactly
-/// one per flow execution, so the journey is split PreAuthenticate → Authorize → Authorize:
+/// one per flow execution, so the journey is split across three flows —
+/// PreAuthenticate → Authenticate → Authorize:
 ///
-/// | Leg | Call | Trigger |
-/// |---|---|---|
-/// | (PreAuthenticate) | `POST /v1/charges\|/v1/holds` with `authentication_context` | 3DS card |
-/// | `LinkedSession` | `POST /v1/sessions/authentication/linked` | resource id present, no redirect yet |
-/// | `Confirm` | `POST /v1/{charges\|holds}/{id}/confirm` | shopper came back (`redirect_response`) |
-/// | `Create` | `POST /v1/charges\|/v1/holds` | everything else (no-3DS, external-MPI) |
+/// | Leg | Flow | Call | Trigger |
+/// |---|---|---|---|
+/// | 1 | `PreAuthenticate` | `POST /v1/charges\|/v1/holds` with `authentication_context` | 3DS card |
+/// | 2 | `Authenticate` | `POST /v1/sessions/authentication/linked` | always, for this connector |
+/// | 3 | `Authorize` (`Confirm`) | `POST /v1/{charges\|holds}/{id}/confirm` | a pending resource id is present |
+/// | — | `Authorize` (`Create`) | `POST /v1/charges\|/v1/holds` | everything else (no-3DS, external-MPI) |
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaydotcomAuthorizeLeg {
     Create,
-    LinkedSession,
     Confirm,
 }
 
 /// Decides the leg from the **request alone**, never from a previous response, so
 /// `get_url` and `get_request_body` can never disagree about which call is being made.
+///
+/// An external-MPI Authorize also carries `authentication_data`, but with `eci`/`cavv`
+/// and no `transaction_id` — so it falls through to `Create`, as it must.
 pub fn authorize_leg<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> PaydotcomAuthorizeLeg {
-    if pending_resource_id(request.connector_feature_data.as_ref()).is_none() {
-        // Nothing pending: this is a plain create (no-3DS or external-MPI 3DS).
-        PaydotcomAuthorizeLeg::Create
-    } else if request.redirect_response.is_some() {
+    if authorize_pending_resource_id(request).is_some() {
         PaydotcomAuthorizeLeg::Confirm
     } else {
-        PaydotcomAuthorizeLeg::LinkedSession
+        PaydotcomAuthorizeLeg::Create
     }
 }
 
@@ -625,41 +682,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // Leg 3 — the shopper is back from the challenge; settle synchronously.
             PaydotcomAuthorizeLeg::Confirm => Ok(Self::Confirm(PaydotcomConfirmRequest {})),
 
-            // Leg 2 — mint the challenge URL for the resource PreAuthenticate created.
-            PaydotcomAuthorizeLeg::LinkedSession => {
-                let resource = pending_resource_id(item.request.connector_feature_data.as_ref())
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "connector_feature_data.paydotcom_resource",
-                            context: Default::default(),
-                        })
-                    })?;
-                // Where the shopper lands after the challenge. This MUST be the
-                // continue-redirection ("complete authorize") URL, not the plain return
-                // URL: landing on the plain one makes the orchestrator treat the return as
-                // a sync and leg 3 (`/confirm`) never runs, so the resource is left parked
-                // on `requires_authentication` forever. `router_return_url` is only a
-                // fallback for callers that drive the flow themselves and set nothing else.
-                let return_url = item
-                    .request
-                    .complete_authorize_url
-                    .clone()
-                    .or_else(|| item.request.router_return_url.clone())
-                    .or_else(|| item.resource_common_data.return_url.clone())
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "complete_authorize_url",
-                            context: Default::default(),
-                        })
-                    })?;
-                Ok(Self::LinkedSession(PaydotcomLinkedSessionRequest {
-                    resource,
-                    return_url,
-                    confirm: false,
-                }))
-            }
-
-            // Leg 1 — no 3DS, or external-MPI 3DS: a single create call settles it.
+            // No 3DS, or external-MPI 3DS: a single create call settles it.
             PaydotcomAuthorizeLeg::Create => {
                 // Rejects ManualMultiple / Scheduled before any wire work happens.
                 is_manual_capture(item.request.capture_method)?;
@@ -799,6 +822,87 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // authentication.
             PaydotcomThreeDsRequest::Challenge,
         )
+    }
+}
+
+// ===== REQUEST: AUTHENTICATE (gateway 3DS, leg 2) =====
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaydotcomRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaydotcomAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        wrapper: PaydotcomRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &wrapper.router_data;
+
+        let resource =
+            pending_resource_id_from_authentication_data(item.request.authentication_data.as_ref())
+                .or_else(|| pending_resource_id(item.resource_common_data.connector_feature_data.as_ref()))
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "authentication_data.transaction_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com's linked authentication session authenticates a Charge \
+                                 or Hold that PreAuthenticate must have created first; its id \
+                                 arrives on the PreAuthenticate response's authentication_data."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
+                })?;
+
+        // Where the shopper lands after the challenge. This MUST be the
+        // continue-redirection ("complete authorize") URL, not the plain return URL:
+        // landing on the plain one makes the orchestrator treat the return as a sync, and
+        // leg 3 (`/confirm`) never runs — the resource is then left parked on
+        // `requires_authentication` forever. `router_return_url` is only a fallback for
+        // callers that drive the flows themselves and set nothing else.
+        let return_url = item
+            .request
+            .continue_redirection_url
+            .as_ref()
+            .map(ToString::to_string)
+            .or_else(|| {
+                item.request
+                    .router_return_url
+                    .as_ref()
+                    .map(ToString::to_string)
+            })
+            .or_else(|| item.resource_common_data.return_url.clone())
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "continue_redirection_url",
+                    context: Default::default(),
+                })
+            })?;
+
+        Ok(Self {
+            resource,
+            return_url,
+            confirm: false,
+        })
     }
 }
 
@@ -1275,17 +1379,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // `request_threed_secure: "challenge"` forces `requires_authentication`, so anything
         // else means the leg cannot be continued and the caller must not be handed a
         // resource id it would then try to authenticate.
-        let connector_feature_data = item.response.pending_metadata().map(Secret::new);
+        let pending = item.response.pending_metadata();
+        let connector_feature_data = pending.clone().map(Secret::new);
+        // The id the following Authenticate leg has to authenticate. This rides
+        // `authentication_data`, the channel an orchestrator already carries from the
+        // PreAuthenticate response into the Authenticate request — no connector-specific
+        // metadata plumbing needed. It is mirrored on `connector_feature_data` above for
+        // callers that drive the gRPC flows directly.
+        let authentication_data = pending
+            .is_some()
+            .then(|| resource_id_authentication_data(&resource_id));
 
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
             _ => Ok(PaymentsResponseData::PreAuthenticateResponse {
                 resource_id: Some(ResponseId::ConnectorTransactionId(resource_id)),
                 // The challenge URL does not exist yet — it is minted by the linked-session
-                // call that the following Authorize leg makes.
+                // call the following Authenticate leg makes.
                 redirection_data: None,
-                // Pay.com runs the authentication itself and returns no CAVV/ECI here.
-                authentication_data: None,
+                authentication_data,
                 connector_response_reference_id: item.response.reference(),
                 status_code: item.http_code,
             }),
@@ -1296,6 +1408,60 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
             resource_common_data: PaymentFlowData {
                 status,
                 connector_feature_data,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== RESPONSE: AUTHENTICATE (gateway 3DS, leg 2) =====
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
+    for RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = item.response.attempt_status();
+        let resource_id = item.response.id().to_string();
+
+        // Republished so the settling Authorize knows what to `/confirm`. The orchestrator
+        // persists this and hands it back on CompleteAuthorize; `connector_feature_data`
+        // mirrors it for callers driving the gRPC flows directly.
+        let pending = item.response.pending_metadata();
+        let authentication_data = pending
+            .clone()
+            .is_some()
+            .then(|| resource_id_authentication_data(&resource_id));
+
+        let response = match status {
+            AttemptStatus::Failure | AttemptStatus::AuthenticationFailed => {
+                Err(item.response.in_band_error(item.http_code))
+            }
+            _ => Ok(PaymentsResponseData::AuthenticateResponse {
+                resource_id: Some(ResponseId::ConnectorTransactionId(resource_id)),
+                // The challenge page; the shopper is sent there with a plain GET.
+                redirection_data: item.response.challenge_url().map(|url| {
+                    Box::new(RedirectForm::Form {
+                        endpoint: url.to_string(),
+                        method: Method::Get,
+                        form_fields: std::collections::HashMap::new(),
+                    })
+                }),
+                authentication_data,
+                connector_feature_data: pending,
+                connector_response_reference_id: item.response.reference(),
+                status_code: item.http_code,
+            }),
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
