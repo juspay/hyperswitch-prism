@@ -1,0 +1,10 @@
+{
+  "connector": "paynearme",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}

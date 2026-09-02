@@ -1018,6 +1018,15 @@ pub enum ConnectorSpecificConfig {
         key2: Secret<String>,
         base_url: Option<String>,
     },
+    /// PayNearMe API v3.0 (JSON).
+    /// `api_key` = API Secret Key — the HMAC-SHA256 signing key. Never transmitted.
+    /// `key1`    = Site Identifier (a.k.a. Site/Key Identifier), sent as the
+    ///             `site_identifier` body field on every request.
+    Paynearme {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1390,6 +1399,7 @@ impl ConnectorSpecificConfig {
                 api_secret,
                 key2
             },
+            Paynearme { api_key, key1 },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1885,6 +1895,7 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     key2
                 },
+                Paynearme { api_key, key1 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2544,6 +2555,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: saferpay.api_secret.ok_or_else(err)?,
                 key2: saferpay.key2.ok_or_else(err)?,
                 base_url: saferpay.base_url,
+            }),
+            AuthType::Paynearme(paynearme) => Ok(Self::Paynearme {
+                api_key: paynearme.api_key.ok_or_else(err)?,
+                key1: paynearme.key1.ok_or_else(err)?,
+                base_url: paynearme.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3605,6 +3621,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
                         key2: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paynearme => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

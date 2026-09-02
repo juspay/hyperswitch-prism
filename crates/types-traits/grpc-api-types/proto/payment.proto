@@ -905,6 +905,7 @@ enum Connector {
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
   SAFERPAY = 140;
+  PAYNEARME = 141;
 }
 
 // Payment method types
@@ -5849,6 +5850,15 @@ message CitigateConfig {
   optional string base_url = 50;
 }
 
+// PayNearMe API v3.0.
+// api_key = API Secret Key (HMAC-SHA256 signing key, never transmitted)
+// key1    = Site Identifier, sent as the `site_identifier` body field
+message PaynearmeConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message IlixiumConfig {
   // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
   SecretString api_key = 1;
@@ -6213,6 +6223,8 @@ message ConnectorSpecificConfig {
     GotymeSanlamConfig gotyme_sanlam = 150;
     // SAFERPAY = 140
     SaferpayConfig saferpay = 151;
+    // PAYNEARME = 141
+    PaynearmeConfig paynearme = 152;
   }
 }
 
