@@ -94,7 +94,10 @@ impl deja::codec::ReplayCodec for HttpOutcomeCodec {
 
     fn capture(value: &Self::Value) -> (serde_json::Value, bool) {
         let (outcome, is_error) = match value {
-            Ok(Ok(response)) => (HttpTapeOutcome::Ok(TapeResponse::from_response(response)), false),
+            Ok(Ok(response)) => (
+                HttpTapeOutcome::Ok(TapeResponse::from_response(response)),
+                false,
+            ),
             Ok(Err(response)) => (
                 HttpTapeOutcome::HttpErr(TapeResponse::from_response(response)),
                 false,
@@ -170,7 +173,10 @@ impl deja::codec::ReplayCodec for KafkaOutcomeCodec {
 
     fn capture(value: &Self::Value) -> (serde_json::Value, bool) {
         let (outcome, is_error) = match value {
-            Ok(Ok(response)) => (KafkaTapeOutcome::Ok(TapeResponse::from_response(response)), false),
+            Ok(Ok(response)) => (
+                KafkaTapeOutcome::Ok(TapeResponse::from_response(response)),
+                false,
+            ),
             Ok(Err(response)) => (
                 KafkaTapeOutcome::HttpErr(TapeResponse::from_response(response)),
                 false,
@@ -250,7 +256,9 @@ impl deja::codec::ReplayCodec for InjectorOutcomeCodec {
             Err(report) => {
                 let context = report.current_context();
                 let variant = match context {
-                    injector::InjectorError::TokenReplacementFailed(_) => "token_replacement_failed",
+                    injector::InjectorError::TokenReplacementFailed(_) => {
+                        "token_replacement_failed"
+                    }
                     injector::InjectorError::HttpRequestFailed => "http_request_failed",
                     injector::InjectorError::SerializationError(_) => "serialization_error",
                     injector::InjectorError::InvalidTemplate(_) => "invalid_template",
@@ -340,7 +348,8 @@ mod tests {
     #[test]
     fn all_three_arms_round_trip() {
         // Ok(Ok): success body (non-UTF-8 bytes included).
-        let ok: <HttpOutcomeCodec as ReplayCodec>::Value = Ok(Ok(response(200, &[0, 159, 146, 150])));
+        let ok: <HttpOutcomeCodec as ReplayCodec>::Value =
+            Ok(Ok(response(200, &[0, 159, 146, 150])));
         let (json, is_err) = HttpOutcomeCodec::capture(&ok);
         assert!(!is_err);
         let back = HttpOutcomeCodec::reconstruct(json).expect("ok reconstructs");
@@ -368,4 +377,3 @@ mod tests {
         );
     }
 }
-

@@ -357,10 +357,16 @@ mod tests {
             &http::Method::POST,
             "/payments/authorize"
         ));
-        assert!(is_recordable_http(&http::Method::POST, "/composite/payments/authorize"));
+        assert!(is_recordable_http(
+            &http::Method::POST,
+            "/composite/payments/authorize"
+        ));
         assert!(!is_recordable_http(&http::Method::GET, "/health"));
         assert!(!is_recordable_http(&http::Method::POST, "/health"));
-        assert!(!is_recordable_http(&http::Method::GET, "/payments/authorize"));
+        assert!(!is_recordable_http(
+            &http::Method::GET,
+            "/payments/authorize"
+        ));
     }
 
     /// The kernel contract: `request.{method,path,query,request_id,headers,request_body}`

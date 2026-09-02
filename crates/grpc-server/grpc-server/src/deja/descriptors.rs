@@ -45,8 +45,12 @@ pub fn unframe_messages(body: &[u8]) -> Option<Vec<&[u8]>> {
 pub fn method_descriptors(rpc: &str) -> Option<(MessageDescriptor, MessageDescriptor)> {
     let (service, method) = rpc.strip_prefix('/')?.split_once('/')?;
     let pool = pool()?;
-    let service = pool.services().find(|candidate| candidate.full_name() == service)?;
-    let method = service.methods().find(|candidate| candidate.name() == method)?;
+    let service = pool
+        .services()
+        .find(|candidate| candidate.full_name() == service)?;
+    let method = service
+        .methods()
+        .find(|candidate| candidate.name() == method)?;
     Some((method.input(), method.output()))
 }
 

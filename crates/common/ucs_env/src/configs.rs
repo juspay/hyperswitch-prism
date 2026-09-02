@@ -396,8 +396,8 @@ impl Config {
         let env = consts::Env::current_env();
         let config_path = Self::config_path(&env, explicit_config_path);
 
-        let config_builder = Self::builder(&env)?
-            .add_source(config::File::from(config_path).required(false));
+        let config_builder =
+            Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
 
         let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
             .try_parsing(true)
@@ -413,9 +413,7 @@ impl Config {
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
-        let config = config_builder
-            .add_source(environment_source)
-            .build()?;
+        let config = config_builder.add_source(environment_source).build()?;
 
         #[allow(clippy::print_stderr)]
         let config: Self = serde_path_to_error::deserialize(config).map_err(|error| {
