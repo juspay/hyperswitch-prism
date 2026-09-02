@@ -93,9 +93,10 @@ pub struct TravelhubErrorResponse {
 // Travel / Airline Itinerary Types
 
 /// Connector-agnostic airline data (Euler `domainData.airlineData`) mapped onto
-/// Travelhub's `travel` object. Present in both authorize and capture requests;
-/// `airlineCode` is mandatory whenever `travel` is sent, so the whole block is
-/// omitted when no airline code is available.
+/// Travelhub's `travel` object. Only the authorize request carries it today —
+/// `TravelhubCaptureRequest` has no `travel` field. `airlineCode` is mandatory
+/// whenever `travel` is sent, so the whole block is omitted when no airline code
+/// is available.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubTravel {
