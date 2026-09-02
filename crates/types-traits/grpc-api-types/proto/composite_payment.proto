@@ -593,6 +593,11 @@ message CompositePaymentMethodGetRequest {
   optional string return_url = 14;
   optional SplitPaymentsDetails split_payments = 15 [deprecated = true];
   optional PaymentMethod payment_method = 16;
+
+  // Mandate/Recurring configuration (forwarded to tokenize step)
+  optional FutureUsage setup_future_usage = 17;       // Indicates future usage intention (e.g. off_session for mandates)
+  optional CustomerAcceptance customer_acceptance = 18; // Details of customer consent for mandate setup
+  optional SetupMandateDetails setup_mandate_details = 19; // Mandate data for recurring payment setup
 }
 
 // Response message for composite payment method get flow.

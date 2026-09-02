@@ -357,6 +357,16 @@ pub struct StoredCredential {
     pub initiator: Option<InitiatorType>,
 }
 
+/// Transaction type for GlobalPay. `Sale` moves funds from payer to merchant;
+/// `Refund` moves funds from merchant to payer (used on the dedicated /refund endpoint).
+/// Authorize and RepeatPayment flows always use `Sale`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayTransactionType {
+    Sale,
+    Refund,
+}
+
 // ===== APM / BANK REDIRECT STRUCTURES =====
 
 /// APM (Alternative Payment Method) provider for bank redirect payments
@@ -366,7 +376,6 @@ pub enum ApmProvider {
     Giropay,
     Ideal,
     Paypal,
-    Sofort,
     Eps,
     Testpay,
 }
@@ -396,6 +405,8 @@ pub struct GlobalpayDigitalWallet {
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub account_name: String,
+    #[serde(rename = "type")]
+    pub type_: GlobalpayTransactionType,
     pub channel: String,
     pub amount: StringMinorUnit,
     pub currency: common_enums::Currency,
@@ -509,14 +520,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     BankRedirectData::Eps { .. } => ApmProvider::Eps,
                     BankRedirectData::Giropay { .. } => ApmProvider::Giropay,
                     BankRedirectData::Ideal { .. } => ApmProvider::Ideal,
-                    BankRedirectData::Sofort { .. } => ApmProvider::Sofort,
+                    // Sofort was discontinued by Klarna in 2024 and is no longer
+                    // supported by GlobalPay.
+                    BankRedirectData::Sofort { .. } => {
+                        return Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: "Sofort".to_string(),
+                            connector: "globalpay",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Sofort was discontinued by Klarna in 2024 and is no \
+                                     longer supported by GlobalPay"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Use iDEAL, EPS, or Giropay for bank redirect payments"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        }))
+                    }
                     _ => {
                         return Err(error_stack::report!(IntegrationError::NotImplemented(
                             "Bank redirect payment method not supported".to_string(),
                             IntegrationErrorContext {
                                 additional_context: Some(
-                                    "GlobalPay Authorize supports EPS, iDEAL, Giropay, and \
-                                     Sofort bank redirects; received an unsupported variant"
+                                    "GlobalPay Authorize supports EPS, iDEAL, and Giropay \
+                                     bank redirects; received an unsupported variant"
                                         .to_string(),
                                 ),
                                 suggested_action: None,
@@ -681,6 +711,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             account_name,
+            type_: GlobalpayTransactionType::Sale,
             channel: constants::CHANNEL_CNP.to_string(),
             amount,
             currency: item.request.currency,
@@ -1686,6 +1717,8 @@ pub struct GlobalpayRepeatPaymentMethod {
 #[derive(Debug, Serialize)]
 pub struct GlobalpayRepeatPaymentRequest {
     pub account_name: String,
+    #[serde(rename = "type")]
+    pub type_: GlobalpayTransactionType,
     pub channel: String,
     pub amount: StringMinorUnit,
     pub currency: common_enums::Currency,
@@ -1829,6 +1862,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             account_name,
+            type_: GlobalpayTransactionType::Sale,
             channel: constants::CHANNEL_CNP.to_string(),
             amount,
             currency: item.request.currency,
