@@ -248,7 +248,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   DatatransConfig: ["merchantId", "password"],
   FiservemeaConfig: ["apiKey", "apiSecret"],
   FinixConfig: ["finixUserName", "finixPassword", "merchantIdentityId", "merchantId"],
-  GlobalpayConfig: ["appId", "appKey"],
+  GlobalpayConfig: ["appId", "appKey", "accountName"],
   HipayConfig: ["apiKey", "apiSecret"],
   JpmorganConfig: ["clientId", "clientSecret", "companyName", "productName", "merchantPurchaseDescription", "statementDescriptor"],
   PaysafeCardAccountId: ["noThreeDs", "threeDs"],
