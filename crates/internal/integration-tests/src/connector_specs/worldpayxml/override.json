@@ -1,1 +1,56 @@
-{}
+{
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1000,
+          "currency": "GBP"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4444333322221111"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "John Doe"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "first_name": {
+              "value": "John"
+            },
+            "last_name": {
+              "value": "Doe"
+            },
+            "line1": {
+              "value": "1467"
+            },
+            "city": "London",
+            "zip_code": {
+              "value": "94122"
+            },
+            "country_alpha2_code": "GB"
+          }
+        },
+        "browser_info": {
+          "user_agent": "Mozilla/5.0",
+          "accept_header": "text/html",
+          "ip_address": "127.0.0.1"
+        },
+        "enrolled_for_3ds": true,
+        "return_url": "https://example.com/3ds-return"
+      }
+    }
+  }
+}

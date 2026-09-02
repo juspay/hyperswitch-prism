@@ -642,6 +642,9 @@ jobs:
   test:
     name: Run Tests
     needs: [changes, auto-fix]
+    permissions:
+      contents: read
+      pull-requests: write
     # Run if rust/proto/CI files changed AND auto-fix succeeded without pushing.
     # Skip if auto-fix pushed (new CI run incoming) or if auto-fix failed.
     if: >-

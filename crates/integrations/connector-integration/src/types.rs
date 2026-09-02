@@ -149,6 +149,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
                 Box::new(connectors::GlobalpaymentsHeartland::<T>::new())
             }
             ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
+            ConnectorEnum::Saferpay => Box::new(connectors::Saferpay::<T>::new()),
         }
     }
 }

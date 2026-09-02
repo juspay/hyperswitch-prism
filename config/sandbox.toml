@@ -24,6 +24,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 citigate.base_url = "https://gw-test.cgate.tech"
+saferpay.base_url = "https://test.saferpay.com/api"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
 globalpayments_heartland.base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws-cert.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
