@@ -1,7 +1,7 @@
 use common_enums::{AttemptStatus, CaptureMethod, CardNetwork, Currency};
 use common_utils::{
-    errors::ParsingError,
-    types::{AmountConvertor, MinorUnit},
+    pii::SecretSerdeValue,
+    types::{AmountConvertor, StringImpliedDecimal, StringImpliedDecimalForConnector},
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},
@@ -151,122 +151,6 @@ impl TryFrom<&ConnectorSpecificConfig> for JpmorganOrbitalAuthType {
                 }
             )),
         }
-    }
-}
-
-// =============================================================================
-// AMOUNT — two implied decimals for EVERY currency
-// =============================================================================
-
-/// `order.amount` as Orbital requires it on the wire: a numeric JSON **string**
-/// carrying two implied decimals for every currency, including zero-exponent ones
-/// (USD 100.00 and JPY 100 are both `"10000"`).
-///
-/// The inner value is private and the only constructor is
-/// [`JpmorganOrbitalAmountForConnector::convert`], so a value of this type cannot
-/// exist unless it went through the scaling and the 12-digit length check.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-pub struct JpmorganOrbitalAmount(String);
-
-impl JpmorganOrbitalAmount {
-    pub fn get_amount_as_string(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Orbital's unit in the amount framework, the connector-local counterpart of
-/// `StringMinorUnitForConnector` and friends. There is no stock equivalent in
-/// `common_utils` because the framework has no "always exponent 2" unit, and the
-/// gateway wants exactly that regardless of the currency's own ISO 4217 exponent.
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
-pub struct JpmorganOrbitalAmountForConnector;
-
-/// The number of implied decimals Orbital's wire format always carries.
-const ORBITAL_WIRE_EXPONENT: u32 = 2;
-
-fn amount_parse_error(reason: String) -> error_stack::Report<ParsingError> {
-    error_stack::report!(ParsingError::StructParseFailure("order.amount"))
-        .attach_printable(format!("JP Morgan Orbital order.amount: {reason}"))
-}
-
-/// `10^exponent` for the currency's own ISO 4217 exponent (0, 2, 3 or 4). Errors for
-/// a currency UCS has no decimal configuration for rather than assuming 2.
-fn currency_scale(currency: Currency) -> Result<i128, error_stack::Report<ParsingError>> {
-    let exponent = currency
-        .number_of_digits_after_decimal_point()
-        .map_err(|_| {
-            amount_parse_error(format!(
-                "{currency:?} has no ISO 4217 decimal configuration in UCS"
-            ))
-        })?;
-    Ok(10_i128.pow(u32::from(exponent)))
-}
-
-impl AmountConvertor for JpmorganOrbitalAmountForConnector {
-    type Output = JpmorganOrbitalAmount;
-
-    /// `wire = minor * 100 / 10^currency_exponent` — the major-unit value rendered
-    /// with exactly two decimals and the point dropped. Kept in `i128` so there is
-    /// neither a float hop nor an intermediate decimal string to re-parse.
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        let minor = i128::from(amount.get_amount_as_i64());
-        if minor < 0 {
-            return Err(amount_parse_error(
-                "Orbital's order.amount is unsigned".to_string(),
-            ));
-        }
-
-        let scale = currency_scale(currency)?;
-        let scaled = minor * 10_i128.pow(ORBITAL_WIRE_EXPONENT);
-        // Currencies with more than two decimals cannot always be expressed here,
-        // so refuse instead of silently dropping the sub-cent digits.
-        if scaled % scale != 0 {
-            return Err(amount_parse_error(format!(
-                "{currency:?} minor amount {minor} has non-zero digits below the two decimals \
-                 Orbital can represent"
-            )));
-        }
-
-        let rendered = (scaled / scale).to_string();
-        if rendered.len() > MAX_AMOUNT_LEN {
-            return Err(amount_parse_error(format!(
-                "`{rendered}` exceeds the {MAX_AMOUNT_LEN}-character maximum"
-            )));
-        }
-        Ok(JpmorganOrbitalAmount(rendered))
-    }
-
-    /// The inverse, `minor = wire * 10^currency_exponent / 100`. The asymmetry lives
-    /// entirely in the currency: because the wire value is always the major amount
-    /// times 100, for USD (exponent 2) it already *is* the minor amount, while for
-    /// JPY (exponent 0) the minor amount is `wire / 100`.
-    fn convert_back(
-        &self,
-        amount: Self::Output,
-        currency: Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        let wire = amount.get_amount_as_string().parse::<i128>().map_err(|_| {
-            amount_parse_error(format!(
-                "`{}` is not an integer",
-                amount.get_amount_as_string()
-            ))
-        })?;
-
-        let scaled = wire * currency_scale(currency)?;
-        let divisor = 10_i128.pow(ORBITAL_WIRE_EXPONENT);
-        if scaled % divisor != 0 {
-            return Err(amount_parse_error(format!(
-                "`{wire}` is not a whole number of {currency:?} minor units"
-            )));
-        }
-
-        let minor = i64::try_from(scaled / divisor)
-            .map_err(|_| amount_parse_error(format!("`{wire}` overflows a 64-bit minor amount")))?;
-        Ok(MinorUnit::new(minor))
     }
 }
 
@@ -488,7 +372,7 @@ pub struct JpmorganOrbitalOrder {
     #[serde(rename = "orderID")]
     pub order_id: String,
     /// Two implied decimals for every currency. See [`JpmorganOrbitalAmount`].
-    pub amount: JpmorganOrbitalAmount,
+    pub amount: StringImpliedDecimal,
     #[serde(rename = "industryType")]
     pub industry_type: String,
     /// Idempotency key **and** the `/inquiry` lookup key. Always sent.
@@ -622,10 +506,15 @@ fn map_eci(eci: &str, brand: OrbitalBrand) -> Option<&'static str> {
     let normalized = if unpadded.is_empty() { "0" } else { unpadded };
 
     match brand {
+        // Mastercard's own ECI enum is 00/01/02 on an inverted scale, so those are
+        // translated. 05/06/07 are not Mastercard values at all: a 3DS server emitting
+        // them on a Mastercard has normalised onto the Visa scale, where the meaning is
+        // unambiguous and lands on the same `authenticationECIInd`. Accepting both keeps
+        // such a payment 3DS instead of rejecting an authentication that did happen.
         OrbitalBrand::Mastercard => match normalized {
-            "2" => Some("5"), // full authentication
-            "1" => Some("6"), // attempted
-            "0" => Some("7"), // not authenticated
+            "2" | "5" => Some("5"), // full authentication
+            "1" | "6" => Some("6"), // attempted
+            "0" | "7" => Some("7"), // not authenticated
             _ => None,
         },
         OrbitalBrand::Visa | OrbitalBrand::Discover | OrbitalBrand::Amex => match normalized {
@@ -882,8 +771,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order_id: build_order_id(&common.connector_request_reference_id)?,
                 // Currency is deliberately absent: Orbital derives it from the
                 // Merchant ID setup and has no field to receive it.
-                amount: JpmorganOrbitalAmountForConnector
+                // The encoding is shared; the unsigned and 12-character rules are
+                // Orbital's own field constraints, so they stay visible here.
+                amount: StringImpliedDecimalForConnector
                     .convert(request.minor_amount, request.currency)
+                    .and_then(|amount| amount.validate_unsigned("order.amount"))
+                    .and_then(|amount| amount.validate_max_len(MAX_AMOUNT_LEN, "order.amount"))
                     .change_context(IntegrationError::InvalidDataFormat {
                         field_name: "order.amount",
                         context: IntegrationErrorContext::default(),
@@ -919,6 +812,24 @@ pub struct JpmorganOrbitalInquiryRequest {
     pub order: JpmorganOrbitalInquiryOrder,
 }
 
+/// Read a string out of the `connector_metadata` the Authorize response persisted, which
+/// the caller echoes back as `connector_feature_data`.
+///
+/// Orbital has no "get transaction by `txRefNum`" endpoint, so `/inquiry` can only be
+/// keyed on `orderID` / `inquiryRetryNumber`, both derived from
+/// `connector_request_reference_id`. That field is supplied independently on the Get
+/// request, so a sync that passes a different value derives different keys, finds no
+/// record, and reports a charged payment as failed. Preferring the echoed value keys the
+/// inquiry off what Authorize actually sent, and callers that echo nothing keep the
+/// derivation they have today.
+fn persisted_str(feature_data: Option<&SecretSerdeValue>, key: &str) -> Option<String> {
+    feature_data
+        .and_then(|data| data.peek().get(key))
+        .and_then(|value| value.as_str())
+        .map(str::to_string)
+        .filter(|value| !value.trim().is_empty())
+}
+
 type SyncRouterData = RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -932,6 +843,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let reference = &router_data
             .resource_common_data
             .connector_request_reference_id;
+        let persisted = router_data
+            .resource_common_data
+            .connector_feature_data
+            .as_ref();
 
         Ok(Self {
             version: ORBITAL_VERSION.to_string(),
@@ -941,8 +856,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_id: auth.terminal_id.clone(),
             },
             order: JpmorganOrbitalInquiryOrder {
-                order_id: Some(build_order_id(reference)?),
-                inquiry_retry_number: build_retry_trace(reference),
+                order_id: Some(match persisted_str(persisted, "order_id") {
+                    Some(order_id) => order_id,
+                    None => build_order_id(reference)?,
+                }),
+                inquiry_retry_number: persisted_str(persisted, "retry_trace")
+                    .unwrap_or_else(|| build_retry_trace(reference)),
             },
         })
     }
@@ -1307,12 +1226,23 @@ impl TryFrom<ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>> for SyncR
         item: ResponseRouterData<JpmorganOrbitalInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response.0;
-        let retry_trace = build_retry_trace(
-            &item
-                .router_data
+        // Echo the trace the inquiry was actually keyed on. Re-deriving here would
+        // overwrite a correctly-echoed trace with one built from a mismatched reference.
+        let retry_trace = persisted_str(
+            item.router_data
                 .resource_common_data
-                .connector_request_reference_id,
-        );
+                .connector_feature_data
+                .as_ref(),
+            "retry_trace",
+        )
+        .unwrap_or_else(|| {
+            build_retry_trace(
+                &item
+                    .router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            )
+        });
 
         if !response.is_success() {
             return Ok(Self {
