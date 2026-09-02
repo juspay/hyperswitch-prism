@@ -1496,11 +1496,40 @@ impl ConnectorSpecificConfig {
             return None;
         }
 
+        /// Map a `ConnectorSpecificConfig` variant name to its [`Connectors`] field name.
+        ///
+        /// This used to be a plain `to_ascii_lowercase()`, which is wrong for every
+        /// multi-word variant: `AbsaSanlam` produced `absasanlam` while the field is
+        /// `absa_sanlam`, and because `ConfigPatch` is `deny_unknown_fields` the
+        /// `x-connector-config` base-URL override failed with `InvalidDataFormat`
+        /// instead of applying. It silently broke `AbsaSanlam`, `GotymeSanlam`,
+        /// `PinelabsOnline`, `TsysTransit` and `TwocTwopPaco`.
+        ///
+        /// Snake-casing is therefore the default, so a newly added multi-word connector
+        /// is correct without anyone remembering this function. Two pre-existing fields
+        /// in `Connectors` are not snake_case and are pinned here — snake-casing them
+        /// would break overrides that work today.
+        fn connector_field_key(variant: &str) -> String {
+            match variant {
+                "BankOfAmerica" => return "bankofamerica".to_string(),
+                "RazorpayV2" => return "razorpayv2".to_string(),
+                _ => {}
+            }
+            let mut key = String::with_capacity(variant.len() + 4);
+            for (index, ch) in variant.char_indices() {
+                if ch.is_ascii_uppercase() && index != 0 {
+                    key.push('_');
+                }
+                key.push(ch.to_ascii_lowercase());
+            }
+            key
+        }
+
         macro_rules! connector_key {
                 ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
                     match self {
                         Self::NoKey => "nokey".to_string(),
-                        $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
+                        $(Self::$variant { .. } => connector_field_key(stringify!($variant)),)*
                     }
                 };
             }
