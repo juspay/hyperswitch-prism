@@ -168,6 +168,7 @@ pub enum ConnectorEnum {
     Ilixium,
     Worldpayraft,
     JpmorganOrbital,
+    Saferpay,
 }
 
 // snake case for enum variants
@@ -539,6 +540,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
+            grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2134,6 +2136,13 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub metadata: Option<Secret<String>>,
 }
 
+impl<T: PaymentMethodDataTypes> PaymentMethodTokenizationData<T> {
+    pub fn is_customer_initiated_mandate_payment(&self) -> bool {
+        (self.customer_acceptance.is_some() || self.setup_mandate_details.is_some())
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenResponse {
     pub token: String,
@@ -2875,6 +2884,10 @@ pub struct WebhookDetailsResponse {
     pub network_txn_id: Option<String>,
     pub payment_method_update: Option<PaymentMethodUpdate>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Payment method details reported by the connector mid-payment, intended for saving
+    /// for the returning-customer flow. Mirrors the field of the same name on
+    /// `PaymentFlowData`, which carries it on the PSync path.
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
 }
 
 /// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
@@ -5830,6 +5843,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
+            AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

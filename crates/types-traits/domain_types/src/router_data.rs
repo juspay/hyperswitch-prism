@@ -1017,6 +1017,18 @@ pub enum ConnectorSpecificConfig {
         /// absent no currency validation is performed.
         merchant_config_currency: Option<String>,
     },
+    /// Saferpay (SIX Payment Services) Transaction interface.
+    /// `api_key`    = API username (HTTP Basic username)
+    /// `key1`       = API password (HTTP Basic password)
+    /// `api_secret` = CustomerId   (`RequestHeader.CustomerId`)
+    /// `key2`       = TerminalId   (request body `TerminalId`)
+    Saferpay {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1387,6 +1399,12 @@ impl ConnectorSpecificConfig {
                 username,
                 password,
                 merchant_id
+            },
+            Saferpay {
+                api_key,
+                key1,
+                api_secret,
+                key2
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1881,6 +1899,12 @@ impl ConnectorSpecificConfig {
                     username,
                     password,
                     merchant_id
+                },
+                Saferpay {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2543,6 +2567,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 terminal_id: jpmorgan_orbital.terminal_id,
                 base_url: jpmorgan_orbital.base_url,
                 merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
+            }),
+            AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
+                api_key: saferpay.api_key.ok_or_else(err)?,
+                key1: saferpay.key1.ok_or_else(err)?,
+                api_secret: saferpay.api_secret.ok_or_else(err)?,
+                key2: saferpay.key2.ok_or_else(err)?,
+                base_url: saferpay.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3589,6 +3620,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_key: key1.clone(),
                         website: api_secret.clone(),
                         client_id: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Saferpay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Saferpay {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        key2: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

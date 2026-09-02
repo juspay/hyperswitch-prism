@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.02.0
+
+### Features
+
+- **connector:** [Truelayer] extend returning customer flow to the webhook path ([#2196](https://github.com/juspay/connector-service/pull/2196)) ([`37ccd7d`](https://github.com/juspay/connector-service/commit/37ccd7d5df78209edc2415ae5fb67338f3674760))
+
+**Full Changelog:** [`2026.09.01.1...2026.09.02.0`](https://github.com/juspay/connector-service/compare/2026.09.01.1...2026.09.02.0)
+
+- - -
+
 ## 2026.09.01.1
 
 ### Features

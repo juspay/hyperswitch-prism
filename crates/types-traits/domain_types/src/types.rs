@@ -435,6 +435,7 @@ pub struct Connectors {
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
     pub jpmorganorbital: ConnectorParams,
+    pub saferpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1428,6 +1429,26 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
 
         Ok(Self {
             payment_method: Some(payment_method),
+        })
+    }
+}
+
+/// Converts connector-returned payment method details to the proto representation for the
+/// returning-customer flow, dropping them with a warning if the payment method has no proto
+/// equivalent yet. Shared by the PSync and incoming-webhook response builders.
+impl ForeignFrom<Option<PaymentMethodData<DefaultPCIHolder>>>
+    for Option<grpc_api_types::payments::PaymentMethod>
+{
+    fn foreign_from(payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>) -> Self {
+        payment_method_data.and_then(|payment_method_data| {
+            grpc_api_types::payments::PaymentMethod::foreign_try_from(payment_method_data)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to convert connector_returned_payment_method_details; omitting it"
+                    );
+                })
+                .ok()
         })
     }
 }
@@ -8488,22 +8509,11 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
-                    connector_returned_payment_method_details: router_data_v2
-                        .resource_common_data
-                        .connector_returned_payment_method_details
-                        .clone()
-                        .and_then(|payment_method_data| {
-                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
-                                payment_method_data,
-                            )
-                            .map_err(|error| {
-                                tracing::warn!(
-                                    ?error,
-                                    "Failed to convert connector_returned_payment_method_details; omitting it"
-                                );
-                            })
-                            .ok()
-                        }),
+                    connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_returned_payment_method_details,
+                    ),
                     payment_account_reference,
                 })
             }
@@ -9469,6 +9479,21 @@ impl
 pub fn generate_refund_sync_response(
     router_data_v2: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
 ) -> Result<RefundResponse, error_stack::Report<ConnectorError>> {
+    let refund_metadata = router_data_v2
+        .request
+        .refund_connector_metadata
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(
+                    "Refund sync: failed to serialise connector refund metadata".to_string(),
+                ),
+            },
+        })?
+        .map(Secret::new);
     let refunds_response = router_data_v2.response;
     let raw_connector_response = router_data_v2
         .resource_common_data
@@ -9527,7 +9552,7 @@ pub fn generate_refund_sync_response(
                 email: None,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 raw_connector_response,
                 typed_connector_response,
                 status_code: response.status_code as u32,
@@ -9588,7 +9613,7 @@ pub fn generate_refund_sync_response(
                 typed_connector_response,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 status_code: e.status_code as u32,
                 response_headers,
                 state: None,
@@ -9712,7 +9737,9 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             splits: None,
             settlement_status: None,
             connector_feature_data: None,
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                value.connector_returned_payment_method_details,
+            ),
             payment_account_reference: None,
         })
     }

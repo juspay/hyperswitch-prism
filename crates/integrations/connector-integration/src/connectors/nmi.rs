@@ -241,6 +241,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ));
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 webhook_body.event_body.transaction_id.clone(),
             )),

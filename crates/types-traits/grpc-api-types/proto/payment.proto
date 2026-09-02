@@ -904,6 +904,7 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
+  SAFERPAY = 140;
   // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
@@ -5887,6 +5888,19 @@ message JpmorganOrbitalConfig {
   optional string merchant_config_currency = 51;
 }
 
+// Saferpay (SIX Payment Services) Transaction interface.
+// api_key    = API username (HTTP Basic username)
+// key1       = API password (HTTP Basic password)
+// api_secret = CustomerId   (RequestHeader.CustomerId)
+// key2       = TerminalId   (request body TerminalId)
+message SaferpayConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
+  SecretString key2 = 4;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6213,8 +6227,10 @@ message ConnectorSpecificConfig {
     WorldpayraftConfig worldpayraft = 149;
     // GOTYME_SANLAM = 140
     GotymeSanlamConfig gotyme_sanlam = 150;
+    // SAFERPAY = 140
+    SaferpayConfig saferpay = 151;
     // JPMORGAN_ORBITAL = 141
-    JpmorganOrbitalConfig jpmorgan_orbital = 151;
+    JpmorganOrbitalConfig jpmorgan_orbital = 152;
   }
 }
 

@@ -726,6 +726,14 @@ payment_methods: Card
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
 
+## Saferpay
+connector_id: saferpay
+doc: docs/connectors/saferpay.md
+scenarios: none
+payment_methods: none
+flows: capture, get, pre_authenticate, refund_get, void
+examples_python: none
+
 ## Shift4
 connector_id: shift4
 doc: docs/connectors/shift4.md

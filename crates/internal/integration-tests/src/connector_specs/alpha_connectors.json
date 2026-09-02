@@ -6,7 +6,6 @@
   "connectors": {
     "absa_sanlam": {},
     "aci": {},
-    "adyen": {},
     "affirm": {},
     "airwallex": {},
     "authipay": {},
@@ -26,7 +25,6 @@
     "celero": {},
     "checkout": {},
     "cryptopay": {},
-    "cybersource": {},
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
@@ -89,6 +87,9 @@
     "redsys": {},
     "revolut": {},
     "revolv3": {},
+    "saferpay": {
+      "reason": "Saferpay sandbox credentials are not configured in CI; live sandbox verification is attached to PR #2183."
+    },
     "shift4": {},
     "silverflow": {},
     "stax": {},
@@ -98,7 +99,6 @@
     "trustly": {},
     "trustpay": {},
     "trustpayments": {},
-    "tsys": {},
     "tsys_transit": {},
     "twoc_twop_paco": {},
     "volt": {},
