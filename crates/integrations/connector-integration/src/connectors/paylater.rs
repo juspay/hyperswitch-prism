@@ -505,9 +505,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response
-                .code
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            code: response.code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
             message,
             reason: None,
             attempt_status: None,

@@ -413,7 +413,8 @@ pub struct PaylaterPSyncResponse {
     pub merchant_reference: Option<String>,
 }
 
-impl TryFrom<
+impl
+    TryFrom<
         ResponseRouterData<
             PaylaterPSyncResponse,
             RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
@@ -561,7 +562,8 @@ pub struct PaylaterRefundResponse {
     pub message: String,
 }
 
-impl TryFrom<
+impl
+    TryFrom<
         ResponseRouterData<
             PaylaterRefundResponse,
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
