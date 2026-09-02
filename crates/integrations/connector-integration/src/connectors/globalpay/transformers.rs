@@ -21,7 +21,8 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        BankRedirectData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -395,11 +396,34 @@ pub enum GlobalpayDigitalWalletProvider {
 }
 
 /// Digital wallet payment method data (Google Pay).
-/// The `payment_token` is the raw JSON object returned by the Google Pay API.
+/// Two shapes depending on whether HS pre-decrypted the token:
+///   - Encrypted  → `payment_token` (raw JSON blob, GlobalPay decrypts)
+///   - Decrypted  → `token` + `token_format` + expiry + cryptogram + ECI
 #[derive(Debug, Serialize)]
 pub struct GlobalpayDigitalWallet {
     pub provider: GlobalpayDigitalWalletProvider,
-    pub payment_token: serde_json::Value,
+    #[serde(flatten)]
+    pub payment_data: GlobalpayDigitalWalletData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum GlobalpayDigitalWalletData {
+    Encrypted {
+        payment_token: serde_json::Value,
+    },
+    Decrypted {
+        /// DPAN from the decrypted Google Pay payload.
+        token: Secret<String>,
+        /// Always "CARD_TOKEN" for a DPAN.
+        token_format: String,
+        expiry_month: Secret<String>,
+        expiry_year: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cryptogram: Option<Secret<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        eci: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -579,20 +603,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     digital_wallet: None,
                     id: None,
                 },
-                WalletData::GooglePay(_) => {
-                    let payment_token = wallet_data
-                        .get_wallet_token_as_json::<serde_json::Value>("Google Pay".to_string())
-                        .change_context(IntegrationError::RequestEncodingFailed {
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Failed to parse Google Pay token as JSON for GlobalPay \
-                                     POST /transactions digital_wallet.payment_token"
+                WalletData::GooglePay(gpay_data) => {
+                    let payment_data = match &gpay_data.tokenization_data {
+                        GpayTokenizationData::Encrypted(_) => {
+                            let payment_token = wallet_data
+                                .get_wallet_token_as_json::<serde_json::Value>(
+                                    "Google Pay".to_string(),
+                                )
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Failed to parse Google Pay token as JSON for \
+                                             GlobalPay POST /transactions \
+                                             digital_wallet.payment_token"
+                                                .to_string(),
+                                        ),
+                                        suggested_action: None,
+                                        doc_url: None,
+                                    },
+                                })?;
+                            GlobalpayDigitalWalletData::Encrypted { payment_token }
+                        }
+                        GpayTokenizationData::Decrypted(decrypted) => {
+                            let expiry_year = decrypted
+                                .get_two_digit_expiry_year()
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Failed to get 2-digit expiry year from decrypted \
+                                             Google Pay data for GlobalPay POST /transactions"
+                                                .to_string(),
+                                        ),
+                                        suggested_action: None,
+                                        doc_url: None,
+                                    },
+                                })?;
+                            GlobalpayDigitalWalletData::Decrypted {
+                                token: Secret::new(
+                                    decrypted
+                                        .application_primary_account_number
+                                        .peek()
                                         .to_string(),
                                 ),
-                                suggested_action: None,
-                                doc_url: None,
-                            },
-                        })?;
+                                token_format: "CARD_TOKEN".to_string(),
+                                expiry_month: decrypted.card_exp_month.clone(),
+                                expiry_year,
+                                cryptogram: decrypted.cryptogram.clone(),
+                                eci: decrypted.eci_indicator.clone(),
+                            }
+                        }
+                    };
 
                     GlobalpayPaymentMethod {
                         name: item.request.customer_name.clone().map(Secret::new),
@@ -601,7 +661,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         apm: None,
                         digital_wallet: Some(GlobalpayDigitalWallet {
                             provider: GlobalpayDigitalWalletProvider::PayByGoogle,
-                            payment_token,
+                            payment_data,
                         }),
                         id: None,
                     }
@@ -865,6 +925,19 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
             .and_then(|card| card.brand_reference.as_ref())
             .map(|s| s.peek().to_string());
 
+        // When the Authorize was driven by a PMT token (CIT via tokenize+charge),
+        // echo the PMT token back as connector_mandate_id so HS persists it on the
+        // payment method record and can use it for subsequent MIT charges.
+        let mandate_reference = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => Some(Box::new(MandateReference {
+                connector_mandate_id: Some(t.token.peek().to_string()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })),
+            _ => None,
+        };
+
         // Handle failure responses separately
         let response = match status {
             AttemptStatus::Failure => Err(ErrorResponse {
@@ -907,7 +980,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
             _ => Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id,
                 network_txn_link_id: None,
