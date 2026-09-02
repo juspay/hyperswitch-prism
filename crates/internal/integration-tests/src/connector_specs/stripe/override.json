@@ -11,9 +11,6 @@
         }
       }
     },
-    "no3ds_auto_capture_google_pay_encrypted": {
-      "grpc_req": {}
-    },
     "no3ds_auto_capture_ideal": {
       "grpc_req": {
         "setup_future_usage": null

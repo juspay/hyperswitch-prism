@@ -434,6 +434,7 @@ pub struct Connectors {
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
+    pub saferpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -9474,6 +9475,21 @@ impl
 pub fn generate_refund_sync_response(
     router_data_v2: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
 ) -> Result<RefundResponse, error_stack::Report<ConnectorError>> {
+    let refund_metadata = router_data_v2
+        .request
+        .refund_connector_metadata
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(
+                    "Refund sync: failed to serialise connector refund metadata".to_string(),
+                ),
+            },
+        })?
+        .map(Secret::new);
     let refunds_response = router_data_v2.response;
     let raw_connector_response = router_data_v2
         .resource_common_data
@@ -9532,7 +9548,7 @@ pub fn generate_refund_sync_response(
                 email: None,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 raw_connector_response,
                 typed_connector_response,
                 status_code: response.status_code as u32,
@@ -9593,7 +9609,7 @@ pub fn generate_refund_sync_response(
                 typed_connector_response,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 status_code: e.status_code as u32,
                 response_headers,
                 state: None,

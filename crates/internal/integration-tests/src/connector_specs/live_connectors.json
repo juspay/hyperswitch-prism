@@ -1,6 +1,15 @@
 {
   "connectors": {
+    "adyen": {
+      "reason": "carries real production traffic"
+    },
+    "cybersource": {
+      "reason": "carries real production traffic"
+    },
     "stripe": {
+      "reason": "carries real production traffic"
+    },
+    "tsys": {
       "reason": "carries real production traffic"
     }
   }
