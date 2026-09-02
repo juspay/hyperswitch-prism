@@ -257,6 +257,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let status = transformers::SyncStatus::from(webhook_body.event_type.clone());
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
             status: common_enums::AttemptStatus::from(status),
             status_code: 200,

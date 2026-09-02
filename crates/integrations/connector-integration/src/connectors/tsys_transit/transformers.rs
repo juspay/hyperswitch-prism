@@ -3815,6 +3815,8 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         currency_conversion_data: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
+        customer: None,
     }
 }
 

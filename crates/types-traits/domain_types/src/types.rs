@@ -434,6 +434,7 @@ pub struct Connectors {
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
+    pub saferpay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1424,6 +1425,26 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
 
         Ok(Self {
             payment_method: Some(payment_method),
+        })
+    }
+}
+
+/// Converts connector-returned payment method details to the proto representation for the
+/// returning-customer flow, dropping them with a warning if the payment method has no proto
+/// equivalent yet. Shared by the PSync and incoming-webhook response builders.
+impl ForeignFrom<Option<PaymentMethodData<DefaultPCIHolder>>>
+    for Option<grpc_api_types::payments::PaymentMethod>
+{
+    fn foreign_from(payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>) -> Self {
+        payment_method_data.and_then(|payment_method_data| {
+            grpc_api_types::payments::PaymentMethod::foreign_try_from(payment_method_data)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to convert connector_returned_payment_method_details; omitting it"
+                    );
+                })
+                .ok()
         })
     }
 }
@@ -3470,6 +3491,8 @@ pub struct AuthorizationRequest {
     pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3511,6 +3534,8 @@ pub struct SetupRecurringRequest {
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
 }
 
 /// ============================================================================
@@ -3580,6 +3605,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             currency_conversion_data: req.currency_conversion_data,
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
         }
     }
 }
@@ -3653,6 +3679,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             currency_conversion_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         }
     }
 }
@@ -3701,6 +3728,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
         }
     }
 }
@@ -3753,6 +3781,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             partner_merchant_identifier_details: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         }
     }
 }
@@ -4748,6 +4777,14 @@ impl<
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -4876,7 +4913,8 @@ impl<
                 .map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.connector_customer_id)
+                .as_ref()
+                .and_then(|customer| customer.connector_customer_id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -4906,6 +4944,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -8484,22 +8530,11 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
-                    connector_returned_payment_method_details: router_data_v2
-                        .resource_common_data
-                        .connector_returned_payment_method_details
-                        .clone()
-                        .and_then(|payment_method_data| {
-                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
-                                payment_method_data,
-                            )
-                            .map_err(|error| {
-                                tracing::warn!(
-                                    ?error,
-                                    "Failed to convert connector_returned_payment_method_details; omitting it"
-                                );
-                            })
-                            .ok()
-                        }),
+                    connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_returned_payment_method_details,
+                    ),
                     payment_account_reference,
                 })
             }
@@ -9465,6 +9500,21 @@ impl
 pub fn generate_refund_sync_response(
     router_data_v2: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
 ) -> Result<RefundResponse, error_stack::Report<ConnectorError>> {
+    let refund_metadata = router_data_v2
+        .request
+        .refund_connector_metadata
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(
+                    "Refund sync: failed to serialise connector refund metadata".to_string(),
+                ),
+            },
+        })?
+        .map(Secret::new);
     let refunds_response = router_data_v2.response;
     let raw_connector_response = router_data_v2
         .resource_common_data
@@ -9523,7 +9573,7 @@ pub fn generate_refund_sync_response(
                 email: None,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 raw_connector_response,
                 typed_connector_response,
                 status_code: response.status_code as u32,
@@ -9584,7 +9634,7 @@ pub fn generate_refund_sync_response(
                 typed_connector_response,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 status_code: e.status_code as u32,
                 response_headers,
                 state: None,
@@ -9708,7 +9758,9 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             splits: None,
             settlement_status: None,
             connector_feature_data: None,
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                value.connector_returned_payment_method_details,
+            ),
             payment_account_reference: None,
         })
     }
@@ -12309,8 +12361,8 @@ impl<
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.id)
-                .clone()
+                .as_ref()
+                .and_then(|customer| customer.id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -12346,6 +12398,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -13986,6 +14046,20 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
+    for connector_types::AdditionalConnectorDetails
+{
+    fn foreign_from(value: grpc_api_types::payments::AdditionalConnectorDetails) -> Self {
+        Self {
+            checkout: value
+                .checkout
+                .map(|c| connector_types::CheckoutAdditionalInformation {
+                    purpose_of_payment: c.purpose_of_payment,
+                }),
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::BrowserInformation> for BrowserInformation {
     type Error = IntegrationError;
 
@@ -15557,6 +15631,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -19814,6 +19896,7 @@ pub fn tokenized_authorize_to_base(
         currency_conversion_data: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     }
 }
 
@@ -19895,6 +19978,7 @@ pub fn tokenized_setup_recurring_to_base(
         partner_merchant_identifier_details: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     }
 }
 
@@ -19999,6 +20083,7 @@ pub fn proxied_authorize_to_base(
         currency_conversion_data: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     })
 }
 
@@ -20116,6 +20201,7 @@ pub fn proxied_setup_recurring_to_base(
         partner_merchant_identifier_details: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     })
 }
 
