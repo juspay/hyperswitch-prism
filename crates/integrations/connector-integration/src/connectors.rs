@@ -315,3 +315,6 @@ pub use self::ilixium::Ilixium;
 
 pub mod worldpayraft;
 pub use self::worldpayraft::Worldpayraft;
+
+pub mod saferpay;
+pub use self::saferpay::Saferpay;

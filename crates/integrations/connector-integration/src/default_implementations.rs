@@ -292,6 +292,7 @@ default_impl_verify_webhook_source_v2!(
         Tesouro,
         Boost,
         Citigate,
+        Saferpay,
         Moneris,
         Ilixium,
         GlobalpaymentsRealex,
@@ -373,6 +374,7 @@ macro_rules! default_impl_recharge_v2 {
 
 default_impl_recharge_v2!(
     Citigate,
+    Saferpay,
     Boost,
     Ilixium,
     GlobalpaymentsRealex,
@@ -603,6 +605,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
     Citigate,
+    Saferpay,
     Boost,
     Ilixium,
     GlobalpaymentsRealex,
@@ -711,6 +714,7 @@ default_impl_create_payment_method_v2!(
 
 default_impl_get_payment_method_v2!(
     Citigate,
+    Saferpay,
     Boost,
     Ilixium,
     GlobalpaymentsRealex,
@@ -820,6 +824,7 @@ default_impl_get_payment_method_v2!(
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Citigate,
+        Saferpay,
         Boost,
         Ilixium,
         GlobalpaymentsRealex,
@@ -989,6 +994,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 
 default_impl_refresh_payment_method_v2!(
     Citigate,
+    Saferpay,
     Boost,
     Ilixium,
     GlobalpaymentsRealex,

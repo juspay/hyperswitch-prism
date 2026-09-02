@@ -904,7 +904,8 @@ enum Connector {
   CITIGATE = 137;
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
-  GLOBALPAYMENTS_REALEX = 140;
+  SAFERPAY = 140;
+  GLOBALPAYMENTS_REALEX = 141;
 }
 
 // Payment method types
@@ -1621,7 +1622,29 @@ message RedirectForm {
     // A standalone script snippet (e.g. a device-data-collection script), when
     // the connector returns script content instead of a full HTML document.
     ScriptData script = 8;
+
+    // Worldpay WPG (worldpayxml) Cardinal device-data-collection data; the caller
+    // renders the collection page.
+    WorldpayxmlDdcData worldpayxml_ddc = 9;
+
+    // Worldpay WPG (worldpayxml) Cardinal challenge data; the caller renders the
+    // StepUp page.
+    WorldpayxmlChallengeData worldpayxml_challenge = 10;
   }
+}
+
+// Cardinal device-data-collection data for worldpayxml.
+message WorldpayxmlDdcData {
+  // First six digits of the card number.
+  string bin = 1;
+  // Signed DDC JWT.
+  SecretString jwt = 2;
+}
+
+// Cardinal challenge data for worldpayxml.
+message WorldpayxmlChallengeData {
+  // Signed challenge JWT.
+  SecretString jwt = 1;
 }
 
 // Represents data for an HTML form to be submitted
@@ -2703,6 +2726,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 54;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 55;
 }
 
 // Partner / external-platform application details.
@@ -3666,6 +3692,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 39;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 40;
 }
 
 // Response message for a mandate setup operation
@@ -3836,6 +3865,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 41;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 42;
 }
 
 // Response message for repeat payment operation
@@ -5414,6 +5446,10 @@ message WorldpayxmlConfig {
   SecretString api_username = 1;
   SecretString api_password = 2;
   SecretString merchant_code = 3;
+  // Cardinal 3DS JWT credentials, from the merchant connector account metadata.
+  optional SecretString issuer_id = 4;
+  optional SecretString organizational_unit_id = 5;
+  optional SecretString jwt_mac_key = 6;
   optional string base_url = 50;
 }
 
@@ -5851,6 +5887,19 @@ message WorldpayraftConfig {
   optional string base_url = 50;
 }
 
+// Saferpay (SIX Payment Services) Transaction interface.
+// api_key    = API username (HTTP Basic username)
+// key1       = API password (HTTP Basic password)
+// api_secret = CustomerId   (RequestHeader.CustomerId)
+// key2       = TerminalId   (request body TerminalId)
+message SaferpayConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
+  SecretString key2 = 4;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6177,8 +6226,10 @@ message ConnectorSpecificConfig {
     WorldpayraftConfig worldpayraft = 149;
     // GOTYME_SANLAM = 140
     GotymeSanlamConfig gotyme_sanlam = 150;
-    // GLOBALPAYMENTS_REALEX = 140
-    GlobalpaymentsRealexConfig globalpayments_realex = 151;
+    // SAFERPAY = 140
+    SaferpayConfig saferpay = 151;
+    // GLOBALPAYMENTS_REALEX = 141
+    GlobalpaymentsRealexConfig globalpayments_realex = 152;
   }
 }
 
@@ -6675,4 +6726,18 @@ message SplitSettlementResponseVendor {
   optional string utr = 10;
   // The connector's id for the TRANSFER of this slice to the vendor (e.g. Stripe tr_…).
   optional string connector_transaction_id = 11;
+}
+
+// Additional connector-specific details to be passed through to the
+// connector for the transaction. Currently only the Checkout variant is defined.
+message AdditionalConnectorDetails {
+  // Checkout specific additional information for the transaction.
+  optional CheckoutAdditionalInformation checkout = 1;
+}
+
+// Checkout.com-specific additional information to be included in the payment request.
+message CheckoutAdditionalInformation {
+  // Free-text description of the reason or intent behind the payment (e.g. "Invoice payment",
+  // "Goods purchase"). Forwarded verbatim to Checkout.com as the purpose of the transaction.
+  optional string purpose_of_payment = 1;
 }

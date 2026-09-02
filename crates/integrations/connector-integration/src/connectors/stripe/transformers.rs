@@ -4370,6 +4370,7 @@ pub(crate) fn build_webhook_payment_response(
         .or_else(|| connector_transaction_id.clone());
 
     Ok(WebhookDetailsResponse {
+        connector_returned_payment_method_details: None,
         resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
         status,
         connector_response_reference_id: connector_response_reference_id.clone(),

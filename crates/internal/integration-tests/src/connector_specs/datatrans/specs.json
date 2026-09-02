@@ -9,6 +9,7 @@
     "RefundService/Get",
     "PaymentService/Void",
     "PaymentService/SetupRecurring",
-    "RecurringPaymentService/Charge"
+    "RecurringPaymentService/Charge",
+    "PaymentMethodService/Tokenize"
   ]
 }

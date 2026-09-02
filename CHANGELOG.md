@@ -19,6 +19,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.02.0
+
+### Features
+
+- **connector:** [Truelayer] extend returning customer flow to the webhook path ([#2196](https://github.com/juspay/connector-service/pull/2196)) ([`37ccd7d`](https://github.com/juspay/connector-service/commit/37ccd7d5df78209edc2415ae5fb67338f3674760))
+
+**Full Changelog:** [`2026.09.01.1...2026.09.02.0`](https://github.com/juspay/connector-service/compare/2026.09.01.1...2026.09.02.0)
+
+- - -
+
+## 2026.09.01.1
+
+### Features
+
+- **connector:** [WORLDPAYXML] add 3DS2 (Cardinal) support ([#2182](https://github.com/juspay/connector-service/pull/2182)) ([`526aa37`](https://github.com/juspay/connector-service/commit/526aa37e83ae0e344388475cdedc65e52e3eeac0))
+- **fiservcommercehub:** Map merchant_order_id and metadata.merchant_invoice_id to merchantOrderId and merchantInvoiceNumber ([#2177](https://github.com/juspay/connector-service/pull/2177)) ([`4d044a8`](https://github.com/juspay/connector-service/commit/4d044a831227c42d6114014051d8c8aa6c6ee9fa))
+
+### Bug Fixes
+
+- **connector:** [datatrans] googlepay 3ds ([#2200](https://github.com/juspay/connector-service/pull/2200)) ([`d5b550b`](https://github.com/juspay/connector-service/commit/d5b550b5e462f5758aecfe7ea5216f46a755f771))
+
+**Full Changelog:** [`2026.09.01.0...2026.09.01.1`](https://github.com/juspay/connector-service/compare/2026.09.01.0...2026.09.01.1)
+
+- - -
+
+## 2026.09.01.0
+
+### Features
+
+- **pre-authenticate:** Resolve connector variant in preAuthN, support FRM (Kount) via x-frm-connector ([#2172](https://github.com/juspay/connector-service/pull/2172)) ([`a70c29a`](https://github.com/juspay/connector-service/commit/a70c29ab8ce843dafd9c02b8bcd4ba328311ca0e))
+
+### Bug Fixes
+
+- **ci:** Require specs.json for connector-name detection ([#2201](https://github.com/juspay/connector-service/pull/2201)) ([`1dae09d`](https://github.com/juspay/connector-service/commit/1dae09d434e9cec6ef1ca59593e3ba27aae9043b))
+
+**Full Changelog:** [`2026.08.31.1...2026.09.01.0`](https://github.com/juspay/connector-service/compare/2026.08.31.1...2026.09.01.0)
+
+- - -
+
 ## 2026.08.31.1
 
 ### Features

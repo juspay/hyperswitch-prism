@@ -240,6 +240,7 @@ impl GlomopayWebhookPayload {
             _ => (None, None),
         };
         WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
             connector_response_reference_id: Some(self.data.id.clone()),

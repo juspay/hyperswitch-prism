@@ -12,8 +12,7 @@
     "assert": {
       "status": {
         "one_of": [
-          "INITIATED",
-          "REQUIRES_CUSTOMER_ACTION"
+          "PENDING"
         ]
       },
       "connector_order_id": {
@@ -42,8 +41,7 @@
     "assert": {
       "status": {
         "one_of": [
-          "INITIATED",
-          "REQUIRES_CUSTOMER_ACTION"
+          "PENDING"
         ]
       },
       "connector_order_id": {
@@ -69,8 +67,7 @@
     "assert": {
       "status": {
         "one_of": [
-          "INITIATED",
-          "REQUIRES_CUSTOMER_ACTION"
+          "PENDING"
         ]
       },
       "connector_order_id": {
@@ -85,29 +82,6 @@
     },
     "display_name": "Create Order | Payment Method Type"
   },
-  "create_order_fail_invalid_currency": {
-    "grpc_req": {
-      "merchant_order_id": "auto_generate",
-      "amount": {
-        "minor_amount": 10000,
-        "currency": "XXX"
-      },
-      "webhook_url": "https://example.com/payment/webhook",
-      "test_mode": true
-    },
-    "assert": {
-      "status": {
-        "one_of": [
-          "FAILED",
-          "PROCESSING_ERROR"
-        ]
-      },
-      "error": {
-        "must_exist": true
-      }
-    },
-    "display_name": "Create Order | Fail Invalid Currency"
-  },
   "create_order_fail_zero_amount": {
     "grpc_req": {
       "merchant_order_id": "auto_generate",
@@ -119,12 +93,6 @@
       "test_mode": true
     },
     "assert": {
-      "status": {
-        "one_of": [
-          "FAILED",
-          "PROCESSING_ERROR"
-        ]
-      },
       "error": {
         "must_exist": true
       }

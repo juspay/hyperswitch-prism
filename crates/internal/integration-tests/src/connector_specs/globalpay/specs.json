@@ -11,6 +11,7 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "PaymentMethodService/Tokenize"
   ]
 }

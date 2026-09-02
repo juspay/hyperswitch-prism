@@ -591,6 +591,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_password: p(),
             merchant_code: Secret::new("probe_merchant_code".to_string()),
             base_url: None,
+            issuer_id: None,
+            organizational_unit_id: None,
+            jwt_mac_key: None,
         },
         ConnectorEnum::Zift => ConnectorSpecificConfig::Zift {
             user_name: u(),
@@ -820,6 +823,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {
             license: k(),
             merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Saferpay => ConnectorSpecificConfig::Saferpay {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            key2: k(),
             base_url: None,
         },
     }
