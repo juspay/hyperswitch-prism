@@ -86,6 +86,9 @@
     "redsys": {},
     "revolut": {},
     "revolv3": {},
+    "saferpay": {
+      "reason": "Saferpay sandbox credentials are not configured in CI; live sandbox verification is attached to PR #2183."
+    },
     "shift4": {},
     "silverflow": {},
     "stax": {},
