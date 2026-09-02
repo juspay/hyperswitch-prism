@@ -598,6 +598,8 @@ connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
 [[overrides]]
 _context_ = { connector = "globalpayments_realex" }
 connector_base_url = "https://api.sandbox.realexpayments.com/"
+# 3DS2 is a separate JSON API on a separate host (see three_ds_two.rs).
+connector_secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
 
 # ============================================================================
 # Production Environment Overrides
@@ -609,6 +611,9 @@ connector_base_url = "https://api.sandbox.realexpayments.com/"
 [[overrides]]
 _context_ = { connector = "globalpayments_realex", environment = "production" }
 connector_base_url = "https://api.realexpayments.com/"
+# 3DS2 is a separate JSON API on a separate host (see three_ds_two.rs). Two GP
+# documents disagree on this host; confirm with GP before the production cut-over.
+connector_secondary_base_url = "https://api.globalpay-ecommerce.com/"
 
 # Adyen Production
 [[overrides]]

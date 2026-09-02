@@ -333,6 +333,77 @@ fn verify_response_hash(
     }
 }
 
+// -----------------------------------------------------------------------------
+// 3DS2 JSON API digests (separate API — see `super::three_ds_two`)
+// -----------------------------------------------------------------------------
+
+/// The `Authorization: securehash <digest>` blueprints of the Global Payments **3DS2 JSON API**.
+///
+/// The JSON API reuses the XML API's two-stage SHA-1 primitive ([`realex_digest`]) and the same
+/// Shared Secret, but **nothing else**: different field lists, a different timestamp format
+/// ([`current_3ds2_timestamp`]) and a different card-scheme vocabulary
+/// (`MASTERCARD`, not the XML `MC` — see [`map_card_type`] and
+/// [`super::three_ds_two::map_3ds2_scheme`]).
+///
+/// Blueprints (source: `sources/source_2_3d_secure_two.md` § "Generate hash"):
+///
+/// | Call | Stage-1 string |
+/// |---|---|
+/// | `POST /3ds2/protocol-versions` | `request_timestamp.merchant_id.cardnumber` |
+/// | `POST /3ds2/authentications` | `request_timestamp.merchant_id.cardnumber.server_trans_id` |
+/// | `GET  /3ds2/authentications/{sid}` | `request_timestamp.merchant_id.server_trans_id` |
+///
+/// The `request_timestamp` slot must be **byte-identical** to the one the request body (or query
+/// string) carries; see the blocking comments on each flow's `build_request_v2`.
+#[derive(Debug, Clone, Copy)]
+pub enum Gp3ds2Digest<'a> {
+    /// *Check version* — `POST /3ds2/protocol-versions`.
+    CheckVersion {
+        timestamp: &'a str,
+        merchant_id: &'a str,
+        card_number: &'a str,
+    },
+    /// *Initiate authentication* — `POST /3ds2/authentications`.
+    InitiateAuthentication {
+        timestamp: &'a str,
+        merchant_id: &'a str,
+        card_number: &'a str,
+        server_trans_id: &'a str,
+    },
+    /// *Obtain authentication data* — `GET /3ds2/authentications/{server_trans_id}`.
+    ObtainAuthenticationData {
+        timestamp: &'a str,
+        merchant_id: &'a str,
+        server_trans_id: &'a str,
+    },
+}
+
+/// Build the value for the 3DS2 `Authorization: securehash …` header.
+///
+/// Deliberately shares only [`realex_digest`] with the XML flows — see [`Gp3ds2Digest`].
+pub fn build_3ds2_securehash(digest: Gp3ds2Digest<'_>, shared_secret: &str) -> Secret<String> {
+    let fields: Vec<&str> = match digest {
+        Gp3ds2Digest::CheckVersion {
+            timestamp,
+            merchant_id,
+            card_number,
+        } => vec![timestamp, merchant_id, card_number],
+        Gp3ds2Digest::InitiateAuthentication {
+            timestamp,
+            merchant_id,
+            card_number,
+            server_trans_id,
+        } => vec![timestamp, merchant_id, card_number, server_trans_id],
+        Gp3ds2Digest::ObtainAuthenticationData {
+            timestamp,
+            merchant_id,
+            server_trans_id,
+        } => vec![timestamp, merchant_id, server_trans_id],
+    };
+
+    Secret::new(realex_digest(&fields, shared_secret))
+}
+
 // =============================================================================
 // FIELD FORMATTING HELPERS (tech spec §5)
 // =============================================================================
@@ -355,10 +426,35 @@ fn current_timestamp() -> Result<String, error_stack::Report<IntegrationError>> 
         })
 }
 
+/// The 3DS2 JSON API's `request_timestamp`: `yyyy-MM-ddTHH:mm:ss.SSSSSS`, UTC, **no** trailing
+/// `Z` and no offset (the documented format is `yyyy-MM-ddTHH:mm:ss.SSS` with 3–6 fractional
+/// digits; every worked example in the vendor docs uses 6).
+///
+/// Completely unrelated to the XML API's [`current_timestamp`] (`YYYYMMDDHHMMSS`). The two APIs
+/// are never called with the same string, and this value additionally appears verbatim inside the
+/// `securehash` — see [`Gp3ds2Digest`].
+pub fn current_3ds2_timestamp() -> Result<String, error_stack::Report<IntegrationError>> {
+    let now = time::OffsetDateTime::now_utc();
+    let format = time::macros::format_description!(
+        "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:6]"
+    );
+    now.format(&format)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Failed to format the current UTC time as yyyy-MM-ddTHH:mm:ss.SSSSSS for the \
+                     GlobalpaymentsRealex 3DS2 request_timestamp"
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })
+}
+
 /// `<orderid>` accepts `[a-zA-Z0-9_-]` only, 1–50 characters, and must be unique per attempt
 /// (a reuse returns `501 … already been processed`). Anything outside the charset is replaced
 /// with `-`, then the value is truncated.
-fn sanitize_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+pub fn sanitize_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
     let sanitized: String = reference
         .chars()
         .map(|c| {
@@ -394,7 +490,7 @@ fn sanitize_order_id(reference: &str) -> Result<String, error_stack::Report<Inte
 /// One documented exception: **JPY amounts must be multiplied by 100 before submission**, unlike
 /// every other zero-exponent currency (tech spec §5.4). This could not be exercised against the
 /// sandbox account, so it is implemented from the documentation and flagged here.
-fn format_amount(
+pub fn format_amount(
     amount: MinorUnit,
     currency: common_enums::Currency,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
@@ -435,7 +531,9 @@ fn format_amount(
 
 /// The `<card><type>` enum. Case-sensitive uppercase; note `MC`, **not** `MASTERCARD` — the 3DS2
 /// JSON API uses a different spelling and the two tables must not be shared (tech spec §5.6).
-fn map_card_type<T>(card: &Card<T>) -> Result<&'static str, error_stack::Report<IntegrationError>>
+pub(super) fn map_card_type<T>(
+    card: &Card<T>,
+) -> Result<&'static str, error_stack::Report<IntegrationError>>
 where
     T: PaymentMethodDataTypes,
 {
