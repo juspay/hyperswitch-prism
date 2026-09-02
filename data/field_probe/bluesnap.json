@@ -1042,12 +1042,6 @@
         "error": "This feature is not implemented: setup_mandate flow for bluesnap"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for bluesnap"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

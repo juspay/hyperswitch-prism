@@ -747,6 +747,12 @@ pub enum ConnectorSpecificConfig {
         api_password: Secret<String>,
         merchant_code: Secret<String>,
         base_url: Option<String>,
+        /// Cardinal JWT issuer for 3DS device data collection and challenges.
+        issuer_id: Option<Secret<String>>,
+        /// Cardinal organisational unit for the 3DS JWTs.
+        organizational_unit_id: Option<Secret<String>>,
+        /// HMAC key the 3DS JWTs are signed with.
+        jwt_mac_key: Option<Secret<String>>,
     },
     Zift {
         user_name: Secret<String>,
@@ -849,6 +855,11 @@ pub enum ConnectorSpecificConfig {
     AbsaSanlam {
         api_key: Secret<String>,
         merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    GotymeSanlam {
+        api_key: Secret<String>,
+        profile_id: Secret<String>,
         base_url: Option<String>,
     },
     PinelabsOnline {
@@ -1111,6 +1122,10 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             AbsaSanlam { api_key, base_url },
+            GotymeSanlam {
+                api_key,
+                profile_id
+            },
             Bamboraapac {
                 username,
                 password,
@@ -1691,6 +1706,10 @@ impl ConnectorSpecificConfig {
                     merchant_acceptor_key
                 },
                 AbsaSanlam { api_key, base_url },
+                GotymeSanlam {
+                    api_key,
+                    profile_id
+                },
                 Trustpay {
                     api_key,
                     project_id,
@@ -2145,6 +2164,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: absa_sanlam.merchant_id.ok_or_else(err)?,
                 base_url: absa_sanlam.base_url,
             }),
+            AuthType::GotymeSanlam(gotyme_sanlam) => Ok(Self::GotymeSanlam {
+                api_key: gotyme_sanlam.api_key.ok_or_else(err)?,
+                profile_id: gotyme_sanlam.profile_id.ok_or_else(err)?,
+                base_url: gotyme_sanlam.base_url,
+            }),
             AuthType::Redsys(redsys) => Ok(Self::Redsys {
                 merchant_id: redsys.merchant_id.ok_or_else(err)?,
                 terminal_id: redsys.terminal_id.ok_or_else(err)?,
@@ -2288,6 +2312,9 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_password: worldpayxml.api_password.ok_or_else(err)?,
                 merchant_code: worldpayxml.merchant_code.ok_or_else(err)?,
                 base_url: worldpayxml.base_url,
+                issuer_id: worldpayxml.issuer_id,
+                organizational_unit_id: worldpayxml.organizational_unit_id,
+                jwt_mac_key: worldpayxml.jwt_mac_key,
             }),
             AuthType::Revolut(revolut) => Ok(Self::Revolut {
                 secret_api_key: revolut.secret_api_key.ok_or_else(err)?,
@@ -3425,6 +3452,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3947,6 +3977,9 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_password: key1.clone(),
                         merchant_code: api_secret.clone(),
                         base_url: None,
+                        issuer_id: None,
+                        organizational_unit_id: None,
+                        jwt_mac_key: None,
                     }),
                     _ => Err(err().into()),
                 },
@@ -3966,6 +3999,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Santander => Err(err().into()),
+                PayoutConnectorEnum::GotymeSanlam => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
+                        api_key: api_key.clone(),
+                        profile_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
                 PayoutConnectorEnum::Trustly => match auth {
                     ConnectorAuthType::SignatureKey {
@@ -3991,6 +4032,7 @@ pub enum FlowStatus {
     Payment(common_enums::enums::AttemptStatus),
     Refund(common_enums::enums::RefundStatus),
     Dispute(common_enums::enums::DisputeStatus),
+    Payout(common_enums::enums::PayoutStatus),
 }
 
 impl FlowStatus {
@@ -4014,6 +4056,14 @@ impl FlowStatus {
     pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
         match self {
             FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract PayoutStatus if this is a Payout variant
+    pub fn as_payout_status(&self) -> Option<common_enums::enums::PayoutStatus> {
+        match self {
+            FlowStatus::Payout(status) => Some(*status),
             _ => None,
         }
     }

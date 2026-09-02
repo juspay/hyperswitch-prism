@@ -358,6 +358,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxAuthorizeRespon
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,
@@ -518,6 +519,7 @@ impl TryFrom<ResponseRouterData<PayboxPSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -661,6 +663,7 @@ impl TryFrom<ResponseRouterData<PayboxCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -828,6 +831,7 @@ impl TryFrom<ResponseRouterData<PayboxVoidResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Voided,
@@ -1329,6 +1333,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -1591,6 +1596,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,

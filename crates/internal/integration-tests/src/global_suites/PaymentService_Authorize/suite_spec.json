@@ -4,11 +4,10 @@
   "depends_on": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
     "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
-    "CustomerService/Create",
     {
-      "suite": "PaymentMethodService/Tokenize",
+      "suite": "CustomerService/Create",
       "context_map": {
-        "payment_method.token.token.value": "res.payment_method_token"
+        "customer.connector_customer_id": "res.connector_customer_id"
       }
     }
   ],

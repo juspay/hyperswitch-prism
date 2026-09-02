@@ -701,6 +701,7 @@ impl<
                     mandate_reference,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -983,6 +984,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                     mandate_reference: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -1423,6 +1425,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
             mandate_reference: None,
             status_code: value.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1685,6 +1688,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),

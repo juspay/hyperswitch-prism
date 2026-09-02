@@ -8,9 +8,10 @@
 import asyncio
 import sys
 from payments import MerchantAuthenticationClient
+from payments import PaymentMethodAuthenticationClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["create_server_authentication_token"]
+SUPPORTED_FLOWS = ["create_server_authentication_token", "pre_authenticate"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -29,6 +30,10 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 def _build_create_server_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
+
+def _build_pre_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
+    )
 async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
@@ -36,6 +41,15 @@ async def process_create_server_authentication_token(merchant_transaction_id: st
     create_response = await merchantauthentication_client.create_server_authentication_token(_build_create_server_authentication_token_request())
 
     return {"status": create_response.status}
+
+
+async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PreAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
+
+    return {"status": pre_response.status}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "create_server_authentication_token"

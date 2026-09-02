@@ -977,6 +977,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 notif.psp_reference.clone(),
             )),

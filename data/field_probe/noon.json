@@ -1014,12 +1014,6 @@
         "error": "Selected payment method through Noon is not supported by Noon"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for noon"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

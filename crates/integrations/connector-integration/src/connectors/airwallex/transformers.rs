@@ -1561,6 +1561,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1638,6 +1639,7 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1746,6 +1748,7 @@ impl TryFrom<ResponseRouterData<AirwallexCaptureResponse, Self>>
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2008,6 +2011,7 @@ impl TryFrom<ResponseRouterData<AirwallexVoidResponse, Self>>
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2565,6 +2569,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2719,6 +2724,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

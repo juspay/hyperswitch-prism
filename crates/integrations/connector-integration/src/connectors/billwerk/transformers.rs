@@ -428,6 +428,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {

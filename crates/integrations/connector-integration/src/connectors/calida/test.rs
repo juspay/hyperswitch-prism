@@ -91,7 +91,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -173,7 +174,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -282,7 +284,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -364,7 +367,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,
@@ -459,7 +463,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -533,7 +538,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
                     mit_category: None,
                     payment_channel: None,
                     domain_data: None,

@@ -116,6 +116,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [MerchantAuthenticationService.CreateServerAuthenticationToken](#merchantauthenticationservicecreateserverauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
+| [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 
 ### Authentication
 
@@ -128,4 +129,15 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L34) · [Kotlin](../../examples/kount/kount.kt#L37) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L39) · [Kotlin](../../examples/kount/kount.kt#L38) · [Rust](../../examples/kount/kount.rs)
+
+#### PaymentMethodAuthenticationService.PreAuthenticate
+
+Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
+| **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
+
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L48) · [Kotlin](../../examples/kount/kount.kt#L48) · [Rust](../../examples/kount/kount.rs)

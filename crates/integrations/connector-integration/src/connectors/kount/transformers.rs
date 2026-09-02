@@ -2,10 +2,12 @@ use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck, ServerAuthenticationToken,
+        FrmPaymentOutcome, FrmRefundProcessed, PreAuthenticate, PreRiskCheck,
+        ServerAuthenticationToken,
     },
     connector_types::{
-        CustomerInfo, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CustomerInfo, PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
     frm::frm_types::{
@@ -19,6 +21,7 @@ use domain_types::{
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::{RedirectForm, Response},
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -734,6 +737,81 @@ pub fn hash_session_id(raw: &str) -> String {
         .generate_digest(raw.as_bytes())
         .map(|digest| hex::encode(digest).chars().take(32).collect())
         .unwrap_or_else(|_| to_session_id(raw))
+}
+
+/// Locally builds the Kount device-data-collection (DDC) response: no outbound
+/// call is made, the DDC script is embedded for the shopper's browser.
+pub(crate) fn handle_pre_authenticate_response<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: &RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+    _event_builder: Option<&mut common_utils::events::Event>,
+    _res: Response,
+) -> common_utils::errors::CustomResult<
+    RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+    errors::ConnectorError,
+> {
+    use domain_types::connector_types::RawConnectorRequestResponse;
+
+    // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
+    // deviceSessionId (which hashes the same merchant transaction id). Falls
+    // back to the connector request reference when it is absent.
+    let session_ref = data
+        .request
+        .merchant_transaction_id
+        .clone()
+        .unwrap_or_else(|| {
+            data.resource_common_data
+                .connector_request_reference_id
+                .clone()
+        });
+    let session_id = hash_session_id(&session_ref);
+    // Access token threaded via state.access_token → PaymentFlowData.access_token.
+    let token = data
+        .resource_common_data
+        .access_token
+        .as_ref()
+        .map(|t| t.access_token.peek().to_owned());
+    let client_id = token
+        .as_deref()
+        .and_then(super::client_id_from_access_token)
+        .unwrap_or_default();
+    // DDC `environment` follows the access token's environment, not a hardcode.
+    let sandbox = token
+        .as_deref()
+        .map(super::access_token_is_sandbox)
+        .unwrap_or(true);
+    let script = super::build_ddc_script(&client_id, &session_id, sandbox);
+
+    let mut router_data = data.clone();
+    router_data.resource_common_data.status = AttemptStatus::DeviceDataCollectionPending;
+    router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+        resource_id: None,
+        authentication_data: None,
+        redirection_data: Some(Box::new(RedirectForm::Script {
+            script_data: script,
+        })),
+        connector_response_reference_id: Some(
+            data.resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        ),
+        status_code: 200,
+    });
+    router_data
+        .resource_common_data
+        .set_typed_connector_response(None);
+    Ok(router_data)
 }
 
 /// Round a Kount omniscore (a 0–99 float) to the integer FRM risk score.

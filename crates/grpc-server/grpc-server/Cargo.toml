@@ -86,6 +86,7 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc
 ] }
 
 [dev-dependencies]
+connector-creds = { path = "../../internal/connector-creds" }
 tokio-stream = { version = "0.1.17", features = ["net"] }
 tower = { version = "0.5.2" }
 tempfile = "3.19.1"

@@ -158,6 +158,11 @@ pub(crate) struct ProbeConfig {
     /// envelope need their own. Value is the raw token string.
     #[serde(default)]
     pub(crate) wallet_token_overrides: HashMap<String, HashMap<String, String>>,
+    /// Flows that answer locally without an outbound connector call, keyed by
+    /// lowercase connector name. `build_request_v2` returns `None` for these,
+    /// which would otherwise be classified as not implemented.
+    #[serde(default)]
+    pub(crate) local_response_flows: HashMap<String, Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -214,6 +219,7 @@ impl Default for ProbeConfig {
             probe: ProbeSettings { max_iterations: 30 },
             connector_overrides: HashMap::new(),
             wallet_token_overrides: HashMap::new(),
+            local_response_flows: HashMap::new(),
             access_token: AccessTokenConfig {
                 token: "probe_access_token".to_string(),
                 token_type: "Bearer".to_string(),

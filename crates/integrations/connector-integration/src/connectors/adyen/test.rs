@@ -74,7 +74,7 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -198,6 +198,8 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -286,7 +288,7 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
@@ -368,6 +370,8 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
 },
                 response: Err(ErrorResponse::default())
 };

@@ -230,6 +230,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()

@@ -736,12 +736,6 @@
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for dlocal"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

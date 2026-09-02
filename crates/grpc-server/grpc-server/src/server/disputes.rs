@@ -57,7 +57,7 @@ impl DisputeOperationsInternal for Disputes {
         request_data_constructor: DisputeDefendData::foreign_try_from,
         common_flow_data_constructor: DisputeFlowData::foreign_try_from,
         generate_response_fn: generate_defend_dispute_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -186,6 +186,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,
@@ -430,6 +431,7 @@ impl DisputeService for Disputes {
                         merchant_id: merchant_id.as_str(),
                         org_id: org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                         connector_latency,
                         log_fields_enabled: config.log_fields.enabled,
                         log_fields: &config.log_fields.outgoing,

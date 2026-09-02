@@ -798,12 +798,6 @@
         }
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

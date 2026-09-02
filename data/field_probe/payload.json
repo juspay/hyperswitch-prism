@@ -1058,12 +1058,6 @@
         "error": "Payment method is not supported by Payload"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for payload"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

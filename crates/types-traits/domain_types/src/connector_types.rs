@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use common_enums::{
     AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
@@ -251,6 +251,7 @@ pub enum PayoutConnectorEnum {
     Santander,
     Truelayer,
     Trustly,
+    GotymeSanlam,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -308,6 +309,7 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Santander(_) => Ok(Self::Santander),
             AuthType::Truelayer(_) => Ok(Self::Truelayer),
             AuthType::Trustly(_) => Ok(Self::Trustly),
+            AuthType::GotymeSanlam(_) => Ok(Self::GotymeSanlam),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -815,7 +817,7 @@ pub struct PaymentFlowData {
     pub connector_http_status_code: Option<u16>,
     pub connector_response_headers: Option<http::HeaderMap>,
     pub external_latency: Option<u128>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
     pub raw_connector_request: Option<Secret<String>>,
@@ -1736,6 +1738,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Dynamic currency conversion decision and quote supplied for authorization.
     /// Connectors that support DCC can consume this when building their request.
     pub currency_conversion_data: Option<CurrencyConversionData>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -2001,6 +2007,7 @@ pub enum PaymentsResponseData {
         incremental_authorization_allowed: Option<bool>,
         splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
+        payment_account_reference: Option<String>,
     },
     ClientAuthenticationTokenResponse {
         session_data: ClientAuthenticationTokenData,
@@ -2400,6 +2407,10 @@ pub struct ClientAuthenticationTokenRequestData {
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
+    /// Native app identifier for returning to the client app after the hosted
+    /// flow completes (e.g. an Android package name). Sent instead of a return
+    /// URL when the merchant integrates from a native app.
+    pub native_app_identifier: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2738,7 +2749,7 @@ pub struct RefundFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub status: common_enums::RefundStatus,
     pub refund_id: Option<String>,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -2862,6 +2873,10 @@ pub struct WebhookDetailsResponse {
     pub network_txn_id: Option<String>,
     pub payment_method_update: Option<PaymentMethodUpdate>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Payment method details reported by the connector mid-payment, intended for saving
+    /// for the returning-customer flow. Mirrors the field of the same name on
+    /// `PaymentFlowData`, which carries it on the PSync path.
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
 }
 
 /// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
@@ -3610,6 +3625,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     /// Partner / merchant application identifiers (e.g. Checkout metadata udf5).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3713,6 +3732,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub additional_payment_data: Option<AdditionalPaymentData>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
+    /// Indicates whether this payment is an account funded transaction (AFT).
+    pub is_account_funding_transaction: Option<bool>,
+    /// Details about the recipient of funds for account-funded transactions.
+    pub recipient_details: Option<RecipientDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -3813,7 +3836,7 @@ pub struct AcceptDisputeData {
 pub struct DisputeFlowData {
     pub dispute_id: Option<String>,
     pub connector_dispute_id: String,
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub defense_reason_code: Option<String>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
@@ -3869,7 +3892,7 @@ impl ConnectorResponseHeaders for DisputeFlowData {
 
 #[derive(Debug, Clone)]
 pub struct VerifyWebhookSourceFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     pub raw_connector_response: Option<Secret<String>>,
     pub typed_connector_response: Option<String>,
@@ -3924,7 +3947,7 @@ impl ConnectorResponseHeaders for VerifyWebhookSourceFlowData {
 
 #[derive(Debug, Clone)]
 pub struct RefreshPaymentMethodFlowData {
-    pub connectors: Connectors,
+    pub connectors: Arc<Connectors>,
     pub connector_request_reference_id: String,
     /// Provider's encrypted form only — never decrypted payment method data.
     pub raw_connector_response: Option<Secret<String>>,
@@ -4797,6 +4820,7 @@ pub struct CustomerInfo {
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
     pub salutation: Option<String>,
+    pub date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl CustomerInfo {
@@ -4842,6 +4866,12 @@ impl CustomerInfo {
         self.customer_email
             .clone()
             .ok_or_else(missing_field_err("customer.email"))
+    }
+
+    pub fn get_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
+        self.date_of_birth
+            .clone()
+            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
 }
 
@@ -5694,6 +5724,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Fiserv(_) => Ok(Self::Payment(ConnectorEnum::Fiserv)),
             AuthType::Fiservemea(_) => Ok(Self::Payment(ConnectorEnum::Fiservemea)),
             AuthType::AbsaSanlam(_) => Ok(Self::Payment(ConnectorEnum::AbsaSanlam)),
+            AuthType::GotymeSanlam(_) => Ok(Self::Payout(PayoutConnectorEnum::GotymeSanlam)),
             AuthType::Forte(_) => Ok(Self::Payment(ConnectorEnum::Forte)),
             AuthType::Getnet(_) => Ok(Self::Payment(ConnectorEnum::Getnet)),
             AuthType::Globalpay(_) => Ok(Self::Payment(ConnectorEnum::Globalpay)),
@@ -5818,4 +5849,53 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
     }
+}
+
+// ============================================================================
+// RECIPIENT / ACCOUNT-FUNDED TRANSACTION TYPES
+// ============================================================================
+
+/// A bank account that receives funds — discriminated by the identifying scheme.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "bank_account_type", rename_all = "snake_case")]
+pub enum RecipientBankAccount {
+    Iban {
+        iban: Secret<String>,
+    },
+    RoutingNumber {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+    },
+    Bic {
+        account_number: Secret<String>,
+        bic: Secret<String>,
+    },
+    AccountNumber {
+        account_number: Secret<String>,
+    },
+    TruncatedPan {
+        card_isin: Secret<String>,
+        last4: Secret<String>,
+    },
+}
+
+/// The account that receives the funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RecipientAccount {
+    BankAccount(RecipientBankAccount),
+    Card { card_number: cards::CardNumber },
+    Wallet { wallet_id: Secret<String> },
+    Email { email: Email },
+    Phone { phone_number: Secret<String> },
+    SocialNetwork { social_network_id: Secret<String> },
+}
+
+/// Details about the recipient of funds in an account-funded transaction.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct RecipientDetails {
+    pub account: Option<RecipientAccount>,
+    pub phone_number: Option<Secret<String>>,
+    pub tax_id: Option<Secret<String>>,
+    pub address: Option<AddressDetails>,
 }

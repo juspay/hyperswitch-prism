@@ -605,6 +605,7 @@ pub fn handle_authorize_response<
             incremental_authorization_allowed: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(RouterDataV2 {
@@ -629,6 +630,7 @@ pub fn handle_authorize_response<
             incremental_authorization_allowed: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         };
         Ok(RouterDataV2 {
             response: Ok(response_data),
@@ -713,6 +715,7 @@ pub fn handle_psync_response(
         incremental_authorization_allowed: None,
         status_code: http_code,
         splits: None,
+        payment_account_reference: None,
     };
 
     Ok(RouterDataV2 {

@@ -814,40 +814,6 @@
         "error": "This feature is not implemented: setup_mandate flow for paysafe"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"card\":{\"cardNum\":\"4111111111111111\",\"cardExpiry\":{\"month\":\"03\",\"year\":\"2030\"},\"cvv\":\"737\",\"holderName\":\"John Doe\"},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\",\"threeDs\":null,\"profile\":null,\"billingDetails\":null,\"skip3ds\":true}"
-        }
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

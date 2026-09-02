@@ -280,6 +280,20 @@ pub(crate) fn authorize_pm_variants() -> Vec<(&'static str, fn() -> PaymentMetho
     ]
 }
 
+/// Connector tokenization applies to cards and wallets; other payment methods
+/// are excluded from the tokenize probe.
+pub(crate) fn is_tokenize_pm_variant(pm_name: &str) -> bool {
+    matches!(
+        pm_name,
+        "Card"
+            | "ApplePay"
+            | "ApplePayDecrypted"
+            | "ApplePayThirdPartySdk"
+            | "GooglePay"
+            | "GooglePayDecrypted"
+    )
+}
+
 /// Static variant for config filtering (same as authorize_pm_variants but usable at config load time)
 pub(crate) fn authorize_pm_variants_static() -> Vec<(&'static str, fn() -> PaymentMethod)> {
     authorize_pm_variants()

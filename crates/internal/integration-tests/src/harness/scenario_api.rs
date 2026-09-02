@@ -14,6 +14,8 @@ use std::{
     time::Duration,
 };
 
+use base64::Engine;
+use prost::Message;
 use reqwest::{blocking::Client, Url};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
@@ -34,7 +36,10 @@ use crate::harness::{
         configured_all_connectors, get_the_assertion as get_the_assertion_impl,
         get_the_grpc_req as get_the_grpc_req_impl, is_suite_supported_for_connector,
         load_connector_browser_automation_spec, load_connector_spec, load_default_scenario_name,
-        load_scenario, load_suite_scenarios, load_suite_spec, load_supported_suites_for_connector,
+        load_scenario, load_suite_scenarios, load_suite_spec,
+        load_supported_payment_methods_for_connector, load_supported_suites_for_connector,
+        merge_connector_specific_scenarios, scenario_matches_supported_payment_methods,
+        scenario_unsupported_reason,
     },
     scenario_types::{
         BrowserAutomationHook, BrowserAutomationPhase, CliPreRequestHookConfig, ContextMap,
@@ -1934,6 +1939,9 @@ fn execute_grpcurl_from_request(
     let request_command = request.to_command_string();
     let mut args = Vec::new();
     args.push("-v".to_string());
+    // Render a non-OK status as JSON too, so its details arrive proto-decoded by
+    // grpcurl rather than as text we would have to parse.
+    args.push("-format-error".to_string());
     if request.plaintext {
         args.push("-plaintext".to_string());
     }
@@ -1967,7 +1975,15 @@ fn execute_grpcurl_from_request(
     let stderr_output = String::from_utf8_lossy(&output.stderr).trim().to_string();
     let response_output = build_grpc_response_output(&stdout_output, &stderr_output);
 
-    let response_body = extract_json_body_from_grpc_output(&stdout_output, &stderr_output)
+    // error_body_from_grpc_output runs first: a failed call's grpcurl output
+    // can contain a syntactically valid JSON blob that is not the response
+    // (e.g. the {"code":13,"message":"grpc-status-details-bin mismatch: ..."}
+    // diagnostic -format-error prints when it cannot resolve non-standard
+    // status details). extract_json_body_from_grpc_output's generic "find any
+    // JSON value" fallback would otherwise grab that diagnostic and return it
+    // as if it were the response body, hiding the real error content.
+    let response_body = error_body_from_grpc_output(&stdout_output, &stderr_output)
+        .or_else(|| extract_json_body_from_grpc_output(&stdout_output, &stderr_output))
         .unwrap_or_else(|| stdout_output.clone());
 
     Ok(GrpcExecutionResult {
@@ -1976,6 +1992,68 @@ fn execute_grpcurl_from_request(
         response_output,
         success: output.status.success(),
     })
+}
+
+/// Lifts the `error` object out of a failed call's status.
+///
+/// A connector that declines with 2xx returns `ErrorInfo` inside the response;
+/// one that declines with 4xx returns the same content in the gRPC status
+/// instead, and the body is empty. Without this, the second kind can only pass a
+/// decline scenario by deleting the assertion — which is how fiserv ended up
+/// accepting CHARGED for a test named "fail payment".
+///
+/// `-format-error` makes grpcurl print the status as JSON, decoded through the
+/// same descriptors as a normal response, so the field names here are the proto's
+/// and not a copy of them.
+fn error_body_from_grpc_output(stdout_output: &str, stderr_output: &str) -> Option<String> {
+    for text in [stdout_output, stderr_output] {
+        let Ok(status) = serde_json::from_str::<Value>(text.trim()) else {
+            continue;
+        };
+        // google.rpc.Status: the connector's ErrorInfo rides in details.
+        if let Some(details) = status.get("details").and_then(Value::as_array) {
+            for detail in details {
+                if let Some(info) = detail.get("errorInfo").or_else(|| detail.get("error_info")) {
+                    return Some(serde_json::json!({ "error": info }).to_string());
+                }
+            }
+        }
+    }
+    // UCS encodes ConnectorError/IntegrationError as raw protobuf bytes via
+    // Status::with_details (ucs_env/src/error.rs), not wrapped in a
+    // google.rpc.Status/Any envelope, so grpcurl's reflection can't resolve
+    // it and -format-error falls back to a "grpc-status-details-bin
+    // mismatch" diagnostic with no `details` array. Decode the
+    // grpc-status-details-bin trailer directly with the same generated proto
+    // types the server encoded it with.
+    for text in [stdout_output, stderr_output] {
+        if let Some(error) = error_json_from_details_bin(text) {
+            return Some(error);
+        }
+    }
+    None
+}
+
+/// Extracts the `grpc-status-details-bin` trailer grpcurl prints and decodes
+/// it as whichever of `ConnectorError` / `IntegrationError` it parses as —
+/// the same generated prost types `ucs_env::error::ToGrpcStatus` encodes with
+/// — returning the `{"error": ...}` shape assertions read as `error.*`.
+fn error_json_from_details_bin(text: &str) -> Option<String> {
+    let b64 = text
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("grpc-status-details-bin:"))?
+        .trim();
+    let bytes = base64::engine::general_purpose::STANDARD.decode(b64).ok()?;
+
+    if let Ok(err) = grpc_api_types::payments::ConnectorError::decode(bytes.as_slice()) {
+        if let Some(info) = err.error_info {
+            return Some(serde_json::json!({ "error": info }).to_string());
+        }
+    }
+    if let Ok(err) = grpc_api_types::payments::IntegrationError::decode(bytes.as_slice()) {
+        return Some(serde_json::json!({ "error": err }).to_string());
+    }
+    None
 }
 
 fn build_grpc_response_output(stdout_output: &str, stderr_output: &str) -> String {
@@ -2863,7 +2941,37 @@ pub fn normalize_grpcurl_request_json(
     // grpcurl expects the raw proto field name (`"payment"` lowercase).
     convert_prost_oneofs_to_grpcurl(&mut value);
 
+    // Scenario templates place a `null` on a scalar field (e.g.
+    // customer.connector_customer_id) as a placeholder for add_context to
+    // fill from a dependency's response. proto3 JSON only allows `null` for
+    // message-typed fields — grpcurl rejects it on any scalar field
+    // ("cannot set field ... to null: it is not a message type"). When
+    // nothing fills a placeholder, drop the key instead of sending `null`;
+    // an absent key is the valid proto3 JSON form of "not provided" for a
+    // scalar field. Array elements are left alone: remove_json_path uses
+    // `null` there deliberately, to delete without reindexing.
+    strip_null_object_leaves(&mut value);
+
     value
+}
+
+/// Recursively removes any object key whose value is JSON `null`. Does not
+/// touch `null` entries inside arrays.
+fn strip_null_object_leaves(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.retain(|_, v| !v.is_null());
+            for v in map.values_mut() {
+                strip_null_object_leaves(v);
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                strip_null_object_leaves(item);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Shared normalisation logic used by both tonic and grpcurl paths.
@@ -3029,6 +3137,18 @@ pub fn convert_prost_oneofs_to_grpcurl(value: &mut Value) {
             if let Some(Value::Object(inner_map)) = pm_outer.remove("payment_method") {
                 for (k, v) in inner_map {
                     pm_outer.entry(k).or_insert(v);
+                }
+            }
+        }
+
+        // mandate_type oneof inside setup_mandate_details:
+        // Prost: {"mandate_type": {"mandate_type": {"MultiUse": {...}}}}
+        // grpcurl: {"mandate_type": {"multi_use": {...}}}
+        if let Some(Value::Object(mt_outer)) = map.get_mut("mandate_type") {
+            if let Some(Value::Object(inner_map)) = mt_outer.remove("mandate_type") {
+                for (variant_name, variant_value) in inner_map {
+                    let field_name = pascal_to_snake_case(&variant_name);
+                    mt_outer.entry(field_name).or_insert(variant_value);
                 }
             }
         }
@@ -3331,6 +3451,14 @@ pub struct SuiteRunSummary {
     pub passed: usize,
     pub failed: usize,
     pub skipped: usize,
+    /// Scenarios the connector declares it cannot support. Counted separately
+    /// because they shrink the denominator: without this, declaring five
+    /// scenarios unsupported reads exactly like having five fewer scenarios,
+    /// and `passed` looks like more coverage than it is.
+    pub unsupported: usize,
+    /// Scenarios that exist only for this connector. Counted apart from the
+    /// baseline so private coverage never reads as shared coverage.
+    pub connector_specific: usize,
     pub results: Vec<SuiteScenarioResult>,
 }
 
@@ -3434,6 +3562,8 @@ pub fn run_scenario_test_with_options(
             passed,
             failed,
             skipped: 0,
+            unsupported: 0,
+            connector_specific: 0,
             results,
         });
     };
@@ -3535,6 +3665,10 @@ pub fn run_scenario_test_with_options(
             .iter()
             .filter(|r| r.skipped && !r.is_dependency)
             .count(),
+        // This path runs a named scenario the caller asked for, so nothing was
+        // filtered out as unsupported before reaching it.
+        unsupported: 0,
+        connector_specific: 0,
         results,
     })
 }
@@ -3617,6 +3751,14 @@ pub fn run_all_connectors_with_options(
 }
 
 /// Runs one suite with explicit execution options.
+/// Names what was skipped and why, on the same stream as the rest of the run.
+/// A scoped helper rather than an allow on the caller, so the exemption cannot
+/// quietly cover a stray print added later.
+#[allow(clippy::print_stdout)]
+fn report_unsupported(suite: &str, scenario: &str, connector: &str, reason: &str) {
+    println!("[test_ucs] skipping {suite}/{scenario} for {connector}: unsupported — {reason}");
+}
+
 pub fn run_suite_test_with_options(
     suite: &str,
     connector: Option<&str>,
@@ -3624,7 +3766,35 @@ pub fn run_suite_test_with_options(
 ) -> Result<SuiteRunSummary, ScenarioError> {
     let connector = connector.unwrap_or(DEFAULT_CONNECTOR);
     let target_suite_spec = load_suite_spec(suite)?;
-    let scenarios = load_suite_scenarios(suite)?;
+
+    // A scenario naming a payment method the connector never claimed cannot
+    // pass; the only way through is an `assert` override that hides real
+    // regressions. Declaring nothing keeps every scenario.
+    let supported_methods = load_supported_payment_methods_for_connector(connector)?;
+    let mut scenarios: BTreeMap<_, _> = load_suite_scenarios(suite)?
+        .into_iter()
+        .filter(|(_, def)| scenario_matches_supported_payment_methods(def, &supported_methods))
+        .collect();
+
+    // Scenarios only this connector has. Merged after the payment-method filter
+    // so a private scenario is never dropped for naming a method the connector
+    // did not bother to declare — it declared the scenario itself.
+    let connector_specific = merge_connector_specific_scenarios(connector, suite, &mut scenarios)?;
+
+    // A scenario the connector declares it cannot support at all. Skipped with
+    // its stated reason rather than run and failed.
+    let mut unsupported = Vec::new();
+    for name in scenarios.keys().cloned().collect::<Vec<_>>() {
+        if let Some(reason) = scenario_unsupported_reason(connector, suite, &name)? {
+            report_unsupported(suite, &name, connector, &reason);
+            unsupported.push(name);
+        }
+    }
+    let unsupported_count = unsupported.len();
+    for name in unsupported {
+        scenarios.remove(&name);
+    }
+    let scenarios = scenarios;
 
     let mut results = Vec::new();
     let mut passed = 0usize;
@@ -3656,6 +3826,8 @@ pub fn run_suite_test_with_options(
                     passed,
                     failed,
                     skipped,
+                    unsupported: unsupported_count,
+                    connector_specific,
                     results,
                 });
             };
@@ -3789,6 +3961,8 @@ pub fn run_suite_test_with_options(
                         passed,
                         failed,
                         skipped,
+                        unsupported: unsupported_count,
+                        connector_specific,
                         results,
                     });
                 };
@@ -3904,6 +4078,8 @@ pub fn run_suite_test_with_options(
         passed,
         failed,
         skipped,
+        unsupported: unsupported_count,
+        connector_specific,
         results,
     })
 }
@@ -3935,8 +4111,29 @@ fn execute_dependency_chain(
         } else {
             load_default_scenario_name(dependency_suite)?
         };
+
+        // The dependency's own suite being supported does not mean this
+        // specific scenario is: e.g. PaymentService/Authorize is fully
+        // supported for stripe, but its no3ds_manual_capture_incremental_auth
+        // scenario is separately marked unsupported (a sandbox account
+        // limitation). Without this check, a suite that depends on that exact
+        // scenario by name (PaymentService/IncrementalAuthorization) would
+        // run it anyway and report a hard failure, even though the standalone
+        // suite run correctly skips it.
+        if let Some(reason) =
+            scenario_unsupported_reason(connector, dependency_suite, &dependency_scenario)?
+        {
+            report_unsupported(dependency_suite, &dependency_scenario, connector, &reason);
+            continue;
+        }
+
         let current_label = dependency_label(dependency_suite, &dependency_scenario);
 
+        // Earlier siblings' context_map entries, not just their raw req/res,
+        // must reach a nested dependency too — otherwise a dependency several
+        // levels deep never receives context (e.g. an already-created
+        // customer ID) from earlier siblings in the same chain and either
+        // goes unattached or creates its own duplicate resource.
         let dep_result = execute_single_scenario_with_context(
             dependency_suite,
             &dependency_scenario,
@@ -3944,7 +4141,7 @@ fn execute_dependency_chain(
             options,
             &dependency_reqs,
             &dependency_res,
-            &[],
+            &explicit_context_entries,
             &dependency_entries,
         );
 
@@ -4542,17 +4739,35 @@ fn execute_single_scenario_with_context(
 ) -> Result<ExecutedScenario, ScenarioError> {
     run_test(Some(suite), Some(scenario), Some(connector))?;
 
-    let (mut effective_req, assertions) =
-        load_effective_scenario_for_connector(suite, scenario, connector)?;
+    let base_scenario = load_scenario(suite, scenario)?;
+    let mut effective_req = base_scenario.grpc_req;
+    let mut assertions = base_scenario.assert_rules;
 
     // Normalize legacy empty placeholders to auto_generate sentinels where needed.
     prepare_context_placeholders(suite, connector, &mut effective_req);
 
-    // Context first — fill fields from dependency responses.
+    // Context first — fill fields from dependency responses. Runs on the
+    // unmodified base request, before the connector override, so a field the
+    // override deliberately sets (e.g. billing country for a payment method
+    // that requires a specific one) cannot be silently clobbered by a
+    // same-named field carried over from an unrelated dependency request —
+    // this is how a SEPA scenario's overridden "DE" billing country was
+    // getting replaced with the create-customer dependency's own "US".
     add_context(dependency_reqs, dependency_res, &mut effective_req);
 
     // Apply any explicit dependency path mappings from suite_spec.json.
     apply_context_map(explicit_context_entries, &mut effective_req);
+
+    // Connector overrides apply last, so they are the final, most specific
+    // word on the request — nothing after this point may change a field the
+    // override deliberately set.
+    apply_connector_overrides(
+        connector,
+        suite,
+        scenario,
+        &mut effective_req,
+        &mut assertions,
+    )?;
 
     // Drop connector_feature_data if it still carries an unresolved
     // "auto_generate" sentinel; this check must see the sentinel intact,
@@ -4561,8 +4776,9 @@ fn execute_single_scenario_with_context(
 
     // Generate values for any remaining "auto_generate" sentinels and resolve
     // "connector_name" placeholders to the uppercase connector enum name.
-    // Since context has already been applied, dependency-carried fields are
-    // already filled and won't be touched.
+    // Since context and the override have already been applied,
+    // dependency-carried and override-set fields are already filled and
+    // won't be touched.
     resolve_auto_generate(&mut effective_req, connector)?;
 
     // Clean up wrappers whose primitive leaves are all defaults (0, null,
@@ -4620,14 +4836,29 @@ fn execute_single_scenario_with_context(
                 options.plaintext,
             )?;
 
-            if !trace.success {
+            // grpcurl exits non-zero on every gRPC error status, including an
+            // expected decline, so !trace.success alone does not mean there is
+            // nothing to assert on. error_body_from_grpc_output (behind
+            // trace.response_body) already recovers a structured `error` object
+            // for a connector decline; only when that recovery genuinely found
+            // nothing (a transport/infra failure, or a status shape this
+            // harness cannot decode) is the call reported as an execution
+            // failure instead of being handed to do_assertion like any other
+            // response.
+            let parsed_response_json = (!trace.success)
+                .then(|| serde_json::from_str::<Value>(&trace.response_body).ok())
+                .flatten();
+            let has_error_to_assert = parsed_response_json
+                .as_ref()
+                .is_some_and(|json| json.get("error").is_some());
+
+            if !trace.success && !has_error_to_assert {
                 let response_output = trace.response_output;
-                let response_json = serde_json::from_str::<Value>(&trace.response_body)
-                    .unwrap_or_else(|_| {
-                        serde_json::json!({
-                            "raw_response": response_output.clone(),
-                        })
-                    });
+                let response_json = parsed_response_json.unwrap_or_else(|| {
+                    serde_json::json!({
+                        "raw_response": response_output.clone(),
+                    })
+                });
 
                 return Ok(ExecutedScenario {
                     effective_req,
@@ -4809,6 +5040,7 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use super::error_body_from_grpc_output;
     use super::{
         add_context, apply_context_map, build_grpcurl_command, build_grpcurl_request,
         contains_primitive_leaf, deep_set_json_path, extract_json_body_from_grpc_output,
@@ -4820,7 +5052,7 @@ mod tests {
     use crate::harness::auto_gen::resolve_auto_generate;
     use crate::harness::scenario_loader::{
         connector_spec_dir, discover_all_connectors, load_suite_scenarios, load_suite_spec,
-        load_supported_suites_for_connector,
+        load_supported_suites_for_connector, merge_connector_specific_scenarios,
     };
     use crate::harness::scenario_types::{ContextMap, FieldAssert, ScenarioError};
 
@@ -5014,7 +5246,10 @@ mod tests {
             FieldAssert::Contains { contains }
                 if contains == "declin"
         ));
-        assert!(base_assertions.contains_key("status"));
+        // `status` is deliberately absent from the base assertions: a connector
+        // that declines with a 4xx returns a gRPC status and no body, so there is
+        // no payment status to compare.
+        assert!(!base_assertions.contains_key("status"));
         assert!(!overridden_assertions.contains_key("status"));
     }
 
@@ -6025,6 +6260,37 @@ grpc-status: 0
     }
 
     #[test]
+    fn a_failed_call_still_carries_an_error_to_assert_on() {
+        // grpcurl -format-error output for a 4xx decline: the status is JSON and
+        // its details carry the same ErrorInfo a 2xx response puts in the body.
+        let out = r#"{
+          "code": 3,
+          "message": "Your card was declined.",
+          "details": [{
+            "@type": "type.googleapis.com/ucs.v2.ConnectorError",
+            "errorInfo": { "connectorDetails": { "code": "card_declined",
+                                                 "message": "Your card was declined." } }
+          }]
+        }"#;
+        let body = error_body_from_grpc_output(out, "").expect("an error body");
+        let v: Value = serde_json::from_str(&body).expect("valid json");
+        assert_eq!(
+            v["error"]["connectorDetails"]["message"],
+            "Your card was declined."
+        );
+    }
+
+    #[test]
+    fn a_status_without_error_details_yields_no_body() {
+        // A transport failure carries no ErrorInfo; inventing one would let a
+        // decline scenario pass on an outage.
+        assert!(
+            error_body_from_grpc_output(r#"{"code":14,"message":"unavailable"}"#, "").is_none()
+        );
+        assert!(error_body_from_grpc_output("Resolved method descriptor:", "").is_none());
+    }
+
+    #[test]
     fn all_supported_scenarios_match_proto_schema_for_all_connectors() {
         let connectors =
             discover_all_connectors().expect("connector discovery should work for schema checks");
@@ -6047,7 +6313,7 @@ grpc-status: 0
             };
 
             for suite in suites {
-                let suite_scenarios = match load_suite_scenarios(&suite) {
+                let mut suite_scenarios = match load_suite_scenarios(&suite) {
                     Ok(file) => file,
                     Err(error) => {
                         failures.push(format!(
@@ -6056,6 +6322,18 @@ grpc-status: 0
                         continue;
                     }
                 };
+
+                // Connector-private scenarios are held to the same proto schema
+                // as the baseline; a private file is not a way around it. This
+                // also surfaces a name that collides with a global scenario.
+                if let Err(error) =
+                    merge_connector_specific_scenarios(connector, &suite, &mut suite_scenarios)
+                {
+                    failures.push(format!(
+                        "{connector}/{suite}: connector-specific scenarios rejected: {error}"
+                    ));
+                    continue;
+                }
 
                 let mut scenario_names = suite_scenarios.keys().cloned().collect::<Vec<_>>();
                 scenario_names.sort();

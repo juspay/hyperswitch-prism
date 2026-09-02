@@ -1099,6 +1099,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -1203,6 +1204,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1275,6 +1277,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1410,6 +1413,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {

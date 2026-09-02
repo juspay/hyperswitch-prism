@@ -85,6 +85,8 @@ pub struct PlaidLinkTokenRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirect_uri: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub android_package_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub webhook: Option<String>,
 }
 
@@ -194,6 +196,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }));
         }
 
+        // Plaid's Link token "return target": web/iOS merchants send a return
+        // URL (-> redirect_uri), native-app merchants send a native app
+        // identifier (-> android_package_name). We forward whatever was
+        // provided without asserting mutual exclusivity.
         Ok(Self {
             client_id: auth.client_id,
             secret: auth.secret,
@@ -203,6 +209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country_codes,
             language: req.locale.clone(),
             redirect_uri: item.router_data.resource_common_data.return_url.clone(),
+            android_package_name: req.native_app_identifier.clone(),
             webhook: req.webhook_url.clone(),
         })
     }

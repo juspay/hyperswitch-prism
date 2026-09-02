@@ -776,12 +776,6 @@
         "error": "This feature is not implemented: setup_mandate flow for elavon"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for elavon"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

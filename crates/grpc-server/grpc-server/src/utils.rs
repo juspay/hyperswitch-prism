@@ -360,7 +360,7 @@ pub fn log_after_initialization<T>(
     // Apply unified log fields (transformations + static values) before emitting the golden log line
     #[cfg(feature = "log-transformations")]
     if log_fields_enabled {
-        apply_log_fields(log_fields);
+        apply_log_fields(log_fields, None);
     }
     #[cfg(not(feature = "log-transformations"))]
     {
@@ -654,6 +654,45 @@ where
     }
 }
 
+/// Resolves a connector's `BoxedConnectorIntegrationV2` for a given flow by trying
+/// each listed connector-data family, in order, against a `ConnectorVariant`.
+///
+/// A single request's `ConnectorVariant` tag matches at most one family (`Payment`,
+/// `Frm`, `Payout`, `Surcharge`, `Authenticator`), so this never double-resolves —
+/// the list just says "which families can serve this flow." This is the one place
+/// that mechanism lives; nothing should hand-write a
+/// `match connector_variant { ConnectorVariant::A => ..., ConnectorVariant::B => ... }`
+/// for connector resolution — list the families here instead, whether from a
+/// hand-written async fn or from inside another macro's expansion.
+///
+/// Expands to `Option<BoxedConnectorIntegrationV2<'_, Flow, ResourceCommonData, Req, Resp>>`
+/// (the four type parameters are inferred from how the result is used, e.g. a `let`
+/// with an explicit type, or `.ok_or_else(...)?` into an explicitly-typed binding) —
+/// resolution only; callers decide how to handle a `None` (not every flow wants the
+/// same "not supported" error shape).
+///
+/// Every entry in `[...]` must be a concrete `ConnectorDataProvider` type as it needs
+/// to be used at this call site (e.g. `ConnectorData<T>` where `T` is in scope,
+/// `ConnectorData<DefaultPCIHolder>` where it isn't, or a non-generic type like
+/// `FrmConnectorData`). Mixing a family that's generic over some in-scope `T` with
+/// one that's fixed to a concrete type only works where that's actually sound — e.g.
+/// inside a function generic over `T`, only families generic over that same `T` can
+/// be listed; a fixed-type family like `FrmConnectorData` must be resolved at a call
+/// site where `T` is already concrete.
+#[macro_export]
+macro_rules! resolve_connector_integration {
+    ($connector:expr, [$($family:ty),+ $(,)?]) => {{
+        let resolved = None;
+        $(
+            let resolved = resolved.or_else(|| {
+                <$family as connector_integration::types::ConnectorDataProvider>::from_connector_variant($connector)
+                    .map(|connector_data| connector_data.connector.get_connector_integration_v2())
+            });
+        )+
+        resolved
+    }};
+}
+
 #[macro_export]
 macro_rules! implement_connector_operation {
     // Pattern with Option<PaymentMethodData> for flows that need it but don't do action processing
@@ -672,7 +711,13 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
-        connector_data: $connector_data:ident,
+        // First entry is the primary, payment-method-data-generic family (bare
+        // ident — the macro applies `<T>` itself, since a caller-supplied `T` at
+        // the call site wouldn't resolve to `run_holder_flow`'s own generic
+        // parameter). Any further entries are secondary families, tried before it
+        // at `DefaultPCIHolder` — write those exactly as they're used (e.g.
+        // `FrmConnectorData`).
+        connector_data_types: [$connector_data:ident $(, $extra_connector_data_type:ty)* $(,)?],
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
@@ -772,15 +817,19 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,
             };
 
-            // The connector round-trip is identical for both holders → written once,
-            // generic over `T`. Each match arm only builds the holder-specific request
-            // (+ optional injector token) and picks the monomorphisation; the two
-            // `RouterDataV2` types never need to share a binding.
+            // The connector round-trip is identical for every holder type and every
+            // connector family this flow serves → written once, generic over `T`,
+            // taking the already-resolved connector integration rather than
+            // resolving it itself. Each match arm below resolves against whichever
+            // family list applies to that payment-method shape, then builds the
+            // holder-specific request (+ optional injector token) and picks the
+            // monomorphisation.
             #[allow(clippy::too_many_arguments)]
             async fn run_holder_flow<
                 T: domain_types::payment_method_data::PaymentMethodDataTypes
@@ -791,7 +840,13 @@ macro_rules! implement_connector_operation {
                     + 'static
                     + serde::Serialize,
             >(
-                connector: &domain_types::connector_types::ConnectorVariant,
+                connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                    'static,
+                    $flow_marker,
+                    $resource_common_data_type,
+                    $request_data_type<T>,
+                    $response_data_type,
+                >,
                 request: $request_data_type<T>,
                 common_flow_data: $resource_common_data_type,
                 connector_config: domain_types::router_data::ConnectorSpecificConfig,
@@ -801,34 +856,7 @@ macro_rules! implement_connector_operation {
                 event_params: external_services::service::EventProcessingParams<'_>,
                 test_context: Option<external_services::service::TestContext>,
                 api_tag: Option<String>,
-            ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>>
-            where
-                $connector_data<T>: connector_integration::types::ConnectorDataProvider,
-            {
-                let connector_data: $connector_data<T> =
-                    connector_integration::types::ConnectorDataProvider::from_connector_variant(connector)
-                        .ok_or_else(|| {
-                            error_stack::Report::new(ucs_env::error::GrpcError::from(
-                                domain_types::errors::IntegrationError::NotSupported {
-                                    message: "Invalid connector type for this flow".to_string(),
-                                    connector: "N/A",
-                                    context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: None,
-                                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
-                                        doc_url: None,
-                                    },
-                                },
-                            ))
-                        })?;
-
-                let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
-                    '_,
-                    $flow_marker,
-                    $resource_common_data_type,
-                    $request_data_type<T>,
-                    $response_data_type,
-                > = connector_data.connector.get_connector_integration_v2();
-
+            ) -> Result<$response_type, error_stack::Report<ucs_env::error::GrpcError>> {
                 let router_data = domain_types::router_data_v2::RouterDataV2::<
                     $flow_marker,
                     $resource_common_data_type,
@@ -862,6 +890,27 @@ macro_rules! implement_connector_operation {
                 $generate_response_fn(response_result).to_grpc_error()
             }
 
+            // Resolve a family list to its connector integration, or the standard
+            // "not supported" error — shared by every match arm below so the list of
+            // families tried is the only thing that differs per payment-method shape.
+            fn resolve_or_unsupported<I>(
+                resolved: Option<I>,
+            ) -> Result<I, error_stack::Report<ucs_env::error::GrpcError>> {
+                resolved.ok_or_else(|| {
+                    error_stack::Report::new(ucs_env::error::GrpcError::from(
+                        domain_types::errors::IntegrationError::NotSupported {
+                            message: "Invalid connector type for this flow".to_string(),
+                            connector: "N/A",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: None,
+                                suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                doc_url: None,
+                            },
+                        },
+                    ))
+                })
+            }
+
             // Exhaustive dispatch (no `_`/`other`): a new `PaymentMethodDataAction`
             // variant or holder breaks compilation here until its routing is decided.
             let final_response = match payment_method_data_action {
@@ -881,8 +930,13 @@ macro_rules! implement_connector_operation {
                     let request = $request_data_constructor((payload.clone(), Some(payment_method_data)))
                         .to_grpc_error()?;
 
-                    run_holder_flow::<domain_types::payment_method_data::VaultTokenHolder>(
+                    let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
+                        [$connector_data<domain_types::payment_method_data::VaultTokenHolder>]
+                    ))?;
+
+                    run_holder_flow::<domain_types::payment_method_data::VaultTokenHolder>(
+                        connector_integration,
                         request,
                         common_flow_data,
                         connector_config,
@@ -905,8 +959,13 @@ macro_rules! implement_connector_operation {
                     let request = $request_data_constructor((payload.clone(), Some(payment_method_data)))
                         .to_grpc_error()?;
 
-                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                    let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
+                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                    ))?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        connector_integration,
                         request,
                         common_flow_data,
                         connector_config,
@@ -930,8 +989,13 @@ macro_rules! implement_connector_operation {
                     let request = $request_data_constructor((payload.clone(), payment_method_data))
                         .to_grpc_error()?;
 
-                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                    let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
+                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                    ))?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        connector_integration,
                         request,
                         common_flow_data,
                         connector_config,
@@ -957,8 +1021,13 @@ macro_rules! implement_connector_operation {
                         $request_data_constructor((payload.clone(), Some(payment_method_data)))
                             .to_grpc_error()?;
 
-                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                    let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
+                        [$connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                    ))?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        connector_integration,
                         request,
                         common_flow_data,
                         connector_config,
@@ -971,13 +1040,23 @@ macro_rules! implement_connector_operation {
                     )
                     .await?
                 }
-                // ── No payment method data → DefaultPCIHolder, direct connector call ─
+                // ── No payment method data → try secondary families (e.g. FRM) first,
+                // then the primary family at DefaultPCIHolder, in one resolution. Only
+                // a request with no payment method at all lands here, so a
+                // primary-family request that *does* carry a card is already routed to
+                // one of the arms above and can never be silently matched into a
+                // secondary family with its card data dropped.
                 None => {
                     let request = $request_data_constructor((payload.clone(), None))
                         .to_grpc_error()?;
 
-                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                    let connector_integration = resolve_or_unsupported($crate::resolve_connector_integration!(
                         &metadata_payload.connector,
+                        [$($extra_connector_data_type,)* $connector_data<domain_types::payment_method_data::DefaultPCIHolder>]
+                    ))?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        connector_integration,
                         request,
                         common_flow_data,
                         connector_config,
@@ -998,7 +1077,12 @@ macro_rules! implement_connector_operation {
     }
 };
 
-    // Pattern without payment method data processing (original behavior)
+    // Pattern without payment method data processing (original behavior). Resolves
+    // via `resolve_connector_integration!` — list one connector family for a flow
+    // that only ever serves that family, or several for a flow that must resolve
+    // across families at runtime (e.g. Payment or Frm/Kount for the same request);
+    // one function handles all of them, no hand-written match on `ConnectorVariant`
+    // and no separate `$fn_name`-per-family + dispatcher needed.
     (
         fn_name: $fn_name:ident,
         log_prefix: $log_prefix:literal,
@@ -1011,7 +1095,7 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
-        connector_data_type: $connector_data_type:ty,
+        connector_data_types: [$($connector_data_type:ty),+ $(,)?],
         all_keys_required: $all_keys_required:expr
     ) => {
         async fn $fn_name(
@@ -1045,31 +1129,32 @@ macro_rules! implement_connector_operation {
             let request_id = metadata_payload.request_id.clone();
             let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data using ConnectorDataProvider trait
-            let connector_data: $connector_data_type =
-                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
-                    .ok_or_else(|| {
-                        error_stack::Report::new(ucs_env::error::GrpcError::from(
-                            domain_types::errors::IntegrationError::NotSupported {
-                                message: "Invalid connector type for this flow".to_string(),
-                                connector: "N/A",
-                                context: domain_types::errors::IntegrationErrorContext {
-                                    additional_context: None,
-                                    suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
-                                    doc_url: None,
-                                },
-                            },
-                        ))
-                    })?;
-
-            // Get connector integration
+            // Resolve connector integration by trying each listed family in order —
+            // see `resolve_connector_integration!` for why this replaces a
+            // hand-written `match` on `ConnectorVariant`.
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                 '_,
                 $flow_marker,
                 $resource_common_data_type,
                 $request_data_type,
                 $response_data_type,
-            > = connector_data.connector.get_connector_integration_v2();
+            > = $crate::resolve_connector_integration!(
+                &metadata_payload.connector,
+                [$($connector_data_type),+]
+            )
+            .ok_or_else(|| {
+                error_stack::Report::new(ucs_env::error::GrpcError::from(
+                    domain_types::errors::IntegrationError::NotSupported {
+                        message: "Invalid connector type for this flow".to_string(),
+                        connector: "N/A",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            additional_context: None,
+                            suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                            doc_url: None,
+                        },
+                    },
+                ))
+            })?;
 
             // Create connector request data
             let specific_request_data = $request_data_constructor(payload.clone())
@@ -1138,6 +1223,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 org_id: metadata_payload.org_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                 log_fields_enabled: config.log_fields.enabled,
                 log_fields: &config.log_fields.outgoing,

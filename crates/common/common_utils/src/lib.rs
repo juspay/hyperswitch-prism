@@ -2,7 +2,9 @@
 
 extern crate self as common_utils;
 
+pub mod bytes_utils;
 pub mod config_patch;
+pub mod connector_response_masking;
 pub mod crypto;
 pub mod custom_serde;
 pub mod errors;

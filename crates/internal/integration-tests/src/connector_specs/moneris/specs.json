@@ -2,6 +2,8 @@
   "connector": "moneris",
   "supported_suites": [
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
     "PaymentService/Authorize",
     "PaymentService/Capture",
     "PaymentService/Get",

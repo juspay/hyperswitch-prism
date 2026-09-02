@@ -313,6 +313,7 @@ where
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -365,6 +366,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {

@@ -865,6 +865,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .payment_source
                 .as_ref()
                 .and_then(|ps| ps.id.clone()),
+            connector_returned_payment_method_details:
+                truelayer::extract_returned_open_banking_details(
+                    details.payment_source.as_ref(),
+                    details.payment_method.as_ref(),
+                ),
         })
     }
 

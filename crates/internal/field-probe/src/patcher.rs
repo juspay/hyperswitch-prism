@@ -50,6 +50,7 @@ fn full_customer() -> grpc_api_types::payments::Customer {
         last_name: Some("Doe".to_string()),
         salutation: None,
         customer_document_details: None,
+        date_of_birth: Some(Secret::new("1990-01-01".to_string())),
     }
 }
 

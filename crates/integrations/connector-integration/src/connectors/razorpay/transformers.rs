@@ -941,6 +941,7 @@ impl<F, Req>
                     mandate_reference: None,
                     status_code: _http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
                 let error = None;
 
@@ -982,6 +983,7 @@ impl<F, Req>
                     mandate_reference: None,
                     status_code: _http_code,
                     splits: None,
+                    payment_account_reference: None,
                 };
                 let error = None;
 
@@ -1551,6 +1553,7 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
                 mandate_reference: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2137,6 +2140,7 @@ impl<F, Req>
             incremental_authorization_allowed: None,
             status_code: _status_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

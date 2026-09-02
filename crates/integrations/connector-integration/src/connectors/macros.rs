@@ -430,6 +430,7 @@ macro_rules! expand_fn_handle_response {
                     evt.response_data = Some(msv.clone());
                 }
             }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
@@ -467,6 +468,7 @@ macro_rules! expand_fn_handle_response {
                     evt.response_data = Some(msv.clone());
                 }
             }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
@@ -1433,10 +1435,10 @@ pub(crate) use create_amount_converter_wrapper;
 ///
 /// The macro uses a **recursive list-peeling** pattern with three arms:
 ///
-/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all eight
+/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all nine
 ///    payout flows (`PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `PayoutVoid`,
 ///    `PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`,
-///    `PayoutEnrollDisburseAccount`) and re-invokes itself with that list.
+///    `PayoutEnrollDisburseAccount`, `PayoutEligibility`) and re-invokes itself with that list.
 ///
 /// 2. **Recursive arm (`payout_flows: [head, tail…]`)** – Peels the first flow off the
 ///    list, delegates it to [`expand_payout_implementation!`] to emit the trait impls for
@@ -1463,7 +1465,8 @@ macro_rules! macro_connector_payout_implementation {
                 PayoutStage,
                 PayoutCreateLink,
                 PayoutCreateRecipient,
-                PayoutEnrollDisburseAccount
+                PayoutEnrollDisburseAccount,
+                PayoutEligibility
             ]
         );
     };
@@ -1766,6 +1769,39 @@ macro_rules! expand_payout_implementation {
                 Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
                     ::interfaces::api::ConnectorCommon::id(self),
                     "payout_enroll_disburse_account",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                ).into())
+            }
+
+        }
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutEligibility,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutEligibility,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+            > for $connector<$generic_type>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutEligibility,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "payout_eligibility",
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }
@@ -2362,3 +2398,128 @@ macro_rules! frm_flow_not_implemented {
     };
 }
 pub(crate) use frm_flow_not_implemented;
+
+/// Generate a full `ConnectorIntegrationV2` impl for a flow that makes no
+/// outbound connector call — the entire response is built locally in
+/// `handle_response_v2`.  Mirrors `macro_connector_implementation!` but for
+/// the local-response-flows category (`CallConnectorAction::HandleResponseWithoutBuildRequest`).
+///
+/// Emits a `ConnectorIntegrationV2<$flow, $resource_common_data, $request, $response>`
+/// impl with:
+/// - `get_call_connector_action` → `HandleResponseWithoutBuildRequest`
+/// - `build_request_v2` → `Ok(None)`
+/// - `get_url` → `Err(IntegrationError::NotImplemented(..))` (unreachable)
+/// - `handle_response_v2` → forwards to `$handle_response`
+///
+/// The connector file still owns the marker-trait impl (e.g.
+/// `impl PaymentPreAuthenticateV2<G> for C<G> {}`).
+///
+/// `$handle_response` is a connector-owned function (typically in `transformers.rs`)
+/// whose signature must match:
+/// ```text
+/// fn(data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
+///    event_builder: Option<&mut Event>,
+///    res: Response)
+///  -> CustomResult<RouterDataV2<$flow, $resource_common_data, $request, $response>, ConnectorError>
+/// ```
+macro_rules! macro_connector_local_flow_implementation {
+    (
+        connector: $connector:ident,
+        flow_name: $flow:ident,
+        resource_common_data: $resource_common_data:ty,
+        flow_request: $request:ty,
+        flow_response: $response:ty,
+        handle_response: $handle_response:path,
+        generic_type: $g:tt,
+        [$($b:tt)*] $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::$flow,
+                $resource_common_data,
+                $request,
+                $response,
+            > for $connector<$g>
+        {
+            fn get_call_connector_action(&self) -> ::common_enums::CallConnectorAction {
+                ::common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+            }
+
+            fn build_request_v2(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                Option<::common_utils::request::Request>,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // No outbound call: the whole flow is handled locally in
+                // `handle_response_v2`.
+                Ok(None)
+            }
+
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+            ) -> ::common_utils::errors::CustomResult<
+                String,
+                ::domain_types::errors::IntegrationError,
+            > {
+                // Unreachable: build_request_v2 returns None, so the framework
+                // never asks for a URL.
+                Err(::domain_types::errors::IntegrationError::NotImplemented(
+                    format!(
+                        "{} {} flow makes no outbound call",
+                        ::interfaces::api::ConnectorCommon::id(self),
+                        stringify!($flow),
+                    ),
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "get_url is unreachable for {} because build_request_v2 returns None",
+                            stringify!($flow),
+                        )),
+                        suggested_action: Some(
+                            "No action required: the response is built locally in handle_response_v2"
+                                .to_owned(),
+                        ),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+
+            fn handle_response_v2(
+                &self,
+                data: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                event_builder: Option<&mut ::common_utils::events::Event>,
+                res: ::domain_types::router_response_types::Response,
+            ) -> ::common_utils::errors::CustomResult<
+                ::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::$flow,
+                    $resource_common_data,
+                    $request,
+                    $response,
+                >,
+                ::domain_types::errors::ConnectorError,
+            > {
+                let handle_response = $handle_response;
+                handle_response(data, event_builder, res)
+            }
+        }
+    };
+}
+pub(crate) use macro_connector_local_flow_implementation;

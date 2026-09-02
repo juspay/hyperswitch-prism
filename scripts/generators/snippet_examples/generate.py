@@ -3816,13 +3816,14 @@ def render_llms_txt_entry(
     """
     Return one connector's block for docs/llms.txt.
     """
-    flows    = probe_connector.get("flows", {})
-    auth_pms = flows.get("authorize", {})
+    flows = probe_connector.get("flows", {})
 
-    supported_pms = [
-        pm for pm in auth_pms
-        if pm != "default" and auth_pms[pm].get("status") == "supported"
-    ]
+    supported_pms = sorted({
+        pm
+        for fdata in flows.values()
+        for pm, result in fdata.items()
+        if pm != "default" and result.get("status") == "supported"
+    })
     supported_flows = [
         fk for fk, fdata in flows.items()
         if any(v.get("status") == "supported" for v in fdata.values())

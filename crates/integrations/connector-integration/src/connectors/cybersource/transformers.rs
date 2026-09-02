@@ -3497,6 +3497,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -4498,6 +4499,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ),
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
             },
             ..item.router_data
@@ -4576,6 +4578,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                             incremental_authorization_allowed,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         ..item.router_data
                     })
@@ -4597,6 +4600,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),
