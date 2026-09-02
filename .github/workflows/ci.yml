@@ -642,10 +642,6 @@ jobs:
   test:
     name: Run Tests
     needs: [changes, auto-fix]
-    # `contents: read` to check out; `pull-requests: write` so the unproven-connector
-    # declaration below can be announced on the PR. Without it that step fails with
-    # "Resource not accessible by integration" the first time a newly added connector
-    # is listed in alpha_connectors.json.
     permissions:
       contents: read
       pull-requests: write
