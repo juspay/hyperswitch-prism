@@ -10,9 +10,10 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync},
+    connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -28,7 +29,10 @@ use interfaces::{
     decode::BodyDecoding,
 };
 use serde::Serialize;
-use transformers::{self as d24, D24PaymentsRequest, D24PaymentsResponse, D24SyncResponse};
+use transformers::{
+    self as d24, D24PaymentsRequest, D24PaymentsResponse, D24RefundRequest, D24RefundResponse,
+    D24RefundSyncResponse, D24SyncResponse,
+};
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
@@ -74,6 +78,20 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: D24SyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+        ),
+        (
+            flow: Refund,
+            request_body: D24RefundRequest,
+            response_body: D24RefundResponse,
+            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ),
+        (
+            // Declared WITHOUT a `request_body`: that absence is what makes
+            // `get_request_body` return `Ok(None)`, which is what makes
+            // `build_headers` sign the empty string. Same mechanism as PSync.
+            flow: RSync,
+            response_body: D24RefundSyncResponse,
+            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -154,6 +172,16 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> &'a str {
+            req.resource_common_data.connectors.d24.base_url.trim_end_matches('/')
+        }
+
+        /// The refund flows carry `RefundFlowData` rather than
+        /// `PaymentFlowData`, so they cannot reuse the payments helper above
+        /// even though they read the very same configured base URL.
+        pub fn connector_base_url_refunds<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> &'a str {
             req.resource_common_data.connectors.d24.base_url.trim_end_matches('/')
         }
@@ -332,6 +360,97 @@ macros::macro_connector_implementation!(
 );
 
 // =============================================================================
+// REFUND — POST /v3/refunds
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundV2 for D24<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: D24,
+    curl_request: Json(D24RefundRequest),
+    curl_response: D24RefundResponse,
+    flow_name: Refund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundsData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // Creating a refund is a write call — the deposit (write) API Key.
+            self.build_headers(req, false)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/v3/refunds", self.connector_base_url_refunds(req)))
+        }
+    }
+);
+
+// =============================================================================
+// RSYNC — GET /v3/refunds/{refund_id}
+// =============================================================================
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundSyncV2 for D24<T>
+{
+}
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: D24,
+    curl_response: D24RefundSyncResponse,
+    flow_name: RSync,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundSyncData,
+    flow_response: RefundsResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        // As on PSync, `get_headers` must NOT be defaulted: D24 signs GETs too,
+        // over `X-Date || X-Login || ""`.
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            // Refund status is a read-only endpoint — the read-only API Key.
+            self.build_headers(req, true)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // UCS substitutes the merchant refund id when the caller leaves
+            // `connector_refund_id` empty, and an empty value here would build
+            // `/v3/refunds/` — a 404 on every poll, for ever. Fail locally
+            // instead. The optional `?voucher=` query parameter is not sent.
+            let refund_id = req.request.connector_refund_id.trim();
+            if refund_id.is_empty() {
+                return Err(error_stack::report!(
+                    IntegrationError::MissingConnectorRefundID {
+                        context: Default::default(),
+                    }
+                ));
+            }
+            Ok(format!(
+                "{}/v3/refunds/{}",
+                self.connector_base_url_refunds(req),
+                refund_id
+            ))
+        }
+    }
+);
+
+// =============================================================================
 // DYNAMICALLY GENERATED IMPLEMENTATIONS
 // =============================================================================
 
@@ -384,9 +503,15 @@ crate::connectors::macros::macro_connector_payout_implementation!(
 // flow listed. Each stub's get_url returns
 // IntegrationError::connector_flow_not_implemented(...).
 //
-// Only `Authorize` (WebPay redirect deposit) and `PSync` are in scope.
-// Directa24 documents no capture and no void endpoint at all; Refund / RSync
-// are a separate API surface and are not implemented yet.
+// `Authorize` (WebPay redirect deposit), `PSync`, `Refund` and `RSync` are
+// implemented; everything below is not.
+//
+// Directa24 documents no capture and no void endpoint at all: `POST /v3/deposits`
+// carries no capture/auto_capture/capture_method field and their
+// authorization-and-capture page is an empty stub, while deposit `CANCELLED` is
+// only reachable by customer abandonment, seven-day expiry, or a Merchant Panel
+// click — never by API. `Capture`, `Void` and `VoidPostRefund` therefore stay
+// unimplemented on their merits rather than for want of work.
 crate::connectors::macros::macro_connector_flow_status_impls!(
     connector: D24,
     generic_type: T,
@@ -408,8 +533,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         VoidPC,
         Void,
-        RSync,
-        Refund,
         RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
