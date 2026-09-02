@@ -356,8 +356,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // The PayNearMe API v3.0 has no 3-D Secure surface at all: no enrolment or
         // verification endpoint, no CAVV/ECI/XID/dsTransId field, no ACS redirect.
         // Refuse rather than silently downgrade to a non-3DS charge.
+        //
+        // The test is `auth_type` (per the spec) plus the presence of real
+        // authentication results. It deliberately does NOT look at
+        // `enrolled_for_3ds`: that flag reports whether the *merchant* is
+        // enrolled in 3DS, not whether *this* payment is a 3DS one, and
+        // Hyperswitch hardcodes it to `true` on every card authorize
+        // (`router/src/core/payments/transformers.rs`), so keying off it
+        // rejected every single PayNearMe payment that came from Hyperswitch.
         if common.auth_type == AuthenticationType::ThreeDs
-            || request.enrolled_for_3ds == Some(true)
             || request.authentication_data.is_some()
         {
             return Err(not_supported("Three DS payments"));
