@@ -21,7 +21,7 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -75,9 +75,6 @@ mod constants {
     /// Entry mode for e-commerce transactions
     pub(super) const ENTRY_MODE_ECOM: &str = "ECOM";
 
-    /// Account name for transaction processing
-    pub(super) const ACCOUNT_NAME: &str = "transaction_processing";
-
     /// Channel for card-not-present transactions
     pub(super) const CHANNEL_CNP: &str = "CNP";
 }
@@ -86,6 +83,7 @@ mod constants {
 pub struct GlobalpayAuthType {
     pub app_id: Secret<String>,
     pub app_key: Secret<String>,
+    pub account_name: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for GlobalpayAuthType {
@@ -94,10 +92,14 @@ impl TryFrom<&ConnectorSpecificConfig> for GlobalpayAuthType {
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
             ConnectorSpecificConfig::Globalpay {
-                app_id, app_key, ..
+                app_id,
+                app_key,
+                account_name,
+                ..
             } => Ok(Self {
                 app_id: app_id.to_owned(),
                 app_key: app_key.to_owned(),
+                account_name: account_name.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
@@ -376,6 +378,21 @@ pub struct GlobalpayApm {
     pub provider: Option<ApmProvider>,
 }
 
+/// Digital wallet provider identifier. GlobalPay uses SCREAMING_SNAKE_CASE here.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayDigitalWalletProvider {
+    PayByGoogle,
+}
+
+/// Digital wallet payment method data (Google Pay).
+/// The `payment_token` is the raw JSON object returned by the Google Pay API.
+#[derive(Debug, Serialize)]
+pub struct GlobalpayDigitalWallet {
+    pub provider: GlobalpayDigitalWalletProvider,
+    pub payment_token: serde_json::Value,
+}
+
 #[derive(Debug, Serialize)]
 pub struct GlobalpayPaymentsRequest<T: PaymentMethodDataTypes> {
     pub account_name: String,
@@ -404,6 +421,8 @@ pub struct GlobalpayPaymentMethod<T: PaymentMethodDataTypes> {
     pub card: Option<GlobalpayCard<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apm: Option<GlobalpayApm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digital_wallet: Option<GlobalpayDigitalWallet>,
     /// Connector-issued token reference (e.g. from GlobalPayments.js hosted fields).
     /// When set, GlobalPay looks up the tokenized card by this ID instead of
     /// requiring raw card data in the request body.
@@ -450,7 +469,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let item = &wrapper.router_data;
         let payment_method = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // Convert to 2-digit year using built-in helper method
                 let expiry_year_2digit = card_data.get_card_expiry_year_2_digit().change_context(
                     IntegrationError::RequestEncodingFailed {
                         context: IntegrationErrorContext {
@@ -465,7 +483,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 )?;
 
-                // Determine cvv_indicator based on whether CVV is provided
                 let cvv_indicator = if card_data.card_cvc.peek().is_empty() {
                     Some("NOT_PRESENT".to_string())
                 } else {
@@ -483,20 +500,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         cvv_indicator,
                     }),
                     apm: None,
+                    digital_wallet: None,
                     id: None,
                 }
             }
             PaymentMethodData::BankRedirect(bank_redirect) => {
                 let apm_provider = match bank_redirect {
-                    BankRedirectData::Eps { .. } => Some(ApmProvider::Eps),
-                    BankRedirectData::Ideal { .. } => Some(ApmProvider::Ideal),
+                    BankRedirectData::Eps { .. } => ApmProvider::Eps,
+                    BankRedirectData::Giropay { .. } => ApmProvider::Giropay,
+                    BankRedirectData::Ideal { .. } => ApmProvider::Ideal,
+                    BankRedirectData::Sofort { .. } => ApmProvider::Sofort,
                     _ => {
                         return Err(error_stack::report!(IntegrationError::NotImplemented(
                             "Bank redirect payment method not supported".to_string(),
                             IntegrationErrorContext {
                                 additional_context: Some(
-                                    "GlobalPay Authorize supports EPS and iDEAL bank redirects \
-                                     only; received an unsupported bank redirect variant"
+                                    "GlobalPay Authorize supports EPS, iDEAL, Giropay, and \
+                                     Sofort bank redirects; received an unsupported variant"
                                         .to_string(),
                                 ),
                                 suggested_action: None,
@@ -511,11 +531,66 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: Some(GlobalpayApm {
-                        provider: apm_provider,
+                        provider: Some(apm_provider),
                     }),
+                    digital_wallet: None,
                     id: None,
                 }
             }
+
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::PaypalRedirect(_) => GlobalpayPaymentMethod {
+                    name: item.request.customer_name.clone().map(Secret::new),
+                    entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                    card: None,
+                    apm: Some(GlobalpayApm {
+                        provider: Some(ApmProvider::Paypal),
+                    }),
+                    digital_wallet: None,
+                    id: None,
+                },
+                WalletData::GooglePay(_) => {
+                    let payment_token = wallet_data
+                        .get_wallet_token_as_json::<serde_json::Value>("Google Pay".to_string())
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Failed to parse Google Pay token as JSON for GlobalPay \
+                                     POST /transactions digital_wallet.payment_token"
+                                        .to_string(),
+                                ),
+                                suggested_action: None,
+                                doc_url: None,
+                            },
+                        })?;
+
+                    GlobalpayPaymentMethod {
+                        name: item.request.customer_name.clone().map(Secret::new),
+                        entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
+                        card: None,
+                        apm: None,
+                        digital_wallet: Some(GlobalpayDigitalWallet {
+                            provider: GlobalpayDigitalWalletProvider::PayByGoogle,
+                            payment_token,
+                        }),
+                        id: None,
+                    }
+                }
+                _ => {
+                    return Err(error_stack::report!(IntegrationError::NotImplemented(
+                        "Wallet payment method not supported".to_string(),
+                        IntegrationErrorContext {
+                            additional_context: Some(
+                                "GlobalPay Authorize supports PaypalRedirect and GooglePay \
+                                 wallets; received an unsupported wallet variant"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    )))
+                }
+            },
 
             PaymentMethodData::PaymentMethodToken(t) => {
                 let token = t.token.clone();
@@ -525,6 +600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     entry_mode: constants::ENTRY_MODE_ECOM.to_string(),
                     card: None,
                     apm: None,
+                    digital_wallet: None,
                     id: Some(token),
                 }
             }
@@ -533,7 +609,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     "Payment method not supported".to_string(),
                     IntegrationErrorContext {
                         additional_context: Some(
-                            "GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL), and \
+                            "GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/\
+                             Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and \
                              PaymentMethodToken; received an unsupported payment method type"
                                 .to_string(),
                         ),
@@ -544,16 +621,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Determine capture_mode based on capture_method
         let capture_mode = match item.request.capture_method {
             Some(common_enums::CaptureMethod::Manual) => Some(GlobalpayCaptureMode::Later),
             _ => Some(GlobalpayCaptureMode::Auto),
         };
 
-        // Country is required by GlobalPay - missing billing country is a user error
         let country = item.resource_common_data.get_billing_country()?;
 
-        // Build notifications object from router data
         let notifications = if let (Some(return_url), Some(webhook_url)) = (
             item.request.router_return_url.as_ref(),
             item.request.webhook_url.as_ref(),
@@ -566,6 +640,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             None
         };
+
+        let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
+        let account_name = auth
+            .account_name
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "account_name",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalPay requires account_name in connector config to identify the \
+                             processing account for POST /transactions"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set account_name in the GlobalPay connector configuration".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?
+            .peek()
+            .to_string();
 
         let amount = wrapper
             .connector
@@ -584,7 +680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         Ok(Self {
-            account_name: constants::ACCOUNT_NAME.to_string(),
+            account_name,
             channel: constants::CHANNEL_CNP.to_string(),
             amount,
             currency: item.request.currency,
@@ -1632,6 +1728,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let item = &wrapper.router_data;
 
+        let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
+        let account_name = auth
+            .account_name
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "account_name",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "GlobalPay requires account_name in connector config to identify the \
+                             processing account for MIT POST /transactions"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set account_name in the GlobalPay connector configuration".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?
+            .peek()
+            .to_string();
+
         let mandate_id = match &item.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => connector_mandate_ref
                 .get_connector_mandate_id()
@@ -1710,7 +1828,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         Ok(Self {
-            account_name: constants::ACCOUNT_NAME.to_string(),
+            account_name,
             channel: constants::CHANNEL_CNP.to_string(),
             amount,
             currency: item.request.currency,

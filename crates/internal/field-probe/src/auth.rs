@@ -170,6 +170,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Globalpay => ConnectorSpecificConfig::Globalpay {
             app_id: id(),
             app_key: k(),
+            account_name: None,
             base_url: None,
         },
         ConnectorEnum::Hipay => ConnectorSpecificConfig::Hipay {

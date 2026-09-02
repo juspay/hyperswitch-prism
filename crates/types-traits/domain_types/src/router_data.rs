@@ -442,6 +442,7 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        account_name: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Hipay {
@@ -2073,6 +2074,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Globalpay(globalpay) => Ok(Self::Globalpay {
                 app_id: globalpay.app_id.ok_or_else(err)?,
                 app_key: globalpay.app_key.ok_or_else(err)?,
+                account_name: globalpay.account_name,
                 base_url: globalpay.base_url,
             }),
             AuthType::Hipay(hipay) => Ok(Self::Hipay {
@@ -2885,6 +2887,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
                         app_id: key1.clone(),
                         app_key: api_key.clone(),
+                        account_name: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

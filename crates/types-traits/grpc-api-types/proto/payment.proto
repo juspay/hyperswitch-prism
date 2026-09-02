@@ -5174,6 +5174,7 @@ message FinixConfig {
 message GlobalpayConfig {
   SecretString app_id = 1;
   SecretString app_key = 2;
+  optional SecretString account_name = 3;
   optional string base_url = 50;
 }
 
