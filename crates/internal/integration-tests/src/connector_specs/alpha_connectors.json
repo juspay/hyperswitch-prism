@@ -6,7 +6,6 @@
   "connectors": {
     "absa_sanlam": {},
     "aci": {},
-    "adyen": {},
     "affirm": {},
     "airwallex": {},
     "authipay": {},
@@ -26,7 +25,6 @@
     "celero": {},
     "checkout": {},
     "cryptopay": {},
-    "cybersource": {},
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
@@ -98,7 +96,6 @@
     "trustly": {},
     "trustpay": {},
     "trustpayments": {},
-    "tsys": {},
     "tsys_transit": {},
     "twoc_twop_paco": {},
     "volt": {},

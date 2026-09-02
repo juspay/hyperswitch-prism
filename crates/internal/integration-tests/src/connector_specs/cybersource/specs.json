@@ -15,5 +15,31 @@
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
     "RecurringPaymentService/Revoke"
-  ]
+  ],
+  "supported_payment_methods": [
+    "card"
+  ],
+  "sync_poll_until_terminal_seconds": 15,
+  "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/Authenticate": {
+      "threeds_card_authenticate": "implemented but not yet verified against the live sandbox."
+    },
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "threeds_card_pre_authenticate": "implemented but not yet verified against the live sandbox."
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "implemented but not yet verified against the live sandbox."
+    },
+    "PaymentService/IncrementalAuthorization": {
+      "incremental_auth_basic": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_with_tip": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_multiple_increase": "implemented but not yet verified against the live sandbox.",
+      "incremental_auth_fail_invalid_transaction_id": "implemented but not yet verified against the live sandbox."
+    },
+    "RecurringPaymentService/Revoke": {
+      "revoke_active_mandate": "implemented but not yet verified against the live sandbox.",
+      "revoke_with_reason": "implemented but not yet verified against the live sandbox.",
+      "revoke_fail_invalid_mandate_id": "implemented but not yet verified against the live sandbox."
+    }
+  }
 }
