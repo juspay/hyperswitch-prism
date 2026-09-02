@@ -127,11 +127,16 @@ impl TryFrom<&ConnectorSpecificConfig> for GlobalpaymentsRealexAuthType {
 /// The values a follow-up `settle` / `void` / `rebate` / `query` needs that are **not** carried by
 /// any standard UCS field.
 ///
-/// `pasref` travels as the `connector_transaction_id`, but RealEx also requires the **original**
-/// `<orderid>` — and, for `rebate`, the original `<authcode>` — verbatim. Neither can be
-/// regenerated at capture time (a fresh timestamp-derived order id is rejected), so Authorize
-/// publishes them as `connector_metadata`, which the gRPC layer surfaces as
-/// `connector_feature_data` on the Authorize response and accepts back on the Capture request.
+/// RealEx requires the **original** `<orderid>` — and, for `rebate`, the original `<authcode>` —
+/// verbatim, and it requires the pasref the original `auth` minted for `void` and `rebate`. None of
+/// them can be regenerated at capture time (a fresh timestamp-derived order id is rejected), so
+/// Authorize publishes them as `connector_metadata`, which the gRPC layer surfaces as
+/// `connector_feature_data` on the Authorize response and accepts back on every follow-up request.
+///
+/// The auth pasref is carried here rather than read from `connector_transaction_id` because that
+/// field stops being the auth pasref the moment a manual capture happens: a `settle` mints a **new**
+/// pasref, which becomes the Capture response's `connector_transaction_id`, and a `void` / `rebate`
+/// sent with it answers `508 Original transaction not found.` (see [`Self::auth_pasref`]).
 ///
 /// Tech spec §14.5 ("what to persist").
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,6 +162,21 @@ pub struct GlobalpaymentsRealexPaymentMetadata {
     /// Capture and Refund flows carries no such field and must keep deserializing unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub void_pasref: Option<String>,
+    /// The `<pasref>` the **original `auth`** minted — the only pasref `void` and `rebate` accept.
+    ///
+    /// `connector_transaction_id` cannot be trusted for this after a manual capture: a `settle`
+    /// mints its own pasref, UCS surfaces *that* one as the Capture response's transaction id, and
+    /// a caller that persists it then sends it back on the reversal. Verified live: `void` and
+    /// `rebate` both answer `508 Original transaction not found.` for the settle-minted pasref and
+    /// `00` for this one (tech spec §12.2, §12.3). With auto-capture there is no separate settle,
+    /// so the two values coincide and nothing was ever wrong there — which is why only the
+    /// manual-capture path was broken.
+    ///
+    /// Additive and optional on purpose: metadata written before this field existed carries no
+    /// `auth_pasref`, and those payments must keep working through the
+    /// `connector_transaction_id` fallback in [`resolve_reference_pasref`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auth_pasref: Option<String>,
 }
 
 // =============================================================================
@@ -1026,13 +1046,16 @@ where
                 // Nothing has been voided yet; the Void flow republishes this block with the
                 // marker filled in.
                 void_pasref: None,
+                // The authorization's own pasref, pinned here because a later `settle` mints a new
+                // one that `void` / `rebate` reject (see the field's doc).
+                auth_pasref: Some(pasref.clone()),
             })
             .change_context(ConnectorError::ResponseHandlingFailed {
                 context: Default::default(),
             })
             .attach_printable(
                 "Failed to serialize the GlobalpaymentsRealex follow-up metadata (orderid / \
-                     authcode)",
+                     authcode / auth_pasref)",
             )?;
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1154,6 +1177,67 @@ fn extract_followup_metadata(
             }
         }
     })
+}
+
+/// Resolves the `<pasref>` a `void` or `rebate` must address.
+///
+/// The ladder is deliberate:
+///
+/// 1. [`GlobalpaymentsRealexPaymentMetadata::auth_pasref`] — the pasref the original `auth` minted,
+///    which is the only one the gateway accepts on a reversal.
+/// 2. `connector_transaction_id` — correct for auto-captured payments (no `settle` ever ran, so the
+///    transaction id *is* the auth pasref) and for payments authorized before `auth_pasref` was
+///    published, which must keep working.
+/// 3. Neither — an actionable error naming the field, rather than a request guaranteed to `508`.
+///
+/// When both are present and disagree the metadata wins, because it is literally the `<pasref>` the
+/// `auth` returned, whereas `connector_transaction_id` is whatever the caller last persisted — the
+/// settle-minted pasref for a manually captured payment. The divergence is logged loudly: it is the
+/// signature of exactly the bug this ladder exists to absorb.
+fn resolve_reference_pasref(
+    metadata: Option<&GlobalpaymentsRealexPaymentMetadata>,
+    connector_transaction_id: Option<&str>,
+    request_type: &str,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    let metadata_pasref = metadata
+        .and_then(|metadata| metadata.auth_pasref.as_deref())
+        .map(str::trim)
+        .filter(|pasref| !pasref.is_empty());
+    let transaction_id = connector_transaction_id
+        .map(str::trim)
+        .filter(|pasref| !pasref.is_empty());
+
+    if let (Some(metadata_pasref), Some(transaction_id)) = (metadata_pasref, transaction_id) {
+        if metadata_pasref != transaction_id {
+            tracing::warn!(
+                connector = "globalpayments_realex",
+                request_type = %request_type,
+                metadata_pasref = %metadata_pasref,
+                connector_transaction_id = %transaction_id,
+                "GlobalpaymentsRealex was given two different pasrefs for the same payment; using \
+                 the one from connector_feature_data, which is the <pasref> the original auth \
+                 returned — the transaction id is most likely the pasref a settle minted, which the \
+                 gateway rejects with 508 Original transaction not found."
+            );
+        }
+    }
+
+    metadata_pasref
+        .or(transaction_id)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_feature_data.auth_pasref",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "GlobalpaymentsRealex {request_type} needs the <pasref> the original auth \
+                         minted: echo the Authorize response's connector_feature_data back on the \
+                         request, or set the connector_transaction_id to the authorization's pasref"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })
 }
 
 impl<T>
@@ -1327,10 +1411,44 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexCaptureResponse, Self>>
                     .map(DomainResponseId::ConnectorTransactionId)
                     .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
 
+                // Carry the follow-up metadata across the capture rather than dropping it. This
+                // response's `connector_transaction_id` is the settle-minted pasref, so a caller
+                // that replaces its stored block here would lose the `<orderid>`, the `<authcode>`
+                // and — the reason this matters — the auth pasref that `void` and `rebate` need.
+                //
+                // The *capture request's* `connector_transaction_id` is still the auth pasref by
+                // construction, so it also backfills `auth_pasref` for payments authorized before
+                // that field existed. Nothing is republished when the caller sent no metadata:
+                // inventing an order id from the request reference could overwrite a correct
+                // stored one.
+                let connector_metadata = extract_followup_metadata(
+                    router_data.request.connector_feature_data.as_ref(),
+                    router_data.request.metadata.as_ref(),
+                )
+                .map(|previous| GlobalpaymentsRealexPaymentMetadata {
+                    auth_pasref: previous.auth_pasref.clone().or_else(|| {
+                        router_data
+                            .request
+                            .connector_transaction_id
+                            .get_connector_transaction_id()
+                            .ok()
+                    }),
+                    ..previous
+                })
+                .map(serde_json::to_value)
+                .transpose()
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: Default::default(),
+                })
+                .attach_printable(
+                    "Failed to serialize the GlobalpaymentsRealex follow-up metadata (orderid / \
+                     authcode / auth_pasref) on the settle response",
+                )?;
+
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id,
                     redirection_data: None,
-                    connector_metadata: None,
+                    connector_metadata,
                     mandate_reference: None,
                     network_txn_id: response.srd.clone(),
                     network_txn_link_id: None,
@@ -1408,8 +1526,11 @@ fn map_void_reason_code(cancellation_reason: Option<&str>) -> Option<&'static st
 ///
 /// **`<pasref>` must be the pasref minted by the original `auth`.** A `settle` mints a *new*
 /// pasref, and voiding with that one returns `508 Original transaction not found.` — verified live.
-/// Since UCS surfaces the settle pasref as the Capture response's `connector_transaction_id`, a
-/// caller that wants to reverse a captured payment must pass the **Authorize** transaction id here.
+/// UCS surfaces the settle pasref as the Capture response's `connector_transaction_id`, so this is
+/// **not** left to the caller: the auth pasref is read from
+/// [`GlobalpaymentsRealexPaymentMetadata::auth_pasref`], which Authorize publishes and Capture
+/// carries forward, and `connector_transaction_id` is only the fallback for payments that never had
+/// a separate settle (see [`resolve_reference_pasref`]).
 #[derive(Debug, Serialize)]
 #[serde(rename = "request")]
 pub struct GlobalpaymentsRealexVoidRequest {
@@ -1500,20 +1621,13 @@ where
             )?,
         };
 
-        // `<pasref>` is the gateway reference, i.e. the connector_transaction_id.
-        let pasref = request.connector_transaction_id.trim().to_string();
-        if pasref.is_empty() {
-            return Err(report!(IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "GlobalpaymentsRealex void needs the original <pasref> as the \
-                         connector_transaction_id"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            }));
-        }
+        // `<pasref>` must be the one the original `auth` minted, never the settle-minted pasref a
+        // captured payment carries as its `connector_transaction_id` — see the struct doc.
+        let pasref = resolve_reference_pasref(
+            metadata.as_ref(),
+            Some(request.connector_transaction_id.as_str()),
+            REQUEST_TYPE_VOID,
+        )?;
 
         let timestamp = current_timestamp()?;
         let merchant_id = auth.merchant_id.clone().expose();
@@ -1652,15 +1766,27 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
                 // The ORIGINAL auth's authcode. A void response carries its own
                 // (`000000`), which a later `rebate` must not use, so it is never read
                 // from the response here.
-                authcode: previous.and_then(|metadata| metadata.authcode),
+                authcode: previous
+                    .as_ref()
+                    .and_then(|metadata| metadata.authcode.clone()),
                 void_pasref: Some(void_pasref),
+                // Likewise the ORIGINAL auth's pasref: a void mints its own, and republishing that
+                // as `auth_pasref` would poison a later reversal. Falls back to the pasref this
+                // request actually addressed, which the ladder already resolved to the auth one.
+                auth_pasref: previous
+                    .and_then(|metadata| metadata.auth_pasref)
+                    .or_else(|| {
+                        Some(router_data.request.connector_transaction_id.clone())
+                            .map(|pasref| pasref.trim().to_string())
+                            .filter(|pasref| !pasref.is_empty())
+                    }),
             })
             .change_context(ConnectorError::ResponseHandlingFailed {
                 context: Default::default(),
             })
             .attach_printable(
                 "Failed to serialize the GlobalpaymentsRealex follow-up metadata \
-                         (orderid / authcode / void_pasref) on the void response",
+                         (orderid / authcode / void_pasref / auth_pasref) on the void response",
             )?;
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -1739,8 +1865,9 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
 ///
 /// So `rebate` behaves exactly like `void` (tech spec §12.2) despite acting *after* capture: it
 /// wants the **`auth`** pasref. Because UCS surfaces the settle-minted pasref as the Capture
-/// response's `connector_transaction_id`, a caller refunding a captured payment must pass the
-/// **Authorize** transaction id here, not the Capture one.
+/// response's `connector_transaction_id`, the pasref is taken from
+/// [`GlobalpaymentsRealexPaymentMetadata::auth_pasref`] first and only falls back to the
+/// transaction id (see [`resolve_reference_pasref`]).
 #[derive(Debug, Serialize)]
 #[serde(rename = "request")]
 pub struct GlobalpaymentsRealexRefundRequest {
@@ -1861,21 +1988,14 @@ where
             }
         };
 
-        // `<pasref>` is the gateway reference, i.e. the connector_transaction_id. It must be the
-        // one the **original `auth`** minted — see the struct doc for the live A/B result.
-        let pasref = request.connector_transaction_id.trim().to_string();
-        if pasref.is_empty() {
-            return Err(report!(IntegrationError::MissingConnectorTransactionID {
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "GlobalpaymentsRealex rebate needs the original <pasref> as the \
-                         connector_transaction_id"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            }));
-        }
+        // `<pasref>` must be the one the **original `auth`** minted — see the struct doc for the
+        // live A/B result. A refund of a manually captured payment arrives with the settle-minted
+        // pasref as its `connector_transaction_id`, so the metadata is preferred over it.
+        let pasref = resolve_reference_pasref(
+            metadata.as_ref(),
+            Some(request.connector_transaction_id.as_str()),
+            REQUEST_TYPE_REBATE,
+        )?;
 
         // Minor units, integer, no decimal point. The gateway owns the 115% / 105% over-refund
         // ceiling; no client-side limit is applied so its refusal surfaces verbatim.
