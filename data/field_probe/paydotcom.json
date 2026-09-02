@@ -1,0 +1,826 @@
+{
+  "connector": "paydotcom",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for paydotcom"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"probe_txn_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"}}}"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "hld_146231656762572800",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/holds/hld_146231656762572800/capture",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount_to_capture\":\"1000\",\"reference\":\"probe_capture_001\"}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for paydotcom"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for paydotcom"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for paydotcom"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for paydotcom"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paydotcom"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for paydotcom"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for paydotcom"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for paydotcom"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for paydotcom"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paydotcom connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "chrg_146231656762572800",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges/chrg_146231656762572800",
+          "method": "Get",
+          "headers": {
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for paydotcom"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for paydotcom"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"challenge\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\",\"authentication_context\":{\"browser_details\":{\"java_enabled\":false,\"javascript_enabled\":true,\"user_agent\":\"Mozilla/5.0 (probe-bot)\",\"accept_header\":\"application/json\",\"language\":\"en-US\",\"color_depth\":24,\"screen_height\":900,\"screen_width\":1440,\"timezone_offset\":-480},\"customer_ip_address\":\"1.2.3.4\"}}}}"
+        }
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"probe_proxy_txn_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"}}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for paydotcom"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paydotcom"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "chrg_146231656762572800",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/refunds",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"charge\":\"chrg_146231656762572800\",\"amount_to_refund\":\"1000\",\"reference\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for paydotcom"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "hld_146231656762572800"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/holds/hld_146231656762572800/cancel",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    }
+  }
+}

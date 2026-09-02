@@ -905,6 +905,7 @@ enum Connector {
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
   SAFERPAY = 140;
+  PAYDOTCOM = 141;
 }
 
 // Payment method types
@@ -5885,6 +5886,13 @@ message SaferpayConfig {
   optional string base_url = 50;
 }
 
+// Pay.com REST API v1.
+// api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
+message PaydotcomConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6213,6 +6221,8 @@ message ConnectorSpecificConfig {
     GotymeSanlamConfig gotyme_sanlam = 150;
     // SAFERPAY = 140
     SaferpayConfig saferpay = 151;
+    // PAYDOTCOM = 141
+    PaydotcomConfig paydotcom = 152;
   }
 }
 

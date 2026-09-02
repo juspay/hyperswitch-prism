@@ -147,6 +147,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Ilixium => Box::new(connectors::Ilixium::<T>::new()),
             ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
             ConnectorEnum::Saferpay => Box::new(connectors::Saferpay::<T>::new()),
+            ConnectorEnum::Paydotcom => Box::new(connectors::Paydotcom::<T>::new()),
         }
     }
 }
