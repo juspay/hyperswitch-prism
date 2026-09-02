@@ -359,6 +359,7 @@ impl
             currency_conversion_data: item.currency_conversion_data.clone(),
             is_account_funding_transaction: item.is_account_funding_transaction,
             recipient_details: item.recipient_details.clone(),
+            additional_connector_details: item.additional_connector_details.clone(),
         }
     }
 }
@@ -1232,6 +1233,7 @@ impl
             currency_conversion_data: request.currency_conversion_data.clone(),
             is_account_funding_transaction: request.is_account_funding_transaction,
             recipient_details: request.recipient_details.clone(),
+            additional_connector_details: request.additional_connector_details.clone(),
         }
     }
 }

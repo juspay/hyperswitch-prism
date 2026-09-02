@@ -2725,6 +2725,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 54;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 55;
 }
 
 // Partner / external-platform application details.
@@ -3688,6 +3691,9 @@ message PaymentServiceSetupRecurringRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 39;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 40;
 }
 
 // Response message for a mandate setup operation
@@ -3858,6 +3864,9 @@ message RecurringPaymentServiceChargeRequest {
 
   // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
   optional RecipientDetails recipient_details = 41;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 42;
 }
 
 // Response message for repeat payment operation
@@ -6706,4 +6715,18 @@ message SplitSettlementResponseVendor {
   optional string utr = 10;
   // The connector's id for the TRANSFER of this slice to the vendor (e.g. Stripe tr_…).
   optional string connector_transaction_id = 11;
+}
+
+// Additional connector-specific details to be passed through to the
+// connector for the transaction. Currently only the Checkout variant is defined.
+message AdditionalConnectorDetails {
+  // Checkout specific additional information for the transaction.
+  optional CheckoutAdditionalInformation checkout = 1;
+}
+
+// Checkout.com-specific additional information to be included in the payment request.
+message CheckoutAdditionalInformation {
+  // Free-text description of the reason or intent behind the payment (e.g. "Invoice payment",
+  // "Goods purchase"). Forwarded verbatim to Checkout.com as the purpose of the transaction.
+  optional string purpose_of_payment = 1;
 }
