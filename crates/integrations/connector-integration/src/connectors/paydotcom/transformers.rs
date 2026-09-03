@@ -124,9 +124,44 @@ fn amount_conversion_error(context: &str) -> IntegrationError {
     }
 }
 
-/// Pay.com's `currency` is `^[a-z]{3}$`; `common_enums::Currency` displays upper-case.
-fn lowercase_currency(currency: common_enums::Currency) -> String {
-    currency.to_string().to_lowercase()
+/// Pay.com spells `currency` as `^[a-z]{3}$` on the wire, while `common_enums::Currency`
+/// serialises UPPERCASE. These adapters keep the currency typed as the enum everywhere in
+/// this module and normalise the case at the serde boundary, in both directions.
+mod paydotcom_currency {
+    use std::str::FromStr;
+
+    use common_enums::Currency;
+    use serde::{de::Error as _, Deserialize, Deserializer, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(
+        currency: &Currency,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&currency.to_string().to_lowercase())
+    }
+
+    /// Optional counterpart, for the response bodies where Pay.com may omit the field.
+    pub(super) mod option {
+        use super::{Currency, Deserialize, Deserializer, FromStr, Serializer};
+
+        pub(in super::super) fn serialize<S: Serializer>(
+            currency: &Option<Currency>,
+            serializer: S,
+        ) -> Result<S::Ok, S::Error> {
+            match currency {
+                Some(currency) => super::serialize(currency, serializer),
+                None => serializer.serialize_none(),
+            }
+        }
+
+        pub(in super::super) fn deserialize<'de, D: Deserializer<'de>>(
+            deserializer: D,
+        ) -> Result<Option<Currency>, D::Error> {
+            let raw = <Option<String>>::deserialize(deserializer)?;
+            raw.map(|raw| Currency::from_str(&raw.to_uppercase()).map_err(serde::de::Error::custom))
+                .transpose()
+        }
+    }
 }
 
 // ===== REQUEST: CREATE CHARGE / CREATE HOLD =====
@@ -137,8 +172,9 @@ fn lowercase_currency(currency: common_enums::Currency) -> String {
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
     /// Minor units, JSON integer.
     pub amount: MinorUnit,
-    /// Lower-case ISO-4217.
-    pub currency: String,
+    /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
+    #[serde(serialize_with = "paydotcom_currency::serialize")]
+    pub currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -225,8 +261,9 @@ pub struct PaydotcomCardSourceDetails<T: PaymentMethodDataTypes> {
     pub expiry_year: Secret<String>,
     /// `cvc`, **not** `cvv` — see the module docs.
     pub cvc: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<Secret<String>>,
+    /// Cardholder name. Mandatory: Pay.com expects the name as it appears on the card,
+    /// so the billing name is deliberately NOT used as a fallback — the two can differ.
+    pub name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<PaydotcomAddress>,
     /// External-MPI pass-through. Mutually exclusive with `authentication_context`.
@@ -241,8 +278,10 @@ pub struct PaydotcomCardSourceDetails<T: PaymentMethodDataTypes> {
 pub struct PaydotcomThreeDsRaw {
     pub eci: String,
     pub cavv: Secret<String>,
+    /// Masked alongside `cavv`: both are authentication artefacts that should never
+    /// surface in a log line, even though the domain model keeps this one unmasked.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ds_trans_id: Option<String>,
+    pub ds_trans_id: Option<Secret<String>>,
     /// Only meaningful for 3DS 1.0.0; UCS carries no xid, so this is always `None`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xid: Option<String>,
@@ -385,7 +424,7 @@ fn build_three_ds_raw(
     Ok(PaydotcomThreeDsRaw {
         eci,
         cavv,
-        ds_trans_id: authentication_data.ds_trans_id.clone(),
+        ds_trans_id: authentication_data.ds_trans_id.clone().map(Secret::new),
         // UCS has no xid; `transaction_id` is not one and must not be mapped here.
         xid: None,
         version: Some(
@@ -607,7 +646,7 @@ fn build_create_resource_request<T: PaymentMethodDataTypes>(
 
     Ok(PaydotcomCreateResourceRequest {
         amount,
-        currency: lowercase_currency(currency),
+        currency,
         reference: Some(common.connector_request_reference_id.clone()),
         customer_reference_id,
         payment_method_options: Some(PaydotcomPaymentMethodOptions {
@@ -622,10 +661,12 @@ fn build_create_resource_request<T: PaymentMethodDataTypes>(
                 expiry_month: card.get_card_expiry_month_2_digit()?,
                 expiry_year: card.get_expiry_year_4_digit(),
                 cvc: card.card_cvc.clone(),
-                name: card
-                    .card_holder_name
-                    .clone()
-                    .or_else(|| common.get_optional_billing_full_name()),
+                name: card.card_holder_name.clone().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method_data.card.card_holder_name",
+                        context: Default::default(),
+                    })
+                })?,
                 billing_address,
                 three_ds,
                 authentication_context,
@@ -1105,8 +1146,12 @@ pub struct PaydotcomChargeResponse {
     pub amount: Option<MinorUnit>,
     #[serde(default)]
     pub amount_refunded: Option<MinorUnit>,
-    #[serde(default)]
-    pub currency: Option<String>,
+    #[serde(
+        default,
+        serialize_with = "paydotcom_currency::option::serialize",
+        deserialize_with = "paydotcom_currency::option::deserialize"
+    )]
+    pub currency: Option<common_enums::Currency>,
     #[serde(default)]
     pub reference: Option<String>,
     /// Set when the Charge was produced by capturing a Hold.
@@ -1126,8 +1171,12 @@ pub struct PaydotcomHoldResponse {
     pub amount: Option<MinorUnit>,
     #[serde(default)]
     pub amount_capturable: Option<MinorUnit>,
-    #[serde(default)]
-    pub currency: Option<String>,
+    #[serde(
+        default,
+        serialize_with = "paydotcom_currency::option::serialize",
+        deserialize_with = "paydotcom_currency::option::deserialize"
+    )]
+    pub currency: Option<common_enums::Currency>,
     #[serde(default)]
     pub reference: Option<String>,
     #[serde(default)]
@@ -1382,15 +1431,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // else means the leg cannot be continued and the caller must not be handed a
         // resource id it would then try to authenticate.
         let pending = item.response.pending_metadata();
-        let connector_feature_data = pending.clone().map(Secret::new);
-        // The id the following Authenticate leg has to authenticate. This rides
-        // `authentication_data`, the channel an orchestrator already carries from the
-        // PreAuthenticate response into the Authenticate request — no connector-specific
-        // metadata plumbing needed. It is mirrored on `connector_feature_data` above for
-        // callers that drive the gRPC flows directly.
+        // `pending` is `Some(resource_id)` only while Pay.com is waiting for the shopper to
+        // authenticate — that is, when this Charge/Hold still needs the linked-authentication
+        // session that the following Authenticate leg creates. When it is `None` the journey
+        // is already resolved (approved or failed) and there is no id to hand forward, so
+        // both carriers below stay empty and the orchestrator stops after this leg.
+        //
+        // The id travels on `authentication_data`, the channel an orchestrator already moves
+        // from a PreAuthenticate response into the next Authenticate request, so no
+        // connector-specific metadata plumbing is needed. `connector_feature_data` carries the
+        // same id as a fallback for callers that drive the gRPC flows directly and therefore
+        // have no orchestrator doing that for them.
+        let connector_feature_data = pending.as_ref().cloned().map(Secret::new);
         let authentication_data = pending
-            .is_some()
-            .then(|| resource_id_authentication_data(&resource_id));
+            .as_ref()
+            .map(|_| resource_id_authentication_data(&resource_id));
 
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
@@ -1585,8 +1640,12 @@ pub struct PaydotcomRefundResponse {
     pub status: PaydotcomRefundStatus,
     #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
-    pub currency: Option<String>,
+    #[serde(
+        default,
+        serialize_with = "paydotcom_currency::option::serialize",
+        deserialize_with = "paydotcom_currency::option::deserialize"
+    )]
+    pub currency: Option<common_enums::Currency>,
     #[serde(default)]
     pub charge: Option<String>,
     #[serde(default)]

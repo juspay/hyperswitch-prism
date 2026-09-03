@@ -909,7 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
-  PAYDOTCOM = 143;
+  PAYDOTCOM = 144;
 }
 
 // Payment method types
@@ -6266,8 +6266,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
-    // PAYDOTCOM = 143
-    PaydotcomConfig paydotcom = 154;
+    // PAYDOTCOM = 144
+    PaydotcomConfig paydotcom = 155;
   }
 }
 
