@@ -410,7 +410,7 @@ pub struct GlobalpayDigitalWallet {
 #[serde(untagged)]
 pub enum GlobalpayDigitalWalletData {
     Encrypted {
-        payment_token: serde_json::Value,
+        payment_token: Secret<serde_json::Value>,
     },
     Decrypted {
         /// DPAN from the decrypted Google Pay payload.
@@ -622,7 +622,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         doc_url: None,
                                     },
                                 })?;
-                            GlobalpayDigitalWalletData::Encrypted { payment_token }
+                            GlobalpayDigitalWalletData::Encrypted {
+                                payment_token: Secret::new(payment_token),
+                            }
                         }
                         GpayTokenizationData::Decrypted(decrypted) => {
                             let expiry_year = decrypted
