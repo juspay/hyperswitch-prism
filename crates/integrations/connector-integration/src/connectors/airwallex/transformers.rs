@@ -870,12 +870,6 @@ fn get_wallet_details(
                 }),
             ))
         }
-        domain_types::payment_method_data::WalletData::Neteller(_) => {
-            Err(error_stack::report!(IntegrationError::NotImplemented(
-                "Neteller wallet is not supported by Airwallex".to_string(),
-                Default::default()
-            )))
-        }
         _ => Err(error_stack::report!(IntegrationError::NotImplemented(
             "Wallet Payment Method".to_string(),
             Default::default()
