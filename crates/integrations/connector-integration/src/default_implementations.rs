@@ -292,6 +292,7 @@ default_impl_verify_webhook_source_v2!(
         Tesouro,
         Boost,
         Citigate,
+        JpmorganOrbital,
         Saferpay,
         Paydotcom,
         Moneris,
@@ -374,6 +375,7 @@ macro_rules! default_impl_recharge_v2 {
 
 default_impl_recharge_v2!(
     Citigate,
+    JpmorganOrbital,
     Saferpay,
     Paydotcom,
     Boost,
@@ -605,6 +607,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
     Saferpay,
     Paydotcom,
     Boost,
@@ -714,6 +717,7 @@ default_impl_create_payment_method_v2!(
 
 default_impl_get_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
     Saferpay,
     Paydotcom,
     Boost,
@@ -824,6 +828,7 @@ default_impl_get_payment_method_v2!(
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Citigate,
+        JpmorganOrbital,
         Saferpay,
         Paydotcom,
         Boost,
@@ -994,6 +999,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 
 default_impl_refresh_payment_method_v2!(
     Citigate,
+    JpmorganOrbital,
     Saferpay,
     Paydotcom,
     Boost,

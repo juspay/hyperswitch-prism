@@ -430,6 +430,14 @@ payment_methods: Ach, Card
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
 
+## Jpmorganorbital
+connector_id: jpmorganorbital
+doc: docs/connectors/jpmorganorbital.md
+scenarios: checkout_autocapture, get_payment
+payment_methods: Card
+flows: authorize, get, proxy_authorize
+examples_python: examples/jpmorganorbital/jpmorganorbital.py
+
 ## Juspay
 connector_id: juspay
 doc: docs/connectors/juspay.md

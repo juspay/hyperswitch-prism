@@ -15,9 +15,17 @@ SUPPORTED_FLOWS = ["capture", "get", "refund", "refund_get", "reverse", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     tsystransit=payment_pb2.TsystransitConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        tsys_transit=payment_pb2.TsysTransitConfig(
+            device_id=payment_methods_pb2.SecretString(value="YOUR_DEVICE_ID"),
+            transaction_key=payment_methods_pb2.SecretString(value="YOUR_TRANSACTION_KEY"),
+            developer_id=payment_methods_pb2.SecretString(value="YOUR_DEVELOPER_ID"),
+            merchant_street_address=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_STREET_ADDRESS"),
+            customer_service_phone_number=payment_methods_pb2.SecretString(value="YOUR_CUSTOMER_SERVICE_PHONE_NUMBER"),
+            merchant_url="YOUR_MERCHANT_URL",
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 
