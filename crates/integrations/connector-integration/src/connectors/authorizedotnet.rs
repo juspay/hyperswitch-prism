@@ -259,7 +259,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
-            status: common_enums::AttemptStatus::from(status),
+            // `status` is derived from the webhook `event_type`, whose mapping never yields
+            // `SyncStatus::Unknown`, so the retained-status arm is unreachable here.
+            status: transformers::get_sync_attempt_status(
+                status,
+                common_enums::AttemptStatus::Pending,
+            ),
             status_code: 200,
             mandate_reference: None,
             connector_response_reference_id: Some(transaction_id.clone()),

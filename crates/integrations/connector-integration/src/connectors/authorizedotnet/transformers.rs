@@ -2376,7 +2376,10 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
         // Use the clean approach with the From trait implementation
         match response.transaction {
             Some(transaction) => {
-                let payment_status = AttemptStatus::from(transaction.transaction_status);
+                let payment_status = get_sync_attempt_status(
+                    transaction.transaction_status,
+                    router_data.resource_common_data.status,
+                );
 
                 // Create a new RouterDataV2 with updated fields
                 let mut new_router_data = router_data;
@@ -2855,6 +2858,8 @@ pub enum SyncStatus {
     FDSPendingReview,
     #[serde(rename = "FDSAuthorizedPendingReview")]
     FDSAuthorizedPendingReview,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2871,23 +2876,33 @@ pub struct SyncTransactionResponse {
     // Additional fields available but not needed for our implementation
 }
 
-impl From<SyncStatus> for AttemptStatus {
-    fn from(transaction_status: SyncStatus) -> Self {
-        match transaction_status {
-            SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
-                Self::Charged
-            }
-            SyncStatus::AuthorizedPendingCapture => Self::Authorized,
-            SyncStatus::Declined => Self::AuthenticationFailed,
-            SyncStatus::Voided => Self::Voided,
-            SyncStatus::CouldNotVoid => Self::VoidFailed,
-            SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
-                Self::Charged
-            }
-            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
-                Self::Unresolved
-            }
+/// An unrecognised `transactionStatus` must not fail the sync: hyperswitch keeps the
+/// previous attempt status and logs, so mirror that instead of erroring out.
+pub fn get_sync_attempt_status(
+    transaction_status: SyncStatus,
+    prev_status: AttemptStatus,
+) -> AttemptStatus {
+    match transaction_status {
+        SyncStatus::SettledSuccessfully | SyncStatus::CapturedPendingSettlement => {
+            AttemptStatus::Charged
+        }
+        SyncStatus::AuthorizedPendingCapture => AttemptStatus::Authorized,
+        SyncStatus::Declined => AttemptStatus::AuthenticationFailed,
+        SyncStatus::Voided => AttemptStatus::Voided,
+        SyncStatus::CouldNotVoid => AttemptStatus::VoidFailed,
+        SyncStatus::GeneralError => AttemptStatus::Failure,
+        SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+            AttemptStatus::Charged
+        }
+        SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+            AttemptStatus::Unresolved
+        }
+        SyncStatus::Unknown => {
+            tracing::warn!(
+                previous_status = ?prev_status,
+                "Unknown authorizedotnet sync status received; retaining previous status"
+            );
+            prev_status
         }
     }
 }
@@ -2903,6 +2918,8 @@ pub enum RSyncStatus {
     Declined,
     GeneralError,
     Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -2919,14 +2936,24 @@ pub struct AuthorizedotnetRSyncResponse {
     messages: ResponseMessages,
 }
 
-impl From<RSyncStatus> for RefundStatus {
-    fn from(transaction_status: RSyncStatus) -> Self {
-        match transaction_status {
-            RSyncStatus::RefundSettledSuccessfully => Self::Success,
-            RSyncStatus::RefundPendingSettlement => Self::Pending,
-            RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
-                Self::Failure
-            }
+/// Refund-sync analogue of [`get_sync_attempt_status`] — an unknown `transactionStatus`
+/// retains the previous refund status rather than failing deserialization.
+pub fn get_rsync_refund_status(
+    transaction_status: RSyncStatus,
+    prev_status: RefundStatus,
+) -> RefundStatus {
+    match transaction_status {
+        RSyncStatus::RefundSettledSuccessfully => RefundStatus::Success,
+        RSyncStatus::RefundPendingSettlement => RefundStatus::Pending,
+        RSyncStatus::Declined | RSyncStatus::GeneralError | RSyncStatus::Voided => {
+            RefundStatus::Failure
+        }
+        RSyncStatus::Unknown => {
+            tracing::warn!(
+                previous_status = ?prev_status,
+                "Unknown authorizedotnet rsync status received; retaining previous status"
+            );
+            prev_status
         }
     }
 }
@@ -2947,7 +2974,10 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
 
         match response.transaction {
             Some(transaction) => {
-                let refund_status = RefundStatus::from(transaction.transaction_status);
+                let refund_status = get_rsync_refund_status(
+                    transaction.transaction_status,
+                    router_data.resource_common_data.status,
+                );
 
                 // Create a new RouterDataV2 with updated fields
                 let mut new_router_data = router_data;
