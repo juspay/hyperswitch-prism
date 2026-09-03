@@ -13,7 +13,13 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { absasanlam: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        absaSanlam: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

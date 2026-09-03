@@ -1006,6 +1006,17 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
+        base_url: Option<String>,
+        /// ISO-4217 alphabetic code the MID is provisioned for. Optional; when
+        /// absent no currency validation is performed.
+        merchant_config_currency: Option<String>,
+    },
     /// Saferpay (SIX Payment Services) Transaction interface.
     /// `api_key`    = API username (HTTP Basic username)
     /// `key1`       = API password (HTTP Basic password)
@@ -1382,6 +1393,11 @@ impl ConnectorSpecificConfig {
             },
             Worldpayraft {
                 license,
+                merchant_id
+            },
+            JpmorganOrbital {
+                username,
+                password,
                 merchant_id
             },
             Saferpay {
@@ -1877,6 +1893,11 @@ impl ConnectorSpecificConfig {
                 },
                 Worldpayraft {
                     license,
+                    merchant_id
+                },
+                JpmorganOrbital {
+                    username,
+                    password,
                     merchant_id
                 },
                 Saferpay {
@@ -2537,6 +2558,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
+            }),
+            AuthType::JpmorganOrbital(jpmorgan_orbital) => Ok(Self::JpmorganOrbital {
+                username: jpmorgan_orbital.username.ok_or_else(err)?,
+                password: jpmorgan_orbital.password.ok_or_else(err)?,
+                merchant_id: jpmorgan_orbital.merchant_id.ok_or_else(err)?,
+                bin: jpmorgan_orbital.bin,
+                terminal_id: jpmorgan_orbital.terminal_id,
+                base_url: jpmorgan_orbital.base_url,
+                merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,
@@ -3821,6 +3851,26 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
                         base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Legacy path only. `bin` / `terminal_id` have no slot in
+                // `ConnectorAuthType`, so a merchant configured this way will be
+                // rejected with `InvalidConnectorConfig` when the request is built;
+                // use the typed `x-connector-config` payload instead.
+                ConnectorEnum::JpmorganOrbital => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: None,
+                        terminal_id: None,
+                        base_url: None,
+                        merchant_config_currency: None,
                     }),
                     _ => Err(err().into()),
                 },
