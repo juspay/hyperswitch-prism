@@ -2409,17 +2409,26 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
-                // A psync response with no transaction record. Transient server-side
-                // conditions (server busy / maintenance) are not a payment failure.
+                // A psync poll with no transaction record. `E00053` ("server too
+                // busy") and `E00104` ("server in maintenance") are not payment
+                // failures - Authorize.Net is asking us to retry later.
                 //
-                // Hyperswitch returns `Ok(item.data)` unchanged here, but its psync
-                // `item.data.response` is already an `Ok(TransactionResponse)` rebuilt
-                // from the stored attempt. This connector is stateless: `router_data`
-                // is constructed with `response: Err(ErrorResponse::default())`, so
-                // returning it unchanged surfaces as `HE_00 / 500 / status unspecified`.
-                // Rebuild the same shape hyperswitch presents downstream: keep the
-                // request's connector transaction id and the incoming attempt status
-                // untouched. Any other message code is a real connector error.
+                // Hyperswitch returns `Ok(item.data)` unchanged, keeping the prior
+                // attempt status, because its psync `item.data.response` is a
+                // `TransactionResponse` seeded from the stored attempt
+                // (`construct_payment_router_data`) and `item.data.status` is the
+                // stored `payment_attempt.status`. This connector is stateless:
+                // `router_data` is built with `response: Err(ErrorResponse::default())`
+                // and no prior status, so returning it unchanged surfaces as
+                // `HE_00 / 500 / PAYMENT_STATUS_UNSPECIFIED` (a spurious error).
+                //
+                // Emit instead an `Ok(TransactionResponse)` with `AttemptStatus::Unknown`
+                // ("polled, could not infer") and `status_code = http_code` (200). It
+                // serializes to `PaymentStatus::Unspecified`, which hyperswitch maps
+                // back to the previous attempt status on psync
+                // (`unified_connector_service/transformers.rs`,
+                // `PaymentStatus::Unspecified => Ok(prev_status)`) - matching the
+                // direct connector leg. Any other message code is a real error.
                 match response.messages.message.iter().find(|m| {
                     m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
                 }) {
@@ -2430,6 +2439,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                             .get_connector_transaction_id()
                             .ok();
                         let mut new_router_data = router_data;
+                        new_router_data.resource_common_data.status = AttemptStatus::Unknown;
                         new_router_data.response = Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: connector_transaction_id
                                 .clone()
