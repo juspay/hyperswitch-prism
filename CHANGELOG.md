@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.03.0
+
+### Features
+
+- **certification:** Certify adyen, cybersource, tsys live for core payment flows ([#2198](https://github.com/juspay/connector-service/pull/2198)) ([`7d1b203`](https://github.com/juspay/connector-service/commit/7d1b203808048e027fb68adbc8b99862fc0b0a87))
+- **connector:**
+  - [SAFERPAY] add Saferpay connector — Authorize, PSync, Capture, Void, Refund, RSync ([#2183](https://github.com/juspay/connector-service/pull/2183)) ([`b0d5b02`](https://github.com/juspay/connector-service/commit/b0d5b028c7eadf85a65545df61adc8293102e286))
+  - GlobalPay connector integration ([#2203](https://github.com/juspay/connector-service/pull/2203)) ([`b4a3872`](https://github.com/juspay/connector-service/commit/b4a38722c8e77a17fd106014a6b8d64e316bffa9))
+  - Add `account_funded_transactions` support for checkout connector ([#2194](https://github.com/juspay/connector-service/pull/2194)) ([`d843a5a`](https://github.com/juspay/connector-service/commit/d843a5a781733d3757f8840d4a29a63fba726d18))
+  - [Worldpayxml] implement pass through 3ds ([#2202](https://github.com/juspay/connector-service/pull/2202)) ([`c876c6c`](https://github.com/juspay/connector-service/commit/c876c6c182e93656a24210641cd2dbe79147dd5b))
+- **ilixium:** Capture the card-on-file token from the auth response ([#2217](https://github.com/juspay/connector-service/pull/2217)) ([`e78e0d5`](https://github.com/juspay/connector-service/commit/e78e0d5dcd3ea8b9446ac67b1bc7f6e24b87d78d))
+
+**Full Changelog:** [`2026.09.02.0...2026.09.03.0`](https://github.com/juspay/connector-service/compare/2026.09.02.0...2026.09.03.0)
+
+- - -
+
 ## 2026.09.02.0
 
 ### Features
