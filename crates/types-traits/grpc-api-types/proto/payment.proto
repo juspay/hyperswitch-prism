@@ -1023,9 +1023,9 @@ enum PaymentMethodType {
   OPEN_BANKING = 112;
   QWIKCILVER_WALLET = 113;
   SKRILL = 114;
-  NETELLER = 117;
   PAYMAYA = 115;
   GRAB_PAY = 116;
+  NETELLER = 117;
 }
 
 // Product type enumeration
