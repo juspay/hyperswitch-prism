@@ -15,13 +15,27 @@ import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.TsysTransitConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund", "refund_get", "reverse", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Tsystransit credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setTsysTransit(TsysTransitConfig.newBuilder()
+                .setDeviceId(SecretString.newBuilder().setValue("YOUR_DEVICE_ID").build())
+                .setTransactionKey(SecretString.newBuilder().setValue("YOUR_TRANSACTION_KEY").build())
+                .setDeveloperId(SecretString.newBuilder().setValue("YOUR_DEVELOPER_ID").build())
+                .setMerchantStreetAddress(SecretString.newBuilder().setValue("YOUR_MERCHANT_STREET_ADDRESS").build())
+                .setCustomerServicePhoneNumber(SecretString.newBuilder().setValue("YOUR_CUSTOMER_SERVICE_PHONE_NUMBER").build())
+                .setMerchantUrl("YOUR_MERCHANT_URL")
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 

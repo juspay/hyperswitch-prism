@@ -14,13 +14,23 @@ import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.AbsaSanlamConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("parse_event")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Absasanlam credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAbsaSanlam(AbsaSanlamConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 

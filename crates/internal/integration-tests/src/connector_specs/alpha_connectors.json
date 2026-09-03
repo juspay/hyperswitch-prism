@@ -53,6 +53,9 @@
     "imerchantsolutions": {},
     "itaubank": {},
     "jpmorgan": {},
+    "jpmorganorbital": {
+      "reason": "No JPMorgan Orbital sandbox credentials exist; validated against a local mock server only."
+    },
     "juspay": {},
     "kount": {},
     "loonio": {},
@@ -96,6 +99,9 @@
     "stax": {},
     "tamara": {},
     "tesouro": {},
+    "travelhub": {
+      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize — see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
+    },
     "truelayer": {},
     "trustly": {},
     "trustpay": {},
