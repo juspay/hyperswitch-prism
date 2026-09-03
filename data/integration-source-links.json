@@ -185,5 +185,12 @@
     "https://cert.api2.heartlandportico.com/Gateway/PorticoSOAPSchema/build/Default/PosGateway_xsd~c-PosReportTxnDetailReqType.html",
     "https://cert.api2.heartlandportico.com/Gateway/PorticoSOAPSchema/build/Default/PosGateway_xsd~c-PosReportTxnDetailRspType.html",
     "https://cert.api2.heartlandportico.com/Gateway/PorticoSOAPSchema/build/Default/PosGateway_xsd~c-AuthRspStatusType.html"
+  ],
+  "TravelHub": [
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/index.html",
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/tpaOpenApi_49.json",
+    "https://docs.travel.worldline-solutions.com/TravelHub/api-overview",
+    "https://docs.travel.worldline-solutions.com/TravelHub/get-the-basics",
+    "https://docs.travel.worldline-solutions.com/TravelHub/Integration-options"
   ]
 }

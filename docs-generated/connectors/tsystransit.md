@@ -22,9 +22,17 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     tsystransit=payment_pb2.TsystransitConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        tsys_transit=payment_pb2.TsysTransitConfig(
+            device_id=payment_methods_pb2.SecretString(value="YOUR_DEVICE_ID"),
+            transaction_key=payment_methods_pb2.SecretString(value="YOUR_TRANSACTION_KEY"),
+            developer_id=payment_methods_pb2.SecretString(value="YOUR_DEVELOPER_ID"),
+            merchant_street_address=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_STREET_ADDRESS"),
+            customer_service_phone_number=payment_methods_pb2.SecretString(value="YOUR_CUSTOMER_SERVICE_PHONE_NUMBER"),
+            merchant_url="YOUR_MERCHANT_URL",
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 ```
@@ -41,9 +49,19 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.TSYSTRANSIT,
+    connector: Connector.TSYS_TRANSIT,
     environment: Environment.SANDBOX,
-    // auth: { tsystransit: { apiKey: { value: 'YOUR_API_KEY' } } },
+    auth: {
+        tsysTransit: {
+            deviceId: { value: 'YOUR_DEVICE_ID' },
+            transactionKey: { value: 'YOUR_TRANSACTION_KEY' },
+            developerId: { value: 'YOUR_DEVELOPER_ID' },
+            merchantStreetAddress: { value: 'YOUR_MERCHANT_STREET_ADDRESS' },
+            customerServicePhoneNumber: { value: 'YOUR_CUSTOMER_SERVICE_PHONE_NUMBER' },
+            merchantUrl: 'YOUR_MERCHANT_URL',
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 });
 ```
 
@@ -57,7 +75,19 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Tsystransit credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setTsysTransit(TsysTransitConfig.newBuilder()
+                .setDeviceId(SecretString.newBuilder().setValue("YOUR_DEVICE_ID").build())
+                .setTransactionKey(SecretString.newBuilder().setValue("YOUR_TRANSACTION_KEY").build())
+                .setDeveloperId(SecretString.newBuilder().setValue("YOUR_DEVELOPER_ID").build())
+                .setMerchantStreetAddress(SecretString.newBuilder().setValue("YOUR_MERCHANT_STREET_ADDRESS").build())
+                .setCustomerServicePhoneNumber(SecretString.newBuilder().setValue("YOUR_CUSTOMER_SERVICE_PHONE_NUMBER").build())
+                .setMerchantUrl("YOUR_MERCHANT_URL")
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 ```
 
@@ -73,7 +103,18 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::TsysTransit(TsysTransitConfig {
+                device_id: Some(hyperswitch_masking::Secret::new("YOUR_DEVICE_ID".to_string())),  // Authentication credential
+                transaction_key: Some(hyperswitch_masking::Secret::new("YOUR_TRANSACTION_KEY".to_string())),  // Authentication credential
+                developer_id: Some(hyperswitch_masking::Secret::new("YOUR_DEVELOPER_ID".to_string())),  // Authentication credential
+                merchant_street_address: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_STREET_ADDRESS".to_string())),  // Authentication credential
+                customer_service_phone_number: Some(hyperswitch_masking::Secret::new("YOUR_CUSTOMER_SERVICE_PHONE_NUMBER".to_string())),  // Authentication credential
+                merchant_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -108,7 +149,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L80) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L79) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L90) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L93) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Get
 
@@ -119,7 +160,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L89) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L89) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L99) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L103) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Refund
 
@@ -130,7 +171,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L98) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L97) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L108) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L111) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Reverse
 
@@ -141,7 +182,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L116) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L119) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L126) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L133) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Void
 
@@ -152,7 +193,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L127) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L141) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 ### Refunds
 
@@ -165,4 +206,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L107) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L107) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L117) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L121) · [Rust](../../examples/tsystransit/tsystransit.rs)

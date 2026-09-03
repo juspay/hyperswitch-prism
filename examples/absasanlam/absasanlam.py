@@ -14,9 +14,13 @@ SUPPORTED_FLOWS = ["parse_event"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     absasanlam=payment_pb2.AbsasanlamConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        absa_sanlam=payment_pb2.AbsaSanlamConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 

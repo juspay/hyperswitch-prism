@@ -167,7 +167,9 @@ pub enum ConnectorEnum {
     Citigate,
     Ilixium,
     Worldpayraft,
+    JpmorganOrbital,
     Saferpay,
+    Travelhub,
     GlobalpaymentsHeartland,
 }
 
@@ -542,7 +544,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
+            grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
+            grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5859,7 +5863,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
                 Ok(Self::Payment(ConnectorEnum::GlobalpaymentsHeartland))
             }
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
+            AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
+            AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
