@@ -67,9 +67,6 @@ where
         }
     }
 
-    // FrmConnectorEnum is currently empty so the Frm arm is unreachable at runtime.
-    // The match is kept for when a real FRM connector is added.
-    #[allow(unreachable_code)]
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
         connector: &ConnectorVariant,

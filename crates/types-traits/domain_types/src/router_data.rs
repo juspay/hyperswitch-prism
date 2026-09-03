@@ -958,6 +958,16 @@ pub enum ConnectorSpecificConfig {
         auth_server_id: Option<String>,
         base_url: Option<String>,
     },
+    Nsure {
+        /// nSure.ai authorization key, sent verbatim in the `Authorization`
+        /// header (no scheme prefix).
+        api_key: Secret<String>,
+        /// nSure.ai Application ID from the management portal.
+        app_id: Option<String>,
+        /// `x-nsure-api-version` value; defaults to 2.0.0 when `None`.
+        api_version: Option<String>,
+        base_url: Option<String>,
+    },
     Grabpay {
         partner_id: Secret<String>,
         partner_secret: Secret<String>,
@@ -1377,6 +1387,7 @@ impl ConnectorSpecificConfig {
             },
             Tamara { api_key },
             Kount { api_key },
+            Nsure { api_key },
             Hyperswitch { api_key },
             Grabpay {
                 partner_id,
@@ -1882,6 +1893,7 @@ impl ConnectorSpecificConfig {
                 },
                 Tamara { api_key },
                 Kount { api_key },
+                Nsure { api_key },
                 Hyperswitch { api_key },
                 Grabpay {
                     partner_id,
@@ -2534,6 +2546,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: kount.api_key.ok_or_else(err)?,
                 auth_server_id: kount.auth_server_id,
                 base_url: kount.base_url,
+            }),
+            AuthType::Nsure(nsure) => Ok(Self::Nsure {
+                api_key: nsure.api_key.ok_or_else(err)?,
+                app_id: nsure.app_id,
+                api_version: nsure.api_version,
+                base_url: nsure.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
@@ -4015,6 +4033,25 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
                         auth_server_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                connector_types::FrmConnectorEnum::Nsure => match auth {
+                    // nSure needs the authorization key plus the portal
+                    // Application ID, so BodyKey (api_key + key1) is the
+                    // faithful shape. HeaderKey is accepted for accounts that
+                    // were provisioned without an app id.
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nsure {
+                        api_key: api_key.clone(),
+                        app_id: Some(key1.peek().to_owned()),
+                        api_version: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nsure {
+                        api_key: api_key.clone(),
+                        app_id: None,
+                        api_version: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

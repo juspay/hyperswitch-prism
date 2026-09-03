@@ -86,9 +86,6 @@ where
         }
     }
 
-    // FrmConnectorEnum is currently empty, so the body after the early-return is unreachable
-    // at runtime. The variables and expressions are kept for when a real FRM connector is added.
-    #[allow(unreachable_code, unused_variables)]
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
         payload: &R,

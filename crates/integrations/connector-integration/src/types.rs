@@ -12,7 +12,9 @@ use interfaces::connector_types::{
     BoxedSurchargeConnector,
 };
 
-use crate::{authenticator_connectors, connectors, payout_connectors, surcharge_connectors};
+use crate::{
+    authenticator_connectors, connectors, frm_connectors, payout_connectors, surcharge_connectors,
+};
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -188,7 +190,16 @@ impl FrmConnectorData {
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
+            // FRM-only connectors live in `frm_connectors`, alongside the
+            // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
+            // split. Kount is the exception: it is dual-registered as a payment
+            // connector too (`ConnectorEnum::Kount`, for its PreAuthenticate DDC
+            // and ServerAuthenticationToken flows), so it stays in `connectors`
+            // and is reached from both dispatch tables.
             FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+            FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
         }
