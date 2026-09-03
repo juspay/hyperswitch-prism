@@ -292,7 +292,7 @@ pub struct GrabpayRefundSyncResponse {
     pub echo: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayPaymentStatus {
@@ -305,6 +305,7 @@ pub enum GrabpayPaymentStatus {
     TransactionAlreadyExist,
     #[serde(untagged)]
     #[strum(default)]
+    #[strum(to_string = "{0}")]
     Unknown(String),
 }
 
@@ -324,7 +325,7 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayRefundStatus {
@@ -336,6 +337,7 @@ pub enum GrabpayRefundStatus {
     TransactionAlreadyExist,
     #[serde(untagged)]
     #[strum(default)]
+    #[strum(to_string = "{0}")]
     Unknown(String),
 }
 
@@ -980,6 +982,11 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let refund_status = RefundStatus::from(response.tx_status.clone());
+        let raw_connector_status = grabpay_refund_raw_connector_status(
+            &response.tx_status,
+            response.description.clone(),
+            response.reason.clone(),
+        );
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -990,6 +997,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1007,6 +1015,11 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let refund_status = RefundStatus::from(response.tx_status.clone());
+        let raw_connector_status = grabpay_refund_raw_connector_status(
+            &response.tx_status,
+            response.description.clone(),
+            response.reason.clone(),
+        );
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -1017,6 +1030,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1416,11 +1430,23 @@ fn charge_tx_id_from_connector_feature_data(
 /// for callers that consume the typed connector status codes.
 fn grabpay_raw_connector_status(response: &GrabpayChargeCompleteResponse) -> RawConnectorStatus {
     RawConnectorStatus {
-        code: serde_json::to_value(&response.tx_status)
-            .ok()
-            .and_then(|value| value.as_str().map(str::to_string)),
+        code: Some(response.tx_status.to_string()),
         message: response.description.clone(),
         reason: response.reason.clone(),
+    }
+}
+
+/// Same as `grabpay_raw_connector_status` but for the refund and refund-sync
+/// responses, which share the same `txStatus`/`reason`/`description` shape.
+fn grabpay_refund_raw_connector_status(
+    tx_status: &GrabpayRefundStatus,
+    description: Option<String>,
+    reason: Option<String>,
+) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: Some(tx_status.to_string()),
+        message: description,
+        reason,
     }
 }
 
