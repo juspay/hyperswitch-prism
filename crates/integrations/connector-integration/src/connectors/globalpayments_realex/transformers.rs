@@ -777,7 +777,10 @@ where
 
         // Fail closed before anything else: a three_ds payment without a liability-shifting
         // authentication result must never reach the gateway as a bare `auth`.
-        ensure_liability_shift(router_data.resource_common_data.auth_type, request)?;
+        ensure_liability_shift(
+            router_data.resource_common_data.auth_type,
+            request.authentication_data.as_ref(),
+        )?;
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
 
@@ -865,9 +868,9 @@ where
 /// `I` — does not, and is refused here rather than silently downgraded.
 ///
 /// A `NoThreeDs` payment is untouched: it never had an `<mpi>` to begin with.
-fn ensure_liability_shift<T: PaymentMethodDataTypes>(
+fn ensure_liability_shift(
     auth_type: AuthenticationType,
-    request: &PaymentsAuthorizeData<T>,
+    authentication_data: Option<&AuthenticationData>,
 ) -> Result<(), error_stack::Report<IntegrationError>> {
     if auth_type != AuthenticationType::ThreeDs {
         return Ok(());
@@ -887,10 +890,8 @@ fn ensure_liability_shift<T: PaymentMethodDataTypes>(
         })
     };
 
-    let authentication_data = request
-        .authentication_data
-        .as_ref()
-        .ok_or_else(|| refuse("no authentication_data is attached"))?;
+    let authentication_data =
+        authentication_data.ok_or_else(|| refuse("no authentication_data is attached"))?;
 
     match authentication_data.trans_status.as_ref() {
         Some(TransactionStatus::Success) | Some(TransactionStatus::NotVerified) => {}
@@ -4608,6 +4609,401 @@ mod tests {
                 .method_url_completion,
             Gp3ds2MethodUrlCompletion::Unavailable
         );
+    }
+
+    // ── shared fixtures ──────────────────────────────────────────────────────────────────────
+    //
+    // Nothing here is a real credential. `SHARED_SECRET` is the literal string "password", whose
+    // SHA-1 is a published test vector, and the merchant/order values are obvious placeholders.
+    const SHARED_SECRET: &str = "password";
+    /// The published SHA-1 of the ASCII string "password" — an independent oracle, not a value
+    /// copied out of this connector's own output.
+    const SHA1_OF_PASSWORD: &str = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8";
+
+    /// The digest the RealEx spec describes, computed from the **joined wire string** rather than
+    /// from a field array.
+    ///
+    /// This is the whole point of the digest tests: the production code builds the stage-1 input
+    /// by joining a `&[&str]`, so a refactor that "tidies up" by dropping empty entries would keep
+    /// producing a plausible hash. Spelling the dotted string out here — separators and all — is an
+    /// oracle that such a refactor cannot satisfy.
+    fn expected_digest(stage1_input: &str) -> String {
+        sha1_hex(&format!("{}.{SHARED_SECRET}", sha1_hex(stage1_input)))
+    }
+
+    fn authn(
+        trans_status: Option<TransactionStatus>,
+        eci: Option<&str>,
+        cavv: Option<&str>,
+    ) -> AuthenticationData {
+        AuthenticationData {
+            trans_status,
+            eci: eci.map(str::to_string),
+            cavv: cavv.map(|c| Secret::new(c.to_string())),
+            ucaf_collection_indicator: None,
+            threeds_server_transaction_id: None,
+            message_version: None,
+            ds_trans_id: None,
+            acs_transaction_id: None,
+            transaction_id: None,
+            network_params: None,
+            exemption_indicator: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
+        }
+    }
+
+    #[test]
+    fn every_positional_slot_of_the_request_digest_is_load_bearing() {
+        // `auth`: timestamp.merchantid.orderid.amount.currency.cardnumber — all six filled.
+        assert_eq!(
+            build_auth_request_hash(
+                "20260101120000",
+                "merchant-under-test",
+                "order-1",
+                "1001",
+                "EUR",
+                "4263970000005262",
+                SHARED_SECRET,
+            )
+            .peek(),
+            &expected_digest(
+                "20260101120000.merchant-under-test.order-1.1001.EUR.4263970000005262"
+            )
+        );
+
+        // `settle`: an amount but no currency attribute, and never a card number. The two trailing
+        // separators must still be emitted for the empty slots.
+        let settle = build_reference_request_hash(
+            "20260101120000",
+            "merchant-under-test",
+            "order-1",
+            Some("599"),
+            None,
+            SHARED_SECRET,
+        );
+        assert_eq!(
+            settle.peek(),
+            &expected_digest("20260101120000.merchant-under-test.order-1.599..")
+        );
+
+        // `void` / `query`: no amount and no currency — four empty-slot separators.
+        let void = build_reference_request_hash(
+            "20260101120000",
+            "merchant-under-test",
+            "order-1",
+            None,
+            None,
+            SHARED_SECRET,
+        );
+        assert_eq!(
+            void.peek(),
+            &expected_digest("20260101120000.merchant-under-test.order-1...")
+        );
+
+        // `rebate`: the only reference request whose currency slot is filled.
+        let rebate = build_reference_request_hash(
+            "20260101120000",
+            "merchant-under-test",
+            "order-1",
+            Some("599"),
+            Some("EUR"),
+            SHARED_SECRET,
+        );
+        assert_eq!(
+            rebate.peek(),
+            &expected_digest("20260101120000.merchant-under-test.order-1.599.EUR.")
+        );
+
+        // Same inputs, three different blueprints: collapsing any two of them is a `505`.
+        assert_ne!(settle.peek(), void.peek());
+        assert_ne!(settle.peek(), rebate.peek());
+        assert_ne!(void.peek(), rebate.peek());
+    }
+
+    #[test]
+    fn the_rebate_password_hash_is_a_single_sha1_not_the_two_stage_digest() {
+        // `<refundhash>` is SHA1(rebate password) — one stage, unsalted, no shared secret. Deriving
+        // it the way every other hash on this connector is derived returns `505 The refund password
+        // you entered was incorrect.`
+        assert_eq!(
+            build_refund_password_hash(SHARED_SECRET).peek(),
+            SHA1_OF_PASSWORD
+        );
+        assert_ne!(
+            build_refund_password_hash(SHARED_SECRET).peek(),
+            &realex_digest(&[SHARED_SECRET], SHARED_SECRET)
+        );
+    }
+
+    #[test]
+    fn the_response_hash_is_verified_skipped_or_mismatched_and_never_assumed() {
+        // Built from a JSON document rather than a struct literal so the test also exercises the
+        // deserialization the wire actually goes through.
+        let document = |sha1hash: Option<&str>| -> GlobalpaymentsRealexPaymentsResponse {
+            let mut value = serde_json::json!({
+                "@timestamp": "20260101120000",
+                "merchantid": "merchant-under-test",
+                "orderid": "order-1",
+                "result": "00",
+                "message": "[ test system ] AUTHORISED",
+                "pasref": "1234567890",
+                "authcode": "123456",
+            });
+            if let (Some(hash), Some(object)) = (sha1hash, value.as_object_mut()) {
+                object.insert(
+                    "sha1hash".to_string(),
+                    serde_json::Value::String(hash.to_string()),
+                );
+            }
+            serde_json::from_value(value).expect("response document")
+        };
+
+        // The documented response blueprint: timestamp.merchantid.orderid.result.message.pasref.authcode
+        let correct = expected_digest(
+            "20260101120000.merchant-under-test.order-1.00.[ test system ] AUTHORISED.1234567890.123456",
+        );
+        assert_eq!(build_response_hash(&document(None), SHARED_SECRET), correct);
+
+        assert_eq!(
+            verify_response_hash(&document(Some(&correct)), SHARED_SECRET),
+            HashVerification::Verified
+        );
+        // Case-insensitive: the gateway has been observed emitting either case.
+        assert_eq!(
+            verify_response_hash(&document(Some(&correct.to_uppercase())), SHARED_SECRET),
+            HashVerification::Verified
+        );
+        assert_eq!(
+            verify_response_hash(&document(Some("deadbeef")), SHARED_SECRET),
+            HashVerification::Mismatch
+        );
+        // The small 5xx error documents carry no <sha1hash> at all.
+        assert_eq!(
+            verify_response_hash(&document(None), SHARED_SECRET),
+            HashVerification::Skipped
+        );
+    }
+
+    #[test]
+    fn format_amount_applies_the_jpy_rule_documented_but_never_verified_live() {
+        use common_enums::Currency;
+
+        // KNOWN-UNVERIFIED: the x100 rule for JPY comes from the vendor documentation
+        // (tech spec 5.4) and could not be exercised against the sandbox account. This test pins
+        // the implemented behaviour so a change is deliberate; it is NOT live-verified evidence
+        // that the gateway wants it.
+        assert_eq!(
+            format_amount(MinorUnit::new(1000), Currency::JPY).expect("jpy"),
+            "100000"
+        );
+
+        // Every other currency, zero-exponent ones included, is passed through untouched.
+        assert_eq!(
+            format_amount(MinorUnit::new(1001), Currency::EUR).expect("eur"),
+            "1001"
+        );
+        assert_eq!(
+            format_amount(MinorUnit::new(1000), Currency::KRW).expect("krw"),
+            "1000"
+        );
+
+        // The gateway answers `508 Zero, negative or insufficient amount specified`, so these are
+        // refused before the request is built.
+        assert!(format_amount(MinorUnit::new(0), Currency::EUR).is_err());
+        assert!(format_amount(MinorUnit::new(-1), Currency::EUR).is_err());
+        // The JPY multiply is checked, not wrapping.
+        assert!(format_amount(MinorUnit::new(i64::MAX), Currency::JPY).is_err());
+    }
+
+    #[test]
+    fn sanitize_order_id_rewrites_illegal_characters_and_caps_the_length() {
+        // `[a-zA-Z0-9_-]` survives; everything else becomes `-`.
+        assert_eq!(
+            sanitize_order_id("pay_ABC-123").expect("already legal"),
+            "pay_ABC-123"
+        );
+        assert_eq!(
+            sanitize_order_id("pay/abc def.ghi").expect("rewritten"),
+            "pay-abc-def-ghi"
+        );
+
+        // The cap is a truncation at ORDER_ID_MAX_LEN, applied at the boundary.
+        let at_cap = "a".repeat(ORDER_ID_MAX_LEN);
+        assert_eq!(
+            sanitize_order_id(&at_cap).expect("at cap").len(),
+            ORDER_ID_MAX_LEN
+        );
+        let over_cap = "b".repeat(ORDER_ID_MAX_LEN + 1);
+        assert_eq!(
+            sanitize_order_id(&over_cap).expect("over cap"),
+            "b".repeat(ORDER_ID_MAX_LEN)
+        );
+
+        // Only a genuinely empty reference is rejected: every character maps to something, so an
+        // all-illegal reference becomes all dashes and is accepted rather than erroring.
+        assert_eq!(sanitize_order_id("!!!").expect("all illegal"), "---");
+        assert!(sanitize_order_id("").is_err());
+    }
+
+    #[test]
+    fn the_payment_status_maps_are_settlement_aware_and_never_optimistic() {
+        use GlobalpaymentsRealexAutoSettleFlag::{AutoSettle, DelayedSettle};
+
+        // The autosettle flag is what separates an authorization from a capture: the gateway says
+        // `00 AUTHORISED` either way.
+        assert_eq!(
+            map_attempt_status(RESULT_SUCCESS, AutoSettle),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            map_attempt_status(RESULT_SUCCESS, DelayedSettle),
+            AttemptStatus::Authorized
+        );
+        // A decline is a failure under either flag — never "authorized, we'll settle later".
+        for flag in [AutoSettle, DelayedSettle] {
+            assert_eq!(map_attempt_status("101", flag), AttemptStatus::Failure);
+            assert_eq!(map_attempt_status("505", flag), AttemptStatus::Failure);
+        }
+
+        // settle / void have their own failure states so a failed capture is not read as a failed
+        // payment.
+        assert_eq!(
+            map_capture_attempt_status(RESULT_SUCCESS),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            map_capture_attempt_status("512"),
+            AttemptStatus::CaptureFailed
+        );
+        assert_eq!(
+            map_void_attempt_status(RESULT_SUCCESS),
+            AttemptStatus::Voided
+        );
+        assert_eq!(map_void_attempt_status("508"), AttemptStatus::VoidFailed);
+    }
+
+    #[test]
+    fn the_rsync_decision_table_never_guesses() {
+        use GlobalpaymentsRealexRSyncOutcome as Outcome;
+        let refund_id = "17883871686509730";
+
+        // Rule 1 — the ONLY route to Success: a leg exists and its own pasref is our refund's.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_SUCCESS, Some(refund_id), refund_id),
+            Outcome::Refunded
+        ));
+        // ... and it survives the whitespace a caller may carry.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_SUCCESS, Some("  17883871686509730 "), refund_id),
+            Outcome::Refunded
+        ));
+
+        // Rule 3 — the trap the identity check exists for: a leg from a *different* rebate on the
+        // same payment must never be credited to this refund.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_SUCCESS, Some("9999999999999999"), refund_id),
+            Outcome::Indeterminate(_)
+        ));
+        // Rule 2 — a leg exists but we hold no reference to attribute it with.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_SUCCESS, Some(refund_id), "   "),
+            Outcome::Indeterminate(_)
+        ));
+        // Rule 1 needs a pasref, not merely a `00`.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_SUCCESS, None, refund_id),
+            Outcome::Indeterminate(_)
+        ));
+
+        // Rule 4 — the ONLY route to Failure: no leg, and we never held a reference either.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_ORIGINAL_TRANSACTION_NOT_FOUND, None, ""),
+            Outcome::NotRefunded
+        ));
+        // Rule 5 — contradictory: we hold a gateway-minted pasref yet it reports no leg. Almost
+        // always a wrong <orderid>; flipping a successful refund to Failure on that is inventing a
+        // terminal state.
+        assert!(matches!(
+            map_rsync_outcome(RESULT_ORIGINAL_TRANSACTION_NOT_FOUND, None, refund_id),
+            Outcome::Indeterminate(_)
+        ));
+
+        // Rules 6 and 7 — integration and configuration faults are not refund outcomes.
+        for fault in ["502", "503", "505", "506", "101"] {
+            assert!(
+                matches!(
+                    map_rsync_outcome(fault, Some(refund_id), refund_id),
+                    Outcome::Indeterminate(_)
+                ),
+                "{fault} must not be mapped onto a refund state"
+            );
+        }
+    }
+
+    #[test]
+    fn a_three_ds_authorize_needs_a_liability_shifting_result() {
+        // Y — authenticated, and A — the issuer's proof of attempted authentication. Both shift
+        // liability, so both proceed.
+        assert!(ensure_liability_shift(
+            AuthenticationType::ThreeDs,
+            Some(&authn(
+                Some(TransactionStatus::Success),
+                Some("05"),
+                Some("cavv")
+            )),
+        )
+        .is_ok());
+        assert!(ensure_liability_shift(
+            AuthenticationType::ThreeDs,
+            Some(&authn(
+                Some(TransactionStatus::NotVerified),
+                Some("06"),
+                None
+            )),
+        )
+        .is_ok());
+
+        // Everything else must be refused. `Failure` is the failed challenge that started this:
+        // before the guard, it authorized as a plain non-3DS payment because `build_mpi` simply
+        // returns None and an absent <mpi> is not an error to the gateway.
+        for status in [
+            TransactionStatus::Failure,
+            TransactionStatus::VerificationNotPerformed,
+            TransactionStatus::Rejected,
+            TransactionStatus::ChallengeRequired,
+        ] {
+            assert!(
+                ensure_liability_shift(
+                    AuthenticationType::ThreeDs,
+                    Some(&authn(Some(status.clone()), Some("07"), Some("cavv"))),
+                )
+                .is_err(),
+                "{status:?} carries no liability shift and must not reach the gateway"
+            );
+        }
+
+        // No result at all, and a result with no transStatus.
+        assert!(ensure_liability_shift(AuthenticationType::ThreeDs, None).is_err());
+        assert!(ensure_liability_shift(
+            AuthenticationType::ThreeDs,
+            Some(&authn(None, Some("05"), Some("cavv"))),
+        )
+        .is_err());
+        // A liability-shifting status with neither cryptogram nor ECI is not something the schemes
+        // accept, and `build_mpi` would drop the element entirely rather than send half of one.
+        assert!(ensure_liability_shift(
+            AuthenticationType::ThreeDs,
+            Some(&authn(Some(TransactionStatus::Success), None, None)),
+        )
+        .is_err());
+
+        // A no_three_ds payment never had an <mpi> and is untouched by any of this.
+        assert!(ensure_liability_shift(AuthenticationType::NoThreeDs, None).is_ok());
     }
 
     #[test]
