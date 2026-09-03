@@ -16,7 +16,10 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -44,7 +47,10 @@ use interfaces::{
 };
 
 use crate::{types::ResponseRouterData, with_error_response_body};
-use transformers::{MifinityAuthType, MifinityErrorResponse, MifinityPmcRequest, MifinityPmcResponse};
+use transformers::{
+    MifinityAuthType, MifinityErrorResponse, MifinityPmcRequest, MifinityPmcResponse,
+    MifinityStatusResponse,
+};
 
 const API_VERSION: &str = "1";
 
@@ -304,6 +310,113 @@ impl
     }
 }
 
+// ===== PAYOUT GET / STATUS SYNC (REAL — GET /api/transactions/status/{traceId}) =====
+
+impl PayoutGetV2 for MifinityPayouts {}
+
+impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
+    for MifinityPayouts
+{
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Get
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+    ) -> CustomResult<String, IntegrationError> {
+        // MiFinity's status endpoint is keyed by `traceId` — the caller-assigned
+        // correlation id sent on the original PayoutTransfer request. That value
+        // travels here as `connector_request_reference_id` (derived from the
+        // merchant payout id); fall back to the connector payout id if unset.
+        let trace_id = {
+            let reference = req
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            if reference.is_empty() {
+                req.request.connector_payout_id.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_payout_id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "MiFinity payout sync requires the traceId (merchant_payout_id) used on the original transfer, or a connector_payout_id."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    },
+                )?
+            } else {
+                reference
+            }
+        };
+
+        let base_url = self
+            .base_url(&req.resource_common_data.connectors)
+            .trim_end_matches('/');
+        Ok(format!("{base_url}/api/transactions/status/{trace_id}"))
+    }
+
+    fn get_headers(
+        &self,
+        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        self.build_headers(&req.connector_config)
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        ConnectorError,
+    > {
+        let response: MifinityStatusResponse = res
+            .response
+            .parse_struct("MifinityStatusResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "MiFinity PayoutGet response deserialization failed".to_string(),
+                    ),
+                },
+            })?;
+
+        event_builder.map(|event| event.set_connector_response(&response));
+
+        RouterDataV2::try_from(ResponseRouterData {
+            response,
+            router_data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(ConnectorError::ResponseDeserializationFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(res.status_code),
+                additional_context: Some(
+                    "MiFinity PayoutGet response mapping failed".to_string(),
+                ),
+            },
+        })
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, connector_config)
+    }
+}
+
 // ===== PAYOUT STUB FLOWS =====
 
 macro_rules! impl_unimplemented_payout_flow {
@@ -326,13 +439,6 @@ macro_rules! impl_unimplemented_payout_flow {
     };
 }
 
-impl_unimplemented_payout_flow!(
-    PayoutGetV2,
-    PayoutGet,
-    PayoutGetRequest,
-    PayoutGetResponse,
-    "payout_get"
-);
 impl_unimplemented_payout_flow!(
     PayoutCreateV2,
     PayoutCreate,

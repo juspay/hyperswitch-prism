@@ -1,11 +1,14 @@
 use common_enums::{Currency, PayoutStatus};
 use common_utils::types::{StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
-    connector_flow::PayoutTransfer,
+    connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payouts::{
         payout_method_data::{CardPayout, PayoutMethodData},
-        payouts_types::{PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse},
+        payouts_types::{
+            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
+            PayoutTransferResponse,
+        },
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -308,4 +311,71 @@ pub struct MifinityErrorDetail {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MifinityErrorResponse {
     pub errors: Vec<MifinityErrorDetail>,
+}
+
+// ===== PAYOUT GET / STATUS SYNC (GET /api/transactions/status/{traceId}) =====
+
+/// One entry from the MiFinity transaction-status endpoint payload.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityStatusPayload {
+    pub transaction_reference: Option<String>,
+    /// Numeric status code (see [`map_mifinity_status`]).
+    pub transaction_status: Option<i32>,
+    pub transaction_status_description: Option<String>,
+    pub transaction_last_updated: Option<String>,
+    pub trace_id: Option<String>,
+}
+
+/// Response body for the MiFinity transaction-status endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct MifinityStatusResponse {
+    pub payload: Vec<MifinityStatusPayload>,
+}
+
+/// Maps MiFinity's numeric `transactionStatus` code to a payout status.
+///
+/// | Code | Description            | Payout Status |
+/// |------|------------------------|---------------|
+/// | 1    | RECEIVED               | Pending       |
+/// | 2    | INTERNAL_ERROR         | Failure       |
+/// | 3    | SUBMITTED              | Pending       |
+/// | 5    | PROCESSED_BY_ACQUIRER  | Success       |
+/// | 6    | REJECTED               | Failure       |
+/// | 7    | IN_PROGRESS            | Pending       |
+/// | 8    | ON_HOLD_KYC            | Pending       |
+fn map_mifinity_status(code: Option<i32>) -> PayoutStatus {
+    match code {
+        Some(5) => PayoutStatus::Success,
+        Some(2) | Some(6) => PayoutStatus::Failure,
+        // 1 RECEIVED, 3 SUBMITTED, 7 IN_PROGRESS, 8 ON_HOLD_KYC and any
+        // unknown/absent code are treated as non-terminal (still pending).
+        _ => PayoutStatus::Pending,
+    }
+}
+
+impl TryFrom<ResponseRouterData<MifinityStatusResponse, Self>>
+    for RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MifinityStatusResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let entry = item.response.payload.first();
+        let payout_status = map_mifinity_status(entry.and_then(|p| p.transaction_status));
+        let connector_payout_id = entry
+            .and_then(|p| p.transaction_reference.clone())
+            .or_else(|| item.router_data.request.connector_payout_id.clone());
+
+        Ok(Self {
+            response: Ok(PayoutGetResponse {
+                merchant_payout_id: item.router_data.request.merchant_payout_id.clone(),
+                payout_status,
+                connector_payout_id,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
