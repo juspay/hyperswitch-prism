@@ -2623,7 +2623,7 @@ fn extract_history_period_start(
 fn resolve_history_window(
     feature_data: Option<&common_utils::pii::SecretSerdeValue>,
 ) -> Result<(OffsetDateTime, OffsetDateTime), error_stack::Report<errors::IntegrationError>> {
-    let now = OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     let max_window = Duration::hours(HISTORY_MAX_WINDOW_HOURS);
 
     let overflow = |bound: &'static str| {

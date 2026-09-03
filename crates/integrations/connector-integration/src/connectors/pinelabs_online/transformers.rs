@@ -442,7 +442,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineAccessTokenResponse, Self>>
                 )
                 .ok()
                 .map(|expires_at| {
-                    let now = time::OffsetDateTime::now_utc();
+                    let now = common_utils::date_time::now().assume_utc();
                     let duration = expires_at - now;
                     // Subtract a small buffer (60 seconds) to avoid using an expired token.
                     // Use saturating_sub to prevent negative values when token has < 60s remaining.

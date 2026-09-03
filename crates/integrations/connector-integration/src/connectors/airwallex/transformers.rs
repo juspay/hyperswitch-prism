@@ -1261,7 +1261,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // then after the challenge). Airwallex rejects a reused request_id with
                 // "duplicate_request", so use a fresh UUID like native HS (not the deterministic
                 // connector_request_reference_id).
-                let request_id = uuid::Uuid::new_v4().to_string();
+                let request_id = common_utils::fp_utils::generate_uuid_v4();
                 Ok(Self::ConfirmContinue(AirwallexCompleteRequest {
                     request_id,
                     three_ds: AirwallexThreeDsData { acs_response },

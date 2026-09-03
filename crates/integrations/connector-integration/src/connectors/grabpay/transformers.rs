@@ -26,7 +26,6 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -543,7 +542,7 @@ fn build_code_challenge(
 }
 
 fn random_token(length: usize) -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), length)
+    common_utils::crypto::generate_cryptographically_secure_random_string(length)
 }
 
 fn grabpay_request_currency(

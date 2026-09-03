@@ -165,9 +165,12 @@ pub struct StaxErrorResponse {
     pub validation: Option<serde_json::Value>,
     pub error: Option<serde_json::Value>,
     pub code: Option<String>,
-    /// Capture any other fields for field-level validation errors
+    /// Capture any other fields for field-level validation errors.
+    /// BTreeMap so `get_error_message`'s first-match pick over these fields is
+    /// deterministic — with a HashMap, WHICH validation message surfaces is
+    /// per-process random when several fields fail.
     #[serde(flatten)]
-    pub other: std::collections::HashMap<String, serde_json::Value>,
+    pub other: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl StaxErrorResponse {

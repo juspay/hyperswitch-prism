@@ -317,7 +317,7 @@ macros::create_all_prerequisites!(
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
             FCD: HasConnectors,
         {
-            let date = OffsetDateTime::now_utc();
+            let date = common_utils::date_time::now().assume_utc();
             let barclaycard_req = self.get_request_body(req)?;
             let http_method = self.get_http_method();
             let auth = barclaycard::BarclaycardAuthType::try_from(&req.connector_config)?;

@@ -1105,7 +1105,10 @@ fn validate_sepa_purpose_code(value: &str) -> Result<(), error_stack::Report<Int
 pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::macros::format_description;
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    time::OffsetDateTime::now_utc().format(&fmt).change_context(
+    common_utils::date_time::now()
+        .assume_utc()
+        .format(&fmt)
+        .change_context(
         IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
@@ -1120,7 +1123,7 @@ pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<In
 
 fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::format_description::well_known::Iso8601;
-    (time::OffsetDateTime::now_utc().date() + time::Duration::days(1))
+    (common_utils::date_time::now().assume_utc().date() + time::Duration::days(1))
         .format(&Iso8601::DATE)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
