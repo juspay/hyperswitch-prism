@@ -58,6 +58,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 citigate.base_url = "https://gw-test.cgate.tech"
 saferpay.base_url = "https://test.saferpay.com/api"
