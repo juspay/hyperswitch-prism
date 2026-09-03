@@ -790,6 +790,14 @@ payment_methods: none
 flows: create_server_authentication_token
 examples_python: none
 
+## Travelhub
+connector_id: travelhub
+doc: docs/connectors/travelhub.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, void
+examples_python: examples/travelhub/travelhub.py
+
 ## Truelayer
 connector_id: truelayer
 doc: docs/connectors/truelayer.md

@@ -147,6 +147,14 @@
     "https://docs.ilixium.com/docs/response-codes/",
     "https://docs.ilixium.com/docs/sandbox/"
   ],
+  "TravelHub": [
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/index.html",
+    "https://docs.travel.worldline-solutions.com/travelHub/API-reference/tpaOpenApi_49.json",
+    "https://docs.travel.worldline-solutions.com/TravelHub/api-overview",
+    "https://docs.travel.worldline-solutions.com/TravelHub/get-the-basics",
+    "https://docs.travel.worldline-solutions.com/TravelHub/Integration-options"
+
+  ],
   "GlobalpaymentsRealex": [
     "https://developer.globalpayments.com/ecommerce/getting-started",
     "https://developer.globalpayments.com/ecommerce/api/overview",

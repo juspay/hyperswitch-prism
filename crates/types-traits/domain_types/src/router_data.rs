@@ -1029,6 +1029,12 @@ pub enum ConnectorSpecificConfig {
         key2: Secret<String>,
         base_url: Option<String>,
     },
+    Travelhub {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Global Payments Ecommerce XML API (legacy Realex). Not the GP-API `Globalpay` product.
     /// `api_key`    = Shared Secret     (input to the sha1hash digest, never sent verbatim)
     /// `key1`       = Merchant ID       (`<merchantid>`, also a digest input)
@@ -1423,6 +1429,11 @@ impl ConnectorSpecificConfig {
                 key1,
                 api_secret,
                 key2
+            },
+            Travelhub {
+                username,
+                password,
+                merchant_id,
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1929,6 +1940,11 @@ impl ConnectorSpecificConfig {
                     key1,
                     api_secret,
                     key2
+                },
+                Travelhub {
+                    username,
+                    password,
+                    merchant_id,
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2598,6 +2614,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: saferpay.api_secret.ok_or_else(err)?,
                 key2: saferpay.key2.ok_or_else(err)?,
                 base_url: saferpay.base_url,
+            }),
+            AuthType::Travelhub(travelhub) => Ok(Self::Travelhub {
+                username: travelhub.username.ok_or_else(err)?,
+                password: travelhub.password.ok_or_else(err)?,
+                merchant_id: travelhub.merchant_id.ok_or_else(err)?,
+                base_url: travelhub.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3919,6 +3941,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         terminal_id: None,
                         base_url: None,
                         merchant_config_currency: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Travelhub => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Travelhub {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: api_secret.clone(),
+                        base_url: None,
                     }),
                     _ => Err(err().into()),
                 },
