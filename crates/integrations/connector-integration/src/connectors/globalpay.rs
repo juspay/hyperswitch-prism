@@ -2,22 +2,26 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PostAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
+    errors::WebhookError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -32,16 +36,17 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
+use sha2::{Digest, Sha512};
 use transformers as globalpay;
 use transformers::{
     GlobalpayAccessTokenErrorResponse, GlobalpayAccessTokenRequest, GlobalpayAccessTokenResponse,
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
-    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
-    GlobalpayPaymentMethodTokenRequest, GlobalpayPaymentMethodTokenResponse,
-    GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
-    GlobalpayRefundResponse, GlobalpayRepeatPaymentRequest, GlobalpayRepeatPaymentResponse,
-    GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse, GlobalpayVoidRequest,
-    GlobalpayVoidResponse,
+    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayConfirmRequest,
+    GlobalpayConfirmResponse, GlobalpayPSyncResponse, GlobalpayPaymentMethodTokenRequest,
+    GlobalpayPaymentMethodTokenResponse, GlobalpayPaymentsRequest, GlobalpayRSyncResponse,
+    GlobalpayRefundRequest, GlobalpayRefundResponse, GlobalpayRepeatPaymentRequest,
+    GlobalpayRepeatPaymentResponse, GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse,
+    GlobalpayVoidRequest, GlobalpayVoidResponse,
 };
 
 use crate::connectors::macros;
@@ -125,6 +130,12 @@ macros::create_all_prerequisites!(
             request_body: GlobalpayPaymentMethodTokenRequest<T>,
             response_body: GlobalpayPaymentMethodTokenResponse,
             router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: GlobalpayConfirmRequest,
+            response_body: GlobalpayConfirmResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -265,10 +276,236 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Globalpay<T>
+{
+}
+
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Globalpay<T>
 {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let signature = request.headers.get("x-gp-signature").ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookSignatureNotFound).attach_printable(
+                "x-gp-signature header is missing from the GlobalPay webhook request",
+            )
+        })?;
+        Ok(signature.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let secret = std::str::from_utf8(&connector_webhook_secret.secret)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("GlobalPay webhook secret bytes are not valid UTF-8")?;
+
+        // Normalise through serde_json::Value so the key order is deterministic.
+        let body_value: serde_json::Value = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body as JSON for signature construction",
+            )?;
+
+        let mut message = serde_json::to_string(&body_value)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to re-serialize GlobalPay webhook body to JSON string")?;
+
+        // GlobalPay signature = SHA-512(serialised_json + merchant_secret)
+        message.push_str(secret);
+        Ok(message.into_bytes())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let secrets = connector_webhook_secret.ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookVerificationSecretNotFound).attach_printable(
+                "Webhook secret is required for GlobalPay signature verification; \
+                     configure it in the connector's webhook settings",
+            )
+        })?;
+
+        let received_signature =
+            self.get_webhook_source_verification_signature(&request, &secrets)?;
+        let message = self.get_webhook_source_verification_message(&request, &secrets)?;
+
+        let computed_hex = hex::encode(Sha512::digest(&message));
+
+        let received_signature_str = std::str::from_utf8(&received_signature)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("GlobalPay x-gp-signature header value is not valid UTF-8")?;
+
+        Ok(computed_hex == received_signature_str)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"TRN_probe_001","status":"CAPTURED","type":"SALE","amount":"1099"}"#
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body for event type detection")?;
+
+        let event_type = if body.transaction_type
+            == Some(globalpay::GlobalpayWebhookTransactionType::Refund)
+        {
+            match body.status {
+                globalpay::GlobalpayWebhookStatus::Captured
+                | globalpay::GlobalpayWebhookStatus::Funded => EventType::RefundSuccess,
+                globalpay::GlobalpayWebhookStatus::Declined
+                | globalpay::GlobalpayWebhookStatus::Failed
+                | globalpay::GlobalpayWebhookStatus::Rejected
+                | globalpay::GlobalpayWebhookStatus::Reversed => EventType::RefundFailure,
+                _ => EventType::RefundProcessing,
+            }
+        } else {
+            match body.status {
+                globalpay::GlobalpayWebhookStatus::Captured
+                | globalpay::GlobalpayWebhookStatus::Funded => EventType::PaymentIntentSuccess,
+                globalpay::GlobalpayWebhookStatus::Preauthorized => {
+                    EventType::PaymentIntentAuthorizationSuccess
+                }
+                globalpay::GlobalpayWebhookStatus::Declined
+                | globalpay::GlobalpayWebhookStatus::Failed
+                | globalpay::GlobalpayWebhookStatus::Rejected => EventType::PaymentIntentFailure,
+                globalpay::GlobalpayWebhookStatus::Reversed => EventType::PaymentIntentCancelled,
+                _ => EventType::PaymentIntentProcessing,
+            }
+        };
+
+        Ok(event_type)
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body for event reference extraction",
+            )?;
+
+        let reference =
+            if body.transaction_type == Some(globalpay::GlobalpayWebhookTransactionType::Refund) {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(body.id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: body.reference,
+                })
+            } else {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(body.id),
+                    merchant_transaction_id: body.reference,
+                })
+            };
+
+        Ok(Some(reference))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body in process_payment_webhook",
+            )?;
+
+        let status = AttemptStatus::from(&body.status);
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
+            status,
+            connector_response_reference_id: body.reference.clone(),
+            connector_request_reference_id: body.reference,
+            mandate_reference: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(raw_body),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body in process_refund_webhook")?;
+
+        let refund_status = RefundStatus::from(&body.status);
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(body.id),
+            merchant_transaction_id: body.reference.clone(),
+            status: refund_status,
+            connector_response_reference_id: body.reference,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(raw_body),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body for resource object")?;
+        Ok(Box::new(body))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Globalpay<T>
@@ -701,6 +938,62 @@ macros::macro_connector_implementation!(
     }
 );
 
+// PostAuthenticate (Confirm Transaction) flow
+//
+// Triggered after the payer completes an APM redirect (e.g. PayPal). GlobalPay
+// requires an explicit POST /transactions/{id}/confirmation call to transfer funds.
+// The connector transaction ID (TRN_xxx) is sourced from
+// `resource_common_data.connector_order_id`, which the Prism router populates from
+// the `connector_order_reference_id` field of the PostAuthenticate gRPC request.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayConfirmRequest),
+    curl_response: GlobalpayConfirmResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_transaction_id = req
+                .request
+                .connector_order_reference_id
+                .as_deref()
+                .ok_or_else(|| IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_order_reference_id (TRN_xxx) is required to construct the \
+                             POST /transactions/{id}/confirmation URL for GlobalPay PostAuthenticate."
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
+                })?;
+
+            Ok(format!(
+                "{}/transactions/{}/confirmation",
+                self.connector_base_url_payments(req),
+                connector_transaction_id
+            ))
+        }
+    }
+);
+
 // ===== CONNECTOR COMMON IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Globalpay<T>
@@ -773,7 +1066,6 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         PreAuthenticate,
         Authenticate,
-        PostAuthenticate,
         CreateConnectorCustomer,
         GetConnectorCustomer,
     ],
