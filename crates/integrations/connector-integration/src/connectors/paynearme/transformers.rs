@@ -23,9 +23,7 @@
 //! 3-D Secure does not exist anywhere in the PayNearMe API surface, so a
 //! `ThreeDs` authorize is rejected outright rather than silently downgraded.
 
-use common_enums::{
-    AttemptStatus, AuthenticationType, CaptureMethod, Currency, FutureUsage, RefundStatus,
-};
+use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
 use common_utils::{crypto::SignMessage, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, Void},
@@ -44,6 +42,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::connectors::paynearme::{PaynearmeAmountConvertor, PaynearmeRouterData};
 use crate::types::ResponseRouterData;
+use crate::utils::{
+    get_capture_method_requiring_separate_capture, is_mandate_or_stored_credential_request,
+};
 
 /// Connector id, reused in every `NotSupported` error.
 pub(super) const PAYNEARME: &str = "paynearme";
@@ -210,9 +211,16 @@ pub fn paynearme_signature<R: Serialize>(
 
 /// PayNearMe prices everything in USD; every `*_currency` field is documented as
 /// `USD` and no other currency is accepted.
-fn require_usd(currency: Currency) -> Result<String, error_stack::Report<IntegrationError>> {
+///
+/// Returns [`Currency`] rather than a `String` so the type survives all the way
+/// on to the wire. `Currency` carries `#[serde(rename_all = "UPPERCASE")]`
+/// (`common_enums/src/enums.rs:30`), so it serialises to exactly `"USD"` — the
+/// same bytes the previous `Currency::USD.to_string()` produced, which matters
+/// because the HMAC is computed over the serialised body (see
+/// [`paynearme_string_to_sign`]).
+fn require_usd(currency: Currency) -> Result<Currency, error_stack::Report<IntegrationError>> {
     if currency == Currency::USD {
-        Ok(Currency::USD.to_string())
+        Ok(Currency::USD)
     } else {
         Err(not_supported(format!("Currency {currency}")))
     }
@@ -231,7 +239,7 @@ pub struct PaynearmeCreateOrderRequest {
     pub version: String,
     pub signature: Secret<String>,
     pub order_amount: StringMajorUnit,
-    pub order_currency: String,
+    pub order_currency: Currency,
     pub site_customer_identifier: String,
     pub order_type: String,
     pub order_is_standing: String,
@@ -315,7 +323,7 @@ pub struct PaynearmeAuthorizeRequest {
     pub payment_method_billing_phone: Secret<String>,
     pub send_payment: String,
     pub payment_amount: StringMajorUnit,
-    pub payment_currency: String,
+    pub payment_currency: Currency,
     pub site_channel: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub site_payment_identifier: Option<String>,
@@ -380,20 +388,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `mandate_reference: None` — the merchant would believe a credential
         // was stored when none was. Refuse, for the same reason 3DS is refused
         // above rather than silently downgraded.
-        if request.mandate_id.is_some()
-            || request.setup_mandate_details.is_some()
-            || request.setup_future_usage == Some(FutureUsage::OffSession)
-        {
+        if is_mandate_or_stored_credential_request(request) {
             return Err(not_supported("Mandates / stored credentials"));
         }
 
         // There is no capture endpoint anywhere in the API (see `Capture` in
-        // `paynearme.rs`): card payments are sale / auto-capture only.
-        if let Some(
-            method @ (CaptureMethod::Manual
-            | CaptureMethod::ManualMultiple
-            | CaptureMethod::Scheduled),
-        ) = request.capture_method
+        // `paynearme.rs`): card payments are sale / auto-capture only, so any
+        // capture method that would need a second call is refused.
+        if let Some(method) = get_capture_method_requiring_separate_capture(request.capture_method)
         {
             return Err(not_supported(format!("{method} capture")));
         }
@@ -415,10 +417,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     context: context(),
                 })?;
 
-        let billing_name = match common.get_optional_billing_full_name() {
-            Some(name) => name,
-            None => card.get_cardholder_name()?,
-        };
+        // `payment_method_billing_name` is a required field on
+        // `/create_payment_method`, so the billing full name is required here.
+        // It is read straight off the billing address — no cardholder-name
+        // fallback — so a caller that sends neither gets a precise
+        // missing-field error instead of a gateway 400.
+        let billing_name = common.get_billing_full_name()?;
 
         Ok({
             let mut built = Self {
@@ -574,7 +578,7 @@ pub struct PaynearmeRefundRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_amount: Option<StringMajorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub refund_currency: Option<String>,
+    pub refund_currency: Option<Currency>,
 }
 
 type RefundRouterData = RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>;
@@ -639,6 +643,106 @@ where
     })
 }
 
+/// Amount fields, as [`StringMajorUnit`].
+///
+/// [`StringMajorUnit`] derives a plain `Deserialize` over its inner `String`
+/// (`common_utils/src/types.rs:373`), so it rejects a JSON number outright —
+/// which PayNearMe does send (`payment_amount` is documented as
+/// `number | string` and appears as both `100` and `"504.99"`). This normalises
+/// either shape to the major-unit string first. `StringMajorUnit::new` is
+/// private, so the value is constructed by deserialising a `Value::String`.
+///
+/// An absent, null, empty or otherwise unusable value is reported as `None`
+/// rather than failing the whole response body: these fields are informational
+/// (`net_payment_amount` is a settlement figure, not the captured amount) and
+/// none of them gates a status decision.
+fn deserialize_optional_string_major_unit<'de, D>(
+    deserializer: D,
+) -> Result<Option<StringMajorUnit>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    let amount = match value {
+        Some(serde_json::Value::String(text)) if !text.is_empty() => text,
+        Some(serde_json::Value::Number(number)) => number.to_string(),
+        _ => return Ok(None),
+    };
+    Ok(StringMajorUnit::deserialize(serde_json::Value::String(amount)).ok())
+}
+
+/// Response `*_currency` fields, as [`Currency`].
+///
+/// PayNearMe documents every response currency as `USD`, but an unrecognised or
+/// oddly-cased code must not take the whole response down with it — the field is
+/// optional and purely informational, whereas failing here would turn a
+/// perfectly good refund response into a deserialisation error. Unknown codes
+/// therefore degrade to `None`.
+fn deserialize_optional_currency<'de, D>(deserializer: D) -> Result<Option<Currency>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(serde_json::Value::String(text)) if !text.is_empty() => {
+            Currency::deserialize(serde_json::Value::String(text.to_uppercase())).ok()
+        }
+        _ => None,
+    })
+}
+
+/// `payment_type` — how the consumer actually paid, as classified by PayNearMe.
+///
+/// Output only: the request always sends `payment_method_type: "card"` and
+/// PayNearMe decides `credit` vs `debit` from the BIN (spec §10.5). The
+/// remaining variants belong to payment methods this integration does not offer
+/// but which can still appear on a payment record read back by `/find_payment`,
+/// so they are modelled rather than rejected.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaynearmePaymentType {
+    Ach,
+    AchPush,
+    Cash,
+    CashApp,
+    /// In scope — a credit card, classified from the BIN.
+    Credit,
+    /// In scope — a debit card, classified from the BIN.
+    Debit,
+    Paypal,
+    #[serde(rename = "paypal-push")]
+    PaypalPush,
+    Pin4,
+    #[serde(rename = "push-debit")]
+    PushDebit,
+    Venmo,
+    #[serde(rename = "venmo-push")]
+    VenmoPush,
+    /// Anything PayNearMe adds later. Never fail a response over an
+    /// informational field.
+    #[serde(other)]
+    Unknown,
+}
+
+/// As [`PaynearmePaymentType`], but a non-string JSON value degrades to `None`
+/// instead of failing the body — the field it guards previously went through
+/// [`deserialize_string_or_number`] and that tolerance is deliberately kept.
+fn deserialize_optional_payment_type<'de, D>(
+    deserializer: D,
+) -> Result<Option<PaynearmePaymentType>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(payment_type @ serde_json::Value::String(_)) => Some(
+            PaynearmePaymentType::deserialize(payment_type)
+                .unwrap_or(PaynearmePaymentType::Unknown),
+        ),
+        _ => None,
+    })
+}
+
 /// `payment_status`. The OpenAPI enum declares `canceled`; the `/cancel_payment`
 /// example returns `cancelled`. Both spellings must deserialise.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -699,10 +803,10 @@ impl PaynearmeRefundStatus {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaynearmeRefundObject {
     pub refund_status: Option<PaynearmeRefundStatus>,
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub refund_amount: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub refund_currency: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string_major_unit")]
+    pub refund_amount: Option<StringMajorUnit>,
+    #[serde(default, deserialize_with = "deserialize_optional_currency")]
+    pub refund_currency: Option<Currency>,
 }
 
 /// The Payments object, returned by `/find_payment`, `/cancel_payment`,
@@ -718,13 +822,13 @@ pub struct PaynearmePayment {
     #[serde(default, deserialize_with = "deserialize_string_or_number")]
     pub payment_method_identifier: Option<String>,
     /// Total charged, **including** PayNearMe's convenience fee.
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub payment_amount: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string_major_unit")]
+    pub payment_amount: Option<StringMajorUnit>,
     /// Merchant settlement amount (payment minus fees) — not the captured amount.
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub net_payment_amount: Option<String>,
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub payment_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_string_major_unit")]
+    pub net_payment_amount: Option<StringMajorUnit>,
+    #[serde(default, deserialize_with = "deserialize_optional_payment_type")]
+    pub payment_type: Option<PaynearmePaymentType>,
     #[serde(default, deserialize_with = "deserialize_string_or_number")]
     pub site_payment_identifier: Option<String>,
     pub refund: Option<PaynearmeRefundObject>,
@@ -789,7 +893,32 @@ pub struct PaynearmeOrder {
 }
 
 impl PaynearmeOrder {
-    /// Look in both documented locations; first non-empty wins.
+    /// The payment this order carries, as read back from a `/create_order` or
+    /// `/create_payment_method` response.
+    ///
+    /// **Which envelope it reads.** PayNearMe nests `payments[]` in two
+    /// different places depending on the example: the card flow puts it directly
+    /// on the order (`order.payments[]`), while the ACH flow puts it one level
+    /// deeper, under `order.electronic_payments.payments[]`. Neither location is
+    /// documented as canonical, so both are tried — `payments` first, then
+    /// `electronic_payments.payments` — and the first **non-empty** array wins.
+    /// The emptiness check matters: an order that serialises `"payments": []`
+    /// alongside a populated `electronic_payments` would otherwise resolve to
+    /// the empty array and report no payment at all.
+    ///
+    /// **Why `.last()`.** Authorize sends `last_pmt_only: "true"`
+    /// ([`LAST_PMT_ONLY_TRUE`]), so the array is expected to hold exactly the
+    /// one payment the call just created and `.last()` is simply "that one".
+    /// Should PayNearMe ignore the flag, or should the order already carry
+    /// earlier attempts, the array is in chronological order and the most recent
+    /// entry is the one this request produced — taking `.first()` there would
+    /// report the status of an older, unrelated attempt.
+    ///
+    /// **When it returns `None`.** No `payments` key and no
+    /// `electronic_payments.payments` key; or both present but empty. That is
+    /// the "tokenised but not charged" shape, and the Authorize response handler
+    /// deliberately maps it to `Pending` with the order id as the resource id so
+    /// PSync can resolve it, rather than claiming `Charged`.
     fn last_payment(&self) -> Option<&PaynearmePayment> {
         self.payments
             .as_ref()

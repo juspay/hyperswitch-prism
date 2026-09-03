@@ -529,6 +529,58 @@ pub(crate) fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) ->
         || capture_method == Some(enums::CaptureMethod::ManualMultiple)
 }
 
+/// Returns the requested capture method when it needs a **separate capture call**
+/// to move the money, i.e. `Manual`, `ManualMultiple` or `Scheduled`.
+///
+/// `Automatic` / `SequentialAutomatic` (and an absent capture method, which the
+/// core treats as automatic) return `None`.
+///
+/// This is for connectors whose API has no capture endpoint at all: authorizing
+/// such a payment "successfully" would leave the money unmoved with no way to
+/// ever capture it, so the request must be refused up front. It deliberately
+/// differs from [`is_manual_capture`], which answers the narrower question of
+/// "should this authorize ask for auth-only?" and therefore ignores `Scheduled`.
+///
+/// The offending method is returned rather than a `bool` so the caller can name
+/// it in its own error message and keep its own error type.
+pub fn get_capture_method_requiring_separate_capture(
+    capture_method: Option<enums::CaptureMethod>,
+) -> Option<enums::CaptureMethod> {
+    match capture_method {
+        Some(
+            method @ (enums::CaptureMethod::Manual
+            | enums::CaptureMethod::ManualMultiple
+            | enums::CaptureMethod::Scheduled),
+        ) => Some(method),
+        Some(enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic)
+        | None => None,
+    }
+}
+
+/// Returns `true` when an Authorize request carries mandate / MIT /
+/// stored-credential intent: a `mandate_id` (merchant-initiated, against an
+/// already stored credential), `setup_mandate_details` (store a credential as
+/// part of this payment), or `setup_future_usage: OffSession` (the credential is
+/// meant to be reusable without the customer present).
+///
+/// Connectors that do not implement `SetupMandate` / `RepeatPayment` must reject
+/// such a request instead of charging it as a plain one-off: the payment would
+/// succeed with `mandate_reference: None` and the merchant would believe a
+/// credential had been stored when none was. Several connectors carry this exact
+/// three-way test inline today (for example
+/// `connectors/saferpay/transformers.rs:481`, which checks the first two).
+///
+/// Returns a `bool` so the caller keeps its own error type and message.
+pub fn is_mandate_or_stored_credential_request<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static,
+>(
+    request: &PaymentsAuthorizeData<T>,
+) -> bool {
+    request.mandate_id.is_some()
+        || request.setup_mandate_details.is_some()
+        || request.setup_future_usage == Some(enums::FutureUsage::OffSession)
+}
+
 pub fn get_token_expiry_month_year_2_digit_with_delimiter(
     month: Secret<String>,
     year: Secret<String>,
