@@ -777,6 +777,7 @@ fn get_worldpayxml_account_reference(
 
 fn build_worldpayxml_recipient_party(
     recipient_details: Option<&RecipientDetails>,
+    business_country: Option<common_enums::CountryAlpha2>,
 ) -> Result<requests::WorldpayxmlFundingParty, Report<IntegrationError>> {
     let recipient_details =
         recipient_details.ok_or_else(utils::missing_field_err("recipient_details"))?;
@@ -814,9 +815,16 @@ fn build_worldpayxml_recipient_party(
                 birth_date: None,
                 telephone_number: Some(telephone_number),
             }),
-        // UCS has no business_country, so the recipient tax ID is always optional (no Brazil
-        // hard-requirement).
-        tax_id: recipient_details.tax_id.clone(),
+        // Worldpay requires the recipient CPF/CNPJ for Brazilian merchants.
+        tax_id: match business_country {
+            Some(common_enums::CountryAlpha2::BR) => Some(
+                recipient_details
+                    .tax_id
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("recipient_details.tax_id"))?,
+            ),
+            _ => recipient_details.tax_id.clone(),
+        },
     })
 }
 
@@ -935,6 +943,7 @@ fn build_worldpayxml_funding_transfer<
                     build_worldpayxml_sender_party(router_data, card_number)?,
                     build_worldpayxml_recipient_party(
                         router_data.request.recipient_details.as_ref(),
+                        router_data.request.business_country,
                     )?,
                 ],
             })

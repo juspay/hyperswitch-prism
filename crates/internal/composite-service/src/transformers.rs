@@ -360,6 +360,7 @@ impl
             is_account_funding_transaction: item.is_account_funding_transaction,
             recipient_details: item.recipient_details.clone(),
             additional_connector_details: item.additional_connector_details.clone(),
+            business_country: item.business_country.clone(),
         }
     }
 }
@@ -1231,6 +1232,7 @@ impl
             is_account_funding_transaction: request.is_account_funding_transaction,
             recipient_details: request.recipient_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
+            business_country: request.business_country.clone(),
         }
     }
 }

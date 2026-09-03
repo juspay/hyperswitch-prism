@@ -2728,6 +2728,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 55;
+
+  // Merchant business country, ISO 3166-1 alpha-2
+  optional string business_country = 56;
 }
 
 // Partner / external-platform application details.
