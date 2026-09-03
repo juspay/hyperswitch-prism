@@ -1407,11 +1407,7 @@ fn map_rsync_status(body: Option<&GlobalpaymentsHeartlandReportBody>) -> RefundS
     // SUCCESSFUL return reports an empty `RspCode`, so only a non-empty non-approval value is
     // a failure — otherwise every good refund would be marked failed.
     if body.service_name.as_deref() == Some(SERVICE_NAME_CREDIT_RETURN) {
-        if let Some(rsp_code) = body
-            .data
-            .as_ref()
-            .and_then(|data| data.rsp_code.as_deref())
-        {
+        if let Some(rsp_code) = body.data.as_ref().and_then(|data| data.rsp_code.as_deref()) {
             if !rsp_code.is_empty()
                 && !matches!(rsp_code, ISSUER_RSP_CODE_APPROVAL | ISSUER_RSP_CODE_CARD_OK)
             {

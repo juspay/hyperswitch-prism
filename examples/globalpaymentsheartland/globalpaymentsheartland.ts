@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py globalpayments_heartland
+// Regenerate: python3 scripts/generate-connector-docs.py globalpaymentsheartland
 //
-// Globalpayments_Heartland — all integration scenarios and flows in one file.
-// Run a scenario:  npx tsx globalpayments_heartland.ts checkout_autocapture
+// Globalpaymentsheartland — all integration scenarios and flows in one file.
+// Run a scenario:  npx tsx globalpaymentsheartland.ts checkout_autocapture
 
 import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
@@ -13,12 +13,7 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    connectorConfig: {
-        globalpaymentsHeartland: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // connectorConfig: { globalpaymentsheartland: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 
