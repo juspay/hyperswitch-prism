@@ -1027,6 +1027,32 @@ pub enum ConnectorSpecificConfig {
     },
 }
 
+/// Config-patch key for a `ConnectorSpecificConfig` variant.
+///
+/// The key must equal the connector's field name on `Connectors`, because the generated
+/// `ConnectorsPatch` carries `#[serde(deny_unknown_fields)]` — a mismatch is a hard
+/// `InvalidDataFormat { field_name: "config_override" }`, not a silent drop, so a merchant
+/// supplying `base_url` in `x-connector-config` has the whole request rejected.
+///
+/// Lowercasing the variant name is right for the ~105 single-word connectors. The variants
+/// below are the ones whose field name is not simply the lowercased variant.
+///
+/// Deliberately NOT listed, and deliberately not snake_cased: `RazorpayV2` -> `razorpayv2` and
+/// `BankOfAmerica` -> `bankofamerica`. Those really are the field names, so the default is
+/// correct and a blanket snake_case conversion would break two connectors that work today.
+fn connector_patch_key(variant: &str) -> String {
+    match variant {
+        "AbsaSanlam" => "absa_sanlam",
+        "GotymeSanlam" => "gotyme_sanlam",
+        "TsysTransit" => "tsys_transit",
+        "PinelabsOnline" => "pinelabs_online",
+        "TwocTwopPaco" => "twoc_twop_paco",
+        "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        other => return other.to_ascii_lowercase(),
+    }
+    .to_string()
+}
+
 impl ConnectorSpecificConfig {
     /// Returns the base_url override if set, allowing runtime override of connector base URLs.
     pub fn base_url_override(&self) -> Option<&str> {
@@ -1526,7 +1552,7 @@ impl ConnectorSpecificConfig {
                 ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
                     match self {
                         Self::NoKey => "nokey".to_string(),
-                        $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
+                        $(Self::$variant { .. } => connector_patch_key(stringify!($variant)),)*
                     }
                 };
             }
