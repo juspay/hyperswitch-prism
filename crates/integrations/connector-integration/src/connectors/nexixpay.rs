@@ -2,8 +2,13 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use super::macros;
+use crate::types::ResponseRouterData;
+use crate::with_error_response_body;
 use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
@@ -40,11 +45,6 @@ use transformers::{
     NexixpaySetupMandateRequest, NexixpaySetupMandateResponse, NexixpaySyncResponse,
     NexixpayVoidRequest, NexixpayVoidResponse,
 };
-use super::macros;
-use crate::types::ResponseRouterData;
-use crate::with_error_response_body;
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";

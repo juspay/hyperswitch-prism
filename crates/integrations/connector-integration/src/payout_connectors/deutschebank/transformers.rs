@@ -1108,8 +1108,7 @@ pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<In
     common_utils::date_time::now()
         .assume_utc()
         .format(&fmt)
-        .change_context(
-        IntegrationError::RequestEncodingFailed {
+        .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "formatting current UTC datetime for Deutsche Bank request".to_string(),
@@ -1117,8 +1116,7 @@ pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<In
                 suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
-        },
-    )
+        })
 }
 
 fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>> {

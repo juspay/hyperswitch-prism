@@ -198,14 +198,12 @@ pub fn encrypt_card(
     // RSA-OAEP with SHA-256 for both the OAEP digest and MGF1, through the shared
     // helper (identical parameters: OAEP + SHA-256 digest + MGF1 SHA-256) instead
     // of a hand-rolled PkeyCtx block.
-    let encrypted_key =
-        common_utils::crypto::RsaOaepSha256::encrypt(&der_bytes, &aes_key).change_context(
-            encryption_failed(
-                "RSA-OAEP encryption of the AES key failed — this can indicate the \
+    let encrypted_key = common_utils::crypto::RsaOaepSha256::encrypt(&der_bytes, &aes_key)
+        .change_context(encryption_failed(
+            "RSA-OAEP encryption of the AES key failed — this can indicate the \
              configured Boost public_key is stale or malformed."
-                    .to_string(),
-            ),
-        )?;
+                .to_string(),
+        ))?;
 
     Ok(BoostEncryptedCard {
         encrypted_key: BASE64_ENGINE.encode(encrypted_key),
