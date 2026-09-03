@@ -908,7 +908,8 @@ enum Connector {
   // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
-  PAYNEARME = 142;
+  TRAVELHUB = 142;
+  PAYNEARME = 143;
 }
 
 // Payment method types
@@ -5920,6 +5921,21 @@ message SaferpayConfig {
   optional string base_url = 50;
 }
 
+message TravelhubConfig {
+  // Basic-auth credential — sent in the Authorization header as
+  // `Basic base64(username:password)`. Identifies the caller, never the order.
+  SecretString username = 1;
+  // Basic-auth credential, paired with `username` in the Authorization header.
+  SecretString password = 2;
+  // TravelHub merchant identifier — goes in every API request BODY as `merchantId`
+  // (authorize, capture, status, cancel, refund, refund-status). This is what resolves
+  // which merchant account the orderId belongs to; distinct from the Basic-auth username.
+  SecretString merchant_id = 3;
+  // Optional endpoint override. When unset, the server's configured TravelHub base URL
+  // is used (e.g. https://preprod.travel.worldline-solutions.com/travelhub).
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6244,14 +6260,16 @@ message ConnectorSpecificConfig {
     IlixiumConfig ilixium = 148;
     // WORLDPAYRAFT = 139
     WorldpayraftConfig worldpayraft = 149;
-    // GOTYME_SANLAM = 140
+    // GOTYME_SANLAM = 141 (enum entry pending; 140 is TRAVELHUB)
     GotymeSanlamConfig gotyme_sanlam = 150;
     // SAFERPAY = 140
     SaferpayConfig saferpay = 151;
     // JPMORGAN_ORBITAL = 141
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
-    // PAYNEARME = 142
-    PaynearmeConfig paynearme = 153;
+    // TRAVELHUB = 142
+    TravelhubConfig travelhub = 153;
+    // PAYNEARME = 143
+    PaynearmeConfig paynearme = 154;
   }
 }
 
