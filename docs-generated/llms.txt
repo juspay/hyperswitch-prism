@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 110
+# Connectors: 112
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 110
+  total_connectors: 112
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -338,7 +338,7 @@ examples_python: examples/givepayments/givepayments.py
 connector_id: globalpay
 doc: docs/connectors/globalpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card, Eps, Giropay, GooglePay, Ideal, PaypalRedirect
+payment_methods: Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
 
@@ -353,9 +353,9 @@ examples_python: examples/glomopay/glomopay.py
 ## Grabpay
 connector_id: grabpay
 doc: docs/connectors/grabpay.md
-scenarios: checkout_autocapture
+scenarios: checkout_autocapture, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
-flows: authorize, handle_event, parse_event, verify_redirect
+flows: authorize, get, handle_event, parse_event, verify_redirect
 examples_python: examples/grabpay/grabpay.py
 
 ## Helcim
@@ -429,6 +429,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, Card
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
+
+## Jpmorganorbital
+connector_id: jpmorganorbital
+doc: docs/connectors/jpmorganorbital.md
+scenarios: checkout_autocapture, get_payment
+payment_methods: Card
+flows: authorize, get, proxy_authorize
+examples_python: examples/jpmorganorbital/jpmorganorbital.py
 
 ## Juspay
 connector_id: juspay
@@ -773,6 +781,14 @@ scenarios: none
 payment_methods: none
 flows: create_server_authentication_token
 examples_python: none
+
+## Travelhub
+connector_id: travelhub
+doc: docs/connectors/travelhub.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, void
+examples_python: examples/travelhub/travelhub.py
 
 ## Truelayer
 connector_id: truelayer

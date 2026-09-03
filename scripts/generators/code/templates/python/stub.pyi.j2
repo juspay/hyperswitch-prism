@@ -4,11 +4,13 @@
 # This stub exposes per-service client classes to static analysers
 # (Pylance, pyright, mypy) so IDEs offer completions and type checking.
 from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
-from payments.generated.payment_pb2 import (
-{% for t in imports %}
+{% for module, names in imports_by_module.items() %}
+from payments.generated.{{ module }} import (
+{% for t in names %}
     {{ t }},
 {% endfor %}
 )
+{% endfor %}
 
 class _ConnectorClientBase:
     def __init__(self, config: ConnectorConfig, defaults: RequestConfig | None = ..., lib_path: str | None = ...) -> None: ...

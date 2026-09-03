@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -256,7 +256,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L129) · [Kotlin](../../examples/phonepe/phonepe.kt#L111) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L129) · [Kotlin](../../examples/phonepe/phonepe.kt#L112) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Capture
 
@@ -267,7 +267,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L138) · [Kotlin](../../examples/phonepe/phonepe.kt#L123) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L138) · [Kotlin](../../examples/phonepe/phonepe.kt#L124) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Get
 
@@ -278,7 +278,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L147) · [Kotlin](../../examples/phonepe/phonepe.kt#L133) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L147) · [Kotlin](../../examples/phonepe/phonepe.kt#L134) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Refund
 
@@ -289,7 +289,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L174) · [Kotlin](../../examples/phonepe/phonepe.kt#L172) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L174) · [Kotlin](../../examples/phonepe/phonepe.kt#L173) · [Rust](../../examples/phonepe/phonepe.rs)
 
 #### PaymentService.Void
 
@@ -300,7 +300,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L194) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L195) · [Rust](../../examples/phonepe/phonepe.rs)
 
 ### Refunds
 
@@ -313,4 +313,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L183) · [Kotlin](../../examples/phonepe/phonepe.kt#L182) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L183) · [Kotlin](../../examples/phonepe/phonepe.kt#L183) · [Rust](../../examples/phonepe/phonepe.rs)

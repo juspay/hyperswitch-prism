@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -139,25 +139,25 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/juspay/juspay.py#L140) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L122) · [Rust](../../examples/juspay/juspay.rs#L175)
+**Examples:** [Python](../../examples/juspay/juspay.py#L140) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L123) · [Rust](../../examples/juspay/juspay.rs#L175)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/juspay/juspay.py#L159) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L138) · [Rust](../../examples/juspay/juspay.rs#L191)
+**Examples:** [Python](../../examples/juspay/juspay.py#L159) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L139) · [Rust](../../examples/juspay/juspay.rs#L191)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/juspay/juspay.py#L184) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L160) · [Rust](../../examples/juspay/juspay.rs#L214)
+**Examples:** [Python](../../examples/juspay/juspay.py#L184) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L161) · [Rust](../../examples/juspay/juspay.rs#L214)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/juspay/juspay.py#L206) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L179) · [Rust](../../examples/juspay/juspay.rs#L233)
+**Examples:** [Python](../../examples/juspay/juspay.py#L206) · [JavaScript](../../examples/juspay/juspay.js) · [Kotlin](../../examples/juspay/juspay.kt#L180) · [Rust](../../examples/juspay/juspay.rs#L233)
 
 ## API Reference
 
@@ -369,7 +369,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L233) · [Kotlin](../../examples/juspay/juspay.kt#L197) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L233) · [Kotlin](../../examples/juspay/juspay.kt#L198) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.Capture
 
@@ -380,7 +380,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L242) · [Kotlin](../../examples/juspay/juspay.kt#L209) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L242) · [Kotlin](../../examples/juspay/juspay.kt#L210) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -391,7 +391,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L251) · [Kotlin](../../examples/juspay/juspay.kt#L219) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L251) · [Kotlin](../../examples/juspay/juspay.kt#L220) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.Get
 
@@ -402,7 +402,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L260) · [Kotlin](../../examples/juspay/juspay.kt#L233) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L260) · [Kotlin](../../examples/juspay/juspay.kt#L234) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -413,7 +413,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L269) · [Kotlin](../../examples/juspay/juspay.kt#L241) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L269) · [Kotlin](../../examples/juspay/juspay.kt#L242) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.Refund
 
@@ -424,7 +424,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L278) · [Kotlin](../../examples/juspay/juspay.kt#L270) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L278) · [Kotlin](../../examples/juspay/juspay.kt#L271) · [Rust](../../examples/juspay/juspay.rs)
 
 #### PaymentService.Void
 
@@ -435,7 +435,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts) · [Kotlin](../../examples/juspay/juspay.kt#L292) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts) · [Kotlin](../../examples/juspay/juspay.kt#L293) · [Rust](../../examples/juspay/juspay.rs)
 
 ### Refunds
 
@@ -448,4 +448,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L287) · [Kotlin](../../examples/juspay/juspay.kt#L280) · [Rust](../../examples/juspay/juspay.rs)
+**Examples:** [Python](../../examples/juspay/juspay.py) · [TypeScript](../../examples/juspay/juspay.ts#L287) · [Kotlin](../../examples/juspay/juspay.kt#L281) · [Rust](../../examples/juspay/juspay.rs)

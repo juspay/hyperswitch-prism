@@ -8,6 +8,7 @@
 package examples.cybersource
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.PaymentMethodAuthenticationClient

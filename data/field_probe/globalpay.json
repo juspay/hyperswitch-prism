@@ -336,8 +336,59 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Failed to encode connector request. Failed to parse Google Pay token as JSON for GlobalPay POST /transactions digital_wallet.payment_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apis.sandbox.globalpay.com/ucp/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2021-03-22"
+          },
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"token\":\"4111111111111111\",\"token_format\":\"CARD_TOKEN\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cryptogram\":\"AAAAAA==\",\"eci\":\"05\"}}}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",

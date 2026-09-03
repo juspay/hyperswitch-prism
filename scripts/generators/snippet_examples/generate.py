@@ -230,7 +230,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
         fields_str = "\n".join(field_lines)
         return (
             f"    connector_config=payment_pb2.ConnectorSpecificConfig(\n"
-            f"        {connector_name}=payment_pb2.{config_name}(\n"
+            f"        {_conn_proto_field(connector_name)}=payment_pb2.{config_name}(\n"
             f"{fields_str}\n"
             f"        ),\n"
             f"    ),"
@@ -238,7 +238,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
     # Fallback — no proto metadata found for this connector
     return (
         f"    # connector_config=payment_pb2.ConnectorSpecificConfig(\n"
-        f"    #     {connector_name}=payment_pb2.{config_name}(api_key=...),\n"
+        f"    #     {_conn_proto_field(connector_name)}=payment_pb2.{config_name}(api_key=...),\n"
         f"    # ),"
     )
 
@@ -276,13 +276,13 @@ def _generate_connector_config_typescript(
         fields_str = "\n".join(field_lines)
         return (
             f"    {config_field}: {{\n"
-            f"        {_to_camel(connector_name)}: {{\n"
+            f"        {_to_camel(_conn_proto_field(connector_name))}: {{\n"
             f"{fields_str}\n"
             f"        }}\n"
             f"    }},"
         )
     # Fallback — no proto metadata found for this connector
-    return f"    // {config_field}: {{ {_to_camel(connector_name)}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
+    return f"    // {config_field}: {{ {_to_camel(_conn_proto_field(connector_name))}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
 
 
 def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ") -> str:
@@ -1049,18 +1049,45 @@ _CONN_ENUM_OVERRIDES: dict[str, str] = {
     "razorpayv2": "RAZORPAY",  # razorpayv2 uses the same RAZORPAY proto enum
 }
 
+# Connectors whose proto identifiers are multi-word while the connector id runs the words
+# together. Both derivations below assume `id -> IDENTIFIER` and `id -> Identifier`, which
+# silently produces names that do not exist (e.g. `JpmorganorbitalConfig`) and drops the
+# generated snippet into its "no proto metadata" placeholder branch. Values are the
+# identifiers as they actually appear in payment.proto: (enum member, PascalCase stem).
+_CONN_PROTO_IDENTIFIERS: dict[str, tuple[str, str, str]] = {
+    "absasanlam": ("ABSA_SANLAM", "AbsaSanlam", "absa_sanlam"),
+    "jpmorganorbital": ("JPMORGAN_ORBITAL", "JpmorganOrbital", "jpmorgan_orbital"),
+    "pinelabsonline": ("PINELABS_ONLINE", "PinelabsOnline", "pinelabs_online"),
+    "tsystransit": ("TSYS_TRANSIT", "TsysTransit", "tsys_transit"),
+}
+
+
+def _conn_proto_field(connector_name: str) -> str:
+    """Return the ConnectorSpecificConfig oneof field name as declared in payment.proto."""
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    return override[2] if override else connector_name
+
 
 def _conn_enum(connector_name: str) -> str:
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[0]
     return _CONN_ENUM_OVERRIDES.get(connector_name, connector_name.upper())
 
 
 def _conn_enum_rust(connector_name: str) -> str:
     """Return the PascalCase Rust Connector enum variant (e.g. Stripe, Razorpay)."""
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[1]
     name = _CONN_ENUM_OVERRIDES.get(connector_name, connector_name)
     return name.replace("_", "").capitalize()
 
 
 def _conn_display(connector_name: str) -> str:
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[1]
     return connector_name.replace("_", " ").title().replace(" ", "")
 
 
@@ -1068,7 +1095,7 @@ def _conn_display(connector_name: str) -> str:
 
 def _config_python(connector_name: str) -> str:
     return f"""\
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -2099,7 +2126,7 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 {supported_flows_line}
 
@@ -3395,6 +3422,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig
