@@ -8,7 +8,8 @@ use domain_types::{
         Authenticate, Authorize, PSync, RSync, Refund, ServerSessionAuthenticationToken,
     },
     connector_types::{
-        EventType, PaymentWebhookReference, RefundWebhookReference, WebhookResourceReference,
+        EventType, PaymentWebhookReference, RawConnectorStatus, RefundWebhookReference,
+        WebhookResourceReference,
     },
     connector_types::{
         PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsResponseData,
@@ -194,6 +195,11 @@ pub struct GrabpayConnectorFeatureData {
     pub state: Option<Secret<String>>,
     pub callback_state: Option<String>,
     pub code: Option<String>,
+    /// GrabID authorization code recovered via the one-time-charge status
+    /// inquiry (HMAC-authenticated server-to-server), as opposed to `code`
+    /// which arrives via the browser redirect. Its presence signals that the
+    /// CSRF state check does not apply.
+    pub o_auth_code: Option<String>,
     pub nonce: Option<String>,
     pub code_verifier: Option<Secret<String>>,
     pub redirect_uri: Option<String>,
@@ -231,6 +237,10 @@ pub struct GrabpayChargeCompleteResponse {
     #[serde(rename = "txStatus")]
     pub tx_status: GrabpayPaymentStatus,
     pub reason: Option<String>,
+    // Only Grab's `/one-time-charge/{id}/status` inquiry returns this; the
+    // `/charge/complete` and `/charge/{id}/status` responses do not.
+    #[serde(rename = "oAuthCode", skip_serializing_if = "Option::is_none")]
+    pub o_auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -282,7 +292,7 @@ pub struct GrabpayRefundSyncResponse {
     pub echo: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayPaymentStatus {
@@ -295,6 +305,7 @@ pub enum GrabpayPaymentStatus {
     TransactionAlreadyExist,
     #[serde(untagged)]
     #[strum(default)]
+    #[strum(to_string = "{0}")]
     Unknown(String),
 }
 
@@ -314,7 +325,7 @@ impl From<GrabpayPaymentStatus> for AttemptStatus {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, strum::EnumString)]
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display, strum::EnumString)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case", ascii_case_insensitive)]
 pub enum GrabpayRefundStatus {
@@ -326,6 +337,7 @@ pub enum GrabpayRefundStatus {
     TransactionAlreadyExist,
     #[serde(untagged)]
     #[strum(default)]
+    #[strum(to_string = "{0}")]
     Unknown(String),
 }
 
@@ -627,11 +639,25 @@ impl
                 .as_ref(),
         )?;
 
-        let code = feature_data
-            .code
-            .clone()
+        // Prefer the redirect-derived code; fall back to the codes recovered
+        // from the one-time-charge status inquiry (HMAC-fallback PSync).
+        // Ignore empty strings: `code` may carry an empty-JSON-string default
+        // ("") from upstream plumbing, which must not shadow the fallback.
+        let code_from_redirect = feature_data.code.as_deref().filter(|code| !code.is_empty());
+        let code = code_from_redirect
+            .or(feature_data
+                .o_auth_code
+                .as_deref()
+                .filter(|code| !code.is_empty()))
+            .map(str::to_string)
             .ok_or_else(missing_oauth_code_error)?;
-        validate_callback_state(&feature_data)?;
+
+        // The state check is OAuth CSRF protection for browser-redirect
+        // flows. When the code was recovered via the OTC status inquiry
+        // (HMAC-authenticated server-to-server, no redirect), skip it.
+        if code_from_redirect.is_some() {
+            validate_callback_state(&feature_data)?;
+        }
 
         Ok(Self {
             grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
@@ -806,6 +832,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &response,
             session_token.as_deref(),
         );
+        let raw_connector_status = grabpay_raw_connector_status(&response);
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
@@ -822,6 +849,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -858,6 +886,7 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
             &response,
             session_token.as_deref(),
         );
+        let raw_connector_status = grabpay_raw_connector_status(&response);
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -880,6 +909,7 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -952,6 +982,11 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let refund_status = RefundStatus::from(response.tx_status.clone());
+        let raw_connector_status = grabpay_refund_raw_connector_status(
+            &response.tx_status,
+            response.description.clone(),
+            response.reason.clone(),
+        );
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -962,6 +997,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -979,6 +1015,11 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let refund_status = RefundStatus::from(response.tx_status.clone());
+        let raw_connector_status = grabpay_refund_raw_connector_status(
+            &response.tx_status,
+            response.description.clone(),
+            response.reason.clone(),
+        );
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -989,6 +1030,7 @@ impl TryFrom<ConnectorResponseData<GrabpayRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1352,6 +1394,7 @@ fn parse_connector_feature_data(
             state: None,
             callback_state: None,
             code: None,
+            o_auth_code: None,
             nonce: None,
             code_verifier: None,
             redirect_uri: None,
@@ -1380,6 +1423,31 @@ fn charge_tx_id_from_connector_feature_data(
 ) -> Result<String, error_stack::Report<errors::IntegrationError>> {
     let feature_data = parse_connector_feature_data(connector_feature_data)?;
     required_feature_field(feature_data.tx_id, "txID")
+}
+
+/// Fills the opt-in `raw_connector_status` channel with Grab's granular status
+/// (`txStatus`, `reason`, `description`) alongside the unified attempt status,
+/// for callers that consume the typed connector status codes.
+fn grabpay_raw_connector_status(response: &GrabpayChargeCompleteResponse) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: Some(response.tx_status.to_string()),
+        message: response.description.clone(),
+        reason: response.reason.clone(),
+    }
+}
+
+/// Same as `grabpay_raw_connector_status` but for the refund and refund-sync
+/// responses, which share the same `txStatus`/`reason`/`description` shape.
+fn grabpay_refund_raw_connector_status(
+    tx_status: &GrabpayRefundStatus,
+    description: Option<String>,
+    reason: Option<String>,
+) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: Some(tx_status.to_string()),
+        message: description,
+        reason,
+    }
 }
 
 fn build_complete_connector_feature_data(
@@ -1419,13 +1487,36 @@ fn build_complete_connector_feature_data(
         );
     }
 
-    // Strip OAuth-only fields that are dead after the token exchange completes.
-    metadata.remove("code_verifier");
-    metadata.remove("nonce");
-    metadata.remove("state");
-    metadata.remove("code");
-    metadata.remove("callback_state");
-    metadata.remove("redirect_uri");
+    // Grab's `/one-time-charge/{id}/status` inquiry returns the GrabID
+    // authorization code after user consent — crucial in the HMAC-fallback
+    // PSync path where the redirect callback was missed. Persist it under
+    // `o_auth_code` (not `code`) so the token-exchange transformer can tell
+    // it apart from a redirect-derived code and skip the CSRF state check.
+    // Grab returns `"oAuthCode": ""` when consent is pending; skip empties.
+    if let Some(code) = response
+        .o_auth_code
+        .as_deref()
+        .filter(|code| !code.is_empty())
+    {
+        metadata.insert("o_auth_code".to_string(), serde_json::json!(code));
+    }
+
+    // Strip OAuth-only fields that are dead once the token exchange has
+    // completed — detected by a session token being passed in or already
+    // persisted in metadata. Before authorization (HMAC-fallback PSync)
+    // the exchange is still pending, so the fields — and the recovered
+    // `o_auth_code` above — are kept redeemable. Order matters: this strip
+    // runs after the `o_auth_code` insert so a pre-existing session token
+    // always wins.
+    if session_token.is_some() || metadata.get("session_token").is_some() {
+        metadata.remove("code_verifier");
+        metadata.remove("nonce");
+        metadata.remove("state");
+        metadata.remove("code");
+        metadata.remove("o_auth_code");
+        metadata.remove("callback_state");
+        metadata.remove("redirect_uri");
+    }
 
     connector_metadata
 }

@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 citigate.base_url = "https://gw-test.cgate.tech"
 saferpay.base_url = "https://test.saferpay.com/api"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
@@ -69,6 +70,7 @@ interpayments.base_url = "https://api-test.interpayments.com/v1"
 twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
+jpmorganorbital.base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 nmi.base_url = "https://secure.nmi.com"
 nmi.secondary_base_url = "https://sandbox.nmi.com"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"

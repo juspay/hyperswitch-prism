@@ -434,7 +434,9 @@ pub struct Connectors {
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
+    pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
+    pub travelhub: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -798,6 +800,9 @@ impl Connectors {
             ConnectorEnum::Boost => {
                 patched.boost.apply(params_patch);
             }
+            ConnectorEnum::JpmorganOrbital => {
+                patched.jpmorganorbital.apply(params_patch);
+            }
             ConnectorEnum::Ilixium => {
                 patched.ilixium.apply(params_patch);
             }
@@ -807,6 +812,9 @@ impl Connectors {
             ConnectorEnum::Grabpay => {
                 patched.grabpay.apply(params_patch);
             }
+            ConnectorEnum::Travelhub => {
+                patched.travelhub.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -814,7 +822,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub",
                             connector
                         )),
                         ..Default::default()
@@ -10310,6 +10318,47 @@ impl
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
             settlement_status: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<crate::connector_types::PayoutWebhookDetailsResponse>
+    for grpc_api_types::payouts::PayoutServiceGetResponse
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: crate::connector_types::PayoutWebhookDetailsResponse,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Only surface an error object when the connector actually reported a
+        // failure; a successful payout webhook carries no error fields.
+        let error = (value.error_code.is_some() || value.error_message.is_some()).then(|| {
+            grpc_api_types::payouts::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                    code: value.error_code.clone(),
+                    message: value.error_message.clone(),
+                    reason: None,
+                    // Left unset: this field carries a *transaction* id (the sync
+                    // path sources it from `err.connector_transaction_id`), and a
+                    // payout webhook has no such id. The payout id is already on
+                    // the response as `connector_payout_id`.
+                    connector_transaction_id: None,
+                    status: None,
+                }),
+                issuer_details: None,
+            }
+        });
+
+        Ok(Self {
+            merchant_payout_id: value.merchant_payout_id,
+            payout_status: Some(
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(value.status)
+                    as i32,
+            ),
+            connector_payout_id: value.connector_payout_id,
+            error,
+            status_code: u32::from(value.status_code),
         })
     }
 }

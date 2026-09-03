@@ -19,6 +19,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.03.1
+
+### Features
+
+- **Feature:** [Generic] Implementing Webhooks support for Payouts ([#2153](https://github.com/juspay/connector-service/pull/2153)) ([`acc9060`](https://github.com/juspay/connector-service/commit/acc906015bc2305bea01d1f149e688016f21b05a))
+- **connector:**
+  - [JPMORGAN ORBITAL] add JP Morgan Orbital connector with Card Authorize (3DS + non-3DS) ([#2187](https://github.com/juspay/connector-service/pull/2187)) ([`59684fe`](https://github.com/juspay/connector-service/commit/59684fe20abe268b7843bc22e76cb336a88dcf7e))
+  - [GRABPAY] fall back to HMAC one-time-charge status api ([#2208](https://github.com/juspay/connector-service/pull/2208)) ([`fbc8b29`](https://github.com/juspay/connector-service/commit/fbc8b2947d360d8f0cfe9038e62a9ee5578f52c6))
+  - [QWIKCILVER] map raw connector status on Authorize a… ([#2222](https://github.com/juspay/connector-service/pull/2222)) ([`ed7e54a`](https://github.com/juspay/connector-service/commit/ed7e54a3bdbc1a8a1c75c7a2ae1e31234ca0cd6d))
+  - Add New Connector TRAVELHUB ([#2175](https://github.com/juspay/connector-service/pull/2175)) ([`bcc5fc7`](https://github.com/juspay/connector-service/commit/bcc5fc76c4480b6884a18ab15dba1abee32eb0d4))
+
+**Full Changelog:** [`2026.09.03.0...2026.09.03.1`](https://github.com/juspay/connector-service/compare/2026.09.03.0...2026.09.03.1)
+
+- - -
+
+## 2026.09.03.0
+
+### Features
+
+- **certification:** Certify adyen, cybersource, tsys live for core payment flows ([#2198](https://github.com/juspay/connector-service/pull/2198)) ([`7d1b203`](https://github.com/juspay/connector-service/commit/7d1b203808048e027fb68adbc8b99862fc0b0a87))
+- **connector:**
+  - [SAFERPAY] add Saferpay connector — Authorize, PSync, Capture, Void, Refund, RSync ([#2183](https://github.com/juspay/connector-service/pull/2183)) ([`b0d5b02`](https://github.com/juspay/connector-service/commit/b0d5b028c7eadf85a65545df61adc8293102e286))
+  - GlobalPay connector integration ([#2203](https://github.com/juspay/connector-service/pull/2203)) ([`b4a3872`](https://github.com/juspay/connector-service/commit/b4a38722c8e77a17fd106014a6b8d64e316bffa9))
+  - Add `account_funded_transactions` support for checkout connector ([#2194](https://github.com/juspay/connector-service/pull/2194)) ([`d843a5a`](https://github.com/juspay/connector-service/commit/d843a5a781733d3757f8840d4a29a63fba726d18))
+  - [Worldpayxml] implement pass through 3ds ([#2202](https://github.com/juspay/connector-service/pull/2202)) ([`c876c6c`](https://github.com/juspay/connector-service/commit/c876c6c182e93656a24210641cd2dbe79147dd5b))
+- **ilixium:** Capture the card-on-file token from the auth response ([#2217](https://github.com/juspay/connector-service/pull/2217)) ([`e78e0d5`](https://github.com/juspay/connector-service/commit/e78e0d5dcd3ea8b9446ac67b1bc7f6e24b87d78d))
+
+**Full Changelog:** [`2026.09.02.0...2026.09.03.0`](https://github.com/juspay/connector-service/compare/2026.09.02.0...2026.09.03.0)
+
+- - -
+
 ## 2026.09.02.0
 
 ### Features

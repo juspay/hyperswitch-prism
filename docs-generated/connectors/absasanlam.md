@@ -18,13 +18,17 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     absasanlam=payment_pb2.AbsasanlamConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        absa_sanlam=payment_pb2.AbsaSanlamConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 ```
@@ -41,9 +45,15 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.ABSASANLAM,
+    connector: Connector.ABSA_SANLAM,
     environment: Environment.SANDBOX,
-    // auth: { absasanlam: { apiKey: { value: 'YOUR_API_KEY' } } },
+    auth: {
+        absaSanlam: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 });
 ```
 
@@ -57,7 +67,15 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Absasanlam credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAbsaSanlam(AbsaSanlamConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 ```
 
@@ -73,7 +91,14 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::AbsaSanlam(AbsaSanlamConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),

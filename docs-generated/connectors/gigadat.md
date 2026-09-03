@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -254,7 +254,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L55) · [Kotlin](../../examples/gigadat/gigadat.kt#L65) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L55) · [Kotlin](../../examples/gigadat/gigadat.kt#L66) · [Rust](../../examples/gigadat/gigadat.rs)
 
 #### PaymentService.Refund
 
@@ -265,4 +265,4 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L64) · [Kotlin](../../examples/gigadat/gigadat.kt#L73) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L64) · [Kotlin](../../examples/gigadat/gigadat.kt#L74) · [Rust](../../examples/gigadat/gigadat.rs)

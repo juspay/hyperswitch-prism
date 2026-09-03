@@ -12,7 +12,7 @@ from payments import MerchantAuthenticationClient
 from payments import CustomerClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "token_setup_recurring"]
 
