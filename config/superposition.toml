@@ -85,7 +85,7 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "elavon_pg"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "elavon_pg"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -372,6 +372,12 @@ connector_base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 _context_ = { connector = "jpmorgan" }
 connector_base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 connector_secondary_base_url = "https://id.payments.jpmorgan.com"
+
+# JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4) - the published
+# VAR/sandbox host. A different product from "jpmorgan" above (Payments API v2).
+[[overrides]]
+_context_ = { connector = "jpmorgan_orbital" }
+connector_base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
 
 # NMI
 [[overrides]]
@@ -759,6 +765,14 @@ connector_base_url = "https://iata-pay.iata.org/api/v1"
 [[overrides]]
 _context_ = { connector = "jpmorgan", environment = "production" }
 connector_base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
+
+# JP Morgan Orbital Production
+# NOTE: UNCONFIRMED - JPMorgan does not publish the production Orbital hostname
+# anywhere. Inferred from the Chase Paymentech naming convention and corroborated
+# only by public DNS. Confirm with JPMorgan Merchant Services during onboarding.
+[[overrides]]
+_context_ = { connector = "jpmorgan_orbital", environment = "production" }
+connector_base_url = "https://orbital1.chasepaymentech.com/gwapi/v4/gateway"
 
 # Nexi XPay Production
 [[overrides]]
