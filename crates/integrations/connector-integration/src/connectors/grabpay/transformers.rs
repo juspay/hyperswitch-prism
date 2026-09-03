@@ -638,16 +638,21 @@ impl
 
         // Prefer the redirect-derived code; fall back to the codes recovered
         // from the one-time-charge status inquiry (HMAC-fallback PSync).
-        let code = feature_data
-            .code
-            .clone()
-            .or_else(|| feature_data.o_auth_code.clone())
+        // Ignore empty strings: `code` may carry an empty-JSON-string default
+        // ("") from upstream plumbing, which must not shadow the fallback.
+        let code_from_redirect = feature_data.code.as_deref().filter(|code| !code.is_empty());
+        let code = code_from_redirect
+            .or(feature_data
+                .o_auth_code
+                .as_deref()
+                .filter(|code| !code.is_empty()))
+            .map(str::to_string)
             .ok_or_else(missing_oauth_code_error)?;
 
         // The state check is OAuth CSRF protection for browser-redirect
         // flows. When the code was recovered via the OTC status inquiry
         // (HMAC-authenticated server-to-server, no redirect), skip it.
-        if feature_data.code.is_some() {
+        if code_from_redirect.is_some() {
             validate_callback_state(&feature_data)?;
         }
 

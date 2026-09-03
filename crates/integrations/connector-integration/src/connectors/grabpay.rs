@@ -203,34 +203,42 @@ pub(crate) fn oauth_endpoint(base_url: &str, path: &str) -> String {
         .unwrap_or_else(|| format!("{base_url}{path}"))
 }
 
-/// Builds GrabPay's canonical signing string:
-/// `{method}\n{content_type}\n{date}\n{path}\n{base64(sha256(body))}\n`.
-/// Per Grab's merchant SDK (`GenerateHmac`), the body digest is an empty string
-/// for GET requests; otherwise it is `base64(sha256(body))`.
+/// The body digest in Grab's HMAC canonical string for OUTBOUND requests,
+/// per the reference SDK: GET requests sign the empty string, all other
+/// methods sign `base64(sha256(body))`.
+/// NOTE: webhook verification must not use this — Grab always includes the
+/// body digest in webhook signatures, so verification of inbound webhooks
+/// needs the hashed body regardless of method.
+fn grabpay_outbound_hmac_body_digest(
+    method: &str,
+    body: &[u8],
+) -> CustomResult<String, IntegrationError> {
+    use common_utils::crypto::GenerateDigest;
+
+    if method.eq_ignore_ascii_case("GET") {
+        return Ok(String::new());
+    }
+
+    let digest = crypto::Sha256.generate_digest(body).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: grabpay_integration_context(
+                "GrabPay HMAC signing failed to hash request body",
+            ),
+        },
+    )?;
+    Ok(BASE64_ENGINE.encode(digest))
+}
+
+/// Formats the Grab HMAC canonical string:
+/// `{method}\n{content_type}\n{date}\n{path}\n{body_digest}\n`.
 fn grabpay_hmac_signing_string(
     method: &str,
     content_type: &str,
     path: &str,
-    body: &[u8],
+    body_digest: &str,
     date: &str,
-) -> CustomResult<String, IntegrationError> {
-    use common_utils::crypto::GenerateDigest;
-
-    let body_digest = if method.eq_ignore_ascii_case("GET") {
-        String::new()
-    } else {
-        let digest = crypto::Sha256.generate_digest(body).change_context(
-            IntegrationError::RequestEncodingFailed {
-                context: grabpay_integration_context(
-                    "GrabPay HMAC signing failed to hash request body",
-                ),
-            },
-        )?;
-        BASE64_ENGINE.encode(digest)
-    };
-    Ok(format!(
-        "{method}\n{content_type}\n{date}\n{path}\n{body_digest}\n"
-    ))
+) -> String {
+    format!("{method}\n{content_type}\n{date}\n{path}\n{body_digest}\n")
 }
 
 fn build_hmac_authorization(
@@ -243,7 +251,9 @@ fn build_hmac_authorization(
 ) -> CustomResult<String, IntegrationError> {
     use common_utils::crypto::SignMessage;
 
-    let signing_string = grabpay_hmac_signing_string(method, content_type, path, body, date)?;
+    let body_digest = grabpay_outbound_hmac_body_digest(method, body)?;
+    let signing_string =
+        grabpay_hmac_signing_string(method, content_type, path, &body_digest, date);
     let signature = crypto::HmacSha256
         .sign_message(
             auth.partner_secret.peek().as_bytes(),
@@ -890,9 +900,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Ok(signature) => signature,
             Err(_) => return Ok(false),
         };
+        // Verification of an inbound webhook must compute Grab's signature
+        // exactly as Grab constructed it: digest of the raw body — unlike
+        // OUTBOUND GET requests, which Grab signs with an empty digest (see
+        // `grabpay_outbound_hmac_body_digest`).
+        let body_digest = {
+            use common_utils::crypto::GenerateDigest;
+            crypto::Sha256
+                .generate_digest(&request.body)
+                .map(|digest| BASE64_ENGINE.encode(digest))
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?
+        };
         let signing_string =
-            grabpay_hmac_signing_string(&method, content_type, &path, &request.body, date)
-                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+            grabpay_hmac_signing_string(&method, content_type, &path, &body_digest, date);
 
         crypto::HmacSha256
             .verify_signature(
