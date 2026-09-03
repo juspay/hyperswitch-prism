@@ -266,15 +266,15 @@ macros::create_all_prerequisites!(
                     // `403` ("That Account ID is not configured for 3D Secure") / `404`
                     // ("Merchant information not found.") return **plain text**, not JSON. The
                     // shared handler surfaces those verbatim in `reason`, but it cannot know that
-                    // a 4xx here means the authentication is over — so re-stamp the attempt
-                    // status, exactly as the structured branch does, to keep hyperswitch's
-                    // `should_continue` guards from letting the XML auth through.
+                    // a non-2xx here means the authentication is over — so re-stamp the attempt
+                    // status, exactly as the structured branch does. `ensure_liability_shift` in
+                    // the Authorize transformer is the backstop if a caller ignores it anyway.
                     let status_code = res.status_code;
                     let mut error_response = utils::handle_json_response_deserialization_failure(
                         res,
                         "globalpayments_realex",
                     )?;
-                    if (400..500).contains(&status_code) {
+                    if !(200..300).contains(&status_code) {
                         error_response.attempt_status = Some(FlowStatus::Payment(
                             common_enums::AttemptStatus::AuthenticationFailed,
                         ));

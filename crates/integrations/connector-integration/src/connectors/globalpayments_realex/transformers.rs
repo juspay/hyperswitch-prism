@@ -8,7 +8,8 @@
 
 use base64::Engine;
 use common_enums::{
-    AttemptStatus, CaptureMethod, CardNetwork, CountryAlpha2, RefundStatus, TransactionStatus,
+    AttemptStatus, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, RefundStatus,
+    TransactionStatus,
 };
 use common_utils::{
     consts,
@@ -774,6 +775,10 @@ where
             }
         };
 
+        // Fail closed before anything else: a three_ds payment without a liability-shifting
+        // authentication result must never reach the gateway as a bare `auth`.
+        ensure_liability_shift(router_data.resource_common_data.auth_type, request)?;
+
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)?;
 
         // All six digest inputs must be byte-identical to what ends up on the wire, so build the
@@ -844,6 +849,72 @@ where
 ///
 /// Returns `None` when there is nothing to forward — sending an empty `<mpi>` would be pointless
 /// and the digest is unaffected either way.
+/// Refuses to build an `auth` for a payment the merchant asked to be 3DS-authenticated unless a
+/// **liability-shifting** authentication result is actually attached.
+///
+/// Without this guard the connector fails *open*. [`build_mpi`] returns `None` whenever
+/// `authentication_data` is absent, and an absent `<mpi>` is not an error to the gateway — it is
+/// simply a non-3DS authorization. So a cardholder who failed or abandoned the challenge, or a
+/// 3DS2 leg that errored, would be authorized as if no authentication had ever been requested,
+/// with the liability that implies. Whether the caller's own orchestration stops first is not
+/// something this connector can verify, and it must not be the only thing standing between a
+/// failed challenge and a captured payment.
+///
+/// `Y` (authenticated) and `A` (attempted — the issuer's proof of attempted authentication) both
+/// carry liability shift and are accepted. Every other `transStatus` — `N`, `U`, `R`, `C`, `D`,
+/// `I` — does not, and is refused here rather than silently downgraded.
+///
+/// A `NoThreeDs` payment is untouched: it never had an `<mpi>` to begin with.
+fn ensure_liability_shift<T: PaymentMethodDataTypes>(
+    auth_type: AuthenticationType,
+    request: &PaymentsAuthorizeData<T>,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    if auth_type != AuthenticationType::ThreeDs {
+        return Ok(());
+    }
+
+    let refuse = |detail: &str| {
+        report!(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "GlobalpaymentsRealex refuses to send a non-3DS <auth> for a payment requested \
+                     as three_ds: {detail}. Complete the 3DS2 authentication legs first, or submit \
+                     the payment as no_three_ds if authentication is genuinely not wanted."
+                )),
+                ..Default::default()
+            },
+        })
+    };
+
+    let authentication_data = request
+        .authentication_data
+        .as_ref()
+        .ok_or_else(|| refuse("no authentication_data is attached"))?;
+
+    match authentication_data.trans_status.as_ref() {
+        Some(TransactionStatus::Success) | Some(TransactionStatus::NotVerified) => {}
+        Some(other) => {
+            let detail = format!(
+                "the authentication finished with transStatus {other:?}, which carries no \
+                 liability shift"
+            );
+            return Err(refuse(&detail));
+        }
+        None => return Err(refuse("the authentication result carries no transStatus")),
+    }
+
+    // A liability-shifting status with no cryptogram is not something the schemes accept, and
+    // `build_mpi` would drop the whole element rather than send a half-populated one.
+    if authentication_data.cavv.is_none() && authentication_data.eci.is_none() {
+        return Err(refuse(
+            "the authentication result carries neither a cryptogram nor an ECI",
+        ));
+    }
+
+    Ok(())
+}
+
 fn build_mpi<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> Option<GlobalpaymentsRealexMpi> {
@@ -2105,8 +2176,13 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>>
         let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
 
         let status = match hash_verification {
-            // A tampered response must never be reported as a completed refund.
-            HashVerification::Mismatch => RefundStatus::Failure,
+            // A tampered response must never be reported as a completed refund — but it must not
+            // be reported as a *failed* one either. The gateway answered, the rebate very probably
+            // executed, and only the document's integrity is in doubt; calling that `Failure`
+            // invites the caller to retry and refund the shopper twice. `ManualReview` is the
+            // honest terminal state: stop, do not retry, have a human reconcile. This mirrors the
+            // `IntegrityFailure` the payment flows use for the same situation.
+            HashVerification::Mismatch => RefundStatus::ManualReview,
             HashVerification::Verified | HashVerification::Skipped => {
                 map_refund_status(&response.result)
             }
@@ -2414,14 +2490,34 @@ where
 /// Dead guards that read as safety are worse than no guard, so it was removed rather than left in
 /// place. Carrying the current attempt status on the sync request is the proper long-term fix, but
 /// it is a proto and shared-domain change and therefore out of scope for this connector.
+/// `query` result codes that describe the **lookup**, not the payment.
+///
+/// The `5xx` family on this API is the integration-error family: `505` bad digest, `506` malformed
+/// order id, `508` no such transaction, `502`/`503` malformed or disallowed request. None of them
+/// is evidence about the underlying payment's outcome, so a sync that hits one must not overwrite
+/// a known status.
+fn is_query_lookup_fault(result: &str) -> bool {
+    matches!(result, "502" | "503" | "505" | "506" | "508")
+}
+
 fn map_psync_attempt_status(
     result: &str,
     batchid: Option<i64>,
     voided_by_ucs: bool,
 ) -> AttemptStatus {
-    // Rule 1. There is no pending/async state anywhere on this API, so every non-`00` code is
-    // terminal (tech spec §9.4) — including the `5xx` family, which also surfaces as a structured
-    // connector error alongside this status.
+    // Rule 1a. A `5xx` result on a `query` says nothing about the payment: it says the *lookup*
+    // failed. `508 Original transaction not found.` is what a caller that did not round-trip
+    // `connector_feature_data` gets, because the order id then falls back to the request
+    // reference; `505` is a digest mistake; `506` a malformed order id. Reporting `Failure` for
+    // any of them would flip a perfectly healthy Charged payment to failed on a sync — the exact
+    // trap `map_rsync_outcome` already refuses to fall into. Leave the attempt where it was and
+    // let the structured connector error carry the fault.
+    if is_query_lookup_fault(result) {
+        return AttemptStatus::Unresolved;
+    }
+
+    // Rule 1b. Otherwise there is no pending/async state anywhere on this API, so every non-`00`
+    // code is a genuine terminal outcome for the payment (tech spec §9.4).
     if result != RESULT_SUCCESS {
         return AttemptStatus::Failure;
     }
@@ -3794,6 +3890,28 @@ pub fn read_method_return(
 ) -> Result<Gp3ds2MethodReturn, error_stack::Report<IntegrationError>> {
     let payload = payload.ok_or_else(|| missing("redirect_response.payload"))?;
 
+    // A `cres` in this payload means the ACS is returning from the **challenge**, not from device
+    // profiling — this leg has been reached by mistake. The two returns are told apart by whether
+    // the browser came back with a query string, which silently misclassifies every merchant whose
+    // `continue_redirection_url` already carries one (the method marker is then not the only
+    // parameter, and the bare challenge return is no longer bare). Refuse loudly instead of
+    // building an AReq out of a challenge result.
+    if payload_field(payload, FIELD_CRES).is_some() {
+        return Err(report!(IntegrationError::InvalidDataFormat {
+            field_name: "redirect_response.payload",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "redirect_response.payload carries a `cres`, so this is the post-challenge \
+                     return and belongs to PostAuthenticate, not Authenticate. This misrouting \
+                     happens when continue_redirection_url already contains a query string, which \
+                     defeats the params/no-params discriminator the caller routes on."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        }));
+    }
+
     let encoded = payload_field(payload, FIELD_THREE_DS_METHOD_DATA)
         .ok_or_else(|| missing("redirect_response.payload.threeDSMethodData"))?;
 
@@ -4219,7 +4337,7 @@ pub fn read_challenge_return(
     let encoded = payload_field(payload, FIELD_CRES)
         .ok_or_else(|| missing("redirect_response.payload.cres"))?;
 
-    server_trans_id_from_encoded(&encoded).ok_or_else(|| {
+    let server_trans_id = server_trans_id_from_encoded(&encoded).ok_or_else(|| {
         report!(IntegrationError::InvalidDataFormat {
             field_name: "redirect_response.payload.cres",
             context: IntegrationErrorContext {
@@ -4230,7 +4348,58 @@ pub fn read_challenge_return(
                 ..Default::default()
             },
         })
-    })
+    })?;
+
+    validate_server_trans_id(&server_trans_id)?;
+    Ok(server_trans_id)
+}
+
+/// Rejects anything that is not a syntactically valid 3DS Server transaction id.
+///
+/// This value arrives inside a base64 blob the **browser** posts back, and it is then interpolated
+/// into the results URL — `{base}/3ds2/authentications/{sid}?merchant_id=…&request_timestamp=…` —
+/// and hashed into the `securehash`. It cannot be percent-encoded on the way in, because the
+/// gateway hashes and matches the unencoded value, so the only safe handling is to refuse anything
+/// that is not the shape EMVCo defines: a UUID.
+///
+/// Without this, a `/`, `?`, `#` or `&` in the field rewrites the request — a `?` alone drops the
+/// digest-covered `request_timestamp` into the previous component and turns a valid call into one
+/// the gateway rejects, while `../` walks to a different endpoint entirely.
+///
+/// **Residual risk this does *not* close:** a well-formed id belonging to a *different* payment is
+/// still accepted, because `PaymentsPostAuthenticateData` carries no server-side copy of the id to
+/// compare against (no `authentication_data`, no metadata channel) and the results document echoes
+/// no merchant reference either. Binding the id to the payment needs the caller to carry it from
+/// the `Authenticate` leg into the `PostAuthenticate` request; that is a contract change, tracked
+/// separately, not something this connector can enforce alone.
+fn validate_server_trans_id(
+    server_trans_id: &str,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    let is_uuid_shaped = server_trans_id.len() == 36
+        && server_trans_id.as_bytes().iter().enumerate().all(|(i, b)| {
+            if matches!(i, 8 | 13 | 18 | 23) {
+                *b == b'-'
+            } else {
+                b.is_ascii_hexdigit()
+            }
+        });
+
+    if is_uuid_shaped {
+        return Ok(());
+    }
+
+    Err(report!(IntegrationError::InvalidDataFormat {
+        field_name: "redirect_response.payload.cres.threeDSServerTransID",
+        context: IntegrationErrorContext {
+            additional_context: Some(
+                "threeDSServerTransID is not a well-formed UUID; it is interpolated into the \
+                 results URL and hashed into the securehash, so a malformed value is refused \
+                 rather than sent"
+                    .to_string(),
+            ),
+            ..Default::default()
+        },
+    }))
 }
 
 /// The *Obtain authentication data* body.
@@ -4320,10 +4489,10 @@ impl Gp3ds2ErrorResponse {
                 .clone()
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
             reason: self.error_detail.clone().or(self.error_description.clone()),
-            // 4xx means the authentication cannot proceed, so mark the attempt failed and let
-            // hyperswitch's `should_continue` guards suppress the XML auth that would follow.
-            attempt_status: (400..500)
-                .contains(&status_code)
+            // Any non-2xx means the authentication cannot proceed — a 502/503 from the 3DS2 API
+            // is no more resumable than a 400 — so mark the attempt failed rather than leaving a
+            // non-terminal status that would let the XML auth follow unauthenticated.
+            attempt_status: (!(200..300).contains(&status_code))
                 .then_some(FlowStatus::Payment(AttemptStatus::AuthenticationFailed)),
             connector_transaction_id: self.three_dsserver_trans_id.clone(),
             network_decline_code: None,
@@ -4439,6 +4608,125 @@ mod tests {
                 .method_url_completion,
             Gp3ds2MethodUrlCompletion::Unavailable
         );
+    }
+
+    #[test]
+    fn a_query_lookup_fault_does_not_fail_the_payment() {
+        // 508 is what a caller that dropped connector_feature_data gets: the order id fell back to
+        // the request reference and the gateway has never heard of it. The payment is fine.
+        for fault in ["502", "503", "505", "506", "508"] {
+            assert_eq!(
+                map_psync_attempt_status(fault, Some(1), false),
+                AttemptStatus::Unresolved,
+                "{fault} must not be reported as a failed payment"
+            );
+        }
+
+        // A real decline still fails, and the happy paths are untouched.
+        assert_eq!(
+            map_psync_attempt_status("101", None, false),
+            AttemptStatus::Failure
+        );
+        assert_eq!(
+            map_psync_attempt_status(RESULT_SUCCESS, Some(42), false),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            map_psync_attempt_status(RESULT_SUCCESS, Some(-1), false),
+            AttemptStatus::Authorized
+        );
+        assert_eq!(
+            map_psync_attempt_status(RESULT_SUCCESS, Some(42), true),
+            AttemptStatus::Voided
+        );
+    }
+
+    #[test]
+    fn the_pasref_ladder_prefers_the_authorization_over_the_transaction_id() {
+        let metadata = GlobalpaymentsRealexPaymentMetadata {
+            orderid: "order-1".to_string(),
+            authcode: Some("123456".to_string()),
+            void_pasref: None,
+            auth_pasref: Some("auth-pasref".to_string()),
+        };
+
+        // The whole point of the field: the settle-minted id must lose.
+        assert_eq!(
+            resolve_reference_pasref(Some(&metadata), Some("settle-pasref"), REQUEST_TYPE_REBATE)
+                .expect("metadata wins"),
+            "auth-pasref"
+        );
+
+        // Metadata written before `auth_pasref` existed, and auto-captured payments: fall back.
+        let old_shape = GlobalpaymentsRealexPaymentMetadata {
+            auth_pasref: None,
+            ..metadata.clone()
+        };
+        assert_eq!(
+            resolve_reference_pasref(Some(&old_shape), Some(" auth-pasref "), REQUEST_TYPE_VOID)
+                .expect("fallback"),
+            "auth-pasref"
+        );
+        assert_eq!(
+            resolve_reference_pasref(None, Some("auth-pasref"), REQUEST_TYPE_VOID)
+                .expect("no metadata at all"),
+            "auth-pasref"
+        );
+
+        // Neither source yields anything: an actionable error, not a request that would 508.
+        assert!(
+            resolve_reference_pasref(Some(&old_shape), Some("   "), REQUEST_TYPE_REBATE).is_err()
+        );
+        assert!(resolve_reference_pasref(None, None, REQUEST_TYPE_REBATE).is_err());
+    }
+
+    #[test]
+    fn a_tampered_rebate_document_is_not_reported_as_a_failed_refund() {
+        // Guards the distinction the status map alone cannot express: `Failure` invites a retry
+        // and a double refund, `ManualReview` does not.
+        assert_eq!(map_refund_status(RESULT_SUCCESS), RefundStatus::Success);
+        assert_eq!(map_refund_status("508"), RefundStatus::Failure);
+        assert_ne!(RefundStatus::ManualReview, RefundStatus::Failure);
+    }
+
+    #[test]
+    fn a_browser_supplied_server_trans_id_must_be_uuid_shaped() {
+        // The happy path: exactly what an ACS returns.
+        assert!(validate_server_trans_id("6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33").is_ok());
+
+        // Everything that would rewrite the results URL or its digest-covered query.
+        for hostile in [
+            "../../3ds2/protocol-versions",
+            "6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33?merchant_id=someone-else",
+            "6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33#frag",
+            "6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33&request_timestamp=0",
+            "6d8b0a1e/6f5f/4d67/9d1e/2f0b6a1c9e33",
+            "",
+            "not-a-uuid",
+            // Right length, wrong alphabet: `z` is not a hex digit.
+            "zd8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33",
+        ] {
+            assert!(
+                validate_server_trans_id(hostile).is_err(),
+                "expected {hostile:?} to be refused"
+            );
+        }
+    }
+
+    #[test]
+    fn a_challenge_return_is_refused_by_the_device_profiling_leg() {
+        // A `cres` payload reaching `Authenticate` means the params/no-params discriminator
+        // misrouted the browser return — most often because the merchant's
+        // continue_redirection_url already carries a query string.
+        let challenge_return = serde_json::json!({ FIELD_CRES: "irrelevant" });
+        assert!(read_method_return(Some(&challenge_return)).is_err());
+
+        // A genuine device-profiling return still works.
+        let ddc = serde_json::json!({
+            FIELD_THREE_DS_METHOD_DATA:
+                encode_synthetic_method_data("sid-1", "https://example.com/complete"),
+        });
+        assert!(read_method_return(Some(&ddc)).is_ok());
     }
 
     #[test]
