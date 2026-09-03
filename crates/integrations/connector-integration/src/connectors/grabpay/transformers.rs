@@ -8,7 +8,8 @@ use domain_types::{
         Authenticate, Authorize, PSync, RSync, Refund, ServerSessionAuthenticationToken,
     },
     connector_types::{
-        EventType, PaymentWebhookReference, RefundWebhookReference, WebhookResourceReference,
+        EventType, PaymentWebhookReference, RawConnectorStatus, RefundWebhookReference,
+        WebhookResourceReference,
     },
     connector_types::{
         PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsResponseData,
@@ -829,6 +830,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &response,
             session_token.as_deref(),
         );
+        let raw_connector_status = grabpay_raw_connector_status(&response);
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id,
@@ -845,6 +847,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -881,6 +884,7 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
             &response,
             session_token.as_deref(),
         );
+        let raw_connector_status = grabpay_raw_connector_status(&response);
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -903,6 +907,7 @@ impl TryFrom<ConnectorResponseData<GrabpayChargeCompleteResponse, Self>>
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                raw_connector_status: Some(raw_connector_status),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1404,6 +1409,19 @@ fn charge_tx_id_from_connector_feature_data(
 ) -> Result<String, error_stack::Report<errors::IntegrationError>> {
     let feature_data = parse_connector_feature_data(connector_feature_data)?;
     required_feature_field(feature_data.tx_id, "txID")
+}
+
+/// Fills the opt-in `raw_connector_status` channel with Grab's granular status
+/// (`txStatus`, `reason`, `description`) alongside the unified attempt status,
+/// for callers that consume the typed connector status codes.
+fn grabpay_raw_connector_status(response: &GrabpayChargeCompleteResponse) -> RawConnectorStatus {
+    RawConnectorStatus {
+        code: serde_json::to_value(&response.tx_status)
+            .ok()
+            .and_then(|value| value.as_str().map(str::to_string)),
+        message: response.description.clone(),
+        reason: response.reason.clone(),
+    }
 }
 
 fn build_complete_connector_feature_data(
