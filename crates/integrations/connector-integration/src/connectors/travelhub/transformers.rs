@@ -771,15 +771,18 @@ impl TryFrom<ResponseRouterData<TravelhubCaptureResponse, Self>>
             result,
             TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
         ) {
+            // CaptureFailed, not Failure: the capture leg failed, but the authorization is
+            // still live at TravelHub — the merchant may retry the capture. citigate models
+            // the same at citigate/transformers.rs:695.
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
                     item.response.transaction_id.clone(),
-                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                    Some(FlowStatus::Payment(AttemptStatus::CaptureFailed)),
                 )),
                 resource_common_data: PaymentFlowData {
-                    status: map_travelhub_status(result),
+                    status: AttemptStatus::CaptureFailed,
                     ..item.router_data.resource_common_data
                 },
                 ..item.router_data
@@ -871,15 +874,18 @@ impl TryFrom<ResponseRouterData<TravelhubVoidResponse, Self>>
             result,
             TravelhubResult::Declined | TravelhubResult::Error | TravelhubResult::Invalid
         ) {
+            // VoidFailed, not Failure: the cancel was declined, but the payment remains
+            // authorized and capturable. citigate models the same at
+            // citigate/transformers.rs:706.
             return Ok(Self {
                 response: Err(travelhub_error_response(
                     result,
                     item.http_code,
                     item.response.transaction_id.clone(),
-                    Some(FlowStatus::Payment(map_travelhub_status(result))),
+                    Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                 )),
                 resource_common_data: PaymentFlowData {
-                    status: map_travelhub_status(result),
+                    status: AttemptStatus::VoidFailed,
                     ..item.router_data.resource_common_data
                 },
                 ..item.router_data
