@@ -592,9 +592,9 @@ connector_base_url = "https://stage-api.boostconnect.biz/gateway"
 _context_ = { connector = "ilixium" }
 connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
 
-# Global Payments — Heartland (Portico PosGateway). Single SOAP endpoint; the
-# CERT host is used for sandbox/development, the production host is registered
-# under the production overrides section.
+# Global Payments — Heartland (Portico PosGateway). Single SOAP endpoint. This
+# unscoped context is the sandbox/development default and would otherwise match
+# production too, so the live host is pinned in the production overrides section.
 [[overrides]]
 _context_ = { connector = "globalpayments_heartland" }
 connector_base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
@@ -943,6 +943,11 @@ connector_base_url = "https://api-platform-sandbox.flywire.com"
 [[overrides]]
 _context_ = { connector = "boost", environment = "production" }
 connector_base_url = "https://api.boostconnect.biz/gateway"
+
+# Global Payments — Heartland (Portico PosGateway) Production
+[[overrides]]
+_context_ = { connector = "globalpayments_heartland", environment = "production" }
+connector_base_url = "https://api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 
 # GrabPay
 [[overrides]]
