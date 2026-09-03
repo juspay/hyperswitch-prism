@@ -35,6 +35,7 @@ use transformers::{
     NexinetsPreAuthOrDebitResponse, NexinetsRefundRequest, NexinetsRefundResponse,
     NexinetsRefundResponse as RefundSyncResponse, NexinetsRepeatPaymentRequest,
     NexinetsRepeatPaymentResponse, NexinetsSetupMandateRequest, NexinetsSetupMandateResponse,
+    NexinetsTransactionType,
 };
 
 use super::macros;
@@ -367,8 +368,8 @@ macros::macro_connector_implementation!(
             utils::to_connector_meta(req.request.connector_feature_data.clone().map(|secret| secret.expose()))?;
         let order_id = nexinets::get_order_id(&meta)?;
         let transaction_id = match meta.psync_flow {
-            transformers::NexinetsTransactionType::Debit
-            | transformers::NexinetsTransactionType::Capture => {
+            NexinetsTransactionType::Debit
+            | NexinetsTransactionType::Capture => {
                 req.request.get_connector_transaction_id()?
             }
             _ => nexinets::get_transaction_id(&meta)?
@@ -633,6 +634,63 @@ macros::macro_connector_implementation!(
 // ConnectorIntegrationV2 implementations for authentication flows
 
 // SourceVerification implementations for authentication flows
+
+// ── Terminal status mapping for the Authorize flow ────────────────────────────
+//
+// Nexinets uses the same `NexinetsPaymentStatus::Success` for both paths of
+// Authorize, with `NexinetsTransactionType` (returned in the response) telling
+// which path was taken:
+//   Preauth (manual-capture) → Authorized
+//   Debit   (auto-capture)   → Charged
+//
+// `MappingContext::default()` = Preauth, so `assert_terminal_mapping!` tests the
+// manual-capture (Authorized) path.
+
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Nexinets<T>,
+    flow:            Authorize,
+    source:          nexinets::NexinetsPaymentStatus,
+    context:         NexinetsTransactionType,
+
+    params:          [status, ctx],
+
+    success_status:  Success,
+    success_targets: [Authorized, Charged],
+
+    failure_status:  Declined,
+    failure_target:  AuthorizationFailed,
+
+    {
+        use common_enums::AttemptStatus;
+        match (status, ctx) {
+            // Success — transaction type determines the terminal
+            (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (nexinets::NexinetsPaymentStatus::Success, NexinetsTransactionType::Debit) => {
+                AttemptStatus::Charged
+            }
+            // Capture and Cancel are unreachable here — authorize endpoints only return Preauth or Debit.
+            (nexinets::NexinetsPaymentStatus::Success, _) => AttemptStatus::Pending,
+
+            // Failure statuses — all map to AuthorizationFailed in the Authorize flow
+            (nexinets::NexinetsPaymentStatus::Declined, _)
+            | (nexinets::NexinetsPaymentStatus::Failure, _)
+            | (nexinets::NexinetsPaymentStatus::Expired, _)
+            | (nexinets::NexinetsPaymentStatus::Aborted, _) => AttemptStatus::AuthorizationFailed,
+
+            // Ok with Preauth = still authorized; otherwise still processing
+            (nexinets::NexinetsPaymentStatus::Ok, NexinetsTransactionType::Preauth) => {
+                AttemptStatus::Authorized
+            }
+            (nexinets::NexinetsPaymentStatus::Ok, _) => AttemptStatus::Pending,
+
+            (nexinets::NexinetsPaymentStatus::Pending, _) => AttemptStatus::AuthenticationPending,
+            (nexinets::NexinetsPaymentStatus::InProgress, _) => AttemptStatus::Pending,
+        }
+    }
+}
 
 macros::macro_connector_flow_status_impls!(
     connector: Nexinets,
