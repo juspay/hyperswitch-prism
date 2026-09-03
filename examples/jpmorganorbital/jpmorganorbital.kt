@@ -1,40 +1,40 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py grabpay
+// Regenerate: python3 scripts/generate-connector-docs.py jpmorganorbital
 //
-// Grabpay — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="grabpay processCheckoutCard"
+// Jpmorganorbital — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="jpmorganorbital processCheckoutCard"
 
-package examples.grabpay
+package examples.jpmorganorbital
 
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.EventClient
 import payments.AuthenticationType
 import payments.CaptureMethod
+import payments.CardNetwork
 import payments.Currency
-import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 import payments.ConnectorSpecificConfig
-import types.Payment.GrabpayConfig
+import types.Payment.JpmorganOrbitalConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "parse_event")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "proxy_authorize")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setGrabpay(GrabpayConfig.newBuilder()
-                .setPartnerId(SecretString.newBuilder().setValue("YOUR_PARTNER_ID").build())
-                .setPartnerSecret(SecretString.newBuilder().setValue("YOUR_PARTNER_SECRET").build())
-                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
-                .setClientSecret(SecretString.newBuilder().setValue("YOUR_CLIENT_SECRET").build())
+            .setJpmorganOrbital(JpmorganOrbitalConfig.newBuilder()
+                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
                 .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBin("YOUR_BIN")
+                .setTerminalId("YOUR_TERMINAL_ID")
                 .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
                 .build())
             .build()
     )
@@ -65,7 +65,6 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         }
         authType = AuthenticationType.NO_THREE_DS  // Authentication Details.
         returnUrl = "https://example.com/return"  // URLs for Redirection and Webhooks.
-        sessionToken = "probe_session_token"  // Session and Token Information.
     }.build()
 }
 
@@ -135,45 +134,33 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: EventService.HandleEvent
-fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = EventClient(config)
-    val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
-        requestDetailsBuilder.apply {
-            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}")  // Body of the HTTP request.
-        }
-    }.build()
-    val response = client.handle_event(request)
-    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
-}
-
-// Flow: EventService.ParseEvent
-fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = EventClient(config)
-    val request = EventServiceParseRequest.newBuilder().apply {
-        requestDetailsBuilder.apply {
-            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
-            uri = "https://example.com/webhook"  // URI of the request.
-            putAllHeaders(mapOf())  // Headers of the HTTP request.
-            body = com.google.protobuf.ByteString.copyFromUtf8("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}")  // Body of the HTTP request.
-        }
-    }.build()
-    val response = client.parse_event(request)
-    println("Webhook parsed: type=${response.eventType.name}")
-}
-
-// Flow: PaymentService.VerifyRedirectResponse
-fun verifyRedirect(txnId: String, config: ConnectorConfig = _defaultConfig) {
+// Flow: PaymentService.ProxyAuthorize
+fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = PaymentServiceVerifyRedirectResponseRequest.newBuilder().apply {
-
+    val request = PaymentServiceProxyAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_proxy_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+            cardExpMonthBuilder.value = "03"
+            cardExpYearBuilder.value = "2030"
+            cardCvcBuilder.value = "123"
+            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            cardNetwork = CardNetwork.VISA
+        }
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        authType = AuthenticationType.NO_THREE_DS
+        returnUrl = "https://example.com/return"
     }.build()
-    val response = client.verify_redirect_response(request)
-    println("Source verified: ${response.sourceVerified}")
+    val response = client.proxy_authorize(request)
+    println("Status: ${response.status.name}")
 }
 
 
@@ -185,9 +172,7 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "get" -> get(txnId)
-        "handleEvent" -> handleEvent(txnId)
-        "parseEvent" -> parseEvent(txnId)
-        "verifyRedirect" -> verifyRedirect(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processGetPayment, authorize, get, handleEvent, parseEvent, verifyRedirect")
+        "proxyAuthorize" -> proxyAuthorize(txnId)
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processGetPayment, authorize, get, proxyAuthorize")
     }
 }

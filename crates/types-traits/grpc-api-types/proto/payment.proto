@@ -905,7 +905,10 @@ enum Connector {
   ILIXIUM = 138;
   WORLDPAYRAFT = 139;
   SAFERPAY = 140;
-  GLOBALPAYMENTS_REALEX = 141;
+  // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
+  // (= JPMorgan Payments API v2) above.
+  JPMORGAN_ORBITAL = 141;
+  GLOBALPAYMENTS_REALEX = 142;
 }
 
 // Payment method types
@@ -5887,6 +5890,28 @@ message WorldpayraftConfig {
   optional string base_url = 50;
 }
 
+// JP Morgan Orbital (Chase Paymentech Orbital Gateway). NOT JpmorganConfig, which
+// configures the OAuth2-based JPMorgan Payments API v2.
+message JpmorganOrbitalConfig {
+  // Header orbitalConnectionUsername
+  SecretString username = 1;
+  // Header orbitalConnectionPassword
+  SecretString password = 2;
+  // Header merchantID, also echoed in the request body as merchant.merchantID
+  SecretString merchant_id = 3;
+  // Body merchant.bin: "000001" (Stratus, US) or "000002" (Tandem, Canada).
+  // Merchant provisioning fact, not a secret.
+  optional string bin = 4;
+  // Body merchant.terminalID: 3 digits ("001" on Stratus). Not a secret.
+  optional string terminal_id = 5;
+  optional string base_url = 50;
+  // ISO-4217 alphabetic code the MID is provisioned for (e.g. "USD"). Optional:
+  // when absent no currency validation happens. Orbital derives the currency from
+  // the MID setup and has no field to receive it, so a request in another currency
+  // would otherwise be charged at the numeric amount in the MID's currency.
+  optional string merchant_config_currency = 51;
+}
+
 // Saferpay (SIX Payment Services) Transaction interface.
 // api_key    = API username (HTTP Basic username)
 // key1       = API password (HTTP Basic password)
@@ -6228,8 +6253,10 @@ message ConnectorSpecificConfig {
     GotymeSanlamConfig gotyme_sanlam = 150;
     // SAFERPAY = 140
     SaferpayConfig saferpay = 151;
-    // GLOBALPAYMENTS_REALEX = 141
-    GlobalpaymentsRealexConfig globalpayments_realex = 152;
+    // JPMORGAN_ORBITAL = 141
+    JpmorganOrbitalConfig jpmorgan_orbital = 152;
+    // GLOBALPAYMENTS_REALEX = 142
+    GlobalpaymentsRealexConfig globalpayments_realex = 153;
   }
 }
 

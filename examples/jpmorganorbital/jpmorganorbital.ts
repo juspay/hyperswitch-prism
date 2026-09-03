@@ -1,26 +1,27 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py grabpay
+// Regenerate: python3 scripts/generate-connector-docs.py jpmorganorbital
 //
-// Grabpay — all integration scenarios and flows in one file.
-// Run a scenario:  npx tsx grabpay.ts checkout_autocapture
+// Jpmorganorbital — all integration scenarios and flows in one file.
+// Run a scenario:  npx tsx jpmorganorbital.ts checkout_autocapture
 
-import { PaymentClient, EventClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["authorize", "get", "parse_event"];
+import { PaymentClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
+export const SUPPORTED_FLOWS = ["authorize", "get", "proxy_authorize"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
     connectorConfig: {
-        grabpay: {
-            partnerId: { value: 'YOUR_PARTNER_ID' },
-            partnerSecret: { value: 'YOUR_PARTNER_SECRET' },
-            clientId: { value: 'YOUR_CLIENT_ID' },
-            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+        jpmorganOrbital: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
             merchantId: { value: 'YOUR_MERCHANT_ID' },
+            bin: 'YOUR_BIN',
+            terminalId: 'YOUR_TERMINAL_ID',
             baseUrl: 'YOUR_BASE_URL',
+            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
         }
     },
 };
@@ -48,8 +49,7 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
             }
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
-        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
-        "sessionToken": "probe_session_token"  // Session and Token Information.
+        "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
     };
 }
 
@@ -64,33 +64,28 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
     };
 }
 
-function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
-        "requestDetails": {
-            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
-            },
-            "body": new Uint8Array(Buffer.from("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}", "utf-8"))  // Body of the HTTP request.
-        }
-    };
-}
-
-function _buildParseEventRequest(): types.IEventServiceParseRequest {
-    return {
-        "requestDetails": {
-            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
-            "uri": "https://example.com/webhook",  // URI of the request.
-            "headers": {  // Headers of the HTTP request.
-            },
-            "body": new Uint8Array(Buffer.from("{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}", "utf-8"))  // Body of the HTTP request.
-        }
-    };
-}
-
-function _buildVerifyRedirectRequest(): types.IPaymentServiceVerifyRedirectResponseRequest {
-    return {
+        "merchantTransactionId": "probe_proxy_txn_001",
+        "amount": {
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "cardProxy": {  // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+            "cardExpMonth": {"value": "03"},
+            "cardExpYear": {"value": "2030"},
+            "cardCvc": {"value": "123"},
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
+        },
+        "address": {
+            "billingAddress": {
+            }
+        },
+        "captureMethod": CaptureMethod.AUTOMATIC,
+        "authType": AuthenticationType.NO_THREE_DS,
+        "returnUrl": "https://example.com/return"
     };
 }
 
@@ -155,37 +150,19 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
-// Flow: EventService.HandleEvent
-async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const eventClient = new EventClient(config);
-
-    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
-
-    return handleResponse;
-}
-
-// Flow: EventService.ParseEvent
-async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const eventClient = new EventClient(config);
-
-    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
-
-    return parseResponse;
-}
-
-// Flow: PaymentService.VerifyRedirectResponse
-async function verifyRedirect(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+// Flow: PaymentService.ProxyAuthorize
+async function proxyAuthorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
-    const verifyResponse = await paymentClient.verifyRedirectResponse(_buildVerifyRedirectRequest());
+    const proxyResponse = await paymentClient.proxyAuthorize(_buildProxyAuthorizeRequest());
 
-    return verifyResponse;
+    return proxyResponse;
 }
 
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processGetPayment, authorize, get, handleEvent, parseEvent, verifyRedirect, _buildAuthorizeRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildVerifyRedirectRequest
+    processCheckoutAutocapture, processGetPayment, authorize, get, proxyAuthorize, _buildAuthorizeRequest, _buildGetRequest, _buildProxyAuthorizeRequest
 };
 
 // CLI runner

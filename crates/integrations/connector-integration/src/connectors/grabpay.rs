@@ -60,6 +60,8 @@ const CONTENT_TYPE: &str = "application/json";
 const CHARGE_INIT_PATH: &str = "/charge/init";
 const CHARGE_COMPLETE_PATH: &str = "/charge/complete";
 const CHARGE_STATUS_PREFIX: &str = "/charge";
+// Grab's second charge-status inquiry: HMAC partner auth (no OAuth token needed).
+const OTC_CHARGE_STATUS_PREFIX: &str = "/one-time-charge";
 const REFUND_PATH: &str = "/refund";
 const OAUTH_TOKEN_PATH: &str = "/grabid/v1/oauth2/token";
 pub(crate) const GRABPAY_DOC_URL: &str =
@@ -201,28 +203,42 @@ pub(crate) fn oauth_endpoint(base_url: &str, path: &str) -> String {
         .unwrap_or_else(|| format!("{base_url}{path}"))
 }
 
-/// Builds GrabPay's canonical signing string:
-/// `{method}\n{content_type}\n{date}\n{path}\n{base64(sha256(body))}\n`.
-fn grabpay_hmac_signing_string(
+/// The body digest in Grab's HMAC canonical string for OUTBOUND requests,
+/// per the reference SDK: GET requests sign the empty string, all other
+/// methods sign `base64(sha256(body))`.
+/// NOTE: webhook verification must not use this — Grab always includes the
+/// body digest in webhook signatures, so verification of inbound webhooks
+/// needs the hashed body regardless of method.
+fn grabpay_outbound_hmac_body_digest(
     method: &str,
-    content_type: &str,
-    path: &str,
     body: &[u8],
-    date: &str,
 ) -> CustomResult<String, IntegrationError> {
     use common_utils::crypto::GenerateDigest;
 
-    let body_digest = crypto::Sha256.generate_digest(body).change_context(
+    if method.eq_ignore_ascii_case("GET") {
+        return Ok(String::new());
+    }
+
+    let digest = crypto::Sha256.generate_digest(body).change_context(
         IntegrationError::RequestEncodingFailed {
             context: grabpay_integration_context(
                 "GrabPay HMAC signing failed to hash request body",
             ),
         },
     )?;
-    let encoded_body_digest = BASE64_ENGINE.encode(body_digest);
-    Ok(format!(
-        "{method}\n{content_type}\n{date}\n{path}\n{encoded_body_digest}\n"
-    ))
+    Ok(BASE64_ENGINE.encode(digest))
+}
+
+/// Formats the Grab HMAC canonical string:
+/// `{method}\n{content_type}\n{date}\n{path}\n{body_digest}\n`.
+fn grabpay_hmac_signing_string(
+    method: &str,
+    content_type: &str,
+    path: &str,
+    body_digest: &str,
+    date: &str,
+) -> String {
+    format!("{method}\n{content_type}\n{date}\n{path}\n{body_digest}\n")
 }
 
 fn build_hmac_authorization(
@@ -235,7 +251,9 @@ fn build_hmac_authorization(
 ) -> CustomResult<String, IntegrationError> {
     use common_utils::crypto::SignMessage;
 
-    let signing_string = grabpay_hmac_signing_string(method, content_type, path, body, date)?;
+    let body_digest = grabpay_outbound_hmac_body_digest(method, body)?;
+    let signing_string =
+        grabpay_hmac_signing_string(method, content_type, path, &body_digest, date);
     let signature = crypto::HmacSha256
         .sign_message(
             auth.partner_secret.peek().as_bytes(),
@@ -348,6 +366,25 @@ fn session_token_from_connector_feature_data(
         .or_else(|| metadata.get("access_token"))
         .and_then(serde_json::Value::as_str)
         .map(ToOwned::to_owned)
+}
+
+/// Resolves the GrabPay OAuth session/access token for a PSync call, from the
+/// typed state first and `connector_feature_data` second. Empty tokens are
+/// treated as absent (Grab's SDK rejects `len(token) == 0`). `None` means the
+/// caller must fall back to the HMAC-signed `/one-time-charge/{id}/status` API.
+fn psync_access_token(
+    req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+) -> Option<String> {
+    req.resource_common_data
+        .get_access_token()
+        .ok()
+        .filter(|token| !token.is_empty())
+        .or_else(|| {
+            session_token_from_connector_feature_data(
+                req.resource_common_data.connector_feature_data.as_ref(),
+            )
+            .filter(|token| !token.is_empty())
+        })
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -590,14 +627,29 @@ macros::macro_connector_implementation!(
                     ),
                 },
             )?;
-            let access_token = req.resource_common_data.get_access_token().or_else(|err| {
-                session_token_from_connector_feature_data(
-                    req.resource_common_data.connector_feature_data.as_ref(),
-                )
-                .ok_or(err)
-            })?;
 
-            self.build_pop_headers(&auth, &access_token)
+            match psync_access_token(req) {
+                Some(access_token) => self.build_pop_headers(&auth, &access_token),
+                None => {
+                    // Fallback: no OAuth session token is available (e.g. after a
+                    // restart). Grab's `/one-time-charge/{id}/status` inquiry is
+                    // HMAC-signed with the partner credentials instead of the PoP
+                    // token, so it works without one. The path passed to the HMAC
+                    // canonical string must include the query string.
+                    let request_path = url::Url::parse(&self.get_url(req)?)
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: grabpay_integration_context(
+                                "GrabPay PSync failed to parse the one-time-charge status URL for HMAC path",
+                            ),
+                        })
+                        .map(|parsed| match parsed.query() {
+                            Some(query) => format!("{}?{}", parsed.path(), query),
+                            None => parsed.path().to_string(),
+                        })?;
+
+                    self.build_hmac_headers(&auth, "GET", &request_path, &[])
+                }
+            }
         }
 
         fn get_url(
@@ -609,9 +661,15 @@ macros::macro_connector_implementation!(
                 .connector_request_reference_id
                 .clone();
             grabpay::validate_partner_tx_id(&partner_tx_id)?;
+            let path_prefix = if psync_access_token(req).is_some() {
+                CHARGE_STATUS_PREFIX
+            } else {
+                OTC_CHARGE_STATUS_PREFIX
+            };
             Ok(format!(
-                "{}{CHARGE_STATUS_PREFIX}/{}/status?currency={}",
+                "{}{}/{}/status?currency={}",
                 self.connector_base_url_payments(req),
+                path_prefix,
                 partner_tx_id,
                 req.request.currency,
             ))
@@ -783,10 +841,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_feature_data
             .and_then(|data| serde_json::from_str::<serde_json::Value>(data.peek()).ok())
             .map(|feature_data| {
-                feature_data
-                    .get("code")
-                    .and_then(serde_json::Value::as_str)
-                    .is_some()
+                // `code` comes from the browser redirect; `o_auth_code` is recovered
+                // via the HMAC one-time-charge status inquiry (missed redirect).
+                ["code", "o_auth_code"].iter().any(|key| {
+                    feature_data
+                        .get(key)
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(|value| !value.is_empty())
+                })
             })
             .unwrap_or(false)
     }
@@ -838,9 +900,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Ok(signature) => signature,
             Err(_) => return Ok(false),
         };
+        // Verification of an inbound webhook must compute Grab's signature
+        // exactly as Grab constructed it: digest of the raw body — unlike
+        // OUTBOUND GET requests, which Grab signs with an empty digest (see
+        // `grabpay_outbound_hmac_body_digest`).
+        let body_digest = {
+            use common_utils::crypto::GenerateDigest;
+            crypto::Sha256
+                .generate_digest(&request.body)
+                .map(|digest| BASE64_ENGINE.encode(digest))
+                .change_context(WebhookError::WebhookSourceVerificationFailed)?
+        };
         let signing_string =
-            grabpay_hmac_signing_string(&method, content_type, &path, &request.body, date)
-                .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+            grabpay_hmac_signing_string(&method, content_type, &path, &body_digest, date);
 
         crypto::HmacSha256
             .verify_signature(
