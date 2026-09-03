@@ -18,8 +18,8 @@ use domain_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
-        WebhookResourceReference,
+        RefundSyncData, RefundWebhookReference, RefundsData, RefundsResponseData, RequestDetails,
+        ResponseId, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -39,7 +39,7 @@ use transformers::{
     TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraEligibilityRequest,
     TamaraEligibilityResponse, TamaraErrorResponse, TamaraPSyncResponse, TamaraPaymentsRequest,
     TamaraPaymentsResponse, TamaraRSyncResponse, TamaraRefundRequest, TamaraRefundResponse,
-    TamaraVoidRequest, TamaraVoidResponse, TamaraWebhookEventType,
+    TamaraVoidRequest, TamaraVoidResponse, TamaraWebhookEvent, TamaraWebhookEventType,
 };
 
 use super::macros;
@@ -270,12 +270,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        Ok(Some(WebhookResourceReference::Payment(
-            PaymentWebhookReference {
-                connector_transaction_id: Some(event.order_id),
-                merchant_transaction_id: event.order_reference_id,
-            },
-        )))
+        let refund_id = event
+            .data
+            .as_ref()
+            .and_then(|d| d.get("refund_id"))
+            .and_then(|r| r.as_str())
+            .map(|s| s.to_string());
+
+        match event.event_type {
+            TamaraWebhookEvent::OrderRefunded => Ok(Some(WebhookResourceReference::Refund(
+                RefundWebhookReference {
+                    connector_refund_id: refund_id.clone(),
+                    merchant_refund_id: None,
+                    connector_transaction_id: Some(event.order_id),
+                    merchant_transaction_id: refund_id,
+                },
+            ))),
+            _ => Ok(Some(WebhookResourceReference::Payment(
+                PaymentWebhookReference {
+                    connector_transaction_id: Some(event.order_id),
+                    merchant_transaction_id: event.order_reference_id,
+                },
+            ))),
+        }
     }
 
     fn process_payment_webhook(
@@ -328,10 +345,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
+        let refund_id = event
+            .data
+            .as_ref()
+            .and_then(|d| d.get("refund_id"))
+            .and_then(|r| r.as_str())
+            .map(|s| s.to_string());
+
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
-                connector_refund_id: None,
-                merchant_transaction_id: None,
+                connector_refund_id: refund_id,
+                merchant_transaction_id: event.order_reference_id,
                 status: RefundStatus::from(event.event_type),
                 connector_response_reference_id: None,
                 error_code: None,
