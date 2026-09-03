@@ -1173,9 +1173,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// `<CreditReturn />` is empty — success is the gateway code alone.
 pub type GlobalpaymentsHeartlandRefundResponse = GlobalpaymentsHeartlandAckEnvelope;
 
+/// `status` is what the refund should be left as. A genuine rejection passes
+/// `RefundStatus::Failure`; a failed sync QUERY passes the status it started with.
+///
+/// `generate_refund_sync_response` has no 2xx fallback — it reads `attempt_status` and
+/// `unwrap_or_default()`s — so omitting it does not hold the status, it erases it.
 fn refund_error_response(
     header: &GlobalpaymentsHeartlandResponseHeader,
     http_code: u16,
+    status: RefundStatus,
 ) -> ErrorResponse {
     let message = header.error_message();
     ErrorResponse {
@@ -1183,7 +1189,7 @@ fn refund_error_response(
         code: header.error_code(),
         message: message.clone(),
         reason: Some(message),
-        attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
+        attempt_status: Some(FlowStatus::Refund(status)),
         connector_transaction_id: header.gateway_txn_id.clone(),
         network_decline_code: None,
         network_advice_code: None,
@@ -1205,7 +1211,11 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRefundResponse, Self>> fo
 
         if !header.is_gateway_accepted() {
             return Ok(Self {
-                response: Err(refund_error_response(header, item.http_code)),
+                response: Err(refund_error_response(
+                    header,
+                    item.http_code,
+                    RefundStatus::Failure,
+                )),
                 resource_common_data: RefundFlowData {
                     status: RefundStatus::Failure,
                     ..item.router_data.resource_common_data.clone()
@@ -1325,12 +1335,45 @@ fn map_psync_status(body: Option<&GlobalpaymentsHeartlandReportBody>) -> Attempt
     let Some(body) = body else {
         return AttemptStatus::Pending;
     };
-    let txn_status = body
-        .data
-        .as_ref()
-        .and_then(|data| data.txn_status.as_deref());
+    let data = body.data.as_ref();
+    let txn_status = data.and_then(|data| data.txn_status.as_deref());
+    let service_name = body.service_name.as_deref();
 
-    match (body.service_name.as_deref(), txn_status) {
+    // An issuer decline is reported on an auth-bearing transaction with a non-approval
+    // `Data/RspCode`. Without this the report's issuer result is deserialized and never read,
+    // so a declined sale reports Charged and a declined auth sticks in Pending forever.
+    //
+    // Gated on the service name because a successful `CreditReturn` reports an **empty**
+    // `RspCode` — verified live — which must not be read as a decline.
+    if matches!(
+        service_name,
+        Some(SERVICE_NAME_CREDIT_AUTH) | Some(SERVICE_NAME_CREDIT_SALE)
+    ) {
+        if let Some(rsp_code) = data.and_then(|data| data.rsp_code.as_deref()) {
+            if !rsp_code.is_empty()
+                && !matches!(rsp_code, ISSUER_RSP_CODE_APPROVAL | ISSUER_RSP_CODE_CARD_OK)
+            {
+                return AttemptStatus::Failure;
+            }
+        }
+    }
+
+    match (service_name, txn_status) {
+        // KNOWN LIMITATION: Portico reports a captured auth identically to an open one, so
+        // this arm reports `Authorized` for both and a PSync after Capture walks the payment
+        // back from `Charged`.
+        //
+        // This is not an oversight. `ReportTxnDetail` was diffed field by field either side of
+        // a `CreditAddToBatch` (txn 200139928251): `ServiceName`, `TxnStatus`, `Amt`, `AuthAmt`
+        // and `SettlementAmt` are all byte-identical. `SettlementAmt` is populated *before*
+        // capture — it is the amount that would settle, not the amount that has. The only
+        // delta is `ReversalAmtInfo` appearing as `0.00`, a zero-valued reversal field that
+        // says nothing about capture.
+        //
+        // The framework cannot help either: `PaymentFlowData::status` is hard-coded to
+        // `Pending` for every sync and `PaymentServiceGetRequest` carries no prior status, so
+        // there is nothing to compare against. Closing this needs either a Portico batch query
+        // (a second round trip per sync) or an optional prior-status field on the proto.
         (Some(SERVICE_NAME_CREDIT_AUTH), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Authorized,
         (Some(SERVICE_NAME_CREDIT_SALE), Some(TXN_STATUS_ACTIVE)) => AttemptStatus::Charged,
         // A voided auth/sale reports `R` on the ORIGINAL transaction. Without these two arms
@@ -1360,8 +1403,27 @@ fn map_rsync_status(body: Option<&GlobalpaymentsHeartlandReportBody>) -> RefundS
         .as_ref()
         .and_then(|data| data.txn_status.as_deref());
 
+    // A `CreditReturn` that the issuer rejected carries a non-approval `Data/RspCode`. A
+    // SUCCESSFUL return reports an empty `RspCode`, so only a non-empty non-approval value is
+    // a failure — otherwise every good refund would be marked failed.
+    if body.service_name.as_deref() == Some(SERVICE_NAME_CREDIT_RETURN) {
+        if let Some(rsp_code) = body
+            .data
+            .as_ref()
+            .and_then(|data| data.rsp_code.as_deref())
+        {
+            if !rsp_code.is_empty()
+                && !matches!(rsp_code, ISSUER_RSP_CODE_APPROVAL | ISSUER_RSP_CODE_CARD_OK)
+            {
+                return RefundStatus::Failure;
+            }
+        }
+    }
+
     match (body.service_name.as_deref(), txn_status) {
         (Some(SERVICE_NAME_CREDIT_RETURN), Some(TXN_STATUS_ACTIVE)) => RefundStatus::Success,
+        // A reversed return is a refund that did not stand.
+        (Some(SERVICE_NAME_CREDIT_RETURN), Some(TXN_STATUS_REVERSED)) => RefundStatus::Failure,
         _ => RefundStatus::Pending,
     }
 }
@@ -1418,19 +1480,19 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandPSyncResponse, Self>> for
         let header = response.header();
 
         if !header.is_gateway_accepted() {
-            let status = AttemptStatus::Failure;
+            // The gateway rejected the ReportTxnDetail QUERY, not the payment. Hold the status
+            // the sync started with and leave `resource_common_data` untouched — inventing a
+            // terminal status from a failed lookup previously marked a perfectly good
+            // authorization `Failure`.
+            let held_status = item.router_data.resource_common_data.status;
             return Ok(Self {
                 response: Err(payment_error_response(
                     header,
                     header.error_code(),
                     header.error_message(),
                     item.http_code,
-                    status,
+                    held_status,
                 )),
-                resource_common_data: PaymentFlowData {
-                    status,
-                    ..item.router_data.resource_common_data.clone()
-                },
                 ..item.router_data
             });
         }
@@ -1533,12 +1595,13 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandRSyncResponse, Self>> for
         let header = response.header();
 
         if !header.is_gateway_accepted() {
+            // The gateway rejected the ReportTxnDetail QUERY — an unqueryable id, reporting
+            // disabled on the MID, throttling. That says nothing about the refund, so the
+            // status is held and `resource_common_data` is left untouched. Writing `Failure`
+            // here made a failed lookup indistinguishable from an issuer-rejected refund.
+            let held_status = item.router_data.resource_common_data.status;
             return Ok(Self {
-                response: Err(refund_error_response(header, item.http_code)),
-                resource_common_data: RefundFlowData {
-                    status: RefundStatus::Failure,
-                    ..item.router_data.resource_common_data.clone()
-                },
+                response: Err(refund_error_response(header, item.http_code, held_status)),
                 ..item.router_data
             });
         }
