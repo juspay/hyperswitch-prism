@@ -42,10 +42,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::connectors::paynearme::{PaynearmeAmountConvertor, PaynearmeRouterData};
 use crate::types::ResponseRouterData;
-use crate::utils::{
-    get_capture_method_requiring_separate_capture, is_mandate_or_stored_credential_request,
-};
-
 /// Connector id, reused in every `NotSupported` error.
 pub(super) const PAYNEARME: &str = "paynearme";
 
@@ -388,16 +384,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // `mandate_reference: None` — the merchant would believe a credential
         // was stored when none was. Refuse, for the same reason 3DS is refused
         // above rather than silently downgraded.
-        if is_mandate_or_stored_credential_request(request) {
+        if request.is_mandate_payment() {
             return Err(not_supported("Mandates / stored credentials"));
         }
 
         // There is no capture endpoint anywhere in the API (see `Capture` in
         // `paynearme.rs`): card payments are sale / auto-capture only, so any
         // capture method that would need a second call is refused.
-        if let Some(method) = get_capture_method_requiring_separate_capture(request.capture_method)
-        {
-            return Err(not_supported(format!("{method} capture")));
+        // `is_auto_capture()` is false for exactly Manual / ManualMultiple /
+        // Scheduled; `capture_method` is read only to name the offender.
+        if !request.is_auto_capture() {
+            return Err(not_supported(match request.capture_method {
+                Some(method) => format!("{method} capture"),
+                None => "This capture method".to_string(),
+            }));
         }
 
         let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
