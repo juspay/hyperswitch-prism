@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -139,13 +139,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py#L77) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L85) · [Rust](../../examples/grabpay/grabpay.rs#L124)
+**Examples:** [Python](../../examples/grabpay/grabpay.py#L77) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L86) · [Rust](../../examples/grabpay/grabpay.rs#L124)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py#L96) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L101) · [Rust](../../examples/grabpay/grabpay.rs#L140)
+**Examples:** [Python](../../examples/grabpay/grabpay.py#L96) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L102) · [Rust](../../examples/grabpay/grabpay.rs#L140)
 
 ## API Reference
 
@@ -457,7 +457,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L141) · [Kotlin](../../examples/grabpay/grabpay.kt#L119) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L141) · [Kotlin](../../examples/grabpay/grabpay.kt#L120) · [Rust](../../examples/grabpay/grabpay.rs)
 
 #### PaymentService.Get
 
@@ -468,7 +468,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L150) · [Kotlin](../../examples/grabpay/grabpay.kt#L131) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L150) · [Kotlin](../../examples/grabpay/grabpay.kt#L132) · [Rust](../../examples/grabpay/grabpay.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -479,4 +479,4 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L177) · [Kotlin](../../examples/grabpay/grabpay.kt#L170) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L177) · [Kotlin](../../examples/grabpay/grabpay.kt#L171) · [Rust](../../examples/grabpay/grabpay.rs)
