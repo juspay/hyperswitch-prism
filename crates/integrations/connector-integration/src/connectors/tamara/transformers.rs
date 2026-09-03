@@ -13,7 +13,7 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PerPmEligibility,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
@@ -975,10 +975,22 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
         } else {
             EligibilityStatus::Ineligible
         };
+        // PM-agnostic verdict fanned across every requested payment method.
+        let results = item
+            .router_data
+            .request
+            .payment_method_types
+            .iter()
+            .map(|payment_method_type| PerPmEligibility {
+                payment_method_type: *payment_method_type,
+                eligibility,
+                error_info: None,
+                payment_method_details: None,
+            })
+            .collect();
         Ok(Self {
             response: Ok(PaymentMethodEligibilityResponse {
-                eligibility,
-                payment_method_details: None,
+                results,
                 status_code: u32::from(item.http_code),
             }),
             ..item.router_data.clone()

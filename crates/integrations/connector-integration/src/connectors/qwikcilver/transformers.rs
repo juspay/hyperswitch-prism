@@ -9,7 +9,7 @@ use domain_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
         GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
         PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
-        PaymentsResponseData, RechargeRequestData, RechargeResponseData, RefundFlowData,
+        PaymentsResponseData, PerPmEligibility, RechargeRequestData, RechargeResponseData, RefundFlowData,
         RefundsData, RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     },
@@ -1262,9 +1262,20 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                     } else {
                         (common_enums::EligibilityStatus::Unknown, None)
                     };
+                // PM-agnostic verdict + wallet details fanned across every requested PM.
+                let results = data
+                    .request
+                    .payment_method_types
+                    .iter()
+                    .map(|payment_method_type| PerPmEligibility {
+                        payment_method_type: *payment_method_type,
+                        eligibility,
+                        error_info: None,
+                        payment_method_details: payment_method_details.clone(),
+                    })
+                    .collect();
                 Ok(PaymentMethodEligibilityResponse {
-                    eligibility,
-                    payment_method_details,
+                    results,
                     status_code: u32::from(item.http_code),
                 })
             }
