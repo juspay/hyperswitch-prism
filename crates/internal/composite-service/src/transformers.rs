@@ -989,6 +989,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentMethodServiceEligibilityRequest
 {
+    #[allow(deprecated)] // mirrors the deprecated scalar payment_method_type for back-compat
     fn foreign_from(
         (item, access_token_response): (
             &CompositePaymentMethodEligibilityRequest,
@@ -1016,6 +1017,7 @@ impl
             order_details: item.order_details.clone(),
             country: item.country,
             payment_method_type: item.payment_method_type,
+            payment_method_types: item.payment_method_types.clone(),
             description: item.description.clone(),
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),

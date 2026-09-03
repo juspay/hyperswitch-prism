@@ -642,7 +642,7 @@ message CompositePaymentMethodEligibilityRequest {
   optional PaymentAddress address = 3; // Billing and shipping address
   repeated OrderDetailsWithAmount order_details = 4; // Order line items
   optional CountryAlpha2 country = 5; // Market/country the eligibility check is for
-  optional PaymentMethodType payment_method_type = 6; // The specific payment method eligibility is being checked for
+  optional PaymentMethodType payment_method_type = 6 [deprecated = true]; // Deprecated: prefer payment_method_types
   optional string description = 7; // Description for connector-rendered eligibility messaging
   optional SecretString connector_feature_data = 8; // Connector-specific feature data for the transaction
   optional bool test_mode = 9; // Sandbox/test mode flag
@@ -655,6 +655,11 @@ message CompositePaymentMethodEligibilityRequest {
   optional SecretString metadata = 12;
   optional string merchant_access_token_id = 13;
   optional string merchant_request_id = 14; // Per-request idempotency / correlation token forwarded to the bootstrap call
+
+  // The payment methods eligibility is being checked for. Preferred over the
+  // deprecated scalar payment_method_type; lets one gateway be checked for many
+  // payment methods in a single call.
+  repeated PaymentMethodType payment_method_types = 15;
 }
 
 // Response message for composite payment method eligibility flow.

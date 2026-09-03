@@ -6499,7 +6499,11 @@ message PaymentMethodServiceEligibilityRequest {
 
   // The specific payment method (e.g. a BNPL variant) eligibility is being
   // checked for, when the caller wants to scope the check.
-  optional PaymentMethodType payment_method_type = 6;
+  //
+  // Deprecated: prefer `payment_method_types` to check several payment methods
+  // for a gateway in a single call. When only this scalar is set, it is treated
+  // as a one-element `payment_method_types`.
+  optional PaymentMethodType payment_method_type = 6 [deprecated = true];
 
   // Description for connector-rendered eligibility messaging.
   optional string description = 7;
@@ -6521,17 +6525,44 @@ message PaymentMethodServiceEligibilityRequest {
   // State Information (for access token), set by CompositePaymentMethodService.Eligibility
   // after bootstrapping the connector's session token.
   optional ConnectorState state = 12;
+
+  // The payment methods eligibility is being checked for. A gateway that
+  // supports many payment methods can be checked for all of them in a single
+  // call, avoiding one round-trip per payment method. Preferred over the
+  // deprecated scalar `payment_method_type`.
+  repeated PaymentMethodType payment_method_types = 13;
+}
+
+// Per-payment-method eligibility verdict. One of these is returned for each
+// payment method the caller asked about (see `payment_method_types`).
+message PaymentMethodEligibilityResult {
+  // The payment method this verdict is for.
+  PaymentMethodType payment_method_type = 1;
+
+  // Eligibility verdict for this payment method.
+  EligibilityStatus eligibility = 2;
+
+  // Structured error/reason details for this payment method (e.g. why it is
+  // ineligible). Absent when the payment method is eligible.
+  optional ErrorInfo error_info = 3;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 4;
 }
 
 // Response from a pre-checkout eligibility check.
 message PaymentMethodServiceEligibilityResponse {
-  EligibilityStatus eligibility = 1;
+  // Deprecated: use `results`. Mirrors `results[0].eligibility` for callers
+  // that still check a single payment method.
+  EligibilityStatus eligibility = 1 [deprecated = true];
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;
 
-  // Structured error details (only present on failure).
-  optional ErrorInfo error_info = 3;
+  // Deprecated: use `results[i].error_info`. Mirrors `results[0].error_info`.
+  optional ErrorInfo error_info = 3 [deprecated = true];
 
   // Raw request sent to the connector (for debugging).
   optional SecretString raw_connector_request = 4;
@@ -6544,10 +6575,12 @@ message PaymentMethodServiceEligibilityResponse {
   // Response headers from the connector.
   map<string, string> response_headers = 6;
 
-  // Payment method details resolved as part of the eligibility check (e.g.
-  // wallet/gift-card balance and items), when the connector call that
-  // determines eligibility also returns them.
-  optional PaymentMethodDetails payment_method_details = 9;
+  // Deprecated: use `results[i].payment_method_details`. Mirrors
+  // `results[0].payment_method_details`.
+  optional PaymentMethodDetails payment_method_details = 9 [deprecated = true];
+
+  // Per-payment-method eligibility verdicts, one per requested payment method.
+  repeated PaymentMethodEligibilityResult results = 10;
 }
 
 // ============================================================================

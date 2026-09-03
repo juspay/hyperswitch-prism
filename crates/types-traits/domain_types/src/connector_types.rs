@@ -1617,9 +1617,12 @@ pub struct PaymentMethodEligibilityData {
     /// (Billing/shipping address and order line items are carried on the
     /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
     pub country_code: Option<common_enums::CountryAlpha2>,
-    /// The specific payment method (e.g. a BNPL variant) eligibility is being
-    /// checked for, when the caller wants to scope the check.
-    pub payment_method_type: Option<PaymentMethodType>,
+    /// The payment methods eligibility is being checked for. A gateway that
+    /// supports many payment methods can be checked for all of them in one
+    /// call; connectors typically make a single processor call and fan the
+    /// verdict across this list. When the caller only sets the deprecated
+    /// scalar request field, this holds a single element.
+    pub payment_method_types: Vec<PaymentMethodType>,
     /// description/language hint for connector-rendered eligibility messaging.
     pub description: Option<String>,
     /// Connector-specific extras that don't have a first-class field.
@@ -1632,12 +1635,36 @@ pub struct PaymentMethodEligibilityData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
+    /// Per-payment-method eligibility verdicts, one per requested payment
+    /// method. Connectors that make a single PM-agnostic processor call fan the
+    /// same verdict across every requested payment method.
+    pub results: Vec<PerPmEligibility>,
+    pub status_code: u32,
+}
+
+/// Eligibility verdict for a single payment method.
+#[derive(Debug, Clone)]
+pub struct PerPmEligibility {
+    /// The payment method this verdict is for.
+    pub payment_method_type: PaymentMethodType,
+    /// Eligibility verdict for this payment method.
     pub eligibility: common_enums::EligibilityStatus,
+    /// Reason/error details for this payment method (e.g. why it is
+    /// ineligible). `None` when eligible or when the connector gives no reason.
+    pub error_info: Option<EligibilityErrorInfo>,
     /// Payment method details resolved as part of the eligibility check (e.g.
     /// wallet/gift-card balance and items), when the connector call that
     /// determines eligibility also returns them.
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub status_code: u32,
+}
+
+/// Lightweight per-payment-method error/reason, mapped to the proto
+/// `ErrorInfo.connector_details` in the response generator.
+#[derive(Debug, Clone)]
+pub struct EligibilityErrorInfo {
+    pub code: String,
+    pub message: String,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone)]
