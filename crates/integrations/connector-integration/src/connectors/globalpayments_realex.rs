@@ -12,7 +12,6 @@
 //! successful rebate (tech spec §12.6). A `query` on the *original* order id only ever echoes the
 //! authorization leg, which is why PSync cannot see refund state — but the rebate leg can.
 
-pub mod three_ds_two;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -44,18 +43,16 @@ use interfaces::{
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
-use three_ds_two::{
-    Gp3ds2AuthenticationResponse, Gp3ds2AuthenticationsRequest, Gp3ds2ErrorResponse,
-    Gp3ds2PostAuthenticationResponse, Gp3ds2ProtocolVersionsRequest,
-    Gp3ds2ProtocolVersionsResponse,
-};
 use transformers::{
     GlobalpaymentsRealexCaptureRequest, GlobalpaymentsRealexCaptureResponse,
     GlobalpaymentsRealexPSyncRequest, GlobalpaymentsRealexPSyncResponse,
     GlobalpaymentsRealexPaymentsRequest, GlobalpaymentsRealexPaymentsResponse,
     GlobalpaymentsRealexRSyncRequest, GlobalpaymentsRealexRSyncResponse,
     GlobalpaymentsRealexRefundRequest, GlobalpaymentsRealexRefundResponse,
-    GlobalpaymentsRealexVoidRequest, GlobalpaymentsRealexVoidResponse, Gp3ds2Digest,
+    GlobalpaymentsRealexVoidRequest, GlobalpaymentsRealexVoidResponse,
+    Gp3ds2AuthenticationResponse, Gp3ds2AuthenticationsRequest, Gp3ds2Digest, Gp3ds2ErrorResponse,
+    Gp3ds2PostAuthenticationResponse, Gp3ds2ProtocolVersionsRequest,
+    Gp3ds2ProtocolVersionsResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -231,7 +228,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     headers::X_GP_VERSION.to_string(),
-                    three_ds_two::GP_3DS2_VERSION.to_string().into(),
+                    transformers::GP_3DS2_VERSION.to_string().into(),
                 ),
                 (
                     headers::AUTHORIZATION.to_string(),
@@ -354,7 +351,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ///
     /// The `RedirectWithParams` / `RedirectWithoutParams` split is what tells the two browser
     /// returns apart: the ACS's device-profiling return carries our `?gp3ds=method` query marker
-    /// (see [`three_ds_two::METHOD_RETURN_MARKER`]), the post-challenge `cres` return does not.
+    /// (see [`transformers::METHOD_RETURN_MARKER`]), the post-challenge `cres` return does not.
     fn next_authentication_step(
         &self,
         auth_type: common_enums::AuthenticationType,
@@ -650,7 +647,7 @@ macros::macro_connector_implementation!(
 );
 
 // =============================================================================
-// 3DS2 AUTHENTICATION FLOWS (the separate JSON API — see `three_ds_two.rs`)
+// 3DS2 AUTHENTICATION FLOWS (the separate JSON API — see the 3DS2 section of transformers.rs)
 // =============================================================================
 //
 // ┌──────────────────────────────────────────────────────────────────────────────────────────┐
@@ -789,7 +786,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let url = self.build_3ds2_url(
             &self.connector_3ds2_base_url(req)?,
-            three_ds_two::PATH_PROTOCOL_VERSIONS,
+            transformers::PATH_PROTOCOL_VERSIONS,
         );
         let typed =
             events::MaskedSerdeValue::from_masked_optional(&body, "typed_connector_request");
@@ -905,7 +902,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let url = self.build_3ds2_url(
             &self.connector_3ds2_base_url(req)?,
-            three_ds_two::PATH_AUTHENTICATIONS,
+            transformers::PATH_AUTHENTICATIONS,
         );
         let typed =
             events::MaskedSerdeValue::from_masked_optional(&body, "typed_connector_request");
@@ -1010,7 +1007,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // notification URL — hyperswitch builds this leg's request with `authentication_data:
         // None`, so the browser POST is the only place it can be read from.
         let payload = req.request.get_redirect_response_payload()?;
-        let server_trans_id = three_ds_two::read_challenge_return(payload.peek())?;
+        let server_trans_id = transformers::read_challenge_return(payload.peek())?;
 
         let securehash = transformers::build_3ds2_securehash(
             Gp3ds2Digest::ObtainAuthenticationData {
@@ -1026,7 +1023,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let url = format!(
             "{}/{}?merchant_id={}&request_timestamp={}",
             self.connector_3ds2_base_url(req)?.trim_end_matches('/'),
-            format_args!("{}/{server_trans_id}", three_ds_two::PATH_AUTHENTICATIONS),
+            format_args!("{}/{server_trans_id}", transformers::PATH_AUTHENTICATIONS),
             auth.merchant_id.peek(),
             request_timestamp,
         );
