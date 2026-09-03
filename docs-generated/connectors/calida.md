@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py calida
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_SHOP_NAME`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -130,4 +130,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/calida/calida.py) · [TypeScript](../../examples/calida/calida.ts#L65) · [Kotlin](../../examples/calida/calida.kt#L53) · [Rust](../../examples/calida/calida.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/calida/calida.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/calida/calida.ts#L65) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/calida/calida.kt#L53) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/calida/calida.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py getnet
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SECRET`, `YOUR_SELLER_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -137,7 +137,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L124) · [Kotlin](../../examples/getnet/getnet.kt#L117) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts#L124) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L117) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)
 
 #### PaymentService.Get
 
@@ -148,7 +148,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L142) · [Kotlin](../../examples/getnet/getnet.kt#L137) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts#L142) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)
 
 #### PaymentService.Refund
 
@@ -159,7 +159,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L151) · [Kotlin](../../examples/getnet/getnet.kt#L145) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts#L151) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L145) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)
 
 #### PaymentService.Void
 
@@ -170,7 +170,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts) · [Kotlin](../../examples/getnet/getnet.kt#L174) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L174) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)
 
 ### Refunds
 
@@ -183,7 +183,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L160) · [Kotlin](../../examples/getnet/getnet.kt#L155) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts#L160) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L155) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)
 
 ### Authentication
 
@@ -196,4 +196,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/getnet/getnet.py) · [TypeScript](../../examples/getnet/getnet.ts#L133) · [Kotlin](../../examples/getnet/getnet.kt#L127) · [Rust](../../examples/getnet/getnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.ts#L133) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.kt#L127) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/getnet/getnet.rs)

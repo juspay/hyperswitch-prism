@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py wellsfargo
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ACCOUNT`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L194) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L123) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L249)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py#L194) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L208) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L123) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs#L249)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L213) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L139) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L265)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py#L213) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L227) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs#L265)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L238) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L161) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L288)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py#L238) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L253) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L161) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs#L288)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L263) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L183) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L311)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py#L263) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L279) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L183) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs#L311)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py#L285) · [JavaScript](../../examples/wellsfargo/wellsfargo.js) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L202) · [Rust](../../examples/wellsfargo/wellsfargo.rs#L330)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py#L285) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L301) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L202) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs#L330)
 
 ## API Reference
 
@@ -311,7 +311,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L322) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L220) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L322) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L220) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.Capture
 
@@ -322,7 +322,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L331) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L232) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L331) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L232) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.Get
 
@@ -333,7 +333,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L340) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L242) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L340) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -344,7 +344,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L349) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L250) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L349) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L250) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -355,7 +355,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L358) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L282) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L358) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L282) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.Refund
 
@@ -366,7 +366,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L367) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L317) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L367) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L317) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -377,7 +377,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L385) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L339) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L385) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L339) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 #### PaymentService.Void
 
@@ -388,7 +388,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L381) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L381) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)
 
 ### Refunds
 
@@ -401,4 +401,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/wellsfargo/wellsfargo.py) · [TypeScript](../../examples/wellsfargo/wellsfargo.ts#L376) · [Kotlin](../../examples/wellsfargo/wellsfargo.kt#L327) · [Rust](../../examples/wellsfargo/wellsfargo.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.ts#L376) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.kt#L327) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/wellsfargo/wellsfargo.rs)

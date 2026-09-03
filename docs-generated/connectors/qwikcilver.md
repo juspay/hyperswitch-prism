@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py qwikcilver
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_BOOTSTRAP_BEARER_TOKEN`, `YOUR_TERMINAL_ID`, `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -136,4 +136,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/qwikcilver/qwikcilver.py) · [TypeScript](../../examples/qwikcilver/qwikcilver.ts#L36) · [Kotlin](../../examples/qwikcilver/qwikcilver.kt#L40) · [Rust](../../examples/qwikcilver/qwikcilver.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/qwikcilver/qwikcilver.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/qwikcilver/qwikcilver.ts#L36) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/qwikcilver/qwikcilver.kt#L40) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/qwikcilver/qwikcilver.rs)

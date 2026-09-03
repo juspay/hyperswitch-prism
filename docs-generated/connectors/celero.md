@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py celero
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/celero/celero.py#L120) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L112) · [Rust](../../examples/celero/celero.rs#L156)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py#L120) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L130) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L112) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs#L156)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/celero/celero.py#L139) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L128) · [Rust](../../examples/celero/celero.rs#L172)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py#L139) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L149) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L128) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs#L172)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/celero/celero.py#L164) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L150) · [Rust](../../examples/celero/celero.rs#L195)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py#L164) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L175) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L150) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs#L195)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/celero/celero.py#L189) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L172) · [Rust](../../examples/celero/celero.rs#L218)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py#L189) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L201) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L172) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs#L218)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/celero/celero.py#L211) · [JavaScript](../../examples/celero/celero.js) · [Kotlin](../../examples/celero/celero.kt#L191) · [Rust](../../examples/celero/celero.rs#L237)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py#L211) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L223) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L191) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs#L237)
 
 ## API Reference
 
@@ -301,7 +301,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L244) · [Kotlin](../../examples/celero/celero.kt#L209) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L244) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L209) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 #### PaymentService.Capture
 
@@ -312,7 +312,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L253) · [Kotlin](../../examples/celero/celero.kt#L221) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L253) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L221) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 #### PaymentService.Get
 
@@ -323,7 +323,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L262) · [Kotlin](../../examples/celero/celero.kt#L231) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L262) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L231) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -334,7 +334,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L271) · [Kotlin](../../examples/celero/celero.kt#L239) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L271) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L239) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 #### PaymentService.Refund
 
@@ -345,7 +345,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L280) · [Kotlin](../../examples/celero/celero.kt#L268) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L280) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L268) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 #### PaymentService.Void
 
@@ -356,7 +356,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts) · [Kotlin](../../examples/celero/celero.kt#L290) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)
 
 ### Refunds
 
@@ -369,4 +369,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/celero/celero.py) · [TypeScript](../../examples/celero/celero.ts#L289) · [Kotlin](../../examples/celero/celero.kt#L278) · [Rust](../../examples/celero/celero.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.ts#L289) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.kt#L278) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/celero/celero.rs)

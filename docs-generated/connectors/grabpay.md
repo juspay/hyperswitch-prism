@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py grabpay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_PARTNER_ID`, `YOUR_PARTNER_SECRET`, `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -139,13 +139,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py#L77) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L86) · [Rust](../../examples/grabpay/grabpay.rs#L124)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.py#L77) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.ts#L101) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.kt#L86) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.rs#L124)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py#L96) · [JavaScript](../../examples/grabpay/grabpay.js) · [Kotlin](../../examples/grabpay/grabpay.kt#L102) · [Rust](../../examples/grabpay/grabpay.rs#L140)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.py#L96) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.ts#L120) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.kt#L102) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.rs#L140)
 
 ## API Reference
 
@@ -457,7 +457,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L141) · [Kotlin](../../examples/grabpay/grabpay.kt#L120) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.ts#L141) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.kt#L120) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.rs)
 
 #### PaymentService.Get
 
@@ -468,7 +468,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L150) · [Kotlin](../../examples/grabpay/grabpay.kt#L132) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.ts#L150) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.kt#L132) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -479,4 +479,4 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/grabpay/grabpay.py) · [TypeScript](../../examples/grabpay/grabpay.ts#L177) · [Kotlin](../../examples/grabpay/grabpay.kt#L171) · [Rust](../../examples/grabpay/grabpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.ts#L177) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.kt#L171) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/grabpay/grabpay.rs)

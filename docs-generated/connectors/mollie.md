@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py mollie
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_PROFILE_TOKEN`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -131,25 +131,25 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L142) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L105) · [Rust](../../examples/mollie/mollie.rs#L177)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py#L142) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L153) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L105) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs#L177)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L161) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L121) · [Rust](../../examples/mollie/mollie.rs#L193)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py#L161) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L172) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L121) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs#L193)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L186) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L143) · [Rust](../../examples/mollie/mollie.rs#L216)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py#L186) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L198) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L143) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs#L216)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/mollie/mollie.py#L208) · [JavaScript](../../examples/mollie/mollie.js) · [Kotlin](../../examples/mollie/mollie.kt#L162) · [Rust](../../examples/mollie/mollie.rs#L235)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py#L208) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L220) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L162) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs#L235)
 
 ## API Reference
 
@@ -304,7 +304,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L241) · [Kotlin](../../examples/mollie/mollie.kt#L180) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L241) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L180) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 #### PaymentService.Get
 
@@ -315,7 +315,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L259) · [Kotlin](../../examples/mollie/mollie.kt#L208) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L259) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L208) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -326,7 +326,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L268) · [Kotlin](../../examples/mollie/mollie.kt#L216) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L268) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L216) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 #### PaymentService.Refund
 
@@ -337,7 +337,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L277) · [Kotlin](../../examples/mollie/mollie.kt#L246) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L277) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L246) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -348,7 +348,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L295) · [Kotlin](../../examples/mollie/mollie.kt#L268) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L295) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L268) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 #### PaymentService.Void
 
@@ -359,7 +359,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts) · [Kotlin](../../examples/mollie/mollie.kt#L290) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 ### Refunds
 
@@ -372,7 +372,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L286) · [Kotlin](../../examples/mollie/mollie.kt#L256) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L286) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L256) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)
 
 ### Authentication
 
@@ -385,4 +385,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/mollie/mollie.py) · [TypeScript](../../examples/mollie/mollie.ts#L250) · [Kotlin](../../examples/mollie/mollie.kt#L192) · [Rust](../../examples/mollie/mollie.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.ts#L250) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.kt#L192) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mollie/mollie.rs)

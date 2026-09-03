@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py glomopay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -123,19 +123,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py#L124) · [JavaScript](../../examples/glomopay/glomopay.js) · [Kotlin](../../examples/glomopay/glomopay.kt#L98) · [Rust](../../examples/glomopay/glomopay.rs#L173)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py#L124) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L146) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L98) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs#L173)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py#L143) · [JavaScript](../../examples/glomopay/glomopay.js) · [Kotlin](../../examples/glomopay/glomopay.kt#L114) · [Rust](../../examples/glomopay/glomopay.rs#L189)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py#L143) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L165) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L114) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs#L189)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py#L168) · [JavaScript](../../examples/glomopay/glomopay.js) · [Kotlin](../../examples/glomopay/glomopay.kt#L136) · [Rust](../../examples/glomopay/glomopay.rs#L212)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py#L168) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L191) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs#L212)
 
 ## API Reference
 
@@ -282,7 +282,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L212) · [Kotlin](../../examples/glomopay/glomopay.kt#L154) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L212) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L154) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)
 
 #### PaymentService.Get
 
@@ -293,7 +293,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L230) · [Kotlin](../../examples/glomopay/glomopay.kt#L177) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L177) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -304,7 +304,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L257) · [Kotlin](../../examples/glomopay/glomopay.kt#L216) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L257) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L216) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)
 
 #### PaymentService.Refund
 
@@ -315,7 +315,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L266) · [Kotlin](../../examples/glomopay/glomopay.kt#L246) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L266) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L246) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)
 
 ### Refunds
 
@@ -328,7 +328,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L275) · [Kotlin](../../examples/glomopay/glomopay.kt#L256) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L275) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L256) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)
 
 ### Customers
 
@@ -341,4 +341,4 @@ Retrieves customer details from the payment processor. Callers typically use thi
 | **Request** | `CustomerServiceGetRequest` |
 | **Response** | `CustomerServiceGetResponse` |
 
-**Examples:** [Python](../../examples/glomopay/glomopay.py) · [TypeScript](../../examples/glomopay/glomopay.ts#L221) · [Kotlin](../../examples/glomopay/glomopay.kt#L166) · [Rust](../../examples/glomopay/glomopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.ts#L221) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.kt#L166) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/glomopay/glomopay.rs)

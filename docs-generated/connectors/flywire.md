@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py flywire
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_SHARED_SECRET`, `YOUR_RECIPIENT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -131,19 +131,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L135) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L99) · [Rust](../../examples/flywire/flywire.rs#L196)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py#L135) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L164) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L99) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs#L196)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L154) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L115) · [Rust](../../examples/flywire/flywire.rs#L212)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py#L154) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L183) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs#L212)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L179) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L137) · [Rust](../../examples/flywire/flywire.rs#L235)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py#L179) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L209) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs#L235)
 
 ## API Reference
 
@@ -459,7 +459,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L230) · [Kotlin](../../examples/flywire/flywire.kt#L155) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L155) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 #### PaymentService.Get
 
@@ -470,7 +470,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L239) · [Kotlin](../../examples/flywire/flywire.kt#L167) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L239) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L167) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -481,7 +481,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L266) · [Kotlin](../../examples/flywire/flywire.kt#L206) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L266) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L206) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 #### PaymentService.Refund
 
@@ -492,7 +492,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L275) · [Kotlin](../../examples/flywire/flywire.kt#L236) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L275) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L236) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -503,7 +503,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L293) · [Kotlin](../../examples/flywire/flywire.kt#L258) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L293) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L258) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -514,7 +514,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L302) · [Kotlin](../../examples/flywire/flywire.kt#L280) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L302) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L280) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)
 
 ### Refunds
 
@@ -527,4 +527,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L284) · [Kotlin](../../examples/flywire/flywire.kt#L246) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.kt#L246) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/flywire/flywire.rs)

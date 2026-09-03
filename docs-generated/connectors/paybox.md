@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py paybox
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_SITE`, `YOUR_RANK`, `YOUR_KEY`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L183) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L121) · [Rust](../../examples/paybox/paybox.rs#L234)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py#L183) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L197) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L121) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs#L234)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L202) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L137) · [Rust](../../examples/paybox/paybox.rs#L250)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py#L202) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L216) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs#L250)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L227) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L159) · [Rust](../../examples/paybox/paybox.rs#L273)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py#L227) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L242) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L159) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs#L273)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L252) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L181) · [Rust](../../examples/paybox/paybox.rs#L296)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py#L252) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L268) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L181) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs#L296)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/paybox/paybox.py#L274) · [JavaScript](../../examples/paybox/paybox.js) · [Kotlin](../../examples/paybox/paybox.kt#L200) · [Rust](../../examples/paybox/paybox.rs#L315)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py#L274) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L290) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L200) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs#L315)
 
 ## API Reference
 
@@ -315,7 +315,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L311) · [Kotlin](../../examples/paybox/paybox.kt#L218) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L311) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L218) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.Capture
 
@@ -326,7 +326,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L320) · [Kotlin](../../examples/paybox/paybox.kt#L230) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L320) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L230) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.Get
 
@@ -337,7 +337,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L329) · [Kotlin](../../examples/paybox/paybox.kt#L240) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L329) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L240) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -348,7 +348,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L338) · [Kotlin](../../examples/paybox/paybox.kt#L248) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L338) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L248) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -359,7 +359,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L347) · [Kotlin](../../examples/paybox/paybox.kt#L277) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L347) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L277) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.Refund
 
@@ -370,7 +370,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L356) · [Kotlin](../../examples/paybox/paybox.kt#L309) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L356) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L309) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -381,7 +381,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L374) · [Kotlin](../../examples/paybox/paybox.kt#L331) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L374) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L331) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 #### PaymentService.Void
 
@@ -392,7 +392,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts) · [Kotlin](../../examples/paybox/paybox.kt#L370) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L370) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)
 
 ### Refunds
 
@@ -405,4 +405,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paybox/paybox.py) · [TypeScript](../../examples/paybox/paybox.ts#L365) · [Kotlin](../../examples/paybox/paybox.kt#L319) · [Rust](../../examples/paybox/paybox.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.ts#L365) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paybox/paybox.rs)

@@ -1115,25 +1115,8 @@ def generate_connector_doc(
                 )
             )
             if has_payload:
-                base_py = f"../../examples/{connector_name}/{connector_name}.py"
-                base_ts = f"../../examples/{connector_name}/{connector_name}.ts"
-                base_kt = f"../../examples/{connector_name}/{connector_name}.kt"
-                base_rs = f"../../examples/{connector_name}/{connector_name}.rs"
-                
-                # Get line numbers from flow_line_numbers
                 flow_lines = flow_line_numbers.get(f, {}) if flow_line_numbers else {}
-                ln_py = flow_lines.get("python", 0)
-                ln_ts = flow_lines.get("typescript", 0)
-                ln_kt = flow_lines.get("kotlin", 0)
-                ln_rs = flow_lines.get("rust", 0)
-                
-                # Build links with line numbers when available
-                py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
-                ts_link = f"{base_ts}#L{ln_ts}" if ln_ts else base_ts
-                kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
-                rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
-                
-                a(f"**Examples:** [Python]({py_link}) · [TypeScript]({ts_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
+                a(snippets.render_example_links(connector_name, flow_lines))
                 a("")
 
     return "\n".join(out)
@@ -1431,8 +1414,8 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
         # Supplement py/js line numbers from existing files when generate_scenario_files
         # returned early (e.g. scenario_groups missing from manifest).
         flow_items = _collect_flow_items(probe_connector, exclude_keys=set())
-        for sdk, ext in [("python", "py"), ("javascript", "js")]:
-            existing = EXAMPLES_DIR / name / sdk / f"{name}.{ext}"
+        for sdk, ext in [("python", "py"), ("typescript", "ts")]:
+            existing = EXAMPLES_DIR / name / f"{name}.{ext}"
             if existing.exists():
                 content = existing.read_text(encoding="utf-8")
                 for flow_key, _, _ in flow_items:

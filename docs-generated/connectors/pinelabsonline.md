@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py pinelabsonline
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -128,4 +128,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L34) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L38) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/pinelabsonline/pinelabsonline.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/pinelabsonline/pinelabsonline.ts#L34) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/pinelabsonline/pinelabsonline.kt#L38) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/pinelabsonline/pinelabsonline.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py mifinity
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_KEY`, `YOUR_BASE_URL`, `YOUR_BRAND_ID`, `YOUR_DESTINATION_ACCOUNT_NUMBER` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -238,7 +238,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | ⚠ |
 | Pay Easy | ⚠ |
 
-**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts) · [Kotlin](../../examples/mifinity/mifinity.kt) · [Rust](../../examples/mifinity/mifinity.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.rs)
 
 #### PaymentService.Get
 
@@ -249,4 +249,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/mifinity/mifinity.py) · [TypeScript](../../examples/mifinity/mifinity.ts#L41) · [Kotlin](../../examples/mifinity/mifinity.kt#L52) · [Rust](../../examples/mifinity/mifinity.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.ts#L41) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.kt#L52) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/mifinity/mifinity.rs)

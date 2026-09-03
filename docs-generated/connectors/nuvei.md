@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py nuvei
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_MERCHANT_SITE_ID`, `YOUR_MERCHANT_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py#L153) · [JavaScript](../../examples/nuvei/nuvei.js) · [Kotlin](../../examples/nuvei/nuvei.kt#L137) · [Rust](../../examples/nuvei/nuvei.rs#L178)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py#L153) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L162) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs#L178)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py#L172) · [JavaScript](../../examples/nuvei/nuvei.js) · [Kotlin](../../examples/nuvei/nuvei.kt#L153) · [Rust](../../examples/nuvei/nuvei.rs#L194)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py#L172) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L181) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs#L194)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py#L197) · [JavaScript](../../examples/nuvei/nuvei.js) · [Kotlin](../../examples/nuvei/nuvei.kt#L175) · [Rust](../../examples/nuvei/nuvei.rs#L217)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py#L197) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L207) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L175) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs#L217)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py#L222) · [JavaScript](../../examples/nuvei/nuvei.js) · [Kotlin](../../examples/nuvei/nuvei.kt#L197) · [Rust](../../examples/nuvei/nuvei.rs#L240)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py#L222) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L233) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L197) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs#L240)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py#L244) · [JavaScript](../../examples/nuvei/nuvei.js) · [Kotlin](../../examples/nuvei/nuvei.kt#L216) · [Rust](../../examples/nuvei/nuvei.rs#L259)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py#L244) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L255) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L216) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs#L259)
 
 ## API Reference
 
@@ -331,7 +331,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L276) · [Kotlin](../../examples/nuvei/nuvei.kt#L234) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L276) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### PaymentService.Capture
 
@@ -342,7 +342,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L285) · [Kotlin](../../examples/nuvei/nuvei.kt#L246) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L285) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L246) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### PaymentService.CreateOrder
 
@@ -353,7 +353,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L303) · [Kotlin](../../examples/nuvei/nuvei.kt#L272) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L303) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L272) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### PaymentService.Get
 
@@ -364,7 +364,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L321) · [Kotlin](../../examples/nuvei/nuvei.kt#L301) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L321) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L301) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### PaymentService.Refund
 
@@ -375,7 +375,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L330) · [Kotlin](../../examples/nuvei/nuvei.kt#L309) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L330) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L309) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### PaymentService.Void
 
@@ -386,7 +386,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts) · [Kotlin](../../examples/nuvei/nuvei.kt#L331) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L331) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 ### Refunds
 
@@ -399,7 +399,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L339) · [Kotlin](../../examples/nuvei/nuvei.kt#L319) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L339) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 ### Authentication
 
@@ -412,7 +412,7 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L294) · [Kotlin](../../examples/nuvei/nuvei.kt#L256) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L294) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L256) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)
 
 #### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 
@@ -423,4 +423,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/nuvei/nuvei.py) · [TypeScript](../../examples/nuvei/nuvei.ts#L312) · [Kotlin](../../examples/nuvei/nuvei.kt#L286) · [Rust](../../examples/nuvei/nuvei.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.ts#L312) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.kt#L286) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nuvei/nuvei.rs)

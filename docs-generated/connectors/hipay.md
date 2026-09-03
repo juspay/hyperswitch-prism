@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py hipay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SECRET`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL`, `YOUR_THIRD_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L138) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L115) · [Rust](../../examples/hipay/hipay.rs#L179)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py#L138) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L150) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs#L179)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L157) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L131) · [Rust](../../examples/hipay/hipay.rs#L195)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py#L157) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L169) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs#L195)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L182) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L153) · [Rust](../../examples/hipay/hipay.rs#L218)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py#L182) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L195) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs#L218)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L207) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L175) · [Rust](../../examples/hipay/hipay.rs#L241)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py#L207) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L221) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L175) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs#L241)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/hipay/hipay.py#L229) · [JavaScript](../../examples/hipay/hipay.js) · [Kotlin](../../examples/hipay/hipay.kt#L194) · [Rust](../../examples/hipay/hipay.rs#L260)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py#L229) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L243) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L194) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs#L260)
 
 ## API Reference
 
@@ -314,7 +314,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L264) · [Kotlin](../../examples/hipay/hipay.kt#L212) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L264) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.Capture
 
@@ -325,7 +325,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L273) · [Kotlin](../../examples/hipay/hipay.kt#L224) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L273) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L224) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.Get
 
@@ -336,7 +336,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L282) · [Kotlin](../../examples/hipay/hipay.kt#L234) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L282) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -347,7 +347,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L291) · [Kotlin](../../examples/hipay/hipay.kt#L242) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L291) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.Refund
 
@@ -358,7 +358,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L300) · [Kotlin](../../examples/hipay/hipay.kt#L271) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L300) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L271) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -369,7 +369,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L318) · [Kotlin](../../examples/hipay/hipay.kt#L293) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L318) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L293) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 #### PaymentService.Void
 
@@ -380,7 +380,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts) · [Kotlin](../../examples/hipay/hipay.kt#L314) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L314) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)
 
 ### Refunds
 
@@ -393,4 +393,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/hipay/hipay.py) · [TypeScript](../../examples/hipay/hipay.ts#L309) · [Kotlin](../../examples/hipay/hipay.kt#L281) · [Rust](../../examples/hipay/hipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.ts#L309) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.kt#L281) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hipay/hipay.rs)

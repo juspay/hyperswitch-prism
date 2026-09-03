@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py volt
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -248,7 +248,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | x |
 | Pay Easy | x |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts) · [Kotlin](../../examples/volt/volt.kt) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.rs)
 
 #### PaymentService.Get
 
@@ -259,7 +259,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L84) · [Kotlin](../../examples/volt/volt.kt#L92) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.ts#L84) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.kt#L92) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.rs)
 
 #### PaymentService.Refund
 
@@ -270,7 +270,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L93) · [Kotlin](../../examples/volt/volt.kt#L100) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.ts#L93) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.kt#L100) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.rs)
 
 ### Authentication
 
@@ -283,4 +283,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L75) · [Kotlin](../../examples/volt/volt.kt#L82) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.ts#L75) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.kt#L82) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/volt/volt.rs)

@@ -2476,7 +2476,82 @@ if (require.main === module) {{
 """
 
 
+# ── Public API: Example links ──────────────────────────────────────────────────
+
+# Example files live in this repo under examples/, but the docs sync
+# (.github/workflows/docs-sync.yml) copies only docs/ and docs-generated/ into
+# hyperswitch-docs. Repo-relative links therefore resolve here but 404 on the
+# published site, so link to the canonical source on GitHub — that works from both.
+EXAMPLES_URL_BASE = "https://github.com/juspay/hyperswitch-prism/blob/main/examples"
+
+# (markdown label, line-number key, file extension) per generated example file.
+# Extensions must match generate_scenario_files() in scripts/generators/docs/generate.py.
+_EXAMPLE_LANGS = (
+    ("Python",     "python",     "py"),
+    ("TypeScript", "typescript", "ts"),
+    ("Kotlin",     "kotlin",     "kt"),
+    ("Rust",       "rust",       "rs"),
+)
+
+# Some callers still key the TypeScript example's line numbers as "javascript".
+_LINE_NUMBER_ALIASES = {"typescript": ("typescript", "javascript")}
+
+
+def render_example_links(
+    connector_name: str,
+    line_numbers: dict[str, int] | None = None,
+) -> str:
+    """Return the '**Examples:** ...' markdown line for one flow or scenario."""
+    line_numbers = line_numbers or {}
+    parts = []
+    for label, key, ext in _EXAMPLE_LANGS:
+        url = f"{EXAMPLES_URL_BASE}/{connector_name}/{connector_name}.{ext}"
+        lineno = next(
+            (
+                line_numbers[k]
+                for k in _LINE_NUMBER_ALIASES.get(key, (key,))
+                if line_numbers.get(k)
+            ),
+            0,
+        )
+        if lineno:
+            url = f"{url}#L{lineno}"
+        parts.append(f"[{label}]({url})")
+    return "**Examples:** " + " · ".join(parts)
+
+
 # ── Public API: Config section ─────────────────────────────────────────────────
+
+def _config_intro(connector_name: str) -> str:
+    """Intro sentence naming the placeholders this connector's snippets actually emit."""
+    placeholders = _config_placeholders(connector_name)
+    if not placeholders:
+        return (
+            "Use this config for all flows in this connector. "
+            "Replace the placeholder values with your actual credentials."
+        )
+    quoted = ", ".join(f"`{name}`" for name in placeholders)
+    noun = "placeholder" if len(placeholders) == 1 else "placeholders"
+    return (
+        f"Use this config for all flows in this connector. "
+        f"Replace the {noun} {quoted} with your actual values."
+    )
+
+
+def _config_placeholders(connector_name: str) -> list[str]:
+    """Return the YOUR_* placeholders the config snippets emit, in field order.
+
+    Mirrors the field handling in _generate_connector_config_python/_javascript/
+    _kotlin: string and SecretString fields become YOUR_<FIELD>, bool fields do not.
+    """
+    config_name = f"{_conn_display(connector_name)}Config"
+    fields = _PROTO_FIELD_TYPES.get(config_name, {})
+    return [
+        f"YOUR_{field_name.upper()}"
+        for field_name, field_type in fields.items()
+        if field_type in ("SecretString", "string")
+    ]
+
 
 def render_config_section(connector_name: str) -> list[str]:
     """
@@ -2497,8 +2572,7 @@ def render_config_section(connector_name: str) -> list[str]:
     return [
         "## SDK Configuration",
         "",
-        "Use this config for all flows in this connector. "
-        "Replace `YOUR_API_KEY` with your actual credentials.",
+        _config_intro(connector_name),
         "",
         "<table>",
         header_row,
@@ -2547,26 +2621,7 @@ def render_scenario_section(
         a("")
 
     # Link to example files with line numbers if available
-    scenario_key = scenario.key
-    camel_scenario = "".join(w.capitalize() for w in scenario_key.split("_"))
-    base_py = f"../../examples/{connector_name}/{connector_name}.py"
-    base_js = f"../../examples/{connector_name}/{connector_name}.js"
-    base_kt = f"../../examples/{connector_name}/{connector_name}.kt"
-    base_rs = f"../../examples/{connector_name}/{connector_name}.rs"
-    
-    # Get line numbers from the generated files
-    ln_py = line_numbers.get("python", 0) if line_numbers else 0
-    ln_js = line_numbers.get("javascript", 0) if line_numbers else 0
-    ln_kt = line_numbers.get("kotlin", 0) if line_numbers else 0
-    ln_rs = line_numbers.get("rust", 0) if line_numbers else 0
-    
-    # Build links with line numbers when available
-    py_link = f"{base_py}#L{ln_py}" if ln_py else base_py
-    js_link = f"{base_js}#L{ln_js}" if ln_js else base_js
-    kt_link = f"{base_kt}#L{ln_kt}" if ln_kt else base_kt
-    rs_link = f"{base_rs}#L{ln_rs}" if ln_rs else base_rs
-    
-    a(f"**Examples:** [Python]({py_link}) · [JavaScript]({js_link}) · [Kotlin]({kt_link}) · [Rust]({rs_link})")
+    a(render_example_links(connector_name, line_numbers))
     a("")
 
     return out

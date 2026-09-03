@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py boost
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_ID`, `YOUR_MERCHANT_SECRET`, `YOUR_PUBLIC_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -135,7 +135,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L74) · [Kotlin](../../examples/boost/boost.kt#L55) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.ts#L74) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.kt#L55) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.rs)
 
 ### Refunds
 
@@ -148,4 +148,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L101) · [Kotlin](../../examples/boost/boost.kt#L94) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.ts#L101) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.kt#L94) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/boost/boost.rs)

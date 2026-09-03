@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py loonio
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_MERCHANT_TOKEN`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -234,7 +234,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | ⚠ |
 | Pay Easy | ⚠ |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.rs)
 
 #### PaymentService.Get
 
@@ -245,4 +245,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L51) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.ts#L40) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.kt#L51) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.rs)

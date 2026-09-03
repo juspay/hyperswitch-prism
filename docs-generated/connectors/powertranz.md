@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py powertranz
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_POWER_TRANZ_ID`, `YOUR_POWER_TRANZ_PASSWORD`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L177) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L115) · [Rust](../../examples/powertranz/powertranz.rs#L228)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py#L177) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L191) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs#L228)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L196) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L131) · [Rust](../../examples/powertranz/powertranz.rs#L244)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py#L196) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L210) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs#L244)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L221) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L153) · [Rust](../../examples/powertranz/powertranz.rs#L267)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py#L221) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L236) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs#L267)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L246) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L175) · [Rust](../../examples/powertranz/powertranz.rs#L290)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py#L246) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L262) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L175) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs#L290)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py#L268) · [JavaScript](../../examples/powertranz/powertranz.js) · [Kotlin](../../examples/powertranz/powertranz.kt#L194) · [Rust](../../examples/powertranz/powertranz.rs#L309)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py#L268) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L194) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs#L309)
 
 ## API Reference
 
@@ -307,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L305) · [Kotlin](../../examples/powertranz/powertranz.kt#L212) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L305) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.Capture
 
@@ -318,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L314) · [Kotlin](../../examples/powertranz/powertranz.kt#L224) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L314) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L224) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.Get
 
@@ -329,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L323) · [Kotlin](../../examples/powertranz/powertranz.kt#L234) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L323) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -340,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L332) · [Kotlin](../../examples/powertranz/powertranz.kt#L242) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L332) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -351,7 +351,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L341) · [Kotlin](../../examples/powertranz/powertranz.kt#L271) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L341) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L271) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.Refund
 
@@ -362,7 +362,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L350) · [Kotlin](../../examples/powertranz/powertranz.kt#L303) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L350) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L303) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -373,7 +373,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L368) · [Kotlin](../../examples/powertranz/powertranz.kt#L325) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L368) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L325) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 #### PaymentService.Void
 
@@ -384,7 +384,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts) · [Kotlin](../../examples/powertranz/powertranz.kt#L364) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L364) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)
 
 ### Refunds
 
@@ -397,4 +397,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/powertranz/powertranz.py) · [TypeScript](../../examples/powertranz/powertranz.ts#L359) · [Kotlin](../../examples/powertranz/powertranz.kt#L313) · [Rust](../../examples/powertranz/powertranz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.ts#L359) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.kt#L313) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/powertranz/powertranz.rs)

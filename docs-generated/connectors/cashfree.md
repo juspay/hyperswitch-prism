@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py cashfree
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_APP_ID`, `YOUR_SECRET_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -133,7 +133,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L91) · [Kotlin](../../examples/cashfree/cashfree.kt#L85) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts#L91) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L85) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)
 
 #### PaymentService.CreateOrder
 
@@ -144,7 +144,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L100) · [Kotlin](../../examples/cashfree/cashfree.kt#L95) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts#L100) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L95) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)
 
 #### PaymentService.Get
 
@@ -155,7 +155,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L109) · [Kotlin](../../examples/cashfree/cashfree.kt#L109) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts#L109) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L109) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)
 
 #### PaymentService.Refund
 
@@ -166,7 +166,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L118) · [Kotlin](../../examples/cashfree/cashfree.kt#L117) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts#L118) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L117) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)
 
 #### PaymentService.Void
 
@@ -177,7 +177,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L139) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)
 
 ### Refunds
 
@@ -190,4 +190,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L127) · [Kotlin](../../examples/cashfree/cashfree.kt#L127) · [Rust](../../examples/cashfree/cashfree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.ts#L127) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.kt#L127) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cashfree/cashfree.rs)

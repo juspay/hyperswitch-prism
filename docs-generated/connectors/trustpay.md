@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py trustpay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_PROJECT_ID`, `YOUR_SECRET_KEY`, `YOUR_BASE_URL`, `YOUR_BASE_URL_BANK_REDIRECTS` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -135,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L230) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L136) · [Rust](../../examples/trustpay/trustpay.rs#L293)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py#L230) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L248) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs#L293)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L249) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L152) · [Rust](../../examples/trustpay/trustpay.rs#L309)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py#L249) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L267) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L152) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs#L309)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py#L274) · [JavaScript](../../examples/trustpay/trustpay.js) · [Kotlin](../../examples/trustpay/trustpay.kt#L174) · [Rust](../../examples/trustpay/trustpay.rs#L332)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py#L274) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L293) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L174) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs#L332)
 
 ## API Reference
 
@@ -314,7 +314,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L314) · [Kotlin](../../examples/trustpay/trustpay.kt#L192) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L314) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L192) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -325,7 +325,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L323) · [Kotlin](../../examples/trustpay/trustpay.kt#L204) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L323) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L204) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 #### PaymentService.Get
 
@@ -336,7 +336,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L341) · [Kotlin](../../examples/trustpay/trustpay.kt#L235) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L341) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L235) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -347,7 +347,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L368) · [Kotlin](../../examples/trustpay/trustpay.kt#L274) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L368) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 #### PaymentService.Refund
 
@@ -358,7 +358,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L386) · [Kotlin](../../examples/trustpay/trustpay.kt#L360) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L386) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L360) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 ### Refunds
 
@@ -371,7 +371,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L395) · [Kotlin](../../examples/trustpay/trustpay.kt#L370) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L395) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L370) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 ### Mandates
 
@@ -384,7 +384,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L377) · [Kotlin](../../examples/trustpay/trustpay.kt#L322) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L377) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L322) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)
 
 ### Authentication
 
@@ -397,4 +397,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/trustpay/trustpay.py) · [TypeScript](../../examples/trustpay/trustpay.ts#L332) · [Kotlin](../../examples/trustpay/trustpay.kt#L225) · [Rust](../../examples/trustpay/trustpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.ts#L332) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.kt#L225) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/trustpay/trustpay.rs)

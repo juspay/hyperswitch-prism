@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py fiservcommercehub
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_SECRET`, `YOUR_MERCHANT_ID`, `YOUR_TERMINAL_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -142,7 +142,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L148) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L116) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L148) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L116) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 #### PaymentService.Get
 
@@ -153,7 +153,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L166) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L136) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L166) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 #### PaymentService.Refund
 
@@ -164,7 +164,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L184) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L182) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L184) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L182) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 #### PaymentService.Void
 
@@ -175,7 +175,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L211) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L211) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 ### Refunds
 
@@ -188,7 +188,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L193) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L192) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L193) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L192) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 ### Mandates
 
@@ -201,7 +201,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L175) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L144) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L175) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L144) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)
 
 ### Authentication
 
@@ -214,4 +214,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](../../examples/fiservcommercehub/fiservcommercehub.ts#L157) · [Kotlin](../../examples/fiservcommercehub/fiservcommercehub.kt#L126) · [Rust](../../examples/fiservcommercehub/fiservcommercehub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.ts#L157) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.kt#L126) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiservcommercehub/fiservcommercehub.rs)

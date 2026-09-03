@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py shift4
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L282) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L112) · [Rust](../../examples/shift4/shift4.rs#L341)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py#L282) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L293) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L112) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs#L341)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L301) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L128) · [Rust](../../examples/shift4/shift4.rs#L357)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py#L301) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L312) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L128) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs#L357)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L326) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L150) · [Rust](../../examples/shift4/shift4.rs#L380)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py#L326) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L338) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L150) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs#L380)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L351) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L172) · [Rust](../../examples/shift4/shift4.rs#L403)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py#L351) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L364) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L172) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs#L403)
 
 ## API Reference
 
@@ -310,7 +310,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L385) · [Kotlin](../../examples/shift4/shift4.kt#L190) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L385) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L190) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.Capture
 
@@ -321,7 +321,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L394) · [Kotlin](../../examples/shift4/shift4.kt#L202) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L394) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L202) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.Get
 
@@ -332,7 +332,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L421) · [Kotlin](../../examples/shift4/shift4.kt#L241) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L421) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L241) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -343,7 +343,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L430) · [Kotlin](../../examples/shift4/shift4.kt#L249) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L430) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L249) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -354,7 +354,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L439) · [Kotlin](../../examples/shift4/shift4.kt#L265) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L439) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L265) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -365,7 +365,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L448) · [Kotlin](../../examples/shift4/shift4.kt#L295) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L448) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L295) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.Refund
 
@@ -376,7 +376,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L466) · [Kotlin](../../examples/shift4/shift4.kt#L359) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L466) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L359) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -387,7 +387,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L484) · [Kotlin](../../examples/shift4/shift4.kt#L381) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L484) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L381) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -398,7 +398,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L493) · [Kotlin](../../examples/shift4/shift4.kt#L421) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L493) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L421) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -409,7 +409,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L502) · [Kotlin](../../examples/shift4/shift4.kt#L442) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L502) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L442) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 ### Refunds
 
@@ -422,7 +422,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L475) · [Kotlin](../../examples/shift4/shift4.kt#L369) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L475) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L369) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 ### Mandates
 
@@ -435,7 +435,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L457) · [Kotlin](../../examples/shift4/shift4.kt#L328) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L457) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L328) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 ### Customers
 
@@ -448,7 +448,7 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L412) · [Kotlin](../../examples/shift4/shift4.kt#L228) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L412) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L228) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)
 
 ### Authentication
 
@@ -461,4 +461,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/shift4/shift4.py) · [TypeScript](../../examples/shift4/shift4.ts#L403) · [Kotlin](../../examples/shift4/shift4.kt#L212) · [Rust](../../examples/shift4/shift4.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.ts#L403) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/shift4/shift4.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py bambora
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bambora/bambora.py#L129) · [JavaScript](../../examples/bambora/bambora.js) · [Kotlin](../../examples/bambora/bambora.kt#L118) · [Rust](../../examples/bambora/bambora.rs#L163)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py#L129) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L137) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L118) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs#L163)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bambora/bambora.py#L148) · [JavaScript](../../examples/bambora/bambora.js) · [Kotlin](../../examples/bambora/bambora.kt#L134) · [Rust](../../examples/bambora/bambora.rs#L179)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py#L148) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L156) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs#L179)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bambora/bambora.py#L173) · [JavaScript](../../examples/bambora/bambora.js) · [Kotlin](../../examples/bambora/bambora.kt#L156) · [Rust](../../examples/bambora/bambora.rs#L202)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py#L173) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L182) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs#L202)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/bambora/bambora.py#L198) · [JavaScript](../../examples/bambora/bambora.js) · [Kotlin](../../examples/bambora/bambora.kt#L178) · [Rust](../../examples/bambora/bambora.rs#L225)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py#L198) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L208) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L178) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs#L225)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bambora/bambora.py#L220) · [JavaScript](../../examples/bambora/bambora.js) · [Kotlin](../../examples/bambora/bambora.kt#L197) · [Rust](../../examples/bambora/bambora.rs#L244)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py#L220) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L197) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs#L244)
 
 ## API Reference
 
@@ -305,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L251) · [Kotlin](../../examples/bambora/bambora.kt#L215) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L251) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L215) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 #### PaymentService.Capture
 
@@ -316,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L260) · [Kotlin](../../examples/bambora/bambora.kt#L227) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L260) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L227) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 #### PaymentService.Get
 
@@ -327,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L269) · [Kotlin](../../examples/bambora/bambora.kt#L237) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L269) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L237) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -338,7 +338,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L278) · [Kotlin](../../examples/bambora/bambora.kt#L245) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L278) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L245) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 #### PaymentService.Refund
 
@@ -349,7 +349,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L287) · [Kotlin](../../examples/bambora/bambora.kt#L275) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L287) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L275) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 #### PaymentService.Void
 
@@ -360,7 +360,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts) · [Kotlin](../../examples/bambora/bambora.kt#L297) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L297) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)
 
 ### Refunds
 
@@ -373,4 +373,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bambora/bambora.py) · [TypeScript](../../examples/bambora/bambora.ts#L296) · [Kotlin](../../examples/bambora/bambora.kt#L285) · [Rust](../../examples/bambora/bambora.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.ts#L296) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.kt#L285) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bambora/bambora.rs)

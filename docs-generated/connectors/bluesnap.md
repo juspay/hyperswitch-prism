@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py bluesnap
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L159) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L116) · [Rust](../../examples/bluesnap/bluesnap.rs#L212)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py#L159) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L185) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L116) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs#L212)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L178) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L132) · [Rust](../../examples/bluesnap/bluesnap.rs#L228)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py#L178) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L132) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs#L228)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L203) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L154) · [Rust](../../examples/bluesnap/bluesnap.rs#L251)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py#L203) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L154) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs#L251)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L228) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L176) · [Rust](../../examples/bluesnap/bluesnap.rs#L274)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py#L228) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L256) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L176) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs#L274)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py#L250) · [JavaScript](../../examples/bluesnap/bluesnap.js) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L195) · [Rust](../../examples/bluesnap/bluesnap.rs#L293)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py#L250) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L278) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L195) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs#L293)
 
 ## API Reference
 
@@ -371,7 +371,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L299) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L213) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L299) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L213) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.Capture
 
@@ -382,7 +382,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L308) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L225) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L308) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L225) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.Get
 
@@ -393,7 +393,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L326) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L251) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L326) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L251) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -404,7 +404,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L353) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L290) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L353) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.Refund
 
@@ -415,7 +415,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L362) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L319) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L362) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -426,7 +426,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L380) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L341) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L380) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L341) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 #### PaymentService.Void
 
@@ -437,7 +437,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L362) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L362) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 ### Refunds
 
@@ -450,7 +450,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L371) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L329) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L371) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L329) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)
 
 ### Authentication
 
@@ -463,4 +463,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/bluesnap/bluesnap.py) · [TypeScript](../../examples/bluesnap/bluesnap.ts#L317) · [Kotlin](../../examples/bluesnap/bluesnap.kt#L235) · [Rust](../../examples/bluesnap/bluesnap.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.ts#L317) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.kt#L235) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/bluesnap/bluesnap.rs)

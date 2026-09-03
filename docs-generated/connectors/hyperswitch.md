@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py hyperswitch
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -126,4 +126,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/hyperswitch/hyperswitch.py) · [TypeScript](../../examples/hyperswitch/hyperswitch.ts#L64) · [Kotlin](../../examples/hyperswitch/hyperswitch.kt#L52) · [Rust](../../examples/hyperswitch/hyperswitch.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hyperswitch/hyperswitch.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hyperswitch/hyperswitch.ts#L64) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hyperswitch/hyperswitch.kt#L52) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/hyperswitch/hyperswitch.rs)

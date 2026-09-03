@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py truelayer
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_MERCHANT_ACCOUNT_ID`, `YOUR_ACCOUNT_HOLDER_NAME`, `YOUR_PRIVATE_KEY`, `YOUR_KID`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -152,7 +152,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L106) · [Kotlin](../../examples/truelayer/truelayer.kt#L77) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.ts#L106) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.kt#L77) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.rs)
 
 ### Refunds
 
@@ -165,7 +165,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L133) · [Kotlin](../../examples/truelayer/truelayer.kt#L116) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.ts#L133) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.kt#L116) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.rs)
 
 ### Authentication
 
@@ -178,4 +178,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/truelayer/truelayer.py) · [TypeScript](../../examples/truelayer/truelayer.ts#L97) · [Kotlin](../../examples/truelayer/truelayer.kt#L67) · [Rust](../../examples/truelayer/truelayer.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.ts#L97) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.kt#L67) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/truelayer/truelayer.rs)

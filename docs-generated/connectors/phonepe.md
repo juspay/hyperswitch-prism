@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py phonepe
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_SALT_KEY`, `YOUR_SALT_INDEX`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -256,7 +256,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L129) · [Kotlin](../../examples/phonepe/phonepe.kt#L112) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts#L129) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L112) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)
 
 #### PaymentService.Capture
 
@@ -267,7 +267,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L138) · [Kotlin](../../examples/phonepe/phonepe.kt#L124) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts#L138) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L124) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)
 
 #### PaymentService.Get
 
@@ -278,7 +278,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L147) · [Kotlin](../../examples/phonepe/phonepe.kt#L134) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts#L147) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)
 
 #### PaymentService.Refund
 
@@ -289,7 +289,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L174) · [Kotlin](../../examples/phonepe/phonepe.kt#L173) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts#L174) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L173) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)
 
 #### PaymentService.Void
 
@@ -300,7 +300,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts) · [Kotlin](../../examples/phonepe/phonepe.kt#L195) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L195) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)
 
 ### Refunds
 
@@ -313,4 +313,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/phonepe/phonepe.py) · [TypeScript](../../examples/phonepe/phonepe.ts#L183) · [Kotlin](../../examples/phonepe/phonepe.kt#L183) · [Rust](../../examples/phonepe/phonepe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.ts#L183) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.kt#L183) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/phonepe/phonepe.rs)

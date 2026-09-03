@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py rapyd
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_ACCESS_KEY`, `YOUR_SECRET_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py#L171) · [JavaScript](../../examples/rapyd/rapyd.js) · [Kotlin](../../examples/rapyd/rapyd.kt#L116) · [Rust](../../examples/rapyd/rapyd.rs#L210)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py#L171) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L180) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L116) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs#L210)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py#L190) · [JavaScript](../../examples/rapyd/rapyd.js) · [Kotlin](../../examples/rapyd/rapyd.kt#L132) · [Rust](../../examples/rapyd/rapyd.rs#L226)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py#L190) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L199) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L132) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs#L226)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py#L215) · [JavaScript](../../examples/rapyd/rapyd.js) · [Kotlin](../../examples/rapyd/rapyd.kt#L154) · [Rust](../../examples/rapyd/rapyd.rs#L249)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py#L215) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L225) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L154) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs#L249)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py#L240) · [JavaScript](../../examples/rapyd/rapyd.js) · [Kotlin](../../examples/rapyd/rapyd.kt#L176) · [Rust](../../examples/rapyd/rapyd.rs#L272)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py#L240) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L251) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L176) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs#L272)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py#L262) · [JavaScript](../../examples/rapyd/rapyd.js) · [Kotlin](../../examples/rapyd/rapyd.kt#L195) · [Rust](../../examples/rapyd/rapyd.rs#L291)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py#L262) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L273) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L195) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs#L291)
 
 ## API Reference
 
@@ -377,7 +377,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L294) · [Kotlin](../../examples/rapyd/rapyd.kt#L213) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L294) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L213) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.Capture
 
@@ -388,7 +388,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L303) · [Kotlin](../../examples/rapyd/rapyd.kt#L225) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L303) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L225) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.Get
 
@@ -399,7 +399,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L321) · [Kotlin](../../examples/rapyd/rapyd.kt#L251) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L321) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L251) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -410,7 +410,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L330) · [Kotlin](../../examples/rapyd/rapyd.kt#L259) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L330) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L259) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.Refund
 
@@ -421,7 +421,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L348) · [Kotlin](../../examples/rapyd/rapyd.kt#L319) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L348) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -432,7 +432,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L366) · [Kotlin](../../examples/rapyd/rapyd.kt#L341) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L366) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L341) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 #### PaymentService.Void
 
@@ -443,7 +443,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts) · [Kotlin](../../examples/rapyd/rapyd.kt#L362) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L362) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 ### Refunds
 
@@ -456,7 +456,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L357) · [Kotlin](../../examples/rapyd/rapyd.kt#L329) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L357) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L329) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 ### Mandates
 
@@ -469,7 +469,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L339) · [Kotlin](../../examples/rapyd/rapyd.kt#L288) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L339) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L288) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)
 
 ### Authentication
 
@@ -482,4 +482,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/rapyd/rapyd.py) · [TypeScript](../../examples/rapyd/rapyd.ts#L312) · [Kotlin](../../examples/rapyd/rapyd.kt#L235) · [Rust](../../examples/rapyd/rapyd.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.ts#L312) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.kt#L235) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/rapyd/rapyd.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py worldpayraft
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_LICENSE`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L176) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L98) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L224)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py#L176) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L185) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L98) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs#L224)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,13 +141,13 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L195) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L114) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L240)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py#L195) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L114) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs#L240)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L220) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L136) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L263)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py#L220) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs#L263)
 
 ## API Reference
 
@@ -293,7 +293,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L255) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L157) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L255) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L157) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Capture
 
@@ -304,7 +304,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L264) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L169) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L264) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L169) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -315,7 +315,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L273) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L179) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L273) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L179) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -326,7 +326,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L282) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L208) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L282) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L208) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.Refund
 
@@ -337,7 +337,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L300) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L271) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L300) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L271) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -348,7 +348,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L309) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L281) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L309) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L281) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)
 
 ### Mandates
 
@@ -361,4 +361,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py) · [TypeScript](../../examples/worldpayraft/worldpayraft.ts#L291) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L240) · [Rust](../../examples/worldpayraft/worldpayraft.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.ts#L291) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.kt#L240) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayraft/worldpayraft.rs)

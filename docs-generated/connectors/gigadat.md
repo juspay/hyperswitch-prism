@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py gigadat
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CAMPAIGN_ID`, `YOUR_ACCESS_TOKEN`, `YOUR_SECURITY_TOKEN`, `YOUR_BASE_URL`, `YOUR_SITE` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -243,7 +243,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | x |
 | Pay Easy | x |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts) · [Kotlin](../../examples/gigadat/gigadat.kt) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.rs)
 
 #### PaymentService.Get
 
@@ -254,7 +254,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L55) · [Kotlin](../../examples/gigadat/gigadat.kt#L66) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.ts#L55) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.kt#L66) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.rs)
 
 #### PaymentService.Refund
 
@@ -265,4 +265,4 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/gigadat/gigadat.py) · [TypeScript](../../examples/gigadat/gigadat.ts#L64) · [Kotlin](../../examples/gigadat/gigadat.kt#L74) · [Rust](../../examples/gigadat/gigadat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.ts#L64) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.kt#L74) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/gigadat/gigadat.rs)

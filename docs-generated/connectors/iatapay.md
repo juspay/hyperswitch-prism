@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py iatapay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_ID`, `YOUR_MERCHANT_ID`, `YOUR_CLIENT_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -261,7 +261,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py) · [TypeScript](../../examples/iatapay/iatapay.ts#L119) · [Kotlin](../../examples/iatapay/iatapay.kt#L114) · [Rust](../../examples/iatapay/iatapay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.ts#L119) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.kt#L114) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.rs)
 
 #### PaymentService.Get
 
@@ -272,7 +272,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py) · [TypeScript](../../examples/iatapay/iatapay.ts#L137) · [Kotlin](../../examples/iatapay/iatapay.kt#L136) · [Rust](../../examples/iatapay/iatapay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.ts#L137) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.rs)
 
 #### PaymentService.Refund
 
@@ -283,7 +283,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py) · [TypeScript](../../examples/iatapay/iatapay.ts#L146) · [Kotlin](../../examples/iatapay/iatapay.kt#L144) · [Rust](../../examples/iatapay/iatapay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.ts#L146) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.kt#L144) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.rs)
 
 ### Refunds
 
@@ -296,7 +296,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py) · [TypeScript](../../examples/iatapay/iatapay.ts#L155) · [Kotlin](../../examples/iatapay/iatapay.kt#L154) · [Rust](../../examples/iatapay/iatapay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.ts#L155) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.kt#L154) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.rs)
 
 ### Authentication
 
@@ -309,4 +309,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/iatapay/iatapay.py) · [TypeScript](../../examples/iatapay/iatapay.ts#L128) · [Kotlin](../../examples/iatapay/iatapay.kt#L126) · [Rust](../../examples/iatapay/iatapay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.ts#L128) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.kt#L126) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/iatapay/iatapay.rs)

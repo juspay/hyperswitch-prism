@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py tesouro
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_KEY1`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -132,4 +132,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/tesouro/tesouro.py) · [TypeScript](../../examples/tesouro/tesouro.ts#L35) · [Kotlin](../../examples/tesouro/tesouro.kt#L39) · [Rust](../../examples/tesouro/tesouro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tesouro/tesouro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tesouro/tesouro.ts#L35) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tesouro/tesouro.kt#L39) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tesouro/tesouro.rs)

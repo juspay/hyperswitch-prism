@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py kount
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_AUTH_SERVER_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -129,7 +129,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L39) · [Kotlin](../../examples/kount/kount.kt#L39) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.ts#L39) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.kt#L39) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -140,4 +140,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L48) · [Kotlin](../../examples/kount/kount.kt#L49) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.ts#L48) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.kt#L49) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/kount/kount.rs)
