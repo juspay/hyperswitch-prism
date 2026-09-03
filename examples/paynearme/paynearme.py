@@ -46,6 +46,7 @@ def _build_authorize_request(capture_method: str):
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.
         address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
                 line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
                 phone_number=payment_methods_pb2.SecretString(value="4155552671"),
@@ -93,6 +94,7 @@ def _build_proxy_authorize_request():
         ),
         address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(
+                first_name=payment_methods_pb2.SecretString(value="John"),  # Personal Information.
                 line1=payment_methods_pb2.SecretString(value="123 Main St"),  # Address Details.
                 zip_code=payment_methods_pb2.SecretString(value="98101"),
                 phone_number=payment_methods_pb2.SecretString(value="4155552671"),

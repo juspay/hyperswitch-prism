@@ -73,6 +73,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
+                first_name: Some(Secret::new("John".to_string())), // Personal Information.
                 line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
                 zip_code: Some(Secret::new("98101".to_string())),
                 phone_number: Some(Secret::new("4155552671".to_string())),
@@ -132,6 +133,7 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
+                first_name: Some(Secret::new("John".to_string())), // Personal Information.
                 line1: Some(Secret::new("123 Main St".to_string())), // Address Details.
                 zip_code: Some(Secret::new("98101".to_string())),
                 phone_number: Some(Secret::new("4155552671".to_string())),

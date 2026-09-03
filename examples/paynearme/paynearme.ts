@@ -42,6 +42,7 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "captureMethod": captureMethod,  // Method for capturing the payment.
         "address": {  // Address Information.
             "billingAddress": {
+                "firstName": {"value": "John"},  // Personal Information.
                 "line1": {"value": "123 Main St"},  // Address Details.
                 "zipCode": {"value": "98101"},
                 "phoneNumber": {"value": "4155552671"},
@@ -92,6 +93,7 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
         },
         "address": {
             "billingAddress": {
+                "firstName": {"value": "John"},  // Personal Information.
                 "line1": {"value": "123 Main St"},  // Address Details.
                 "zipCode": {"value": "98101"},
                 "phoneNumber": {"value": "4155552671"},
