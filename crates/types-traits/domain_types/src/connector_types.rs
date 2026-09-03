@@ -1781,11 +1781,6 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
         self.customer_date_of_birth.clone()
     }
-    pub fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
-        self.customer_date_of_birth
-            .clone()
-            .ok_or_else(missing_field_err("customer.date_of_birth"))
-    }
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
             .clone()
@@ -2287,11 +2282,6 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
     pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
         self.customer_date_of_birth.clone()
-    }
-    pub fn get_customer_date_of_birth(&self) -> Result<Secret<time::Date>, Error> {
-        self.customer_date_of_birth
-            .clone()
-            .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {

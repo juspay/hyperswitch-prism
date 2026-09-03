@@ -1726,12 +1726,13 @@ impl<
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
                     payment_method_data::MifinityData {
-                        date_of_birth: Secret::<time::Date>::foreign_try_from(
+                        date_of_birth: Secret::<time::Date>::foreign_try_from((
                             mifinity_data
                                 .date_of_birth
                                 .ok_or(IntegrationError::InvalidDataFormat { field_name: "payment_method.mifinity.date_of_birth", context: IntegrationErrorContext { additional_context: Some("Missing Date of Birth".to_string()), ..Default::default() } })?
                                 .expose(),
-                        )?,
+                            "payment_method.mifinity.date_of_birth",
+                        ))?,
                         language_preference: mifinity_data.language_preference,
                     },
                 ))),
@@ -4543,7 +4544,12 @@ impl<
             .customer
             .as_ref()
             .and_then(|customer| customer.date_of_birth.clone())
-            .map(|date_of_birth| Secret::<time::Date>::foreign_try_from(date_of_birth.expose()))
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
             .transpose()?;
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
@@ -12592,7 +12598,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
         let date_of_birth = value
             .date_of_birth
             .clone()
-            .map(|s| Secret::<time::Date>::foreign_try_from(s.expose()))
+            .map(|s| Secret::<time::Date>::foreign_try_from((s.expose(), "customer.date_of_birth")))
             .transpose()?;
 
         Ok(Self {
@@ -13706,25 +13712,33 @@ pub enum PaymentMethodDataType {
     CardWithNoCvc,
 }
 
-impl ForeignTryFrom<String> for Secret<time::Date> {
+/// Parses an ISO-8601 date, naming the field it came from.
+///
+/// The field name is threaded in by the caller — the same shape
+/// `ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue` uses — because
+/// `InvalidDataFormat::field_name` is `&'static str` and every caller knows its own path.
+/// Without it a malformed date reports `field_name: "unknown"`, which tells an integrator
+/// nothing about which of several dates on a request was rejected.
+impl ForeignTryFrom<(String, &'static str)> for Secret<time::Date> {
     type Error = IntegrationError;
 
-    fn foreign_try_from(date_string: String) -> Result<Self, error_stack::Report<Self::Error>> {
-        let date = time::Date::parse(
+    fn foreign_try_from(
+        (date_string, field_name): (String, &'static str),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        time::Date::parse(
             &date_string,
             &time::format_description::well_known::Iso8601::DATE,
         )
-        .map_err(|err| {
-            tracing::error!("Failed to parse date string: {}", err);
-            IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Invalid date format".to_string()),
-                    ..Default::default()
-                },
-            }
-        })?;
-        Ok(Self::new(date))
+        .map(Self::new)
+        // `change_context` rather than `map_err`: it keeps the underlying `time::error::Parse`
+        // in the report, which says *why* the date was rejected.
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name,
+            context: IntegrationErrorContext {
+                additional_context: Some("Expected an ISO-8601 date (YYYY-MM-DD)".to_string()),
+                ..Default::default()
+            },
+        })
     }
 }
 
@@ -18311,7 +18325,12 @@ impl<
             .customer
             .as_ref()
             .and_then(|customer| customer.date_of_birth.clone())
-            .map(|date_of_birth| Secret::<time::Date>::foreign_try_from(date_of_birth.expose()))
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
             .transpose()?;
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
