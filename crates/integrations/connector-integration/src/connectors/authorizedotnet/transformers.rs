@@ -2410,14 +2410,44 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
             }
             None => {
                 // A psync response with no transaction record. Transient server-side
-                // conditions (server busy / maintenance) are not a payment failure, so
-                // mirror hyperswitch and keep the existing router data unchanged;
-                // otherwise surface the connector error while preserving the prior
-                // attempt status (as hyperswitch's `get_err_response` does).
+                // conditions (server busy / maintenance) are not a payment failure.
+                //
+                // Hyperswitch returns `Ok(item.data)` unchanged here, but its psync
+                // `item.data.response` is already an `Ok(TransactionResponse)` rebuilt
+                // from the stored attempt. This connector is stateless: `router_data`
+                // is constructed with `response: Err(ErrorResponse::default())`, so
+                // returning it unchanged surfaces as `HE_00 / 500 / status unspecified`.
+                // Rebuild the same shape hyperswitch presents downstream: keep the
+                // request's connector transaction id and the incoming attempt status
+                // untouched. Any other message code is a real connector error.
                 match response.messages.message.iter().find(|m| {
                     m.code == TRANSIENT_ERROR_SERVER_BUSY || m.code == TRANSIENT_ERROR_MAINTENANCE
                 }) {
-                    Some(_) => Ok(router_data),
+                    Some(_) => {
+                        let connector_transaction_id = router_data
+                            .request
+                            .connector_transaction_id
+                            .get_connector_transaction_id()
+                            .ok();
+                        let mut new_router_data = router_data;
+                        new_router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                            resource_id: connector_transaction_id
+                                .clone()
+                                .map(ResponseId::ConnectorTransactionId)
+                                .unwrap_or(ResponseId::NoResponseId),
+                            redirection_data: None,
+                            mandate_reference: None,
+                            connector_metadata: None,
+                            network_txn_id: None,
+                            network_txn_link_id: None,
+                            connector_response_reference_id: connector_transaction_id,
+                            incremental_authorization_allowed: None,
+                            status_code: http_code,
+                            splits: None,
+                            payment_account_reference: None,
+                        });
+                        Ok(new_router_data)
+                    }
                     None => Ok(Self {
                         response: Err(get_err_response(http_code, response.messages)),
                         ..router_data
