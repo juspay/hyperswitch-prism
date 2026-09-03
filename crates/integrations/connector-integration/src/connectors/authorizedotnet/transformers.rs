@@ -2899,8 +2899,12 @@ pub struct SyncTransactionResponse {
     pub transaction_id: String,
     #[serde(rename = "transactionStatus")]
     pub transaction_status: SyncStatus,
-    pub response_code: Option<u8>,
-    pub response_reason_code: Option<u8>,
+    // Authorize.Net reason codes run past 255 (e.g. 315 invalid card number, 318
+    // duplicate transaction), so `u8` overflows and fails the whole psync body.
+    // Hyperswitch does not model these fields at all and so never fails on them;
+    // they are carried here only for `typed_connector_response`, never read.
+    pub response_code: Option<i32>,
+    pub response_reason_code: Option<i32>,
     pub response_reason_description: Option<String>,
     pub network_trans_id: Option<String>,
     // Additional fields available but not needed for our implementation
