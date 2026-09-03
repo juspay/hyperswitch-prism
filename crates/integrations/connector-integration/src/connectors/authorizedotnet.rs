@@ -259,11 +259,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(transaction_id.clone())),
-            // `status` is derived from the webhook `event_type`, whose mapping never yields
-            // `SyncStatus::Unknown`, so the retained-status arm is unreachable here.
+            // A webhook carries no prior attempt status. `Unspecified` is the wire value
+            // hyperswitch reads as "retain the stored status"
+            // (hyperswitch_interfaces/src/unified_connector_service/transformers.rs:697,
+            // `PaymentStatus::Unspecified => Ok(prev_status)`), whereas any concrete status —
+            // `Pending` included — is taken at face value and would overwrite it. The webhook
+            // event mapping never yields `SyncStatus::Unknown`, so this argument is unused
+            // today; it must stay a safe no-op in case a future event variant makes it live.
             status: transformers::get_sync_attempt_status(
                 status,
-                common_enums::AttemptStatus::Pending,
+                common_enums::AttemptStatus::Unspecified,
             ),
             status_code: 200,
             mandate_reference: None,
