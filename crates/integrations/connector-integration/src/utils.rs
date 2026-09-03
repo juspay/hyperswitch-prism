@@ -754,3 +754,45 @@ pub fn build_error_response(
         typed_connector_request: None,
     }
 }
+
+/// Validates and normalizes a Chilean RUT (Rol Único Tributario).
+///
+/// A RUT is 7-8 body digits plus one check character (`0-9` or `K`), i.e. 8-9
+/// characters once dots and the hyphen are stripped. Returns the normalized
+/// form: separators removed and the check character upper-cased.
+///
+/// `DocumentKind::Other` — the only spelling a RUT can arrive as, since
+/// `DocumentKind` has no `Rut` variant — skips the checksum validation that
+/// `Cpf`/`Cnpj` get, so this is the only place a malformed RUT is caught
+/// before it reaches the connector as an opaque validation error.
+pub fn validate_and_normalize_chilean_rut(
+    document: &Secret<String>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let normalized: String = document
+        .peek()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+
+    let invalid = || {
+        error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "payer.document",
+            context: errors::IntegrationErrorContext::default(),
+        })
+    };
+
+    if !(8..=9).contains(&normalized.len()) {
+        return Err(invalid());
+    }
+
+    let (body, check) = normalized.split_at(normalized.len() - 1);
+    if !body.chars().all(|c| c.is_ascii_digit()) {
+        return Err(invalid());
+    }
+    if !check.chars().all(|c| c.is_ascii_digit() || c == 'K') {
+        return Err(invalid());
+    }
+
+    Ok(Secret::new(normalized))
+}

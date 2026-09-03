@@ -16,7 +16,7 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils,
 };
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
@@ -26,10 +26,18 @@ use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 /// closed enum, so this stays a plain constant rather than a Rust enum.
 const D24_PAYMENT_METHOD_WEBPAY: &str = "WP";
 
-/// Chilean national identifier as Directa24 names it. `DocumentKind` has no
-/// `Rut` variant, so `DocumentKind::Other` + a Chilean billing country is the
-/// only representable spelling.
-const D24_DOCUMENT_TYPE_RUT: &str = "RUT";
+/// The `payer.document_type` values Directa24 accepts for the countries this
+/// integration serves. `RUT` is the Chilean national identifier; `DocumentKind`
+/// has no `Rut` variant, so `DocumentKind::Other` + a Chilean billing country is
+/// the only representable spelling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum D24DocumentType {
+    Rut,
+    Cpf,
+    Cnpj,
+    Psn,
+}
 
 // =============================================================================
 // AUTH
@@ -208,7 +216,7 @@ pub struct D24Payer {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub document: Secret<String>,
-    pub document_type: &'static str,
+    pub document_type: D24DocumentType,
     pub email: Email,
     pub first_name: Secret<String>,
     pub last_name: Secret<String>,
@@ -238,56 +246,18 @@ pub struct D24PayerAddress {
 fn d24_document_type(
     kind: DocumentKind,
     country: common_enums::CountryAlpha2,
-) -> Result<&'static str, error_stack::Report<IntegrationError>> {
+) -> Result<D24DocumentType, error_stack::Report<IntegrationError>> {
     match (kind, country) {
-        (DocumentKind::Other, common_enums::CountryAlpha2::CL) => Ok(D24_DOCUMENT_TYPE_RUT),
-        (DocumentKind::Cpf, _) => Ok("CPF"),
-        (DocumentKind::Cnpj, _) => Ok("CNPJ"),
-        (DocumentKind::Psn, _) => Ok("PSN"),
+        (DocumentKind::Other, common_enums::CountryAlpha2::CL) => Ok(D24DocumentType::Rut),
+        (DocumentKind::Cpf, _) => Ok(D24DocumentType::Cpf),
+        (DocumentKind::Cnpj, _) => Ok(D24DocumentType::Cnpj),
+        (DocumentKind::Psn, _) => Ok(D24DocumentType::Psn),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!("customer document type {kind:?} for billing country {country}"),
             connector: "d24",
             context: IntegrationErrorContext::default(),
         })),
     }
-}
-
-/// A Chilean RUT is 7-8 body digits plus one check character (`0-9` or `K`),
-/// i.e. 8-9 characters once dots and the hyphen are stripped.
-///
-/// `DocumentKind::Other` deliberately skips the checksum validation that
-/// `Cpf`/`Cnpj` get, so this is the only place a malformed RUT is caught before
-/// it reaches Directa24 as an opaque `BEAN_VALIDATION_ERROR`.
-fn validate_and_normalize_rut(
-    document: &Secret<String>,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    let normalized: String = document
-        .peek()
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .map(|c| c.to_ascii_uppercase())
-        .collect();
-
-    let invalid = || {
-        error_stack::report!(IntegrationError::InvalidDataFormat {
-            field_name: "payer.document",
-            context: IntegrationErrorContext::default(),
-        })
-    };
-
-    if !(8..=9).contains(&normalized.len()) {
-        return Err(invalid());
-    }
-
-    let (body, check) = normalized.split_at(normalized.len() - 1);
-    if !body.chars().all(|c| c.is_ascii_digit()) {
-        return Err(invalid());
-    }
-    if !check.chars().all(|c| c.is_ascii_digit() || c == 'K') {
-        return Err(invalid());
-    }
-
-    Ok(Secret::new(normalized))
 }
 
 /// `payer.id` is constrained to `^[A-Za-z0-9]*$` (max 128). UCS customer ids may
@@ -402,7 +372,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let document = request.get_customer_document_details()?;
         let document_type = d24_document_type(document.document_type, country)?;
-        let document_number = validate_and_normalize_rut(&document.document_number)?;
+        let document_number =
+            crate::utils::validate_and_normalize_chilean_rut(&document.document_number)?;
 
         let payer_address = {
             let street = billing.get_optional_line1();
@@ -546,8 +517,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // PSYNC — GET /v3/deposits/{deposit_id}
 // =============================================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum D24DepositStatus {
     Completed,
     Pending,
@@ -564,22 +536,6 @@ pub enum D24DepositStatus {
     /// enums below follow.
     #[serde(other)]
     Unknown,
-}
-
-impl D24DepositStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Completed => "COMPLETED",
-            Self::Pending => "PENDING",
-            Self::Created => "CREATED",
-            Self::Declined => "DECLINED",
-            Self::Cancelled => "CANCELLED",
-            Self::Expired => "EXPIRED",
-            Self::EarlyReleased => "EARLY_RELEASED",
-            Self::ForReview => "FOR_REVIEW",
-            Self::Unknown => "UNKNOWN",
-        }
-    }
 }
 
 impl From<D24DepositStatus> for AttemptStatus {
@@ -623,12 +579,12 @@ pub struct D24SyncResponse {
     pub deposit_id: i64,
     pub status: D24DepositStatus,
     pub invoice_id: Option<String>,
-    pub user_id: Option<String>,
+    pub user_id: Option<Secret<String>>,
     pub country: Option<String>,
-    pub currency: Option<String>,
-    pub local_amount: Option<f64>,
-    pub usd_amount: Option<f64>,
-    pub amount: Option<f64>,
+    pub currency: Option<common_enums::Currency>,
+    pub local_amount: Option<FloatMajorUnit>,
+    pub usd_amount: Option<FloatMajorUnit>,
+    pub amount: Option<FloatMajorUnit>,
     pub payment_method: Option<String>,
     pub payment_type: Option<String>,
 }
@@ -640,7 +596,7 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
 
     fn try_from(item: ResponseRouterData<D24SyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let raw_status = response.status.as_str().to_string();
+        let raw_status = response.status.to_string();
         let status = AttemptStatus::from(response.status);
 
         // A DECLINED deposit is reported through `status`, not by returning an
@@ -866,25 +822,15 @@ impl std::fmt::Display for D24RefundId {
 /// refund and the body carries the `refund_id`. Refusing to deserialise over an
 /// unannounced result would throw away the only handle on a refund that is now
 /// being processed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum D24RefundResult {
     Success,
     InProgress,
     Rejected,
     #[serde(other)]
     Unknown,
-}
-
-impl D24RefundResult {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Success => "SUCCESS",
-            Self::InProgress => "IN_PROGRESS",
-            Self::Rejected => "REJECTED",
-            Self::Unknown => "UNKNOWN",
-        }
-    }
 }
 
 impl From<D24RefundResult> for common_enums::RefundStatus {
@@ -914,8 +860,8 @@ pub struct D24RefundInfo {
     pub reason_code: Option<serde_json::Value>,
     pub payment_method: Option<String>,
     pub payment_method_name: Option<String>,
-    pub amount: Option<f64>,
-    pub currency: Option<String>,
+    pub amount: Option<FloatMajorUnit>,
+    pub currency: Option<common_enums::Currency>,
     pub created_at: Option<String>,
 }
 
@@ -957,7 +903,7 @@ impl TryFrom<ResponseRouterData<D24RefundResponse, Self>>
         // such refund as complete on acknowledgement alone.
         let refund_status = result.map_or(common_enums::RefundStatus::Pending, Into::into);
 
-        let raw_status = result.map(|result| result.as_str().to_string());
+        let raw_status = result.map(|result| result.to_string());
         let raw_reason = response
             .refund_info
             .as_ref()
@@ -988,8 +934,9 @@ impl TryFrom<ResponseRouterData<D24RefundResponse, Self>>
 // RSYNC — GET /v3/refunds/{refund_id}
 // =============================================================================
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum D24RefundSyncStatus {
     Pending,
     IncorrectDetails,
@@ -1001,20 +948,6 @@ pub enum D24RefundSyncStatus {
     /// exists at this point, so an unannounced status must not break the poll.
     #[serde(other)]
     Unknown,
-}
-
-impl D24RefundSyncStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Pending => "PENDING",
-            Self::IncorrectDetails => "INCORRECT_DETAILS",
-            Self::Delivered => "DELIVERED",
-            Self::Completed => "COMPLETED",
-            Self::Rejected => "REJECTED",
-            Self::Cancelled => "CANCELLED",
-            Self::Unknown => "UNKNOWN",
-        }
-    }
 }
 
 impl From<D24RefundSyncStatus> for common_enums::RefundStatus {
@@ -1073,7 +1006,7 @@ impl TryFrom<ResponseRouterData<D24RefundSyncResponse, Self>>
         item: ResponseRouterData<D24RefundSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        let raw_status = response.status.as_str().to_string();
+        let raw_status = response.status.to_string();
         let refund_status = common_enums::RefundStatus::from(response.status);
 
         // The response body carries no refund id, so the one the request was
