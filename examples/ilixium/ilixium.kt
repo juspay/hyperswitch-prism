@@ -8,6 +8,7 @@
 package examples.ilixium
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.AuthenticationType

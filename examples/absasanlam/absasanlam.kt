@@ -8,19 +8,30 @@
 package examples.absasanlam
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.EventClient
 import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.AbsaSanlamConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("parse_event")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Absasanlam credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAbsaSanlam(AbsaSanlamConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 
@@ -28,7 +39,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
 fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = EventClient(config)
     val request = EventServiceHandleRequest.newBuilder().apply {
-        merchantEventId = "probe_event_001"  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchantEventId = "probe_event_001"
         requestDetailsBuilder.apply {
             method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
             uri = "https://example.com/webhook"  // URI of the request.
