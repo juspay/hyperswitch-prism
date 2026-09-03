@@ -4139,6 +4139,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 PayoutConnectorEnum::Truelayer => Err(err().into()),
+                PayoutConnectorEnum::Mifinity => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Mifinity {
+                        key: api_key.clone(),
+                        base_url: None,
+                        brand_id: None,
+                        destination_account_number: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 PayoutConnectorEnum::Trustly => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
