@@ -10322,6 +10322,47 @@ impl
     }
 }
 
+impl ForeignTryFrom<crate::connector_types::PayoutWebhookDetailsResponse>
+    for grpc_api_types::payouts::PayoutServiceGetResponse
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: crate::connector_types::PayoutWebhookDetailsResponse,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Only surface an error object when the connector actually reported a
+        // failure; a successful payout webhook carries no error fields.
+        let error = (value.error_code.is_some() || value.error_message.is_some()).then(|| {
+            grpc_api_types::payouts::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                    code: value.error_code.clone(),
+                    message: value.error_message.clone(),
+                    reason: None,
+                    // Left unset: this field carries a *transaction* id (the sync
+                    // path sources it from `err.connector_transaction_id`), and a
+                    // payout webhook has no such id. The payout id is already on
+                    // the response as `connector_payout_id`.
+                    connector_transaction_id: None,
+                    status: None,
+                }),
+                issuer_details: None,
+            }
+        });
+
+        Ok(Self {
+            merchant_payout_id: value.merchant_payout_id,
+            payout_status: Some(
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(value.status)
+                    as i32,
+            ),
+            connector_payout_id: value.connector_payout_id,
+            error,
+            status_code: u32::from(value.status_code),
+        })
+    }
+}
+
 impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
     type Error = IntegrationError;
 

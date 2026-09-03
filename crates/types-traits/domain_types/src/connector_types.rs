@@ -2980,6 +2980,24 @@ pub struct RefundWebhookDetailsResponse {
     pub response_headers: Option<http::HeaderMap>,
 }
 
+/// Details extracted from a payout webhook.
+///
+/// Mirrors [`RefundWebhookDetailsResponse`]: the connector maps the webhook
+/// event type to a terminal status and returns it alongside the identifiers, so
+/// the caller consumes this exactly as it consumes a `PayoutService.Get`
+/// response instead of re-deriving the status from the event type.
+#[derive(Debug, Clone)]
+pub struct PayoutWebhookDetailsResponse {
+    pub connector_payout_id: Option<String>,
+    pub merchant_payout_id: Option<String>,
+    pub status: common_enums::PayoutStatus,
+    /// Connector error code. Populated only for failure events.
+    pub error_code: Option<String>,
+    /// Connector error message. Populated only for failure events.
+    pub error_message: Option<String>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone)]
 pub struct DisputeWebhookDetailsResponse {
     pub amount: StringMinorUnit,
