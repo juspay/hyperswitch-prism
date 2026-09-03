@@ -70,6 +70,10 @@ interpayments.base_url = "https://api.interpayments.com/v1"
 twoc_twop_paco.base_url = "https://core.paco.2c2p.com"
 jpmorgan.base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
+# NOTE: UNCONFIRMED - JPMorgan does not publish the production Orbital hostname
+# anywhere. Inferred from the Chase Paymentech naming convention and corroborated
+# only by public DNS. Confirm with JPMorgan Merchant Services during onboarding.
+jpmorganorbital.base_url = "https://orbital1.chasepaymentech.com/gwapi/v4/gateway"
 nmi.base_url = "https://secure.nmi.com"
 nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/ipp/payments-gateway/v2/payments"

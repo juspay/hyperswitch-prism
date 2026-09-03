@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py grabpay
+// Regenerate: python3 scripts/generate-connector-docs.py jpmorganorbital
 //
-// Grabpay — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example grabpay -- process_checkout_card
+// Jpmorganorbital — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example jpmorganorbital -- process_checkout_card
 use cards::CardNumber;
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::payment_method;
@@ -14,32 +14,31 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "get", "parse_event"];
+pub const SUPPORTED_FLOWS: &[&str] = &["authorize", "get", "proxy_authorize"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
         connector_config: Some(ConnectorSpecificConfig {
-            config: Some(connector_specific_config::Config::Grabpay(GrabpayConfig {
-                partner_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_PARTNER_ID".to_string(),
-                )), // Authentication credential
-                partner_secret: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_PARTNER_SECRET".to_string(),
-                )), // Authentication credential
-                client_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_CLIENT_ID".to_string(),
-                )), // Authentication credential
-                client_secret: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_CLIENT_SECRET".to_string(),
-                )), // Authentication credential
-                merchant_id: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_MERCHANT_ID".to_string(),
-                )), // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                ..Default::default()
-            })),
+            config: Some(connector_specific_config::Config::JpmorganOrbital(
+                JpmorganOrbitalConfig {
+                    username: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_USERNAME".to_string(),
+                    )), // Authentication credential
+                    password: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_PASSWORD".to_string(),
+                    )), // Authentication credential
+                    merchant_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_MERCHANT_ID".to_string(),
+                    )), // Authentication credential
+                    bin: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    terminal_id: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    merchant_config_currency: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
         }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
@@ -82,7 +81,6 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         }),
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
-        session_token: Some("probe_session_token".to_string()), // Session and Token Information.
         ..Default::default()
     }
 }
@@ -100,36 +98,32 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
-#[allow(dead_code)]
-pub fn build_handle_event_request() -> EventServiceHandleRequest {
-    EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
-        request_details: Some(RequestDetails {
-            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
+    PaymentServiceProxyAuthorizeRequest {
+        merchant_transaction_id: Some("probe_proxy_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        card_proxy: Some(ProxyCardDetails {
+            // Card proxy for vault-aliased payments (VGS, Basis Theory, Spreedly). Real card values are substituted by the proxy before reaching the connector.
+            card_number: Some(Secret::new("4111111111111111".to_string())), // Card Identification.
+            card_exp_month: Some(Secret::new("03".to_string())),
+            card_exp_year: Some(Secret::new("2030".to_string())),
+            card_cvc: Some(Secret::new("123".to_string())),
+            card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
+            card_network: Some(CardNetwork::Visa.into()),
             ..Default::default()
         }),
-        ..Default::default()
-    }
-}
-
-pub fn build_parse_event_request() -> EventServiceParseRequest {
-    EventServiceParseRequest {
-        request_details: Some(RequestDetails {
-            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
-            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
-            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"txType\":\"payment\",\"txStatus\":\"success\",\"partnerID\":\"partner_123\",\"partnerTxID\":\"txn_123\",\"txID\":\"grab_txn_123\",\"amount\":100,\"currency\":\"SGD\",\"payload\":{\"newStatus\":\"success\",\"paymentMethod\":\"GRABPAY\"}}".as_bytes().to_vec(),  // Body of the HTTP request.
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
             ..Default::default()
         }),
-    }
-}
-
-#[allow(dead_code)]
-pub fn build_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
-    PaymentServiceVerifyRedirectResponseRequest {
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        auth_type: AuthenticationType::NoThreeDs.into(),
+        return_url: Some("https://example.com/return".to_string()),
         ..Default::default()
     }
 }
@@ -238,14 +232,16 @@ pub async fn process_get(
     Ok(format!("status: {:?}", response.status()))
 }
 
-// Flow: EventService.ParseEvent
+// Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
-pub async fn process_parse_event(
+pub async fn process_proxy_authorize(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client.parse_event(build_parse_event_request())?;
-    Ok(format!("{response:?}"))
+    let response = client
+        .proxy_authorize(build_proxy_authorize_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
 }
 
 #[allow(dead_code)]
@@ -260,9 +256,9 @@ async fn main() {
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
-        "process_parse_event" => process_parse_event(&client, "txn_001").await,
+        "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_get_payment, process_authorize, process_get, process_parse_event", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_get_payment, process_authorize, process_get, process_proxy_authorize", flow);
             return;
         }
     };
