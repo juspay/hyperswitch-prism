@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 111
+# Connectors: 112
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 111
+  total_connectors: 112
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -781,6 +781,14 @@ scenarios: none
 payment_methods: none
 flows: create_server_authentication_token
 examples_python: none
+
+## Travelhub
+connector_id: travelhub
+doc: docs/connectors/travelhub.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, void
+examples_python: examples/travelhub/travelhub.py
 
 ## Truelayer
 connector_id: truelayer
