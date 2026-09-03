@@ -99,7 +99,6 @@ message PaymentMethod {
     VenmoRedirectWallet venmo_redirect = 173;            // Venmo
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
-    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
     PaymayaRedirectWallet paymaya_redirect = 186;      // Paymaya Redirect
 
     // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
@@ -107,6 +106,7 @@ message PaymentMethod {
 
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
+    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
