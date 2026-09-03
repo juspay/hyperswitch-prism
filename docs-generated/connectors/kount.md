@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -129,7 +129,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L39) · [Kotlin](../../examples/kount/kount.kt#L38) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L39) · [Kotlin](../../examples/kount/kount.kt#L39) · [Rust](../../examples/kount/kount.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -140,4 +140,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L48) · [Kotlin](../../examples/kount/kount.kt#L48) · [Rust](../../examples/kount/kount.rs)
+**Examples:** [Python](../../examples/kount/kount.py) · [TypeScript](../../examples/kount/kount.ts#L48) · [Kotlin](../../examples/kount/kount.kt#L49) · [Rust](../../examples/kount/kount.rs)
