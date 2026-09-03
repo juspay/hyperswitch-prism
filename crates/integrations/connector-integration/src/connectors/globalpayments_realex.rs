@@ -242,7 +242,7 @@ macros::create_all_prerequisites!(
         /// A `400` carries a structured EMVCo error document; a `401` (a bad `securehash`, or a
         /// rotated Shared Secret) carries **no body at all**, and a `502` may carry an upstream
         /// document in an entirely different shape. Insisting on the structured shape would turn
-        /// any of those into an opaque deserialization failure, so anything unparseable falls
+        /// any of those into an opaque deserialization failure, so anything unparsable falls
         /// through to the shared handler rather than erroring out.
         pub fn build_3ds2_error_response(
             &self,

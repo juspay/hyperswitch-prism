@@ -1753,7 +1753,7 @@ where
 /// |---|---|---|
 /// | Voiding an already-voided transaction | `508` | `That transaction has already been voided.` |
 /// | Voiding with the pasref a `settle` minted | `508` | `Original transaction not found.` |
-/// | Unparseable `<pasref>` | `506` | `… does not conform to the schema` |
+/// | Unparsable `<pasref>` | `506` | `… does not conform to the schema` |
 ///
 /// The documented `513 Can't void a settled transaction` could **not** be reproduced: an
 /// `auth` + `settle` pair is still voidable through its *original* pasref (`00 Voided
@@ -2138,7 +2138,7 @@ where
 /// | `508` | `Original transaction not found.` | wrong `<pasref>` / `<orderid>` pair. **Verified live** with the `settle`-minted pasref |
 /// | `512` | `This transaction has already been rebated and cannot be rebated again.` | second partial refund on an account not enabled for multiple refunds |
 /// | `512` | `You can't refund a delayed transaction that has not been sent for settlement …` | the authorization was never captured — void it instead |
-/// | `506` | `The line number 2 which contains '…' does not conform to the schema` | unparseable `<pasref>`. **Verified live** |
+/// | `506` | `The line number 2 which contains '…' does not conform to the schema` | unparsable `<pasref>`. **Verified live** |
 ///
 /// Every one of these arrives as HTTP 200 in the small error document, so they are classified from
 /// `<result>` here rather than from a transport status.
