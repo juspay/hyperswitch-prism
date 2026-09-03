@@ -319,5 +319,7 @@ pub use self::jpmorganorbital::JpmorganOrbital;
 pub mod saferpay;
 pub use self::saferpay::Saferpay;
 
+pub mod travelhub;
+pub use self::travelhub::Travelhub;
 pub mod paydotcom;
 pub use self::paydotcom::Paydotcom;

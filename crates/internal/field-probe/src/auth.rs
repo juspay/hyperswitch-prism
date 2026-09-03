@@ -840,5 +840,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key2: k(),
             base_url: None,
         },
+        ConnectorEnum::Travelhub => ConnectorSpecificConfig::Travelhub {
+            username: k(),
+            password: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
     }
 }

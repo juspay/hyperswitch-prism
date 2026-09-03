@@ -194,6 +194,11 @@ pub struct GrabpayConnectorFeatureData {
     pub state: Option<Secret<String>>,
     pub callback_state: Option<String>,
     pub code: Option<String>,
+    /// GrabID authorization code recovered via the one-time-charge status
+    /// inquiry (HMAC-authenticated server-to-server), as opposed to `code`
+    /// which arrives via the browser redirect. Its presence signals that the
+    /// CSRF state check does not apply.
+    pub o_auth_code: Option<String>,
     pub nonce: Option<String>,
     pub code_verifier: Option<Secret<String>>,
     pub redirect_uri: Option<String>,
@@ -231,6 +236,10 @@ pub struct GrabpayChargeCompleteResponse {
     #[serde(rename = "txStatus")]
     pub tx_status: GrabpayPaymentStatus,
     pub reason: Option<String>,
+    // Only Grab's `/one-time-charge/{id}/status` inquiry returns this; the
+    // `/charge/complete` and `/charge/{id}/status` responses do not.
+    #[serde(rename = "oAuthCode", skip_serializing_if = "Option::is_none")]
+    pub o_auth_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -627,11 +636,25 @@ impl
                 .as_ref(),
         )?;
 
-        let code = feature_data
-            .code
-            .clone()
+        // Prefer the redirect-derived code; fall back to the codes recovered
+        // from the one-time-charge status inquiry (HMAC-fallback PSync).
+        // Ignore empty strings: `code` may carry an empty-JSON-string default
+        // ("") from upstream plumbing, which must not shadow the fallback.
+        let code_from_redirect = feature_data.code.as_deref().filter(|code| !code.is_empty());
+        let code = code_from_redirect
+            .or(feature_data
+                .o_auth_code
+                .as_deref()
+                .filter(|code| !code.is_empty()))
+            .map(str::to_string)
             .ok_or_else(missing_oauth_code_error)?;
-        validate_callback_state(&feature_data)?;
+
+        // The state check is OAuth CSRF protection for browser-redirect
+        // flows. When the code was recovered via the OTC status inquiry
+        // (HMAC-authenticated server-to-server, no redirect), skip it.
+        if code_from_redirect.is_some() {
+            validate_callback_state(&feature_data)?;
+        }
 
         Ok(Self {
             grant_type: AUTHORIZATION_CODE_GRANT.to_string(),
@@ -1352,6 +1375,7 @@ fn parse_connector_feature_data(
             state: None,
             callback_state: None,
             code: None,
+            o_auth_code: None,
             nonce: None,
             code_verifier: None,
             redirect_uri: None,
@@ -1419,13 +1443,36 @@ fn build_complete_connector_feature_data(
         );
     }
 
-    // Strip OAuth-only fields that are dead after the token exchange completes.
-    metadata.remove("code_verifier");
-    metadata.remove("nonce");
-    metadata.remove("state");
-    metadata.remove("code");
-    metadata.remove("callback_state");
-    metadata.remove("redirect_uri");
+    // Grab's `/one-time-charge/{id}/status` inquiry returns the GrabID
+    // authorization code after user consent — crucial in the HMAC-fallback
+    // PSync path where the redirect callback was missed. Persist it under
+    // `o_auth_code` (not `code`) so the token-exchange transformer can tell
+    // it apart from a redirect-derived code and skip the CSRF state check.
+    // Grab returns `"oAuthCode": ""` when consent is pending; skip empties.
+    if let Some(code) = response
+        .o_auth_code
+        .as_deref()
+        .filter(|code| !code.is_empty())
+    {
+        metadata.insert("o_auth_code".to_string(), serde_json::json!(code));
+    }
+
+    // Strip OAuth-only fields that are dead once the token exchange has
+    // completed — detected by a session token being passed in or already
+    // persisted in metadata. Before authorization (HMAC-fallback PSync)
+    // the exchange is still pending, so the fields — and the recovered
+    // `o_auth_code` above — are kept redeemable. Order matters: this strip
+    // runs after the `o_auth_code` insert so a pre-existing session token
+    // always wins.
+    if session_token.is_some() || metadata.get("session_token").is_some() {
+        metadata.remove("code_verifier");
+        metadata.remove("nonce");
+        metadata.remove("state");
+        metadata.remove("code");
+        metadata.remove("o_auth_code");
+        metadata.remove("callback_state");
+        metadata.remove("redirect_uri");
+    }
 
     connector_metadata
 }

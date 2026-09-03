@@ -1,0 +1,14 @@
+{
+  "connector": "travelhub",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ],
+  "supported_payment_methods": [
+    "card"
+  ]
+}

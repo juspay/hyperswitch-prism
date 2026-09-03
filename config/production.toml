@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
 citigate.base_url = "https://gw.cgate.tech"
 saferpay.base_url = "https://www.saferpay.com/api"
 paydotcom.base_url = "https://api.pay.com"
