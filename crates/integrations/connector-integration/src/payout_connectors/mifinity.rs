@@ -400,9 +400,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         .change_context(ConnectorError::ResponseDeserializationFailed {
             context: ResponseTransformationErrorContext {
                 http_status_code: Some(res.status_code),
-                additional_context: Some(
-                    "MiFinity PayoutGet response mapping failed".to_string(),
-                ),
+                additional_context: Some("MiFinity PayoutGet response mapping failed".to_string()),
             },
         })
     }
@@ -423,7 +421,9 @@ macro_rules! impl_unimplemented_payout_flow {
     ($trait_name:ident, $flow:ty, $request:ty, $response:ty, $flow_name:literal) => {
         impl $trait_name for MifinityPayouts {}
 
-        impl ConnectorIntegrationV2<$flow, PayoutFlowData, $request, $response> for MifinityPayouts {
+        impl ConnectorIntegrationV2<$flow, PayoutFlowData, $request, $response>
+            for MifinityPayouts
+        {
             fn get_url(
                 &self,
                 _req: &RouterDataV2<$flow, PayoutFlowData, $request, $response>,

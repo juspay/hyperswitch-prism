@@ -58,7 +58,9 @@ impl TryFrom<&ConnectorSpecificConfig> for MifinityAuthType {
 }
 
 impl MifinityAuthType {
-    pub fn get_source_account(&self) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    pub fn get_source_account(
+        &self,
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         self.source_account.clone().ok_or_else(|| {
             IntegrationError::MissingRequiredField {
                 field_name: "destination_account_number",
@@ -276,9 +278,7 @@ impl TryFrom<ResponseRouterData<MifinityPmcResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<MifinityPmcResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<MifinityPmcResponse, Self>) -> Result<Self, Self::Error> {
         // A synchronous 200 with a populated payload confirms the payout was
         // accepted/initiated. Final settlement (PROCESSED_BY_ACQUIRER) is
         // confirmed asynchronously via callback or the status-sync endpoint.

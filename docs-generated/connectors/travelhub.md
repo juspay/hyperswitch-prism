@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L115) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L113) · [Rust](../../examples/travelhub/travelhub.rs#L150)
+**Examples:** [Python](../../examples/travelhub/travelhub.py#L115) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L114) · [Rust](../../examples/travelhub/travelhub.rs#L150)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L134) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L129) · [Rust](../../examples/travelhub/travelhub.rs#L166)
+**Examples:** [Python](../../examples/travelhub/travelhub.py#L134) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L130) · [Rust](../../examples/travelhub/travelhub.rs#L166)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L159) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L151) · [Rust](../../examples/travelhub/travelhub.rs#L189)
+**Examples:** [Python](../../examples/travelhub/travelhub.py#L159) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L152) · [Rust](../../examples/travelhub/travelhub.rs#L189)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L184) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L173) · [Rust](../../examples/travelhub/travelhub.rs#L212)
+**Examples:** [Python](../../examples/travelhub/travelhub.py#L184) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L174) · [Rust](../../examples/travelhub/travelhub.rs#L212)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L206) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L192) · [Rust](../../examples/travelhub/travelhub.rs#L231)
+**Examples:** [Python](../../examples/travelhub/travelhub.py#L206) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L193) · [Rust](../../examples/travelhub/travelhub.rs#L231)
 
 ## API Reference
 
@@ -308,7 +308,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L239) · [Kotlin](../../examples/travelhub/travelhub.kt#L210) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L239) · [Kotlin](../../examples/travelhub/travelhub.kt#L211) · [Rust](../../examples/travelhub/travelhub.rs)
 
 #### PaymentService.Capture
 
@@ -319,7 +319,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L248) · [Kotlin](../../examples/travelhub/travelhub.kt#L222) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L248) · [Kotlin](../../examples/travelhub/travelhub.kt#L223) · [Rust](../../examples/travelhub/travelhub.rs)
 
 #### PaymentService.Get
 
@@ -330,7 +330,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L257) · [Kotlin](../../examples/travelhub/travelhub.kt#L232) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L257) · [Kotlin](../../examples/travelhub/travelhub.kt#L233) · [Rust](../../examples/travelhub/travelhub.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -341,7 +341,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L266) · [Kotlin](../../examples/travelhub/travelhub.kt#L240) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L266) · [Kotlin](../../examples/travelhub/travelhub.kt#L241) · [Rust](../../examples/travelhub/travelhub.rs)
 
 #### PaymentService.Refund
 
@@ -352,7 +352,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L275) · [Kotlin](../../examples/travelhub/travelhub.kt#L269) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L275) · [Kotlin](../../examples/travelhub/travelhub.kt#L270) · [Rust](../../examples/travelhub/travelhub.rs)
 
 #### PaymentService.Void
 
@@ -363,4 +363,4 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts) · [Kotlin](../../examples/travelhub/travelhub.kt#L279) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts) · [Kotlin](../../examples/travelhub/travelhub.kt#L280) · [Rust](../../examples/travelhub/travelhub.rs)
