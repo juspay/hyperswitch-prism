@@ -386,8 +386,8 @@ impl PayoutFlowStatusRules for connector_flow::PayoutTransfer {
     const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Success];
     const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[
         PayoutStatus::Failure,
-        PayoutStatus::Expired,   // EXPIRED
-        PayoutStatus::Reversed,  // REVERSED
+        PayoutStatus::Expired,
+        PayoutStatus::Reversed,
     ];
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Initiated,
@@ -402,7 +402,6 @@ impl PayoutFlowStatusRules for connector_flow::PayoutTransfer {
 impl PayoutFlowStatusRules for connector_flow::PayoutGet {
     const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Success];
     const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
-    // PayoutGet is a poll/sync flow — all statuses are valid responses.
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Success,
         PayoutStatus::Failure,
@@ -427,7 +426,7 @@ impl PayoutFlowStatusRules for connector_flow::PayoutVoid {
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Pending,
         PayoutStatus::Cancelled,
-        PayoutStatus::Reversed, // REVERSED
+        PayoutStatus::Reversed,
     ];
 }
 
