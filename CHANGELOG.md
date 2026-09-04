@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.04.2
+
+### Features
+
+- **connector:** [PayNearMe] add connector with Authorize, PSync, Void, Refund, RSync for cards ([#2221](https://github.com/juspay/connector-service/pull/2221)) ([`f590ae5`](https://github.com/juspay/connector-service/commit/f590ae5889b8f53472379cd485eea7ec53cd5680))
+
+### Bug Fixes
+
+- **adyen:** Thread test_mode through SetupRecurring, VoidPC, IncrementalAuthorization ([#2239](https://github.com/juspay/connector-service/pull/2239)) ([`2c988f9`](https://github.com/juspay/connector-service/commit/2c988f92a7784394fd18d0ac7a505ea9ae4bcd2a))
+
+**Full Changelog:** [`2026.09.04.1...2026.09.04.2`](https://github.com/juspay/connector-service/compare/2026.09.04.1...2026.09.04.2)
+
+- - -
+
 ## 2026.09.04.1
 
 ### Features

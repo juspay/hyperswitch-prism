@@ -437,6 +437,7 @@ pub struct Connectors {
     pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
     pub travelhub: ConnectorParams,
+    pub paynearme: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -3547,6 +3548,10 @@ pub struct SetupRecurringRequest {
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Sandbox/test mode flag (true for test environment). Connectors that branch
+    /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
+    /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
+    pub test_mode: Option<bool>,
 }
 
 /// ============================================================================
@@ -3742,6 +3747,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -3795,6 +3801,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -5798,7 +5805,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -10204,7 +10211,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -10320,7 +10327,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -20079,6 +20086,8 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        // TokenSetupRecurringRequest has no test_mode field
+        test_mode: None,
     }
 }
 
@@ -20303,6 +20312,7 @@ pub fn proxied_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        test_mode: v.test_mode,
     })
 }
 
