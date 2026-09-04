@@ -135,7 +135,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"site_identifier\":\"probe_key\",\"timestamp\":\"0000000000\",\"version\":\"3.0\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"pnm_order_identifier\":\"connector_order_id\",\"payment_method_type\":\"card\",\"payment_method_card_number_pii\":\"4111111111111111\",\"payment_method_card_expiry_pii\":\"03/2030\",\"payment_method_cvv_pii\":\"737\",\"payment_method_billing_name\":\"John\",\"payment_method_billing_address\":\"123 Main St\",\"payment_method_billing_zipcode\":\"98101\",\"payment_method_billing_phone\":\"+14155552671\",\"send_payment\":\"true\",\"payment_amount\":\"10.00\",\"payment_currency\":\"USD\",\"site_channel\":\"consumer\",\"site_payment_identifier\":\"probe_txn_001\",\"last_pmt_only\":\"true\"}"
+          "body": "{\"site_identifier\":\"probe_key\",\"timestamp\":\"0000000000\",\"version\":\"3.0\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"pnm_order_identifier\":\"connector_order_id\",\"payment_method_type\":\"card\",\"payment_method_card_number_pii\":\"4111111111111111\",\"payment_method_card_expiry_pii\":\"03/2030\",\"payment_method_cvv_pii\":\"737\",\"payment_method_billing_name\":\"John\",\"payment_method_billing_address\":\"123 Main St\",\"payment_method_billing_zipcode\":\"98101\",\"payment_method_billing_phone\":\"4155552671\",\"send_payment\":\"true\",\"payment_amount\":\"10.00\",\"payment_currency\":\"USD\",\"site_channel\":\"consumer\",\"site_payment_identifier\":\"probe_txn_001\",\"last_pmt_only\":\"true\"}"
         }
       },
       "CashappQr": {
@@ -669,7 +669,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"site_identifier\":\"probe_key\",\"timestamp\":\"0000000000\",\"version\":\"3.0\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"pnm_order_identifier\":\"connector_order_id\",\"payment_method_type\":\"card\",\"payment_method_card_number_pii\":\"{{$card_number}}\",\"payment_method_card_expiry_pii\":\"03/2030\",\"payment_method_cvv_pii\":\"{{$card_cvc}}\",\"payment_method_billing_name\":\"John\",\"payment_method_billing_address\":\"123 Main St\",\"payment_method_billing_zipcode\":\"98101\",\"payment_method_billing_phone\":\"+14155552671\",\"send_payment\":\"true\",\"payment_amount\":\"10.00\",\"payment_currency\":\"USD\",\"site_channel\":\"consumer\",\"site_payment_identifier\":\"probe_proxy_txn_001\",\"last_pmt_only\":\"true\"}"
+          "body": "{\"site_identifier\":\"probe_key\",\"timestamp\":\"0000000000\",\"version\":\"3.0\",\"signature\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"pnm_order_identifier\":\"connector_order_id\",\"payment_method_type\":\"card\",\"payment_method_card_number_pii\":\"{{$card_number}}\",\"payment_method_card_expiry_pii\":\"03/2030\",\"payment_method_cvv_pii\":\"{{$card_cvc}}\",\"payment_method_billing_name\":\"John\",\"payment_method_billing_address\":\"123 Main St\",\"payment_method_billing_zipcode\":\"98101\",\"payment_method_billing_phone\":\"4155552671\",\"send_payment\":\"true\",\"payment_amount\":\"10.00\",\"payment_currency\":\"USD\",\"site_channel\":\"consumer\",\"site_payment_identifier\":\"probe_proxy_txn_001\",\"last_pmt_only\":\"true\"}"
         }
       }
     },
