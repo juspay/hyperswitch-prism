@@ -1755,6 +1755,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Merchant business country, used for country-specific connector rules.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -5963,6 +5965,15 @@ pub struct RecipientDetails {
 pub struct AdditionalConnectorDetails {
     /// Checkout.com-specific additional information.
     pub checkout: Option<CheckoutAdditionalInformation>,
+    /// Worldpayxml-specific additional information.
+    pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
+}
+
+/// Worldpayxml-specific additional information.
+#[derive(Debug, Clone)]
+pub struct WorldpayxmlAdditionalInformation {
+    pub funding_transaction_type: Option<String>,
+    pub payment_purpose: Option<String>,
 }
 
 /// Checkout.com-specific additional information.

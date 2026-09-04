@@ -3502,6 +3502,8 @@ pub struct AuthorizationRequest {
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
+    pub business_country: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3615,6 +3617,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
+            business_country: req.business_country,
         }
     }
 }
@@ -3689,6 +3692,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            business_country: None,
         }
     }
 }
@@ -4781,6 +4785,10 @@ impl<
             threeds_method_comp_ind: value.threeds_completion_indicator.and_then(|i| {
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
+            business_country: value
+                .business_country
+                .as_ref()
+                .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -14128,6 +14136,12 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                 .map(|c| connector_types::CheckoutAdditionalInformation {
                     purpose_of_payment: c.purpose_of_payment,
                 }),
+            worldpayxml: value.worldpayxml.map(|w| {
+                connector_types::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: w.funding_transaction_type,
+                    payment_purpose: w.payment_purpose,
+                }
+            }),
         }
     }
 }
@@ -19982,6 +19996,7 @@ pub fn tokenized_authorize_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        business_country: None,
     }
 }
 
@@ -20169,6 +20184,7 @@ pub fn proxied_authorize_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        business_country: None,
     })
 }
 
