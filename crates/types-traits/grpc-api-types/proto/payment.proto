@@ -909,6 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
+  GLOBALPAYMENTS_HEARTLAND = 143;
 }
 
 // Payment method types
@@ -5686,6 +5687,13 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -6081,6 +6089,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
+    // GLOBALPAYMENTS_HEARTLAND = 143
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 154;
   }
 }
 
