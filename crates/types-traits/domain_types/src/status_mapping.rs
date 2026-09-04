@@ -365,10 +365,10 @@ macro_rules! assert_terminal_mapping {
 
             let success_input =
                 <$connector as ConnectorTerminalMapping<$flow>>::success_connector_status();
-            let mapped =
-                <$connector as ConnectorTerminalMapping<$flow>>::map_attempt_status(
-                    success_input, $ctx,
-                );
+            let mapped = <$connector as ConnectorTerminalMapping<$flow>>::map_attempt_status(
+                success_input,
+                $ctx,
+            );
             assert!(
                 <$flow as FlowStatusRules>::TERMINAL_SUCCESS_SET.contains(&mapped),
                 "{}: success_connector_status() maps to {:?}, \
@@ -380,10 +380,10 @@ macro_rules! assert_terminal_mapping {
 
             let failure_input =
                 <$connector as ConnectorTerminalMapping<$flow>>::failure_connector_status();
-            let mapped =
-                <$connector as ConnectorTerminalMapping<$flow>>::map_attempt_status(
-                    failure_input, $ctx,
-                );
+            let mapped = <$connector as ConnectorTerminalMapping<$flow>>::map_attempt_status(
+                failure_input,
+                $ctx,
+            );
             assert!(
                 <$flow as FlowStatusRules>::TERMINAL_FAILURE_SET.contains(&mapped),
                 "{}: failure_connector_status() maps to {:?}, \

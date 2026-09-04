@@ -137,10 +137,8 @@ impl FlowStatusRules for connector_flow::Capture {
 impl FlowStatusRules for connector_flow::Void {
     const NAME: &'static str = "Void";
     const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[AttemptStatus::Voided];
-    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
-        AttemptStatus::VoidFailed,
-        AttemptStatus::Failure,
-    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::VoidFailed, AttemptStatus::Failure];
     const ALLOWED: &'static [AttemptStatus] = &[
         AttemptStatus::VoidInitiated,
         AttemptStatus::Voided,
@@ -165,10 +163,8 @@ impl FlowStatusRules for connector_flow::VoidPC {
 impl FlowStatusRules for connector_flow::SetupMandate {
     const NAME: &'static str = "SetupMandate";
     const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[AttemptStatus::Charged];
-    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
-        AttemptStatus::Failure,
-        AttemptStatus::AuthorizationFailed,
-    ];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Failure, AttemptStatus::AuthorizationFailed];
     const ALLOWED: &'static [AttemptStatus] = &[
         AttemptStatus::Started,
         AttemptStatus::AuthenticationPending,
@@ -181,10 +177,8 @@ impl FlowStatusRules for connector_flow::SetupMandate {
 
 impl FlowStatusRules for connector_flow::RepeatPayment {
     const NAME: &'static str = "RepeatPayment";
-    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
-        AttemptStatus::Charged,
-        AttemptStatus::PartialCharged,
-    ];
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Charged, AttemptStatus::PartialCharged];
     const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
         AttemptStatus::Failure,
         AttemptStatus::AuthorizationFailed,
@@ -262,10 +256,8 @@ impl FlowStatusRules for connector_flow::PSync {
 
 impl FlowStatusRules for connector_flow::IncrementalAuthorization {
     const NAME: &'static str = "IncrementalAuthorization";
-    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[
-        AttemptStatus::Authorized,
-        AttemptStatus::Charged,
-    ];
+    const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] =
+        &[AttemptStatus::Authorized, AttemptStatus::Charged];
     const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
         AttemptStatus::AuthorizationFailed,
         AttemptStatus::Failure,
@@ -296,14 +288,20 @@ macro_rules! assert_flow_rules {
                 <$flow as FlowStatusRules>::TERMINAL_SUCCESS_SET,
                 <$flow as FlowStatusRules>::ALLOWED,
             ),
-            concat!(stringify!($flow), ": TERMINAL_SUCCESS_SET contains a value not in ALLOWED"),
+            concat!(
+                stringify!($flow),
+                ": TERMINAL_SUCCESS_SET contains a value not in ALLOWED"
+            ),
         );
         const _: () = assert!(
             const_all_in(
                 <$flow as FlowStatusRules>::TERMINAL_FAILURE_SET,
                 <$flow as FlowStatusRules>::ALLOWED,
             ),
-            concat!(stringify!($flow), ": TERMINAL_FAILURE_SET contains a value not in ALLOWED"),
+            concat!(
+                stringify!($flow),
+                ": TERMINAL_FAILURE_SET contains a value not in ALLOWED"
+            ),
         );
     };
 }
@@ -455,5 +453,8 @@ pub trait ConnectorTerminalMapping<Flow: FlowStatusRules> {
     /// `ctx` carries any extra request/response context the connector needs.
     /// Pass `()` for the common case where the connector status alone determines
     /// the `AttemptStatus`.
-    fn map_attempt_status(status: Self::ConnectorStatus, ctx: Self::MappingContext) -> AttemptStatus;
+    fn map_attempt_status(
+        status: Self::ConnectorStatus,
+        ctx: Self::MappingContext,
+    ) -> AttemptStatus;
 }

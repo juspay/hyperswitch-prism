@@ -864,13 +864,15 @@ impl PaymentFlowData {
             self.status = status;
             Ok(self)
         } else {
-            Err(crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
-                Some(format!(
-                    "status {:?} is not allowed in flow {}",
-                    status,
-                    F::NAME,
-                )),
-            ))
+            Err(
+                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(format!(
+                        "status {:?} is not allowed in flow {}",
+                        status,
+                        F::NAME,
+                    )),
+                ),
+            )
         }
     }
 
