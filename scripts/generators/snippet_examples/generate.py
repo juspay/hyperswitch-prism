@@ -146,6 +146,16 @@ _DIRECT_SYNC_FLOWS: frozenset[str] = frozenset({
 })
 
 
+def _config_field_comment(field_name: str) -> str:
+    """Trailing comment for a plain-string config field in the Rust snippet.
+
+    Only the url fields are endpoints (base_url, secondary_base_url,
+    base_url_bank_redirects, merchant_url, …); the rest (terminal_id,
+    report_group, site, bin, …) are ordinary settings, not URLs.
+    """
+    return "Endpoint URL" if "url" in field_name else "Connector setting"
+
+
 def _generate_connector_config_rust(connector_name: str) -> str:
     """Generate accurate Rust config code using parsed proto metadata.
     
@@ -176,13 +186,13 @@ def _generate_connector_config_rust(connector_name: str) -> str:
         if is_repeated and field_type == 'string':
             # Repeated string fields like Vec<String> or Option<Vec<String>>
             if is_optional:
-                field_lines.append(f'                {field_name}: Some(vec!["value".to_string()]),  // Array field')
+                field_lines.append(f'                {field_name}: Some(vec!["YOUR_{field_name.upper()}".to_string()]),  // Array field')
             else:
-                field_lines.append(f'                {field_name}: vec!["value".to_string()],  // Array field')
+                field_lines.append(f'                {field_name}: vec!["YOUR_{field_name.upper()}".to_string()],  // Array field')
         elif field_type == 'SecretString':
             field_lines.append(f'                {field_name}: Some(hyperswitch_masking::Secret::new("YOUR_{field_name.upper()}".to_string())),  // Authentication credential')
         elif field_type == 'string':
-            field_lines.append(f'                {field_name}: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls')
+            field_lines.append(f'                {field_name}: Some("YOUR_{field_name.upper()}".to_string()),  // {_config_field_comment(field_name)}')
         elif field_type == 'bool':
             field_lines.append(f'                {field_name}: Some(false),  // Feature flag')
     
@@ -1059,6 +1069,10 @@ _CONN_PROTO_IDENTIFIERS: dict[str, tuple[str, str, str]] = {
     "jpmorganorbital": ("JPMORGAN_ORBITAL", "JpmorganOrbital", "jpmorgan_orbital"),
     "pinelabsonline": ("PINELABS_ONLINE", "PinelabsOnline", "pinelabs_online"),
     "tsystransit": ("TSYS_TRANSIT", "TsysTransit", "tsys_transit"),
+    # Without this, _conn_enum_rust() collapses the underscores to
+    # "Twoctwoppaco" and no TwoctwoppacoConfig exists, so the Rust tab fell
+    # back to `connector_config: None` while the intro named 9 placeholders.
+    "twoc_twop_paco": ("TWOC_TWOP_PACO", "TwocTwopPaco", "twoc_twop_paco"),
 }
 
 
@@ -2531,18 +2545,22 @@ def _config_intro(connector_name: str) -> str:
             "Replace the placeholder values with your actual credentials."
         )
     quoted = ", ".join(f"`{name}`" for name in placeholders)
-    noun = "placeholder" if len(placeholders) == 1 else "placeholders"
+    if len(placeholders) == 1:
+        noun, value = "placeholder", "value"
+    else:
+        noun, value = "placeholders", "values"
     return (
         f"Use this config for all flows in this connector. "
-        f"Replace the {noun} {quoted} with your actual values."
+        f"Replace the {noun} {quoted} with your actual {value}."
     )
 
 
 def _config_placeholders(connector_name: str) -> list[str]:
     """Return the YOUR_* placeholders the config snippets emit, in field order.
 
-    Mirrors the field handling in _generate_connector_config_python/_javascript/
-    _kotlin: string and SecretString fields become YOUR_<FIELD>, bool fields do not.
+    Mirrors the field handling in _generate_connector_config_python/_typescript/
+    _kotlin/_rust: string and SecretString fields become YOUR_<FIELD> in all four
+    snippets, bool fields do not.
     """
     config_name = f"{_conn_display(connector_name)}Config"
     fields = _PROTO_FIELD_TYPES.get(config_name, {})

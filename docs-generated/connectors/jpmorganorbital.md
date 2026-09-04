@@ -108,10 +108,10 @@ let config = ConnectorConfig {
                 username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                bin: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                terminal_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                bin: Some("YOUR_BIN".to_string()),  // Connector setting
+                terminal_id: Some("YOUR_TERMINAL_ID".to_string()),  // Connector setting
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                merchant_config_currency: Some("YOUR_MERCHANT_CONFIG_CURRENCY".to_string()),  // Connector setting
                 ..Default::default()
             })),
         }),

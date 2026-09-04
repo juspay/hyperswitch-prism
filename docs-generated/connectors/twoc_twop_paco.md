@@ -109,7 +109,20 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::TwocTwopPaco(TwocTwopPacoConfig {
+                access_token: Some(hyperswitch_masking::Secret::new("YOUR_ACCESS_TOKEN".to_string())),  // Authentication credential
+                office_id: Some(hyperswitch_masking::Secret::new("YOUR_OFFICE_ID".to_string())),  // Authentication credential
+                paco_kid: Some(hyperswitch_masking::Secret::new("YOUR_PACO_KID".to_string())),  // Authentication credential
+                merchant_signing_private_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_SIGNING_PRIVATE_KEY".to_string())),  // Authentication credential
+                merchant_encryption_private_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ENCRYPTION_PRIVATE_KEY".to_string())),  // Authentication credential
+                paco_signing_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_SIGNING_PUBLIC_KEY".to_string())),  // Authentication credential
+                paco_encryption_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_ENCRYPTION_PUBLIC_KEY".to_string())),  // Authentication credential
+                response_audience: Some(hyperswitch_masking::Secret::new("YOUR_RESPONSE_AUDIENCE".to_string())),  // Authentication credential
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -138,7 +151,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L100) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L120) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L130) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L125)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L100) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L120) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L130) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L138)
 
 ### Card Payment (Authorize + Capture)
 
@@ -152,13 +165,13 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L119) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L139) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L146) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L141)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L119) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L139) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L146) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L154)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L144) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L165) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L168) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L164)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L144) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L165) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L168) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L177)
 
 ## API Reference
 

@@ -102,8 +102,8 @@ let config = ConnectorConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 verify_key: Some(hyperswitch_masking::Secret::new("YOUR_VERIFY_KEY".to_string())),  // Authentication credential
                 secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

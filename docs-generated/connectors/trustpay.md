@@ -102,8 +102,8 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 project_id: Some(hyperswitch_masking::Secret::new("YOUR_PROJECT_ID".to_string())),  // Authentication credential
                 secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                base_url_bank_redirects: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url_bank_redirects: Some("YOUR_BASE_URL_BANK_REDIRECTS".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

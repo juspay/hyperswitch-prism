@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Maya(MayaConfig {
                 public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

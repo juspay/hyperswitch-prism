@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Loonio(LoonioConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 merchant_token: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Affirm(AffirmConfig {
                 public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

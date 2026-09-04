@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 rank: Some(hyperswitch_masking::Secret::new("YOUR_RANK".to_string())),  // Authentication credential
                 key: Some(hyperswitch_masking::Secret::new("YOUR_KEY".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

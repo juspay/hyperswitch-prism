@@ -102,8 +102,8 @@ let config = ConnectorConfig {
                 campaign_id: Some(hyperswitch_masking::Secret::new("YOUR_CAMPAIGN_ID".to_string())),  // Authentication credential
                 access_token: Some(hyperswitch_masking::Secret::new("YOUR_ACCESS_TOKEN".to_string())),  // Authentication credential
                 security_token: Some(hyperswitch_masking::Secret::new("YOUR_SECURITY_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                site: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                site: Some("YOUR_SITE".to_string()),  // Connector setting
                 ..Default::default()
             })),
         }),

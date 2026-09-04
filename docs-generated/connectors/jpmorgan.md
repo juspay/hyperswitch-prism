@@ -110,12 +110,12 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Jpmorgan(JpmorganConfig {
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
                 client_secret: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 company_name: Some(hyperswitch_masking::Secret::new("YOUR_COMPANY_NAME".to_string())),  // Authentication credential
                 product_name: Some(hyperswitch_masking::Secret::new("YOUR_PRODUCT_NAME".to_string())),  // Authentication credential
                 merchant_purchase_description: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_PURCHASE_DESCRIPTION".to_string())),  // Authentication credential
                 statement_descriptor: Some(hyperswitch_masking::Secret::new("YOUR_STATEMENT_DESCRIPTOR".to_string())),  // Authentication credential
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

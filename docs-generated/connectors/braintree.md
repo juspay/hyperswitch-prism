@@ -128,18 +128,18 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Braintree(BraintreeConfig {
                 public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 merchant_account_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT_ID".to_string())),  // Authentication credential
-                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                apple_pay_supported_networks: vec!["value".to_string()],  // Array field
-                apple_pay_merchant_capabilities: vec!["value".to_string()],  // Array field
-                apple_pay_label: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_merchant_name: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_allowed_auth_methods: vec!["value".to_string()],  // Array field
-                gpay_allowed_card_networks: vec!["value".to_string()],  // Array field
-                paypal_client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_gateway_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_config_currency: Some("YOUR_MERCHANT_CONFIG_CURRENCY".to_string()),  // Connector setting
+                apple_pay_supported_networks: vec!["YOUR_APPLE_PAY_SUPPORTED_NETWORKS".to_string()],  // Array field
+                apple_pay_merchant_capabilities: vec!["YOUR_APPLE_PAY_MERCHANT_CAPABILITIES".to_string()],  // Array field
+                apple_pay_label: Some("YOUR_APPLE_PAY_LABEL".to_string()),  // Connector setting
+                gpay_merchant_name: Some("YOUR_GPAY_MERCHANT_NAME".to_string()),  // Connector setting
+                gpay_merchant_id: Some("YOUR_GPAY_MERCHANT_ID".to_string()),  // Connector setting
+                gpay_allowed_auth_methods: vec!["YOUR_GPAY_ALLOWED_AUTH_METHODS".to_string()],  // Array field
+                gpay_allowed_card_networks: vec!["YOUR_GPAY_ALLOWED_CARD_NETWORKS".to_string()],  // Array field
+                paypal_client_id: Some("YOUR_PAYPAL_CLIENT_ID".to_string()),  // Connector setting
+                gpay_gateway_merchant_id: Some("YOUR_GPAY_GATEWAY_MERCHANT_ID".to_string()),  // Connector setting
                 ..Default::default()
             })),
         }),

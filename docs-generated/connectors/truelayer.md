@@ -114,8 +114,8 @@ let config = ConnectorConfig {
                 account_holder_name: Some(hyperswitch_masking::Secret::new("YOUR_ACCOUNT_HOLDER_NAME".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
                 kid: Some(hyperswitch_masking::Secret::new("YOUR_KID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

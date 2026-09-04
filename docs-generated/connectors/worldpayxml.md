@@ -111,7 +111,7 @@ let config = ConnectorConfig {
                 issuer_id: Some(hyperswitch_masking::Secret::new("YOUR_ISSUER_ID".to_string())),  // Authentication credential
                 organizational_unit_id: Some(hyperswitch_masking::Secret::new("YOUR_ORGANIZATIONAL_UNIT_ID".to_string())),  // Authentication credential
                 jwt_mac_key: Some(hyperswitch_masking::Secret::new("YOUR_JWT_MAC_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

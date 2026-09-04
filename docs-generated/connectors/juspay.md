@@ -107,7 +107,7 @@ let config = ConnectorConfig {
                 juspay_encryption_public_key: Some(hyperswitch_masking::Secret::new("YOUR_JUSPAY_ENCRYPTION_PUBLIC_KEY".to_string())),  // Authentication credential
                 response_decryption_private_key: Some(hyperswitch_masking::Secret::new("YOUR_RESPONSE_DECRYPTION_PRIVATE_KEY".to_string())),  // Authentication credential
                 card_sync_key_id: Some(hyperswitch_masking::Secret::new("YOUR_CARD_SYNC_KEY_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

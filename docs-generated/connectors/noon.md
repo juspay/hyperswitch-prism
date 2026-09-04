@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 application_identifier: Some(hyperswitch_masking::Secret::new("YOUR_APPLICATION_IDENTIFIER".to_string())),  // Authentication credential
                 business_identifier: Some(hyperswitch_masking::Secret::new("YOUR_BUSINESS_IDENTIFIER".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

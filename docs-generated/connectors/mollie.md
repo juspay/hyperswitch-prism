@@ -98,8 +98,8 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Mollie(MollieConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 profile_token: Some(hyperswitch_masking::Secret::new("YOUR_PROFILE_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),

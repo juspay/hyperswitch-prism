@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Worldpayraft(WorldpayraftConfig {
                 license: Some(hyperswitch_masking::Secret::new("YOUR_LICENSE".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
                 ..Default::default()
             })),
         }),
