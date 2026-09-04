@@ -909,6 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
+  PAYNEARME = 143;
 }
 
 // Payment method types
@@ -2680,6 +2681,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 55;
+
+  // Merchant business country, ISO 3166-1 alpha-2
+  optional string business_country = 56;
 }
 
 // Partner / external-platform application details.
@@ -5676,6 +5680,15 @@ message CitigateConfig {
   optional string base_url = 50;
 }
 
+// PayNearMe API v3.0.
+// api_key = API Secret Key (HMAC-SHA256 signing key, never transmitted)
+// key1    = Site Identifier, sent as the `site_identifier` body field
+message PaynearmeConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message IlixiumConfig {
   // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
   SecretString api_key = 1;
@@ -6081,6 +6094,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
+    // PAYNEARME = 143
+    PaynearmeConfig paynearme = 154;
   }
 }
 
@@ -6584,6 +6599,12 @@ message SplitSettlementResponseVendor {
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
+  optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+}
+
+message WorldpayxmlAdditionalInformation {
+  optional string funding_transaction_type = 1;
+  optional string payment_purpose = 2;
 }
 
 // Checkout.com-specific additional information to be included in the payment request.

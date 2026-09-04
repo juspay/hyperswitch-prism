@@ -130,11 +130,14 @@ impl TryFrom<&ConnectorSpecificConfig> for PayloadAuthType {
 
 impl PayloadAuthType {
     // The api_key / processing_account_id pair is the same across currencies in
-    // the Payload sandbox, so any currency-keyed entry yields the same id.
+    // the Payload sandbox — an unenforced invariant, so scan in currency order
+    // rather than HashMap iteration's per-process arbitrary one.
     fn primary_processing_id(&self) -> Option<Secret<String>> {
-        self.auths
-            .values()
-            .find_map(|a| a.processing_account_id.clone())
+        let mut entries: Vec<_> = self.auths.iter().collect();
+        entries.sort_by_key(|(currency, _)| currency.to_string());
+        entries
+            .into_iter()
+            .find_map(|(_, auth)| auth.processing_account_id.clone())
     }
 }
 
