@@ -1681,9 +1681,15 @@ mod tests {
         let string_to_sign = paynearme_string_to_sign(&body).expect("string_to_sign");
         assert_eq!(
             string_to_sign,
-            "order_amount500order_currencyUSDorder_is_standingtrueorder_typeany\
-             site_customer_identifier11223344site_identifierS2155373459\
-             timestamp1636142061version3.0"
+            // Split at the currency/`order_is_standing` boundary: concatenated
+            // end-to-end, those two run together into a token the spell checker
+            // flags as a misspelling. `concat!` keeps the runtime value identical.
+            concat!(
+                "order_amount500order_currencyUSD",
+                "order_is_standingtrueorder_typeany",
+                "site_customer_identifier11223344site_identifierS2155373459",
+                "timestamp1636142061version3.0",
+            )
         );
 
         let signature =
