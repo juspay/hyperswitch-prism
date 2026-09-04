@@ -58,6 +58,7 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
+                firstNameBuilder.value = "John"  // Personal Information.
                 line1Builder.value = "123 Main St"  // Address Details.
                 zipCodeBuilder.value = "98101"
                 phoneNumberBuilder.value = "4155552671"
@@ -230,6 +231,7 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         addressBuilder.apply {
             billingAddressBuilder.apply {
+                firstNameBuilder.value = "John"  // Personal Information.
                 line1Builder.value = "123 Main St"  // Address Details.
                 zipCodeBuilder.value = "98101"
                 phoneNumberBuilder.value = "4155552671"
