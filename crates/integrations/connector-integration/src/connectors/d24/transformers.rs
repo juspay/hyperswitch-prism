@@ -26,17 +26,19 @@ use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 /// closed enum, so this stays a plain constant rather than a Rust enum.
 const D24_PAYMENT_METHOD_WEBPAY: &str = "WP";
 
-/// The `payer.document_type` values Directa24 accepts for the countries this
-/// integration serves. `RUT` is the Chilean national identifier; `DocumentKind`
-/// has no `Rut` variant, so `DocumentKind::Other` + a Chilean billing country is
-/// the only representable spelling.
+/// The `payer.document_type` values this integration can emit.
+///
+/// WebPay is Chile-only (Guard 2), and Directa24 accepts only a RUT for it, so
+/// `Rut` is the single reachable variant. `DocumentKind` has no `Rut` variant,
+/// which is why `DocumentKind::Other` + a Chilean billing country is the only
+/// representable spelling. Other Directa24 document types (CPF, CNPJ, PSN)
+/// belong to other countries and other payment methods; adding them here
+/// without also relaxing Guard 2 and the RUT validator would produce a payer
+/// this connector then rejects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum D24DocumentType {
     Rut,
-    Cpf,
-    Cnpj,
-    Psn,
 }
 
 // =============================================================================
@@ -191,12 +193,12 @@ pub struct D24PaymentsRequest {
     pub payer: D24Payer,
     /// Always `"WP"` for this integration.
     pub payment_method: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub success_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub back_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub error_url: Option<String>,
+    /// Not optional: WebPay is a mandatory redirect, so all three are always
+    /// sent. `get_router_return_url()` fails the request locally rather than
+    /// letting a deposit be created that the customer cannot return from.
+    pub success_url: String,
+    pub back_url: String,
+    pub error_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -249,9 +251,6 @@ fn d24_document_type(
 ) -> Result<D24DocumentType, error_stack::Report<IntegrationError>> {
     match (kind, country) {
         (DocumentKind::Other, common_enums::CountryAlpha2::CL) => Ok(D24DocumentType::Rut),
-        (DocumentKind::Cpf, _) => Ok(D24DocumentType::Cpf),
-        (DocumentKind::Cnpj, _) => Ok(D24DocumentType::Cnpj),
-        (DocumentKind::Psn, _) => Ok(D24DocumentType::Psn),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: format!("customer document type {kind:?} for billing country {country}"),
             connector: "d24",
@@ -394,7 +393,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // UCS carries a single return URL; D24 wants three. All three land back
         // on the same HS redirect-sync endpoint, which is what triggers PSync.
-        let return_url = request.router_return_url.clone();
+        //
+        // Required, not optional: WebPay is a mandatory redirect. Dropping the
+        // three URLs would strand the customer on Transbank with nowhere to
+        // return, and HS would never receive the redirect-sync that starts
+        // PSync. Failing locally is the only honest outcome.
+        let return_url = request.get_router_return_url()?;
 
         Ok(Self {
             country,
@@ -867,16 +871,21 @@ pub struct D24RefundInfo {
 
 /// `200` from `POST /v3/refunds`.
 ///
-/// Directa24 documents two response shapes — the credit-card/synchronous one
-/// carrying `deposit_id`, `merchant_invoice_id` and a `refund_info` object, and
-/// the bank/APM one carrying `{"refund_id": ...}` and nothing else. They differ
-/// by field *presence*, not by structure, so a single all-optional struct covers
-/// both. An `#[serde(untagged)]` enum would be strictly worse here: a merely
-/// missing field would make it silently select the wrong arm.
+/// Directa24 publishes a single `RefundSuccessResponse` schema, not two. It
+/// carries `refund_id` plus three members the schema annotates as "Returned for
+/// synchronously processed credit card refunds": `deposit_id`,
+/// `merchant_invoice_id` and `refund_info`. So the two shapes people describe —
+/// the synchronous card one and the bank/APM `{"refund_id": ...}` one — differ
+/// only by the *presence* of those three, and `refund_id` is common to both.
+/// WebPay (a card method) therefore returns `refund_id` as well; a single
+/// all-optional struct covers both shapes. An `#[serde(untagged)]` enum would be
+/// strictly worse: a merely missing field would silently select the wrong arm.
 ///
-/// `refund_id` stays required. `RefundsResponseData::connector_refund_id` is a
-/// non-optional `String`, so a missing id could only be papered over by writing
-/// the merchant refund id there — producing a refund that 404s on every
+/// `refund_id` is nonetheless the one field kept required, and that is a
+/// deliberate strictness beyond the schema — `RefundSuccessResponse` declares no
+/// `required` array at all. `RefundsResponseData::connector_refund_id` is a
+/// non-optional `String`, so an absent id could only be papered over by writing
+/// the merchant refund id there, producing a refund that 404s on every
 /// subsequent poll, for ever. A hard deserialisation failure is the better
 /// outcome, and the raw body is still preserved on the error path.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -994,7 +1003,7 @@ pub struct D24RefundSyncResponse {
     pub status: D24RefundSyncStatus,
     pub deposit_id: Option<i64>,
     pub merchant_invoice_id: Option<String>,
-    pub amount: Option<f64>,
+    pub amount: Option<FloatMajorUnit>,
 }
 
 impl TryFrom<ResponseRouterData<D24RefundSyncResponse, Self>>

@@ -343,12 +343,31 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            // Parsed as an integer rather than interpolated raw, mirroring the
+            // Refund transformer: Directa24's deposit_id is an integer, and a
+            // non-numeric value would otherwise build a URL that 404s on every
+            // poll for ever instead of failing locally with a usable message.
             let deposit_id = req
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID {
                     context: Default::default(),
+                })?
+                .parse::<i64>()
+                .map_err(|_| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "connector_transaction_id",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Directa24's deposit_id is an integer. Set \
+                                 connector_transaction_id on the sync request to the \
+                                 deposit_id returned by POST /v3/deposits."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?;
             Ok(format!(
                 "{}/v3/deposits/{}",
