@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -127,25 +127,25 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py#L134) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L107) · [Rust](../../examples/paynearme/paynearme.rs#L168)
+**Examples:** [Python](../../examples/paynearme/paynearme.py#L134) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L108) · [Rust](../../examples/paynearme/paynearme.rs#L168)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py#L153) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L123) · [Rust](../../examples/paynearme/paynearme.rs#L184)
+**Examples:** [Python](../../examples/paynearme/paynearme.py#L153) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L124) · [Rust](../../examples/paynearme/paynearme.rs#L184)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py#L178) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L145) · [Rust](../../examples/paynearme/paynearme.rs#L207)
+**Examples:** [Python](../../examples/paynearme/paynearme.py#L178) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L146) · [Rust](../../examples/paynearme/paynearme.rs#L207)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py#L200) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L164) · [Rust](../../examples/paynearme/paynearme.rs#L226)
+**Examples:** [Python](../../examples/paynearme/paynearme.py#L200) · [JavaScript](../../examples/paynearme/paynearme.js) · [Kotlin](../../examples/paynearme/paynearme.kt#L165) · [Rust](../../examples/paynearme/paynearme.rs#L226)
 
 ## API Reference
 
@@ -291,7 +291,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L230) · [Kotlin](../../examples/paynearme/paynearme.kt#L182) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L230) · [Kotlin](../../examples/paynearme/paynearme.kt#L183) · [Rust](../../examples/paynearme/paynearme.rs)
 
 #### PaymentService.CreateOrder
 
@@ -302,7 +302,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L239) · [Kotlin](../../examples/paynearme/paynearme.kt#L194) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L239) · [Kotlin](../../examples/paynearme/paynearme.kt#L195) · [Rust](../../examples/paynearme/paynearme.rs)
 
 #### PaymentService.Get
 
@@ -313,7 +313,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L248) · [Kotlin](../../examples/paynearme/paynearme.kt#L208) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L248) · [Kotlin](../../examples/paynearme/paynearme.kt#L209) · [Rust](../../examples/paynearme/paynearme.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -324,7 +324,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L257) · [Kotlin](../../examples/paynearme/paynearme.kt#L216) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L257) · [Kotlin](../../examples/paynearme/paynearme.kt#L217) · [Rust](../../examples/paynearme/paynearme.rs)
 
 #### PaymentService.Refund
 
@@ -335,7 +335,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L266) · [Kotlin](../../examples/paynearme/paynearme.kt#L251) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L266) · [Kotlin](../../examples/paynearme/paynearme.kt#L252) · [Rust](../../examples/paynearme/paynearme.rs)
 
 #### PaymentService.Void
 
@@ -346,7 +346,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts) · [Kotlin](../../examples/paynearme/paynearme.kt#L273) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts) · [Kotlin](../../examples/paynearme/paynearme.kt#L274) · [Rust](../../examples/paynearme/paynearme.rs)
 
 ### Refunds
 
@@ -359,4 +359,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L275) · [Kotlin](../../examples/paynearme/paynearme.kt#L261) · [Rust](../../examples/paynearme/paynearme.rs)
+**Examples:** [Python](../../examples/paynearme/paynearme.py) · [TypeScript](../../examples/paynearme/paynearme.ts#L275) · [Kotlin](../../examples/paynearme/paynearme.kt#L262) · [Rust](../../examples/paynearme/paynearme.rs)

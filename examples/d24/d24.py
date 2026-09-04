@@ -8,7 +8,7 @@
 import asyncio
 import sys
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["refund_get"]
 

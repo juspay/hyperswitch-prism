@@ -8,6 +8,7 @@
 package examples.d24
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.RefundClient
 import payments.ConnectorConfig
