@@ -47,7 +47,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, PrimitiveDateTime};
 use url::Url;
 
 use super::AdyenRouterData;
@@ -2943,7 +2943,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Validate expiry_date doesn't exceed 5 days from now (Adyen requirement)
                 expiry_date
                     .map(|expiry| -> CustomResult<(), IntegrationError> {
-                        let now = OffsetDateTime::now_utc();
+                        let now = common_utils::date_time::now().assume_utc();
                         let max_expiry = now + Duration::days(5);
                         let max_expiry_primitive =
                             PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
@@ -5377,14 +5377,18 @@ pub fn get_wait_screen_metadata(
 ) -> CustomResult<Option<serde_json::Value>, ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
             })))
         }
         PaymentType::Mbway => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: None
@@ -5458,8 +5462,13 @@ pub fn get_wait_screen_metadata(
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
-    pub error_type: String,
+    /// Optional because adyen omits it on some gateway errors, and returns `title`
+    /// instead on others. Hyperswitch models both as optional and falls back
+    /// `message` -> `title` -> placeholder; requiring either here would fail the whole
+    /// parse on bodies hyperswitch handles.
+    pub message: Option<String>,
+    pub title: Option<String>,
+    pub error_type: Option<String>,
     pub psp_reference: Option<String>,
 }
 

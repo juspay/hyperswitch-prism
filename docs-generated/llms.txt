@@ -598,6 +598,14 @@ payment_methods: Card
 flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/payme/payme.py
 
+## Paynearme
+connector_id: paynearme
+doc: docs/connectors/paynearme.md
+scenarios: checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, create_order, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/paynearme/paynearme.py
+
 ## Paypal
 connector_id: paypal
 doc: docs/connectors/paypal.md

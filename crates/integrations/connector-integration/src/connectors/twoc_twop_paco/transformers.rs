@@ -195,7 +195,7 @@ fn paco_require_merchant_request_id(
 
 impl ApiRequestEnvelope {
     fn new(request_message_id: String) -> Self {
-        let now = time::OffsetDateTime::now_utc();
+        let now = common_utils::date_time::now().assume_utc();
         let formatted = now
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_else(|_| String::from("1970-01-01T00:00:00Z"));
@@ -2524,7 +2524,7 @@ pub struct PacoJoseClaims<'a> {
 
 impl<'a> PacoJoseClaims<'a> {
     pub fn new(access_token: &'a str, request: serde_json::Value) -> Self {
-        let now = time::OffsetDateTime::now_utc().unix_timestamp();
+        let now = common_utils::date_time::now_unix_timestamp();
         Self {
             iss: access_token,
             aud: PACO_AUDIENCE,

@@ -909,7 +909,8 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
-  D24 = 143;
+  PAYNEARME = 143;
+  D24 = 144;
 }
 
 // Payment method types
@@ -1771,39 +1772,6 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
-// Integrity dimensions a connector can confirm are present in a webhook payload.
-enum IntegrityCheck {
-  INTEGRITY_CHECK_UNSPECIFIED = 0; // Default value
-  INTEGRITY_CHECK_CONNECTOR_TRANSACTION_ID = 1; // Maps to: EventContent.*.connector_transaction_id
-  INTEGRITY_CHECK_AMOUNT = 2; // Maps to: EventContent.payments_response.amount.minor_amount
-  INTEGRITY_CHECK_CURRENCY = 3; // Maps to: EventContent.payments_response.amount.currency
-}
-
-// Response for EventService.HandleEvent.
-// event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
-// Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
-
-// Response for handling an event, which may contain different types of content
-// based on the event type.
-message EventServiceHandleResponse {
-  // Event type
-  WebhookEventType event_type = 1;
-
-  // Content
-  EventContent event_content = 2;
-
-  // Verification
-  bool source_verified = 3;
-
-  // Reference
-  optional string merchant_event_id = 4;
-
-  // Suggested HTTP response to send back to the connector for webhook acknowledgement
-  optional EventAckResponse event_ack_response = 5;
-
-  // Integrity fields that downstream can use to verify the webhook payload.
-  repeated IntegrityCheck supported_integrity_checks = 6;
-}
 
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
@@ -1915,25 +1883,6 @@ message NotifyConnectorResponse {
 
   // Optional error information if notification failed
   optional ErrorInfo error = 2;
-}
-
-// Suggested HTTP response for webhook acknowledgement (status, headers, body).
-message EventAckResponse {
-  uint32 status_code = 1;
-  map<string, string> headers = 2;
-  bytes body = 3;
-}
-
-// Content of an event
-message EventContent {
-  oneof content {
-    // Content if the event is for a payment synchronization.
-    PaymentServiceGetResponse payments_response = 1;
-    // Content if the event is for a refund synchronization.
-    RefundResponse refunds_response = 2;
-    // Content if the event is for a dispute synchronization.
-    DisputeResponse disputes_response = 3;
-  }
 }
 
 
@@ -2733,6 +2682,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 55;
+
+  // Merchant business country, ISO 3166-1 alpha-2
+  optional string business_country = 56;
 }
 
 // Partner / external-platform application details.
@@ -4229,131 +4181,6 @@ message PaymentServiceIncrementalAuthorizationResponse {
   optional SecretString typed_connector_response = 10;
 }
 
-// IDs extracted from a payment webhook.
-// connector_transaction_id: connector-assigned ID (e.g. Stripe "pi_xxx", Adyen "pspReference" on capture events).
-// merchant_transaction_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
-//                           on transaction events, Stripe metadata.order_id).
-// Exactly one is expected to be present; both may be present when the connector echoes both.
-message PaymentEventReference {
-  optional string connector_transaction_id = 1;
-  optional string merchant_transaction_id  = 2;
-}
-
-// IDs extracted from a refund webhook.
-// connector_refund_id:      connector-assigned refund ID (e.g. PayPal refund resource.id).
-// merchant_refund_id:       merchant reference echoed for the refund (e.g. Adyen "merchantReference"
-//                           on refund events).
-// connector_transaction_id: parent payment ID, if the connector includes it.
-message RefundEventReference {
-  optional string connector_refund_id      = 1;
-  optional string merchant_refund_id       = 2;
-  optional string connector_transaction_id = 3;  // Parent payment ID, if present.
-  optional string merchant_transaction_id  = 4;
-}
-
-// IDs extracted from a dispute webhook.
-// Connectors typically reference disputes via the parent payment's connector_transaction_id
-// (e.g. Adyen originalReference, PayPal seller_transaction_id).
-// connector_dispute_id is populated when the connector issues a dispute-specific identifier.
-message DisputeEventReference {
-  optional string connector_dispute_id     = 1;
-  optional string connector_transaction_id = 2;  // Parent payment ID.
-}
-
-// IDs extracted from a mandate webhook.
-message MandateEventReference {
-  optional string connector_mandate_id = 1;
-  optional string merchant_transaction_id = 2;
-}
-
-// IDs extracted from a payout webhook.
-// connector_payout_id: connector-assigned payout ID (e.g. PayPal payout_batch_id).
-// merchant_payout_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
-//                      on payout events).
-message PayoutEventReference {
-  optional string connector_payout_id = 1;
-  optional string merchant_payout_id  = 2;
-}
-
-// Resource reference extracted from a webhook payload.
-// The oneof variant identifies the entity class. Unset for non-resource events (e.g. account/capability notifications).
-message EventReference {
-  oneof resource {
-    PaymentEventReference payment = 1;
-    RefundEventReference  refund  = 2;
-    DisputeEventReference dispute = 3;
-    MandateEventReference mandate = 4;
-    PayoutEventReference  payout  = 5;
-  }
-}
-
-// Request for EventService.ParseEvent. No credentials required.
-message EventServiceParseRequest {
-  RequestDetails request_details = 1;
-}
-
-// Response for EventService.ParseEvent.
-message EventServiceParseResponse {
-  optional EventReference   reference  = 1;  // Absent for non-resource events (e.g. account/capability notifications).
-  optional WebhookEventType event_type = 2;
-}
-
-// Business context the caller passes back to fill UCS's stateless gap.
-// UCS is stateless — it cannot retrieve the original request parameters.
-// Pass back the fields from your original request that correspond to the
-// EventReference arm returned by ParseEvent.
-// UCS returns INVALID_ARGUMENT with an actionable message if a required field
-// is missing for the connector being handled.
-message EventContext {
-  oneof event_context {
-    PaymentEventContext  payment  = 1;
-    RefundEventContext   refund   = 2;
-    DisputeEventContext  dispute  = 3;
-    MandateEventContext  mandate  = 4;
-    PayoutEventContext   payout   = 5;
-  }
-}
-
-// Context from the original PaymentServiceAuthorizeRequest.
-// Required by connectors whose webhook payloads do not unambiguously distinguish
-// AUTHORIZED from CAPTURED (e.g. Noon, Fiuu).
-message PaymentEventContext {
-  // From original PaymentServiceAuthorizeRequest.capture_method.
-  optional CaptureMethod capture_method = 1;
-}
-
-// Context from the original RefundServiceRefundRequest.
-// Reserved for future use — no connectors currently require it.
-message RefundEventContext {
-}
-
-// Context from the original dispute flow.
-// Reserved for future use — no connectors currently require it.
-message DisputeEventContext {
-}
-
-// Context from the original mandate flow.
-// Reserved for future use — no connectors currently require it.
-message MandateEventContext {
-}
-
-// Context from the original mandate flow.
-// Reserved for future use — no connectors currently require it.
-message PayoutEventContext {
-}
-
-// Request for EventService.HandleEvent.
-// Supply event_context for connectors that require it (see connector integration guide).
-// access_token required for connectors that verify webhooks via an outbound API call
-// (e.g. PayPal POST /v1/notifications/verify-webhook-signature requires OAuth2).
-message EventServiceHandleRequest {
-  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
-  optional string         merchant_event_id = 1;
-  RequestDetails          request_details   = 2;
-  optional WebhookSecrets webhook_secrets   = 3;
-  optional AccessToken    access_token      = 4;
-  optional EventContext   event_context     = 5;
-}
 
 // Request message for VerifyRedirectResponse
 message PaymentServiceVerifyRedirectResponseRequest {
@@ -5854,6 +5681,15 @@ message CitigateConfig {
   optional string base_url = 50;
 }
 
+// PayNearMe API v3.0.
+// api_key = API Secret Key (HMAC-SHA256 signing key, never transmitted)
+// key1    = Site Identifier, sent as the `site_identifier` body field
+message PaynearmeConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message IlixiumConfig {
   // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
   SecretString api_key = 1;
@@ -6269,8 +6105,10 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
-    // D24 = 143
-    D24Config d24 = 154;
+    // PAYNEARME = 143
+    PaynearmeConfig paynearme = 154;
+    // D24 = 144
+    D24Config d24 = 155;
   }
 }
 
@@ -6774,6 +6612,12 @@ message SplitSettlementResponseVendor {
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
+  optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+}
+
+message WorldpayxmlAdditionalInformation {
+  optional string funding_transaction_type = 1;
+  optional string payment_purpose = 2;
 }
 
 // Checkout.com-specific additional information to be included in the payment request.

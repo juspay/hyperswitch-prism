@@ -293,6 +293,7 @@ default_impl_verify_webhook_source_v2!(
         Boost,
         Citigate,
         JpmorganOrbital,
+        Paynearme,
         Saferpay,
         Moneris,
         Ilixium,
@@ -377,6 +378,7 @@ macro_rules! default_impl_recharge_v2 {
 default_impl_recharge_v2!(
     Citigate,
     JpmorganOrbital,
+    Paynearme,
     Saferpay,
     Boost,
     Ilixium,
@@ -610,6 +612,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 default_impl_create_payment_method_v2!(
     Citigate,
     JpmorganOrbital,
+    Paynearme,
     Saferpay,
     Boost,
     Ilixium,
@@ -721,6 +724,7 @@ default_impl_create_payment_method_v2!(
 default_impl_get_payment_method_v2!(
     Citigate,
     JpmorganOrbital,
+    Paynearme,
     Saferpay,
     Boost,
     Ilixium,
@@ -833,6 +837,7 @@ default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Citigate,
         JpmorganOrbital,
+        Paynearme,
         Saferpay,
         Boost,
         Ilixium,
@@ -1005,6 +1010,7 @@ macro_rules! default_impl_refresh_payment_method_v2 {
 default_impl_refresh_payment_method_v2!(
     Citigate,
     JpmorganOrbital,
+    Paynearme,
     Saferpay,
     Boost,
     Ilixium,

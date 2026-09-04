@@ -1095,7 +1095,7 @@ def _conn_display(connector_name: str) -> str:
 
 def _config_python(connector_name: str) -> str:
     return f"""\
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -2126,7 +2126,7 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 {supported_flows_line}
 
@@ -3422,6 +3422,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig

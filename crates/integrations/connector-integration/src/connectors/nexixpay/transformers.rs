@@ -533,7 +533,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPaymentsRespo
 
         // Add payment response data from additional_data
         if let Some(additional_data) = &operation.additional_data {
-            metadata_map.extend(additional_data.iter().map(|(k, v)| (k.clone(), v.clone())));
+            // Sorted before insertion: `additional_data` is a HashMap and
+            // `metadata_map` preserves insertion order all the way into a
+            // STRINGIFIED response field, where key order is a value difference
+            // — so it must not vary per process.
+            let sorted: std::collections::BTreeMap<_, _> = additional_data.iter().collect();
+            metadata_map.extend(sorted.into_iter().map(|(k, v)| (k.clone(), v.clone())));
         }
 
         // Ensure structural metadata always exists for PSync compatibility
@@ -2343,7 +2348,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayRepeatPayment
             .cloned()
             .unwrap_or_default();
         if let Some(additional_data) = &operation.additional_data {
-            metadata_map.extend(additional_data.iter().map(|(k, v)| (k.clone(), v.clone())));
+            // Sorted before insertion: `additional_data` is a HashMap and
+            // `metadata_map` preserves insertion order all the way into a
+            // STRINGIFIED response field, where key order is a value difference
+            // — so it must not vary per process.
+            let sorted: std::collections::BTreeMap<_, _> = additional_data.iter().collect();
+            metadata_map.extend(sorted.into_iter().map(|(k, v)| (k.clone(), v.clone())));
         }
         metadata_map.insert(
             "authorizationOperationId".to_string(),

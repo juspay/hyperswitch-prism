@@ -104,7 +104,9 @@ macros::create_all_prerequisites!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let correlation_id = format!(
                 "{correlation_prefix}{}",
-                uuid::Uuid::new_v4().simple().to_string().to_uppercase()
+                common_utils::fp_utils::generate_uuid_v4()
+                    .replace('-', "")
+                    .to_uppercase()
             );
             Ok(vec![
                 (
