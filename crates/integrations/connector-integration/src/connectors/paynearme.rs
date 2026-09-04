@@ -40,7 +40,7 @@ pub mod transformers;
 
 use std::{fmt::Debug, sync::LazyLock};
 
-use common_enums::{AttemptStatus, CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
+use common_enums::{CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, Void},
@@ -52,7 +52,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -222,10 +222,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        Ok(
-            response
-                .to_error_response(res.status_code, FlowStatus::Payment(AttemptStatus::Failure)),
-        )
+        // No `attempt_status` is forced here: this handler runs for every flow
+        // (`get_error_response_v2` is in `connector_default_implementations` on
+        // all six) and sees only transport-level failures, which say nothing
+        // about the payment. See `PaynearmeErrorResponse::to_error_response`.
+        Ok(response.to_error_response(res.status_code))
     }
 }
 

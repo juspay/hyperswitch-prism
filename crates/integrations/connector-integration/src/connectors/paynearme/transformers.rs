@@ -440,7 +440,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 payment_method_billing_zipcode: common.get_billing_zip()?,
                 // Documented as required. It can be made optional per site, but
                 // surfacing the gap here beats a 400 from the gateway.
-                payment_method_billing_phone: common.get_billing_phone_number()?,
+                //
+                // The bare national number, **not** `get_billing_phone_number()`:
+                // that helper prefixes the country code including the `+`
+                // (`payment_address.rs:380`), producing `+14695555878`, while
+                // PayNearMe's own worked example for this field is
+                // `"469-555-5878"` (§8.2.1) — a US national number with no
+                // country code. `PhoneDetails::get_number()`
+                // (`payment_address.rs:375`) is the framework accessor for it.
+                payment_method_billing_phone: common.get_billing_phone()?.get_number()?,
                 send_payment: SEND_PAYMENT_TRUE.to_string(),
                 payment_amount,
                 payment_currency,
@@ -767,8 +775,22 @@ impl PaynearmePaymentStatus {
         match self {
             // Terminal success. PayNearMe card payments are sale / auto-capture.
             Self::Approved => AttemptStatus::Charged,
-            // Emitted as-is; there is no capture endpoint to move it forward.
-            Self::Authorized => AttemptStatus::Authorized,
+            // PayNearMe reports `authorized` on a payment it has not settled
+            // yet. It is **not** mapped to `AttemptStatus::Authorized`: that
+            // state expects a capture to move it on, and this connector has no
+            // capture (`supported_capture_methods` is `[Automatic]` and the
+            // Capture flow is `not_implemented` in `paynearme.rs` — the API has
+            // no capture endpoint at all, §8.7). An `Authorized` attempt would
+            // therefore be a dead end that nothing can ever advance or reap.
+            // `Pending` keeps PSync polling until PayNearMe moves the payment
+            // to `approved` (or `rejected`), which is the only way it resolves.
+            //
+            // This is a deliberate deviation from the spec's status table
+            // (§10.1, "emit as-is"), which is self-defeating on a connector
+            // with no capture: the spec's own note for the row says the payment
+            // "will settle on its own or be resolved by PSync", and `Pending`
+            // is the status that lets PSync do exactly that.
+            Self::Authorized => AttemptStatus::Pending,
             Self::Canceled => AttemptStatus::Voided,
             // The *payment* succeeded; the refund is tracked as a RefundStatus.
             Self::Refunded => AttemptStatus::Charged,
@@ -962,10 +984,31 @@ pub struct PaynearmeErrorResponse {
 }
 
 impl PaynearmeErrorResponse {
-    pub fn to_error_response(&self, status_code: u16, flow_status: FlowStatus) -> ErrorResponse {
+    /// The generic HTTP-error path (`Paynearme::build_error_response` in
+    /// `paynearme.rs`), which every flow reaches through
+    /// `get_error_response_v2` for any non-2xx response that is not a 5xx.
+    ///
+    /// `attempt_status` is deliberately left `None` here — the same choice
+    /// `ilixium.rs:190` makes, and the same thing the framework's own
+    /// `get_5xx_error_response` default does
+    /// (`interfaces/src/connector_integration_v2.rs:232`). This handler sees
+    /// clock-skew 400s, signature rejections (§14.5 lists 401/403/404/429 as
+    /// undocumented but expected) and rate limits: none of them carries a
+    /// verdict on the payment. Forcing a status here would report an already
+    /// CHARGED payment as `Failure` the first time a PSync hit a 429, and —
+    /// because `ForeignFrom<FlowStatus> for RefundStatus` maps `Payment(_)` to
+    /// `RefundFailure` (`domain_types/src/types.rs:7817`) — would mark a live
+    /// refund terminally failed. Leaving it `None` keeps whatever status the
+    /// payment already had.
+    ///
+    /// The in-band handlers below, which have read an actual PayNearMe verdict
+    /// off a 2xx body, still pass an explicit status. §11.4 scopes
+    /// `attempt_status := Some(Failure)` to exactly those ("for declines on
+    /// Authorize").
+    pub fn to_error_response(&self, status_code: u16) -> ErrorResponse {
         build_error_response(
             status_code,
-            flow_status,
+            None,
             self.response_code.as_deref(),
             &self.errors,
             None,
@@ -978,7 +1021,7 @@ impl PaynearmeErrorResponse {
 /// `errors[]` entry and `reason` joins them all.
 fn build_error_response(
     status_code: u16,
-    flow_status: FlowStatus,
+    flow_status: Option<FlowStatus>,
     response_code: Option<&str>,
     errors: &[PaynearmeErrorItem],
     connector_transaction_id: Option<String>,
@@ -988,10 +1031,21 @@ fn build_error_response(
         .filter(|code| *code != RESPONSE_CODE_SUCCESS)
         .map(str::to_string)
         .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string());
-    let message = rendered
-        .first()
-        .cloned()
-        .unwrap_or_else(|| "Payment declined by Paynearme".to_string());
+    let message = rendered.first().cloned().unwrap_or_else(|| {
+        match response_code.filter(|code| *code != RESPONSE_CODE_SUCCESS) {
+            // A non-zero `response_code` *is* PayNearMe's verdict on the card
+            // (§11.3: every code but `0` is a decline reason), so naming it a
+            // decline is accurate even when `errors[]` was empty.
+            Some(code) => format!("Payment declined by Paynearme (response_code {code})"),
+            // Neither an `errors[]` entry nor a `response_code`: PayNearMe
+            // returned no verdict at all, which is what a signature rejection,
+            // a rate limit or a gateway error looks like (§14.5). Calling that
+            // a decline sends the merchant chasing the cardholder for what is
+            // an integration or availability problem, so report the transport
+            // condition instead.
+            None => format!("Paynearme request failed with HTTP status {status_code}"),
+        }
+    });
     let reason = if rendered.is_empty() {
         None
     } else {
@@ -1003,7 +1057,7 @@ fn build_error_response(
         code,
         message,
         reason,
-        attempt_status: Some(flow_status),
+        attempt_status: flow_status,
         connector_transaction_id,
         network_decline_code: None,
         network_advice_code: None,
@@ -1091,7 +1145,7 @@ impl TryFrom<ResponseRouterData<PaynearmeCreateOrderResponse, Self>> for CreateO
             None => Ok(Self {
                 response: Err(build_error_response(
                     item.http_code,
-                    FlowStatus::Payment(AttemptStatus::Failure),
+                    Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     response.response_code.as_deref(),
                     &response.errors,
                     None,
@@ -1127,7 +1181,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
         let response = item.response.0;
         let order = response.orders.as_ref();
         let payment = order.and_then(PaynearmeOrder::last_payment);
-        let order_identifier = order.and_then(|order| order.pnm_order_identifier.clone());
+        // The order this Authorize charged against: read back off the response
+        // when PayNearMe echoed it, otherwise the id we sent as
+        // `pnm_order_identifier` (written by the CreateOrder flow). Both are the
+        // same value; the fallback only covers a response that omits it.
+        let order_identifier = order
+            .and_then(|order| order.pnm_order_identifier.clone())
+            .or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .connector_order_id
+                    .clone()
+            });
 
         let declined = !response.is_ok()
             || payment
@@ -1139,7 +1204,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
             return Ok(Self {
                 response: Err(build_error_response(
                     item.http_code,
-                    FlowStatus::Payment(AttemptStatus::Failure),
+                    Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     response.response_code.as_deref(),
                     &response.errors,
                     payment.and_then(|payment| payment.pnm_payment_identifier.clone()),
@@ -1198,6 +1263,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
                 connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
+                // `pnm_order_identifier`, per §7.3. PSync and Void report the
+                // same value (see below), so one payment has exactly one
+                // reference id whichever flow last spoke to PayNearMe.
                 connector_response_reference_id: order_identifier,
                 incremental_authorization_allowed: None,
                 splits: None,
@@ -1259,7 +1327,7 @@ impl TryFrom<ResponseRouterData<PaynearmeSyncResponse, Self>> for SyncRouterData
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Payment(AttemptStatus::Pending),
+                        Some(FlowStatus::Payment(AttemptStatus::Pending)),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
@@ -1277,6 +1345,21 @@ impl TryFrom<ResponseRouterData<PaynearmeSyncResponse, Self>> for SyncRouterData
         let resource_id = payment
             .resource_id()
             .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone());
+        // `pnm_order_identifier`, the same reference id Authorize reported
+        // (§7.3), taken from `connector_order_id` — which the sync request
+        // carries as `connector_order_reference_id`
+        // (`domain_types/src/types.rs:6004`). It is deliberately **not**
+        // `payment.site_payment_identifier`: that is merely the echo of our own
+        // attempt reference, and reporting it here made the same payment come
+        // back with a different `connector_response_reference_id` depending on
+        // whether Authorize or PSync was the last call. When the caller sent no
+        // order reference there is nothing new to report, and `None` says so
+        // rather than contradicting what Authorize already recorded.
+        let order_identifier = item
+            .router_data
+            .resource_common_data
+            .connector_order_id
+            .clone();
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1286,7 +1369,7 @@ impl TryFrom<ResponseRouterData<PaynearmeSyncResponse, Self>> for SyncRouterData
                 connector_metadata: payment.connector_metadata(),
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: payment.site_payment_identifier.clone(),
+                connector_response_reference_id: order_identifier,
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
@@ -1328,7 +1411,7 @@ impl TryFrom<ResponseRouterData<PaynearmeVoidResponse, Self>> for VoidRouterData
             return Ok(Self {
                 response: Err(build_error_response(
                     item.http_code,
-                    FlowStatus::Payment(AttemptStatus::VoidFailed),
+                    Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     response.response_code.as_deref(),
                     &response.errors,
                     response.transaction_id(),
@@ -1351,8 +1434,17 @@ impl TryFrom<ResponseRouterData<PaynearmeVoidResponse, Self>> for VoidRouterData
                 connector_metadata: payment.and_then(PaynearmePayment::connector_metadata),
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: payment
-                    .and_then(|payment| payment.site_payment_identifier.clone()),
+                // The same `pnm_order_identifier` reference id as Authorize and
+                // PSync (§7.3), never the echoed `site_payment_identifier`. The
+                // void request carries no order reference today
+                // (`domain_types/src/types.rs:6083` sets `connector_order_id:
+                // None`), so this is normally `None` — no new reference rather
+                // than a second, different one.
+                connector_response_reference_id: item
+                    .router_data
+                    .resource_common_data
+                    .connector_order_id
+                    .clone(),
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
@@ -1382,11 +1474,44 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundResponse, Self>> for RefundRouter
 
         let payment = match (response.is_ok(), response.payment.as_ref()) {
             (true, Some(payment)) => payment,
-            _ => {
+            // PayNearMe declared an error on a 2xx body — `status: "error"` or a
+            // non-zero `response_code` (§11.2 / §11.3). Note that transport
+            // failures never reach here: a non-2xx response is routed to
+            // `get_error_response_v2` / `get_5xx_error_response` instead
+            // (`external-services/src/service.rs:484-494`), so this arm is
+            // exactly "PayNearMe read the request and refused it".
+            //
+            // That refusal means **no refund was created**, so nothing will ever
+            // appear under `payment.refund` for RSync to read — reporting
+            // `Pending` here (as this arm used to, lumped in with the ambiguous
+            // case below) left the refund polling a refund that does not exist,
+            // for ever. It is a terminal failure.
+            (false, _) => {
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Refund(RefundStatus::Pending),
+                        Some(FlowStatus::Refund(RefundStatus::Failure)),
+                        response.response_code.as_deref(),
+                        &response.errors,
+                        response.transaction_id(),
+                    )),
+                    resource_common_data: RefundFlowData {
+                        status: RefundStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+            // Genuinely ambiguous: PayNearMe accepted the call (`status: "ok"`)
+            // but returned no `payment` object. The refund may well have been
+            // created, so this must **not** be failed — a false failure invites
+            // the merchant to refund a second time. `Pending`, resolved by
+            // RSync, is the safe reading.
+            (true, None) => {
+                return Ok(Self {
+                    response: Err(build_error_response(
+                        item.http_code,
+                        Some(FlowStatus::Refund(RefundStatus::Pending)),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
@@ -1452,11 +1577,33 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundSyncResponse, Self>> for RefundSy
 
         let payment = match (response.is_ok(), response.payment.as_ref()) {
             (true, Some(payment)) => payment,
-            _ => {
+            // As in the Refund handler above: a declared error on a 2xx body
+            // (an unknown `pnm_payment_identifier`, say) is PayNearMe saying
+            // there is nothing to sync, and no amount of further polling will
+            // change that. Transport failures do not land here.
+            (false, _) => {
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
-                        FlowStatus::Refund(RefundStatus::Pending),
+                        Some(FlowStatus::Refund(RefundStatus::Failure)),
+                        response.response_code.as_deref(),
+                        &response.errors,
+                        response.transaction_id(),
+                    )),
+                    resource_common_data: RefundFlowData {
+                        status: RefundStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                })
+            }
+            // `status: "ok"` with no `payment` object: nothing was refused and
+            // nothing was reported. Stay `Pending` and poll again.
+            (true, None) => {
+                return Ok(Self {
+                    response: Err(build_error_response(
+                        item.http_code,
+                        Some(FlowStatus::Refund(RefundStatus::Pending)),
                         response.response_code.as_deref(),
                         &response.errors,
                         response.transaction_id(),
@@ -1495,5 +1642,120 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundSyncResponse, Self>> for RefundSy
             },
             ..item.router_data
         })
+    }
+}
+
+// =============================================================================
+// TESTS
+// =============================================================================
+
+/// The signing helper is the only piece of novel logic in this connector: get it
+/// wrong and every single request is rejected, and nothing else in the codebase
+/// exercises it. Both worked vectors published on the Authentication page
+/// (spec §3.1) are pinned here — the second is the one the docs explicitly hand
+/// out as a unit test, because it exercises the `format` exemption and the
+/// alphabetical ordering.
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Worked example #1 (spec §3.1, the `/create_order` sample): the full
+    /// envelope, including the empty `signature` field that must not sign
+    /// itself.
+    #[test]
+    fn signs_the_create_order_worked_example() {
+        let body = serde_json::json!({
+            "site_identifier": "S2155373459",
+            "timestamp": "1636142061",
+            "version": "3.0",
+            "signature": "",
+            "order_amount": "500",
+            "order_currency": "USD",
+            "site_customer_identifier": "11223344",
+            "order_type": "any",
+            "order_is_standing": "true",
+        });
+
+        let string_to_sign = paynearme_string_to_sign(&body).expect("string_to_sign");
+        assert_eq!(
+            string_to_sign,
+            "order_amount500order_currencyUSDorder_is_standingtrueorder_typeany\
+             site_customer_identifier11223344site_identifierS2155373459\
+             timestamp1636142061version3.0"
+        );
+
+        let signature =
+            paynearme_signature(&Secret::new("ab7b539ea1317cca67c63c552".to_string()), &body)
+                .expect("signature");
+        assert_eq!(
+            signature.peek(),
+            "65c694f4b632187aa02fc4144cdd374373307f0a200448c9e53f2e47d84b3b82"
+        );
+    }
+
+    /// Worked example #2 (spec §3.1), the vector shipped in every reference
+    /// implementation: `format` is dropped from the input even though it is sent
+    /// on the wire, and the remaining keys are concatenated in alphabetical —
+    /// not insertion — order.
+    #[test]
+    fn signs_the_documented_unit_test_vector() {
+        let body = serde_json::json!({
+            "version": "3.0",
+            "site_identifier": "MySiteID",
+            "timestamp": "1582149833",
+            "hello": "world",
+            "foo": "bar",
+            "format": "json",
+        });
+
+        let string_to_sign = paynearme_string_to_sign(&body).expect("string_to_sign");
+        assert_eq!(
+            string_to_sign,
+            "foobarhelloworldsite_identifierMySiteIDtimestamp1582149833version3.0"
+        );
+
+        let signature =
+            paynearme_signature(&Secret::new("abc123".to_string()), &body).expect("signature");
+        assert_eq!(
+            signature.peek(),
+            "7986b4e59c15cd22fd496113c916f9739f619778812bf9ab8943af80749aadcc"
+        );
+    }
+
+    /// `version`, `site_identifier` and `timestamp` are mandatory inputs to the
+    /// signature (§3.1 step 2) — a body missing one must be refused rather than
+    /// signed into a request PayNearMe will reject with a bare 401.
+    #[test]
+    fn refuses_to_sign_without_the_required_envelope_fields() {
+        let body = serde_json::json!({
+            "site_identifier": "MySiteID",
+            "version": "3.0",
+        });
+        assert!(paynearme_string_to_sign(&body).is_err());
+    }
+
+    /// A field that is skipped by `skip_serializing_if = "Option::is_none"` is
+    /// absent from the wire, so it must be absent from the signature too — the
+    /// full-refund shape, where `refund_amount` / `refund_currency` are omitted,
+    /// depends on this.
+    #[test]
+    fn omitted_fields_do_not_enter_the_signature() {
+        let with_null = serde_json::json!({
+            "site_identifier": "MySiteID",
+            "timestamp": "1582149833",
+            "version": "3.0",
+            "refund_amount": serde_json::Value::Null,
+        });
+        let without = serde_json::json!({
+            "site_identifier": "MySiteID",
+            "timestamp": "1582149833",
+            "version": "3.0",
+        });
+        assert_eq!(
+            paynearme_string_to_sign(&with_null).expect("string_to_sign"),
+            paynearme_string_to_sign(&without).expect("string_to_sign")
+        );
     }
 }
