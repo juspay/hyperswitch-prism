@@ -468,7 +468,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest: { "state": "ConnectorState", "payment": "PaymentSessionContext" },
   PaymentSessionContext: { "amount": "Money", "browserInfo": "BrowserInformation", "customer": "Customer", "address": "PaymentAddress" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse: { "error": "ErrorInfo" },
-  MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest: { "payment": "PaymentClientAuthenticationContext", "authenticator": "AuthenticatorClientAuthenticationContext", "permissions": "Permissions" },
+  MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest: { "payment": "PaymentClientAuthenticationContext", "authenticator": "AuthenticatorClientAuthenticationContext", "permissions": "Permissions", "browserInfo": "BrowserInformation" },
   PaymentClientAuthenticationContext: { "amount": "Money", "customer": "Customer" },
   AuthenticatorClientAuthenticationContext: { "customer": "Customer" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse: { "sessionData": "ClientAuthenticationTokenData", "error": "ErrorInfo" },
