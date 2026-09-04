@@ -909,6 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
+  ELAVON_PG = 143;
 }
 
 // Payment method types
@@ -3953,6 +3954,12 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
+
+  // Send the connector order identifier here if an order was created before
+  // pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order
+  // resource URL returned by PaymentService/CreateOrder to open a payment
+  // session.
+  optional string connector_order_id = 16;
 }
 
 // Response message for pre-authentication step
@@ -5686,6 +5693,16 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+// Elavon Payment Gateway (EPG) - JSON REST gateway.
+// NOTE: distinct from the ELAVON connector (Elavon Converge, an XML API).
+message ElavonPgConfig {
+  // Merchant alias - HTTP Basic auth username
+  SecretString api_key = 1;
+  // Secret API key (sk_...) - HTTP Basic auth password
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -6081,6 +6098,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
+    // ELAVON_PG = 143
+    ElavonPgConfig elavon_pg = 154;
   }
 }
 

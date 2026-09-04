@@ -321,3 +321,5 @@ pub use self::saferpay::Saferpay;
 
 pub mod travelhub;
 pub use self::travelhub::Travelhub;
+pub mod elavon_pg;
+pub use self::elavon_pg::ElavonPg;
