@@ -142,7 +142,7 @@ domain_types::impl_flow_status_mapping! {
     flow:      Void,
     source:    stripe::StripePaymentStatus,
     success:   Canceled              => Voided,
-    failure:   Failed                => Voided,
+    failure:   Failed                => VoidFailed,
     {
         RequiresPaymentMethod => VoidFailed,
         Succeeded             => VoidFailed,
