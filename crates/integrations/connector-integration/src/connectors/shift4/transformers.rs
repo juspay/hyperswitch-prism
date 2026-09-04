@@ -1482,7 +1482,7 @@ pub struct Shift4SetupMandateRequest<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct Shift4EmbeddedCustomer {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }

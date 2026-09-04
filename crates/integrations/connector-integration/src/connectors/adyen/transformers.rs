@@ -995,9 +995,9 @@ pub struct RiskData {
     #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
     #[serde(rename = "riskdata.emailName")]
-    email_name: Option<String>,
+    email_name: Option<Secret<String>>,
     #[serde(rename = "riskdata.emailDomain")]
-    email_domain: Option<String>,
+    email_domain: Option<Secret<String>>,
     #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
     #[serde(rename = "riskdata.merchantReference")]
@@ -6040,8 +6040,8 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
         affiliate_channel,
         avg_order_value,
         delivery_method,
-        email_name,
-        email_domain,
+        email_name: email_name.map(Secret::new),
+        email_domain: email_domain.map(Secret::new),
         last_order_date,
         merchant_reference,
         payment_method,

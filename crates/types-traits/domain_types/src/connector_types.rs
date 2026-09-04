@@ -7,7 +7,7 @@ use common_enums::{
 use common_utils::{
     errors,
     ext_traits::{OptionExt, ValueExt},
-    pii::IpAddress,
+    pii::{EmailStrategy, IpAddress},
     types::{MinorUnit, Money, StringMajorUnit, StringMinorUnit},
     CustomResult, CustomerId, Email, SecretSerdeValue,
 };
@@ -4047,7 +4047,7 @@ pub struct SubmitEvidenceData {
     pub customer_communication: Option<Vec<u8>>,
     pub customer_communication_file_type: Option<String>,
     pub customer_communication_provider_file_id: Option<String>,
-    pub customer_email_address: Option<String>,
+    pub customer_email_address: Option<Secret<String, EmailStrategy>>,
     pub customer_name: Option<String>,
     pub customer_purchase_ip: Option<String>,
 
