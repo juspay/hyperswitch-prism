@@ -443,8 +443,10 @@ impl PayoutFlowStatusRules for connector_flow::PayoutCreate {
 }
 
 impl PayoutFlowStatusRules for connector_flow::PayoutStage {
-    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] =
-        &[PayoutStatus::RequiresFulfillment, PayoutStatus::RequiresCreation];
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[
+        PayoutStatus::RequiresFulfillment,
+        PayoutStatus::RequiresCreation,
+    ];
     const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Pending,
