@@ -1577,29 +1577,17 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundSyncResponse, Self>> for RefundSy
 
         let payment = match (response.is_ok(), response.payment.as_ref()) {
             (true, Some(payment)) => payment,
-            // As in the Refund handler above: a declared error on a 2xx body
-            // (an unknown `pnm_payment_identifier`, say) is PayNearMe saying
-            // there is nothing to sync, and no amount of further polling will
-            // change that. Transport failures do not land here.
-            (false, _) => {
-                return Ok(Self {
-                    response: Err(build_error_response(
-                        item.http_code,
-                        Some(FlowStatus::Refund(RefundStatus::Failure)),
-                        response.response_code.as_deref(),
-                        &response.errors,
-                        response.transaction_id(),
-                    )),
-                    resource_common_data: RefundFlowData {
-                        status: RefundStatus::Failure,
-                        ..item.router_data.resource_common_data
-                    },
-                    ..item.router_data
-                })
-            }
-            // `status: "ok"` with no `payment` object: nothing was refused and
-            // nothing was reported. Stay `Pending` and poll again.
-            (true, None) => {
+            // Deliberately NOT split the way the Refund handler above is.
+            // Refund is a write: a declared error there is PayNearMe refusing to
+            // create the refund, which is terminal. RSync is a *read*, and it
+            // looks up `connector_transaction_id` — the payment id (§8.6.3: the
+            // payment id doubles as `connector_refund_id`, so there is no refund
+            // identifier that could be unknown). A declared error here is
+            // therefore about reading the *payment* and says nothing about
+            // whether the refund exists; failing the refund on it would be a
+            // false failure, and a false failure invites a second refund.
+            // `Pending` matches what PSync does with this same condition.
+            _ => {
                 return Ok(Self {
                     response: Err(build_error_response(
                         item.http_code,
