@@ -85,7 +85,9 @@ generate-proto: install-deps
 	@python3 -m grpc_tools.protoc \
 		-I $(PROTO_DIR) \
 		--python_out=$(GENERATED_OUT) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
+		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/events.proto $(PROTO_DIR)/payouts.proto \
+		$(PROTO_DIR)/frm.proto $(PROTO_DIR)/surcharge.proto \
+		$(PROTO_DIR)/payment_methods.proto $(PROTO_DIR)/sdk_config.proto
 	@# TODO: protoc --python_out generates bare imports (e.g. "import payment_methods_pb2")
 	@# which break under a package layout. Rewrite to relative imports until protoc
 	@# adds a --python_relative_imports flag or we switch to a package-aware plugin.

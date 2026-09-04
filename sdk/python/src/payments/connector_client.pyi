@@ -4,6 +4,18 @@
 # This stub exposes per-service client classes to static analysers
 # (Pylance, pyright, mypy) so IDEs offer completions and type checking.
 from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
+from payments.generated.events_pb2 import (
+    EventServiceHandleRequest,
+    EventServiceHandleResponse,
+    EventServiceParseRequest,
+    EventServiceParseResponse,
+)
+from payments.generated.frm_pb2 import (
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+)
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
@@ -15,14 +27,6 @@ from payments.generated.payment_pb2 import (
     DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest,
-    EventServiceHandleResponse,
-    EventServiceParseRequest,
-    EventServiceParseResponse,
-    FrmServicePostRiskCheckRequest,
-    FrmServicePostRiskCheckResponse,
-    FrmServicePreRiskCheckRequest,
-    FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -64,6 +68,14 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    RecurringPaymentServiceChargeRequest,
+    RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse,
+    RefundResponse,
+    RefundServiceGetRequest,
+)
+from payments.generated.payouts_pb2 import (
     PayoutMethodEligibilityRequest,
     PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
@@ -82,12 +94,8 @@ from payments.generated.payment_pb2 import (
     PayoutServiceTransferResponse,
     PayoutServiceVoidRequest,
     PayoutServiceVoidResponse,
-    RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse,
-    RecurringPaymentServiceRevokeRequest,
-    RecurringPaymentServiceRevokeResponse,
-    RefundResponse,
-    RefundServiceGetRequest,
+)
+from payments.generated.surcharge_pb2 import (
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
 )

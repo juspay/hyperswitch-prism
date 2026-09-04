@@ -176,7 +176,7 @@ pub fn build_dispute_submit_evidence_request() -> DisputeServiceSubmitEvidenceRe
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.

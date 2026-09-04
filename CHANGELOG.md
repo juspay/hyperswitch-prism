@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.04.0
+
+### Bug Fixes
+
+- **GRABPAY:** Adding rawConnectorStatus in sync responses ([#2225](https://github.com/juspay/connector-service/pull/2225)) ([`4bee369`](https://github.com/juspay/connector-service/commit/4bee369c77cf9b46fed9c26dd4c9152c574521e2))
+- **connector:** Align authorizedotnet, cybersource and adyen response parsing with hyperswitch ([#2227](https://github.com/juspay/connector-service/pull/2227)) ([`049a15c`](https://github.com/juspay/connector-service/commit/049a15c3d5e2718b617567afbf7092a7b349f62a))
+
+**Full Changelog:** [`2026.09.03.1...2026.09.04.0`](https://github.com/juspay/connector-service/compare/2026.09.03.1...2026.09.04.0)
+
+- - -
+
+## 2026.09.03.1
+
+### Features
+
+- **Feature:** [Generic] Implementing Webhooks support for Payouts ([#2153](https://github.com/juspay/connector-service/pull/2153)) ([`acc9060`](https://github.com/juspay/connector-service/commit/acc906015bc2305bea01d1f149e688016f21b05a))
+- **connector:**
+  - [JPMORGAN ORBITAL] add JP Morgan Orbital connector with Card Authorize (3DS + non-3DS) ([#2187](https://github.com/juspay/connector-service/pull/2187)) ([`59684fe`](https://github.com/juspay/connector-service/commit/59684fe20abe268b7843bc22e76cb336a88dcf7e))
+  - [GRABPAY] fall back to HMAC one-time-charge status api ([#2208](https://github.com/juspay/connector-service/pull/2208)) ([`fbc8b29`](https://github.com/juspay/connector-service/commit/fbc8b2947d360d8f0cfe9038e62a9ee5578f52c6))
+  - [QWIKCILVER] map raw connector status on Authorize a… ([#2222](https://github.com/juspay/connector-service/pull/2222)) ([`ed7e54a`](https://github.com/juspay/connector-service/commit/ed7e54a3bdbc1a8a1c75c7a2ae1e31234ca0cd6d))
+  - Add New Connector TRAVELHUB ([#2175](https://github.com/juspay/connector-service/pull/2175)) ([`bcc5fc7`](https://github.com/juspay/connector-service/commit/bcc5fc76c4480b6884a18ab15dba1abee32eb0d4))
+
+**Full Changelog:** [`2026.09.03.0...2026.09.03.1`](https://github.com/juspay/connector-service/compare/2026.09.03.0...2026.09.03.1)
+
+- - -
+
 ## 2026.09.03.0
 
 ### Features

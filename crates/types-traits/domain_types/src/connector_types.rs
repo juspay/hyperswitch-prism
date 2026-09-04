@@ -169,6 +169,7 @@ pub enum ConnectorEnum {
     Worldpayraft,
     JpmorganOrbital,
     Saferpay,
+    Travelhub,
 }
 
 // snake case for enum variants
@@ -541,6 +542,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
             grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
+            grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2976,6 +2978,24 @@ pub struct RefundWebhookDetailsResponse {
     pub raw_connector_response: Option<String>,
     pub status_code: u16,
     pub response_headers: Option<http::HeaderMap>,
+}
+
+/// Details extracted from a payout webhook.
+///
+/// Mirrors [`RefundWebhookDetailsResponse`]: the connector maps the webhook
+/// event type to a terminal status and returns it alongside the identifiers, so
+/// the caller consumes this exactly as it consumes a `PayoutService.Get`
+/// response instead of re-deriving the status from the event type.
+#[derive(Debug, Clone)]
+pub struct PayoutWebhookDetailsResponse {
+    pub connector_payout_id: Option<String>,
+    pub merchant_payout_id: Option<String>,
+    pub status: common_enums::PayoutStatus,
+    /// Connector error code. Populated only for failure events.
+    pub error_code: Option<String>,
+    /// Connector error message. Populated only for failure events.
+    pub error_message: Option<String>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -5856,6 +5876,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
+            AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -143,13 +143,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L89) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L84) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L118)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L89) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L85) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L118)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L108) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L100) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L134)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L108) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L101) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L134)
 
 ## API Reference
 
@@ -291,7 +291,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L136) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L118) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L136) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L119) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.Get
 
@@ -302,7 +302,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L145) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L130) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L145) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L131) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -313,4 +313,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L154) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L138) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L154) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L139) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)

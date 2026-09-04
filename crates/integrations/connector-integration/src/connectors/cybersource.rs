@@ -460,6 +460,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
+        // An empty body carries no connector error to report. hyperswitch short-circuits
+        // here rather than letting `parse_struct` fail
+        // (crates/hyperswitch_connectors/src/connectors/cybersource.rs:181), so mirror it —
+        // otherwise the deserialization failure escalates past the error handler entirely.
+        if res.response.is_empty() {
+            return Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            });
+        }
         let response: Result<
             cybersource::CybersourceErrorResponse,
             Report<common_utils::errors::ParsingError>,
