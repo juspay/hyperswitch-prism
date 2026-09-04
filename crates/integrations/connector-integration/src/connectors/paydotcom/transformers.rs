@@ -131,7 +131,7 @@ mod paydotcom_currency {
     use std::str::FromStr;
 
     use common_enums::Currency;
-    use serde::{de::Error as _, Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer, Serializer};
 
     pub(super) fn serialize<S: Serializer>(
         currency: &Currency,
