@@ -55,6 +55,8 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc
     "cargo-workspace",
     "framework-libs-members-env",
 ] }
+deja = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", optional = true, default-features = false }
+deja-core = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", package = "deja-core", optional = true, default-features = false }
 
 [build-dependencies]
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc24b461917b29641942b04f3aef8110b1adf", package = "build_info", features = [
@@ -71,6 +73,9 @@ default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
 log-transformations = ["common_utils/log-transformations"]
+# Déjà record/replay. Gates the typed `[deja]` config surface (plain serde types, no deja
+# symbols) and the correlation + execution-graph tracing layers installed in `logger::setup`.
+deja = ["dep:deja", "dep:deja-core"]
 
 [lints]
 workspace = true

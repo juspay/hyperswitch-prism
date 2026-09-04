@@ -44,8 +44,11 @@ http = "0.2.12"
 actix-web = { version = "4.11.0", optional = true }
 tracing = { workspace = true }
 tonic = { workspace = true }
+deja = { git = "https://github.com/iemyashasvi/deja", rev = "55fb014ed57f4a1d2d827b8990e4235cc10da0b7", optional = true, default-features = false }
 
 
 [features]
 default = ["actix-web"]
 actix-web = ["dep:actix-web"]
+# Déjà record/replay. Instruments `generate_random_bytes`; forwards to common_utils.
+deja = ["dep:deja", "common_utils/deja"]

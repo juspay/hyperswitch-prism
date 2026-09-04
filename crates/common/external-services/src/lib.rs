@@ -1,3 +1,7 @@
+#[cfg(feature = "deja")]
+pub mod deja_codec;
+#[cfg(feature = "deja")]
+pub mod deja_fields;
 #[cfg(feature = "otel")]
 pub mod otel_metrics;
 pub mod service;

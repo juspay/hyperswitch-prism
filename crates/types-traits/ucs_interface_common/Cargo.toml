@@ -23,5 +23,11 @@ tracing = { workspace = true }
 http = "1.2.0"
 thiserror = { workspace = true }
 
+[features]
+# Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
+# switch — no dependencies — so feature-off builds are byte-identical. Enabled
+# by grpc-server's `deja` umbrella feature.
+deja = []
+
 [lints]
 workspace = true

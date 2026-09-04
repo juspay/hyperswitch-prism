@@ -663,6 +663,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindgen"
+version = "0.72.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
+dependencies = [
+ "bitflags 2.11.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.3",
+ "shlex",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "bisync"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1045,6 +1063,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cexpr"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
+dependencies = [
+ "nom 7.1.3",
+]
+
+[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1084,6 +1111,17 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common",
  "inout",
+]
+
+[[package]]
+name = "clang-sys"
+version = "1.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "157a8ba7b480713b56f4c09fd13fc3e0a22a5dfab8097ba61cbc5feef950788a"
+dependencies = [
+ "glob",
+ "libc",
+ "libloading",
 ]
 
 [[package]]
@@ -1698,6 +1736,63 @@ dependencies = [
 ]
 
 [[package]]
+name = "deja"
+version = "0.1.0"
+source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+dependencies = [
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "deja-runtime",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "deja-context"
+version = "0.1.0"
+source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+dependencies = [
+ "pin-project-lite",
+]
+
+[[package]]
+name = "deja-core"
+version = "0.1.0"
+source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "deja-derive"
+version = "0.1.0"
+source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "deja-runtime"
+version = "0.1.0"
+source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+dependencies = [
+ "async-trait",
+ "deja-context",
+ "deja-core",
+ "deja-derive",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1832,6 +1927,7 @@ dependencies = [
  "bytes",
  "config_patch_derive",
  "cpf_cnpj",
+ "deja",
  "error-stack 0.4.1",
  "grpc-api-types",
  "http 0.2.12",
@@ -1971,6 +2067,7 @@ dependencies = [
  "clap 4.6.0",
  "config",
  "connector_request_kafka",
+ "deja",
  "domain_types",
  "error-stack 0.4.1",
  "hex",
@@ -3347,6 +3444,7 @@ dependencies = [
  "axum 0.8.8",
  "base64 0.21.7",
  "build_info",
+ "bytes",
  "chrono",
  "composite-service",
  "config",
@@ -3354,12 +3452,16 @@ dependencies = [
  "connector-creds",
  "connector-integration",
  "connector_request_kafka",
+ "deja",
+ "deja-core",
  "domain_types",
  "error-stack 0.4.1",
  "external-services",
  "gethostname 0.5.0",
  "grpc-api-types",
  "http 1.4.0",
+ "http-body 1.0.1",
+ "http-body-util",
  "hyper 1.8.1",
  "hyper-util",
  "hyperswitch_masking",
@@ -3370,8 +3472,10 @@ dependencies = [
  "once_cell",
  "prometheus",
  "prost 0.14.3",
+ "prost-reflect",
  "prost-types",
  "rand 0.8.5",
+ "rdkafka",
  "reqwest 0.11.27",
  "rustc-hash 2.1.3",
  "serde",
@@ -4493,6 +4597,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
+name = "libloading"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5231,6 +5345,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "ordered-multimap"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5811,6 +5934,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost-reflect"
+version = "0.16.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b80ea363c31af2de2b92e3c07ed1156628f7838c4afb4df75ee78a37fedbd1"
+dependencies = [
+ "base64 0.22.1",
+ "prost 0.14.3",
+ "prost-types",
+ "serde",
+ "serde-value",
+]
+
+[[package]]
 name = "prost-types"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6209,6 +6345,7 @@ dependencies = [
  "libz-sys",
  "num_enum",
  "pkg-config",
+ "zstd-sys",
 ]
 
 [[package]]
@@ -6841,6 +6978,16 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float",
+ "serde",
 ]
 
 [[package]]
@@ -8340,6 +8487,7 @@ dependencies = [
  "bytes",
  "chrono",
  "config_patch_derive",
+ "deja",
  "error-stack 0.4.1",
  "futures",
  "hex",
@@ -8385,6 +8533,8 @@ dependencies = [
  "config",
  "config_patch_derive",
  "connector-integration",
+ "deja",
+ "deja-core",
  "domain_types",
  "error-stack 0.4.1",
  "external-services",
@@ -9686,6 +9836,7 @@ version = "2.0.16+zstd.1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748"
 dependencies = [
+ "bindgen",
  "cc",
  "pkg-config",
 ]
