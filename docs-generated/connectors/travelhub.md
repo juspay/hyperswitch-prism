@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py travelhub
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L115) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L114) · [Rust](../../examples/travelhub/travelhub.rs#L150)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py#L115) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L125) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L114) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs#L150)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L134) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L130) · [Rust](../../examples/travelhub/travelhub.rs#L166)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py#L134) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L144) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L130) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs#L166)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L159) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L152) · [Rust](../../examples/travelhub/travelhub.rs#L189)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py#L159) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L170) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L152) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs#L189)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L184) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L174) · [Rust](../../examples/travelhub/travelhub.rs#L212)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py#L184) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L196) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L174) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs#L212)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py#L206) · [JavaScript](../../examples/travelhub/travelhub.js) · [Kotlin](../../examples/travelhub/travelhub.kt#L193) · [Rust](../../examples/travelhub/travelhub.rs#L231)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py#L206) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L218) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L193) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs#L231)
 
 ## API Reference
 
@@ -308,7 +308,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L239) · [Kotlin](../../examples/travelhub/travelhub.kt#L211) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L239) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L211) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)
 
 #### PaymentService.Capture
 
@@ -319,7 +319,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L248) · [Kotlin](../../examples/travelhub/travelhub.kt#L223) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L248) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L223) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)
 
 #### PaymentService.Get
 
@@ -330,7 +330,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L257) · [Kotlin](../../examples/travelhub/travelhub.kt#L233) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L257) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L233) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -341,7 +341,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L266) · [Kotlin](../../examples/travelhub/travelhub.kt#L241) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L266) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L241) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)
 
 #### PaymentService.Refund
 
@@ -352,7 +352,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts#L275) · [Kotlin](../../examples/travelhub/travelhub.kt#L270) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts#L275) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L270) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)
 
 #### PaymentService.Void
 
@@ -363,4 +363,4 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/travelhub/travelhub.py) · [TypeScript](../../examples/travelhub/travelhub.ts) · [Kotlin](../../examples/travelhub/travelhub.kt#L280) · [Rust](../../examples/travelhub/travelhub.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.kt#L280) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/travelhub/travelhub.rs)

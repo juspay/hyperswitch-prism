@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py placetopay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_LOGIN`, `YOUR_TRAN_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Placetopay(PlacetopayConfig {
                 login: Some(hyperswitch_masking::Secret::new("YOUR_LOGIN".to_string())),  // Authentication credential
                 tran_key: Some(hyperswitch_masking::Secret::new("YOUR_TRAN_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py#L147) · [JavaScript](../../examples/placetopay/placetopay.js) · [Kotlin](../../examples/placetopay/placetopay.kt#L133) · [Rust](../../examples/placetopay/placetopay.rs#L186)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py#L147) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L158) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L133) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs#L186)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py#L166) · [JavaScript](../../examples/placetopay/placetopay.js) · [Kotlin](../../examples/placetopay/placetopay.kt#L149) · [Rust](../../examples/placetopay/placetopay.rs#L202)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py#L166) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L177) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L149) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs#L202)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py#L191) · [JavaScript](../../examples/placetopay/placetopay.js) · [Kotlin](../../examples/placetopay/placetopay.kt#L171) · [Rust](../../examples/placetopay/placetopay.rs#L225)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py#L191) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L203) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L171) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs#L225)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py#L216) · [JavaScript](../../examples/placetopay/placetopay.js) · [Kotlin](../../examples/placetopay/placetopay.kt#L193) · [Rust](../../examples/placetopay/placetopay.rs#L248)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py#L216) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L229) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L193) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs#L248)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py#L238) · [JavaScript](../../examples/placetopay/placetopay.js) · [Kotlin](../../examples/placetopay/placetopay.kt#L212) · [Rust](../../examples/placetopay/placetopay.rs#L267)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py#L238) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L251) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs#L267)
 
 ## API Reference
 
@@ -305,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L272) · [Kotlin](../../examples/placetopay/placetopay.kt#L230) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L272) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L230) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.Capture
 
@@ -316,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L281) · [Kotlin](../../examples/placetopay/placetopay.kt#L242) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L281) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.Get
 
@@ -327,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L290) · [Kotlin](../../examples/placetopay/placetopay.kt#L252) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L290) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L252) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -338,7 +338,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L299) · [Kotlin](../../examples/placetopay/placetopay.kt#L260) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L299) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L260) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.Refund
 
@@ -349,7 +349,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L308) · [Kotlin](../../examples/placetopay/placetopay.kt#L303) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L308) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L303) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.Reverse
 
@@ -360,7 +360,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts#L317) · [Kotlin](../../examples/placetopay/placetopay.kt#L313) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts#L317) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L313) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)
 
 #### PaymentService.Void
 
@@ -371,4 +371,4 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/placetopay/placetopay.py) · [TypeScript](../../examples/placetopay/placetopay.ts) · [Kotlin](../../examples/placetopay/placetopay.kt#L321) · [Rust](../../examples/placetopay/placetopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.kt#L321) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/placetopay/placetopay.rs)

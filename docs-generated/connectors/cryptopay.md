@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py cryptopay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Cryptopay(CryptopayConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -130,4 +130,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cryptopay/cryptopay.py) · [TypeScript](../../examples/cryptopay/cryptopay.ts#L65) · [Kotlin](../../examples/cryptopay/cryptopay.kt#L53) · [Rust](../../examples/cryptopay/cryptopay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cryptopay/cryptopay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cryptopay/cryptopay.ts#L65) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cryptopay/cryptopay.kt#L53) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cryptopay/cryptopay.rs)

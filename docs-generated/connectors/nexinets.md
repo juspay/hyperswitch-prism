@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py nexinets
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Nexinets(NexinetsConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,19 +127,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L132) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L97) · [Rust](../../examples/nexinets/nexinets.rs#L161)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py#L132) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L137) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L97) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs#L161)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L151) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L113) · [Rust](../../examples/nexinets/nexinets.rs#L177)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py#L151) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L156) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L113) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs#L177)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py#L176) · [JavaScript](../../examples/nexinets/nexinets.js) · [Kotlin](../../examples/nexinets/nexinets.kt#L135) · [Rust](../../examples/nexinets/nexinets.rs#L200)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py#L176) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L182) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L135) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs#L200)
 
 ## API Reference
 
@@ -320,7 +320,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L203) · [Kotlin](../../examples/nexinets/nexinets.kt#L153) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L203) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)
 
 #### PaymentService.Get
 
@@ -331,7 +331,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L221) · [Kotlin](../../examples/nexinets/nexinets.kt#L181) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L221) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L181) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -342,7 +342,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L230) · [Kotlin](../../examples/nexinets/nexinets.kt#L189) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L189) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)
 
 #### PaymentService.Refund
 
@@ -353,7 +353,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L248) · [Kotlin](../../examples/nexinets/nexinets.kt#L249) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L248) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L249) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)
 
 ### Mandates
 
@@ -366,7 +366,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L239) · [Kotlin](../../examples/nexinets/nexinets.kt#L218) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L239) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L218) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)
 
 ### Authentication
 
@@ -379,4 +379,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/nexinets/nexinets.py) · [TypeScript](../../examples/nexinets/nexinets.ts#L212) · [Kotlin](../../examples/nexinets/nexinets.kt#L165) · [Rust](../../examples/nexinets/nexinets.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.ts#L212) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.kt#L165) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/nexinets/nexinets.rs)

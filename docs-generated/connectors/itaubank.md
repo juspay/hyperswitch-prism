@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py itaubank
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_SECRET`, `YOUR_CLIENT_ID`, `YOUR_CERTIFICATES`, `YOUR_PRIVATE_KEY`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -106,8 +106,8 @@ let config = ConnectorConfig {
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
                 certificates: Some(hyperswitch_masking::Secret::new("YOUR_CERTIFICATES".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -140,4 +140,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/itaubank/itaubank.py) · [TypeScript](../../examples/itaubank/itaubank.ts#L37) · [Kotlin](../../examples/itaubank/itaubank.kt#L41) · [Rust](../../examples/itaubank/itaubank.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/itaubank/itaubank.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/itaubank/itaubank.ts#L37) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/itaubank/itaubank.kt#L41) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/itaubank/itaubank.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py xendit
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -91,7 +91,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Xendit(XenditConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L122) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L108) · [Rust](../../examples/xendit/xendit.rs#L154)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py#L122) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L129) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L108) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs#L154)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L141) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L124) · [Rust](../../examples/xendit/xendit.rs#L170)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py#L141) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L148) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L124) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs#L170)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L166) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L146) · [Rust](../../examples/xendit/xendit.rs#L193)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py#L166) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L174) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L146) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs#L193)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/xendit/xendit.py#L191) · [JavaScript](../../examples/xendit/xendit.js) · [Kotlin](../../examples/xendit/xendit.kt#L168) · [Rust](../../examples/xendit/xendit.rs#L216)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py#L191) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L200) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L168) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs#L216)
 
 ## API Reference
 
@@ -294,7 +294,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L221) · [Kotlin](../../examples/xendit/xendit.kt#L186) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L221) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L186) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)
 
 #### PaymentService.Capture
 
@@ -305,7 +305,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L230) · [Kotlin](../../examples/xendit/xendit.kt#L198) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L230) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L198) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)
 
 #### PaymentService.Get
 
@@ -316,7 +316,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L239) · [Kotlin](../../examples/xendit/xendit.kt#L208) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L239) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L208) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -327,7 +327,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L248) · [Kotlin](../../examples/xendit/xendit.kt#L216) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L248) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L216) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)
 
 #### PaymentService.Refund
 
@@ -338,7 +338,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L257) · [Kotlin](../../examples/xendit/xendit.kt#L248) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L257) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L248) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)
 
 ### Refunds
 
@@ -351,4 +351,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/xendit/xendit.py) · [TypeScript](../../examples/xendit/xendit.ts#L266) · [Kotlin](../../examples/xendit/xendit.kt#L258) · [Rust](../../examples/xendit/xendit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.ts#L266) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.kt#L258) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/xendit/xendit.rs)

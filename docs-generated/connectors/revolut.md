@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py revolut
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_SECRET_API_KEY`, `YOUR_SIGNING_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Revolut(RevolutConfig {
                 secret_api_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_API_KEY".to_string())),  // Authentication credential
                 signing_secret: Some(hyperswitch_masking::Secret::new("YOUR_SIGNING_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L153) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L109) · [Rust](../../examples/revolut/revolut.rs#L212)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py#L153) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L183) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L109) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs#L212)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,19 +141,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L172) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L125) · [Rust](../../examples/revolut/revolut.rs#L228)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py#L172) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L202) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L125) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs#L228)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L197) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L147) · [Rust](../../examples/revolut/revolut.rs#L251)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py#L197) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L228) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L147) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs#L251)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/revolut/revolut.py#L222) · [JavaScript](../../examples/revolut/revolut.js) · [Kotlin](../../examples/revolut/revolut.kt#L169) · [Rust](../../examples/revolut/revolut.rs#L274)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py#L222) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L254) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L169) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs#L274)
 
 ## API Reference
 
@@ -471,7 +471,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L275) · [Kotlin](../../examples/revolut/revolut.kt#L187) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L275) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L187) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.Capture
 
@@ -482,7 +482,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L284) · [Kotlin](../../examples/revolut/revolut.kt#L199) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L199) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.Get
 
@@ -493,7 +493,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L302) · [Kotlin](../../examples/revolut/revolut.kt#L225) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L302) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L225) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -504,7 +504,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L329) · [Kotlin](../../examples/revolut/revolut.kt#L264) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L329) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L264) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.Refund
 
@@ -515,7 +515,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L338) · [Kotlin](../../examples/revolut/revolut.kt#L293) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L338) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L293) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -526,7 +526,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L356) · [Kotlin](../../examples/revolut/revolut.kt#L315) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L356) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L315) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -537,7 +537,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L365) · [Kotlin](../../examples/revolut/revolut.kt#L336) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L365) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L336) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 ### Refunds
 
@@ -550,7 +550,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L347) · [Kotlin](../../examples/revolut/revolut.kt#L303) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L347) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L303) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)
 
 ### Authentication
 
@@ -563,4 +563,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/revolut/revolut.py) · [TypeScript](../../examples/revolut/revolut.ts#L293) · [Kotlin](../../examples/revolut/revolut.kt#L209) · [Rust](../../examples/revolut/revolut.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.ts#L293) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.kt#L209) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/revolut/revolut.rs)

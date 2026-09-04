@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py barclaycard
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ACCOUNT`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_account: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L334) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L135) · [Rust](../../examples/barclaycard/barclaycard.rs#L407)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py#L334) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L347) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L135) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs#L407)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L353) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L151) · [Rust](../../examples/barclaycard/barclaycard.rs#L423)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py#L353) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L366) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L151) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs#L423)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L378) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L173) · [Rust](../../examples/barclaycard/barclaycard.rs#L446)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py#L378) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L392) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L173) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs#L446)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L403) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L195) · [Rust](../../examples/barclaycard/barclaycard.rs#L469)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py#L403) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L418) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L195) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs#L469)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py#L425) · [JavaScript](../../examples/barclaycard/barclaycard.js) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L214) · [Rust](../../examples/barclaycard/barclaycard.rs#L488)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py#L425) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L440) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L214) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs#L488)
 
 ## API Reference
 
@@ -354,7 +354,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L470) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L274) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L470) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.Capture
 
@@ -365,7 +365,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L479) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L286) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L479) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L286) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.Get
 
@@ -376,7 +376,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L488) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L296) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L488) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L296) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -387,7 +387,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L515) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L362) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L515) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L362) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -398,7 +398,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L524) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L401) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L524) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L401) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.Refund
 
@@ -409,7 +409,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L542) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L474) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L542) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L474) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -420,7 +420,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L560) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L496) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L560) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L496) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentService.Void
 
@@ -431,7 +431,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L545) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L545) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 ### Refunds
 
@@ -444,7 +444,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L551) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L484) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L551) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L484) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 ### Mandates
 
@@ -457,7 +457,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L533) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L443) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L533) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L443) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 ### Authentication
 
@@ -470,7 +470,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 | **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L461) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L232) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L461) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L232) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -481,7 +481,7 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L497) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L304) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L497) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L304) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -492,4 +492,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/barclaycard/barclaycard.py) · [TypeScript](../../examples/barclaycard/barclaycard.ts#L506) · [Kotlin](../../examples/barclaycard/barclaycard.kt#L334) · [Rust](../../examples/barclaycard/barclaycard.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.ts#L506) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.kt#L334) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/barclaycard/barclaycard.rs)

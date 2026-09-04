@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py datatrans
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_PASSWORD`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Datatrans(DatatransConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L253) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L123) · [Rust](../../examples/datatrans/datatrans.rs#L312)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py#L253) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L269) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L123) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs#L312)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L272) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L139) · [Rust](../../examples/datatrans/datatrans.rs#L328)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py#L272) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L288) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs#L328)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L297) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L161) · [Rust](../../examples/datatrans/datatrans.rs#L351)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py#L297) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L314) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L161) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs#L351)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L322) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L183) · [Rust](../../examples/datatrans/datatrans.rs#L374)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py#L322) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L340) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L183) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs#L374)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py#L344) · [JavaScript](../../examples/datatrans/datatrans.js) · [Kotlin](../../examples/datatrans/datatrans.kt#L202) · [Rust](../../examples/datatrans/datatrans.rs#L393)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py#L344) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L362) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L202) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs#L393)
 
 ## API Reference
 
@@ -329,7 +329,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L383) · [Kotlin](../../examples/datatrans/datatrans.kt#L220) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L383) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L220) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.Capture
 
@@ -340,7 +340,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L392) · [Kotlin](../../examples/datatrans/datatrans.kt#L232) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L392) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L232) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.Get
 
@@ -351,7 +351,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L410) · [Kotlin](../../examples/datatrans/datatrans.kt#L258) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L410) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L258) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -362,7 +362,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L419) · [Kotlin](../../examples/datatrans/datatrans.kt#L266) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L419) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L266) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -373,7 +373,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L428) · [Kotlin](../../examples/datatrans/datatrans.kt#L295) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L428) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L295) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.Refund
 
@@ -384,7 +384,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L437) · [Kotlin](../../examples/datatrans/datatrans.kt#L329) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L437) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L329) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.Reverse
 
@@ -395,7 +395,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L455) · [Kotlin](../../examples/datatrans/datatrans.kt#L351) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L455) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L351) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -406,7 +406,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L464) · [Kotlin](../../examples/datatrans/datatrans.kt#L359) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L464) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L359) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -417,7 +417,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L473) · [Kotlin](../../examples/datatrans/datatrans.kt#L400) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L473) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L400) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -428,7 +428,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L482) · [Kotlin](../../examples/datatrans/datatrans.kt#L421) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L482) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L421) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 #### PaymentService.Void
 
@@ -439,7 +439,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts) · [Kotlin](../../examples/datatrans/datatrans.kt#L463) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L463) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 ### Refunds
 
@@ -452,7 +452,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L446) · [Kotlin](../../examples/datatrans/datatrans.kt#L339) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L446) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L339) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)
 
 ### Authentication
 
@@ -465,4 +465,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/datatrans/datatrans.py) · [TypeScript](../../examples/datatrans/datatrans.ts#L401) · [Kotlin](../../examples/datatrans/datatrans.kt#L242) · [Rust](../../examples/datatrans/datatrans.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.ts#L401) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/datatrans/datatrans.rs)

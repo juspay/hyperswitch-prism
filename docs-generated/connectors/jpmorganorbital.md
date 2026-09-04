@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py jpmorganorbital
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_MERCHANT_ID`, `YOUR_BIN`, `YOUR_TERMINAL_ID`, `YOUR_BASE_URL`, `YOUR_MERCHANT_CONFIG_CURRENCY` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -108,10 +108,10 @@ let config = ConnectorConfig {
                 username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                bin: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                terminal_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                bin: Some("YOUR_BIN".to_string()),  // Connector setting
+                terminal_id: Some("YOUR_TERMINAL_ID".to_string()),  // Connector setting
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                merchant_config_currency: Some("YOUR_MERCHANT_CONFIG_CURRENCY".to_string()),  // Connector setting
                 ..Default::default()
             })),
         }),
@@ -143,13 +143,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L89) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L85) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L118)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.py#L89) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.ts#L96) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.kt#L85) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.rs#L118)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py#L108) · [JavaScript](../../examples/jpmorganorbital/jpmorganorbital.js) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L101) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs#L134)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.py#L108) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.ts#L115) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.kt#L101) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.rs#L134)
 
 ## API Reference
 
@@ -291,7 +291,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L136) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L119) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.ts#L136) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.kt#L119) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.Get
 
@@ -302,7 +302,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L145) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L131) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.ts#L145) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -313,4 +313,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](../../examples/jpmorganorbital/jpmorganorbital.ts#L154) · [Kotlin](../../examples/jpmorganorbital/jpmorganorbital.kt#L139) · [Rust](../../examples/jpmorganorbital/jpmorganorbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.ts#L154) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorganorbital/jpmorganorbital.rs)

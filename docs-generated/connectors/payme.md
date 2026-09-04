@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py payme
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_SELLER_PAYME_ID`, `YOUR_PAYME_CLIENT_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Payme(PaymeConfig {
                 seller_payme_id: Some(hyperswitch_masking::Secret::new("YOUR_SELLER_PAYME_ID".to_string())),  // Authentication credential
                 payme_client_key: Some(hyperswitch_masking::Secret::new("YOUR_PAYME_CLIENT_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payme/payme.py#L144) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L122) · [Rust](../../examples/payme/payme.rs#L184)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py#L144) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L155) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L122) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs#L184)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payme/payme.py#L163) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L138) · [Rust](../../examples/payme/payme.rs#L200)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py#L163) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L174) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L138) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs#L200)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/payme/payme.py#L188) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L160) · [Rust](../../examples/payme/payme.rs#L223)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py#L188) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L200) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L160) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs#L223)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/payme/payme.py#L213) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L182) · [Rust](../../examples/payme/payme.rs#L246)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py#L213) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L226) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L182) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs#L246)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/payme/payme.py#L235) · [JavaScript](../../examples/payme/payme.js) · [Kotlin](../../examples/payme/payme.kt#L201) · [Rust](../../examples/payme/payme.rs#L265)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py#L235) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L248) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L201) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs#L265)
 
 ## API Reference
 
@@ -306,7 +306,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L269) · [Kotlin](../../examples/payme/payme.kt#L219) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L269) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L219) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.Capture
 
@@ -317,7 +317,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L278) · [Kotlin](../../examples/payme/payme.kt#L231) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L278) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L231) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.CreateOrder
 
@@ -328,7 +328,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L287) · [Kotlin](../../examples/payme/payme.kt#L241) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L287) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L241) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.Get
 
@@ -339,7 +339,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L296) · [Kotlin](../../examples/payme/payme.kt#L255) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L296) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L255) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -350,7 +350,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L305) · [Kotlin](../../examples/payme/payme.kt#L263) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L305) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L263) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.Refund
 
@@ -361,7 +361,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L314) · [Kotlin](../../examples/payme/payme.kt#L297) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L314) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L297) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 #### PaymentService.Void
 
@@ -372,7 +372,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts) · [Kotlin](../../examples/payme/payme.kt#L319) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)
 
 ### Refunds
 
@@ -385,4 +385,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payme/payme.py) · [TypeScript](../../examples/payme/payme.ts#L323) · [Kotlin](../../examples/payme/payme.kt#L307) · [Rust](../../examples/payme/payme.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.ts#L323) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.kt#L307) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payme/payme.rs)

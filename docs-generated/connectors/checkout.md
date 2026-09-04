@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py checkout
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SECRET`, `YOUR_PROCESSING_CHANNEL_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
                 processing_channel_id: Some(hyperswitch_masking::Secret::new("YOUR_PROCESSING_CHANNEL_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L250) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L118) · [Rust](../../examples/checkout/checkout.rs#L316)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L250) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L265) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L118) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L316)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L269) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L134) · [Rust](../../examples/checkout/checkout.rs#L332)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L269) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L332)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L294) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L156) · [Rust](../../examples/checkout/checkout.rs#L355)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L294) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L310) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L355)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L319) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L178) · [Rust](../../examples/checkout/checkout.rs#L378)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L319) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L336) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L178) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L378)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L341) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L197) · [Rust](../../examples/checkout/checkout.rs#L397)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L341) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L358) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L197) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L397)
 
 ## API Reference
 
@@ -326,7 +326,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L379) · [Kotlin](../../examples/checkout/checkout.kt#L215) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L379) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L215) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.Capture
 
@@ -337,7 +337,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L388) · [Kotlin](../../examples/checkout/checkout.kt#L227) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L388) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L227) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.Get
 
@@ -348,7 +348,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L397) · [Kotlin](../../examples/checkout/checkout.kt#L237) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L397) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L237) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -359,7 +359,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L406) · [Kotlin](../../examples/checkout/checkout.kt#L245) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L406) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L245) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -370,7 +370,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L415) · [Kotlin](../../examples/checkout/checkout.kt#L274) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L415) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.Refund
 
@@ -381,7 +381,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L433) · [Kotlin](../../examples/checkout/checkout.kt#L337) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L433) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L337) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -392,7 +392,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L451) · [Kotlin](../../examples/checkout/checkout.kt#L359) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L451) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L359) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -403,7 +403,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L460) · [Kotlin](../../examples/checkout/checkout.kt#L398) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L460) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L398) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -414,7 +414,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L469) · [Kotlin](../../examples/checkout/checkout.kt#L419) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L469) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L419) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 #### PaymentService.Void
 
@@ -425,7 +425,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts) · [Kotlin](../../examples/checkout/checkout.kt#L459) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L459) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 ### Refunds
 
@@ -438,7 +438,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L442) · [Kotlin](../../examples/checkout/checkout.kt#L347) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L442) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L347) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)
 
 ### Mandates
 
@@ -451,4 +451,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/checkout/checkout.py) · [TypeScript](../../examples/checkout/checkout.ts#L424) · [Kotlin](../../examples/checkout/checkout.kt#L306) · [Rust](../../examples/checkout/checkout.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L424) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L306) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py ppro
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Ppro(PproConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -270,7 +270,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L155) · [Kotlin](../../examples/ppro/ppro.kt#L115) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L155) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 #### PaymentService.Capture
 
@@ -281,7 +281,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L164) · [Kotlin](../../examples/ppro/ppro.kt#L127) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L164) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L127) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 #### PaymentService.Get
 
@@ -292,7 +292,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L173) · [Kotlin](../../examples/ppro/ppro.kt#L137) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L173) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 #### PaymentService.Refund
 
@@ -303,7 +303,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L209) · [Kotlin](../../examples/ppro/ppro.kt#L207) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L209) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L207) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -314,7 +314,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L227) · [Kotlin](../../examples/ppro/ppro.kt#L229) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L227) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L229) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 #### PaymentService.Void
 
@@ -325,7 +325,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts) · [Kotlin](../../examples/ppro/ppro.kt#L239) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L239) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 ### Refunds
 
@@ -338,7 +338,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L218) · [Kotlin](../../examples/ppro/ppro.kt#L217) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L218) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L217) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)
 
 ### Mandates
 
@@ -351,4 +351,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/ppro/ppro.py) · [TypeScript](../../examples/ppro/ppro.ts#L200) · [Kotlin](../../examples/ppro/ppro.kt#L176) · [Rust](../../examples/ppro/ppro.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.ts#L200) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.kt#L176) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/ppro/ppro.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py forte
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_ACCESS_ID`, `YOUR_ORGANIZATION_ID`, `YOUR_LOCATION_ID`, `YOUR_API_SECRET_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 organization_id: Some(hyperswitch_masking::Secret::new("YOUR_ORGANIZATION_ID".to_string())),  // Authentication credential
                 location_id: Some(hyperswitch_masking::Secret::new("YOUR_LOCATION_ID".to_string())),  // Authentication credential
                 api_secret_key: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -135,19 +135,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/forte/forte.py#L80) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L91) · [Rust](../../examples/forte/forte.rs#L105)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py#L80) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L85) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L91) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs#L105)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/forte/forte.py#L99) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L107) · [Rust](../../examples/forte/forte.rs#L121)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py#L99) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L104) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L107) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs#L121)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/forte/forte.py#L121) · [JavaScript](../../examples/forte/forte.js) · [Kotlin](../../examples/forte/forte.kt#L126) · [Rust](../../examples/forte/forte.rs#L140)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py#L121) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L126) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L126) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs#L140)
 
 ## API Reference
 
@@ -302,7 +302,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L147) · [Kotlin](../../examples/forte/forte.kt#L144) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L147) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L144) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs)
 
 #### PaymentService.Get
 
@@ -313,7 +313,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L156) · [Kotlin](../../examples/forte/forte.kt#L156) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L156) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs)
 
 #### PaymentService.Void
 
@@ -324,7 +324,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts) · [Kotlin](../../examples/forte/forte.kt#L176) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L176) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs)
 
 ### Refunds
 
@@ -337,4 +337,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/forte/forte.py) · [TypeScript](../../examples/forte/forte.ts#L165) · [Kotlin](../../examples/forte/forte.kt#L164) · [Rust](../../examples/forte/forte.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.ts#L165) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.kt#L164) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/forte/forte.rs)

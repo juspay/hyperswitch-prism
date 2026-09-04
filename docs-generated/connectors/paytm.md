@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py paytm
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_MERCHANT_KEY`, `YOUR_WEBSITE`, `YOUR_CLIENT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 merchant_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_KEY".to_string())),  // Authentication credential
                 website: Some(hyperswitch_masking::Secret::new("YOUR_WEBSITE".to_string())),  // Authentication credential
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -255,7 +255,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L76) · [Kotlin](../../examples/paytm/paytm.kt#L79) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.ts#L76) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.kt#L79) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.rs)
 
 #### PaymentService.Get
 
@@ -266,7 +266,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L94) · [Kotlin](../../examples/paytm/paytm.kt#L106) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.ts#L94) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.kt#L106) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.rs)
 
 ### Authentication
 
@@ -279,4 +279,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L85) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.ts#L85) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.kt#L91) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/paytm/paytm.rs)

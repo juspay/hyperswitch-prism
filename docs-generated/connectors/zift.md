@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py zift
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USER_NAME`, `YOUR_PASSWORD`, `YOUR_ACCOUNT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 user_name: Some(hyperswitch_masking::Secret::new("YOUR_USER_NAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 account_id: Some(hyperswitch_masking::Secret::new("YOUR_ACCOUNT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/zift/zift.py#L178) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L116) · [Rust](../../examples/zift/zift.rs#L224)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py#L178) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L188) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L116) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs#L224)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/zift/zift.py#L197) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L132) · [Rust](../../examples/zift/zift.rs#L240)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py#L197) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L207) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L132) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs#L240)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/zift/zift.py#L222) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L154) · [Rust](../../examples/zift/zift.rs#L263)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py#L222) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L233) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L154) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs#L263)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/zift/zift.py#L247) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L176) · [Rust](../../examples/zift/zift.rs#L286)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py#L247) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L259) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L176) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs#L286)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/zift/zift.py#L269) · [JavaScript](../../examples/zift/zift.js) · [Kotlin](../../examples/zift/zift.kt#L195) · [Rust](../../examples/zift/zift.rs#L305)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py#L269) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L281) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L195) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs#L305)
 
 ## API Reference
 
@@ -310,7 +310,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L302) · [Kotlin](../../examples/zift/zift.kt#L213) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L302) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L213) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.Capture
 
@@ -321,7 +321,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L311) · [Kotlin](../../examples/zift/zift.kt#L225) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L311) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L225) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.Get
 
@@ -332,7 +332,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L320) · [Kotlin](../../examples/zift/zift.kt#L235) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L320) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L235) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -343,7 +343,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L329) · [Kotlin](../../examples/zift/zift.kt#L243) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L329) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L243) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -354,7 +354,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L338) · [Kotlin](../../examples/zift/zift.kt#L273) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L338) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L273) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.Refund
 
@@ -365,7 +365,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L347) · [Kotlin](../../examples/zift/zift.kt#L306) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L347) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L306) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -376,7 +376,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts#L356) · [Kotlin](../../examples/zift/zift.kt#L316) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts#L356) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L316) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)
 
 #### PaymentService.Void
 
@@ -387,4 +387,4 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/zift/zift.py) · [TypeScript](../../examples/zift/zift.ts) · [Kotlin](../../examples/zift/zift.kt#L356) · [Rust](../../examples/zift/zift.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.kt#L356) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/zift/zift.rs)

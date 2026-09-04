@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py multisafepay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -91,7 +91,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Multisafepay(MultisafepayConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -123,19 +123,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L124) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L99) · [Rust](../../examples/multisafepay/multisafepay.rs#L154)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py#L124) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L132) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L99) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs#L154)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L143) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L115) · [Rust](../../examples/multisafepay/multisafepay.rs#L170)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py#L143) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L151) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs#L170)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py#L168) · [JavaScript](../../examples/multisafepay/multisafepay.js) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L137) · [Rust](../../examples/multisafepay/multisafepay.rs#L193)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py#L168) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L177) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L137) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs#L193)
 
 ## API Reference
 
@@ -330,7 +330,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L198) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L155) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L198) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L155) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)
 
 #### PaymentService.Get
 
@@ -341,7 +341,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L216) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L183) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L216) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L183) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -352,7 +352,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L225) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L191) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L225) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L191) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)
 
 #### PaymentService.Refund
 
@@ -363,7 +363,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L234) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L224) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L234) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L224) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)
 
 ### Refunds
 
@@ -376,7 +376,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L243) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L234) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L243) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)
 
 ### Authentication
 
@@ -389,4 +389,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/multisafepay/multisafepay.py) · [TypeScript](../../examples/multisafepay/multisafepay.ts#L207) · [Kotlin](../../examples/multisafepay/multisafepay.kt#L167) · [Rust](../../examples/multisafepay/multisafepay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.ts#L207) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.kt#L167) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/multisafepay/multisafepay.rs)

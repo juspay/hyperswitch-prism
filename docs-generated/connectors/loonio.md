@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py loonio
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_MERCHANT_TOKEN`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Loonio(LoonioConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 merchant_token: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_TOKEN".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -234,7 +234,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | ⚠ |
 | Pay Easy | ⚠ |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts) · [Kotlin](../../examples/loonio/loonio.kt) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.rs)
 
 #### PaymentService.Get
 
@@ -245,4 +245,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L51) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.ts#L40) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.kt#L51) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/loonio/loonio.rs)

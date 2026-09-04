@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py globalpay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_APP_ID`, `YOUR_APP_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Globalpay(GlobalpayConfig {
                 app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())),  // Authentication credential
                 app_key: Some(hyperswitch_masking::Secret::new("YOUR_APP_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L319) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L155) · [Rust](../../examples/globalpay/globalpay.rs#L386)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py#L319) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L330) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L155) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs#L386)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L338) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L171) · [Rust](../../examples/globalpay/globalpay.rs#L402)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py#L338) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L349) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L171) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs#L402)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L363) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L193) · [Rust](../../examples/globalpay/globalpay.rs#L425)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py#L363) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L375) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L193) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs#L425)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L388) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L215) · [Rust](../../examples/globalpay/globalpay.rs#L448)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py#L388) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L401) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L215) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs#L448)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L410) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L234) · [Rust](../../examples/globalpay/globalpay.rs#L467)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py#L410) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L423) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs#L467)
 
 ## API Reference
 
@@ -319,7 +319,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L444) · [Kotlin](../../examples/globalpay/globalpay.kt#L252) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L444) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L252) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.Capture
 
@@ -330,7 +330,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L453) · [Kotlin](../../examples/globalpay/globalpay.kt#L264) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L453) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L264) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.Get
 
@@ -341,7 +341,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L480) · [Kotlin](../../examples/globalpay/globalpay.kt#L300) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L480) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L300) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -352,7 +352,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L489) · [Kotlin](../../examples/globalpay/globalpay.kt#L308) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L489) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L308) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -363,7 +363,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L498) · [Kotlin](../../examples/globalpay/globalpay.kt#L345) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L498) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L345) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.Refund
 
@@ -374,7 +374,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L516) · [Kotlin](../../examples/globalpay/globalpay.kt#L427) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L516) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L427) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -385,7 +385,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L534) · [Kotlin](../../examples/globalpay/globalpay.kt#L456) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L534) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L456) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -396,7 +396,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L543) · [Kotlin](../../examples/globalpay/globalpay.kt#L502) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L543) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L502) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### PaymentService.Void
 
@@ -407,7 +407,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts) · [Kotlin](../../examples/globalpay/globalpay.kt#L531) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L531) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 ### Refunds
 
@@ -420,7 +420,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L525) · [Kotlin](../../examples/globalpay/globalpay.kt#L437) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L525) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L437) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 ### Mandates
 
@@ -433,7 +433,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L507) · [Kotlin](../../examples/globalpay/globalpay.kt#L384) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L507) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L384) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 ### Authentication
 
@@ -446,7 +446,7 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L462) · [Kotlin](../../examples/globalpay/globalpay.kt#L274) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L462) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)
 
 #### MerchantAuthenticationService.CreateServerAuthenticationToken
 
@@ -457,4 +457,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py) · [TypeScript](../../examples/globalpay/globalpay.ts#L471) · [Kotlin](../../examples/globalpay/globalpay.kt#L290) · [Rust](../../examples/globalpay/globalpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.ts#L471) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/globalpay/globalpay.rs)

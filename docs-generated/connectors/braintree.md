@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py braintree
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_PUBLIC_KEY`, `YOUR_PRIVATE_KEY`, `YOUR_BASE_URL`, `YOUR_MERCHANT_ACCOUNT_ID`, `YOUR_MERCHANT_CONFIG_CURRENCY`, `YOUR_APPLE_PAY_SUPPORTED_NETWORKS`, `YOUR_APPLE_PAY_MERCHANT_CAPABILITIES`, `YOUR_APPLE_PAY_LABEL`, `YOUR_GPAY_MERCHANT_NAME`, `YOUR_GPAY_MERCHANT_ID`, `YOUR_GPAY_ALLOWED_AUTH_METHODS`, `YOUR_GPAY_ALLOWED_CARD_NETWORKS`, `YOUR_PAYPAL_CLIENT_ID`, `YOUR_GPAY_GATEWAY_MERCHANT_ID` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -128,18 +128,18 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Braintree(BraintreeConfig {
                 public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 merchant_account_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT_ID".to_string())),  // Authentication credential
-                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                apple_pay_supported_networks: vec!["value".to_string()],  // Array field
-                apple_pay_merchant_capabilities: vec!["value".to_string()],  // Array field
-                apple_pay_label: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_merchant_name: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_allowed_auth_methods: vec!["value".to_string()],  // Array field
-                gpay_allowed_card_networks: vec!["value".to_string()],  // Array field
-                paypal_client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                gpay_gateway_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_config_currency: Some("YOUR_MERCHANT_CONFIG_CURRENCY".to_string()),  // Connector setting
+                apple_pay_supported_networks: vec!["YOUR_APPLE_PAY_SUPPORTED_NETWORKS".to_string()],  // Array field
+                apple_pay_merchant_capabilities: vec!["YOUR_APPLE_PAY_MERCHANT_CAPABILITIES".to_string()],  // Array field
+                apple_pay_label: Some("YOUR_APPLE_PAY_LABEL".to_string()),  // Connector setting
+                gpay_merchant_name: Some("YOUR_GPAY_MERCHANT_NAME".to_string()),  // Connector setting
+                gpay_merchant_id: Some("YOUR_GPAY_MERCHANT_ID".to_string()),  // Connector setting
+                gpay_allowed_auth_methods: vec!["YOUR_GPAY_ALLOWED_AUTH_METHODS".to_string()],  // Array field
+                gpay_allowed_card_networks: vec!["YOUR_GPAY_ALLOWED_CARD_NETWORKS".to_string()],  // Array field
+                paypal_client_id: Some("YOUR_PAYPAL_CLIENT_ID".to_string()),  // Connector setting
+                gpay_gateway_merchant_id: Some("YOUR_GPAY_GATEWAY_MERCHANT_ID".to_string()),  // Connector setting
                 ..Default::default()
             })),
         }),
@@ -287,7 +287,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Seicomart | x |
 | Pay Easy | x |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.Capture
 
@@ -298,7 +298,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L186) · [Kotlin](../../examples/braintree/braintree.kt#L107) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L186) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L107) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.Get
 
@@ -309,7 +309,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L204) · [Kotlin](../../examples/braintree/braintree.kt#L133) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L133) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -320,7 +320,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L231) · [Kotlin](../../examples/braintree/braintree.kt#L172) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L231) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L172) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.Refund
 
@@ -331,7 +331,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L240) · [Kotlin](../../examples/braintree/braintree.kt#L204) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L240) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L204) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.Reverse
 
@@ -342,7 +342,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L249) · [Kotlin](../../examples/braintree/braintree.kt#L214) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L249) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L214) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -353,7 +353,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L258) · [Kotlin](../../examples/braintree/braintree.kt#L222) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L258) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L222) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 #### PaymentService.Void
 
@@ -364,7 +364,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L261) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L261) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)
 
 ### Authentication
 
@@ -377,4 +377,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L195) · [Kotlin](../../examples/braintree/braintree.kt#L117) · [Rust](../../examples/braintree/braintree.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.ts#L195) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.kt#L117) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/braintree/braintree.rs)

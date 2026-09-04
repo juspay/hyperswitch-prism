@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py fiuu
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_MERCHANT_ID`, `YOUR_VERIFY_KEY`, `YOUR_SECRET_KEY`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -102,8 +102,8 @@ let config = ConnectorConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 verify_key: Some(hyperswitch_masking::Secret::new("YOUR_VERIFY_KEY".to_string())),  // Authentication credential
                 secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L224) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L123) · [Rust](../../examples/fiuu/fiuu.rs#L295)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py#L224) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L249) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L123) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs#L295)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L243) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L139) · [Rust](../../examples/fiuu/fiuu.rs#L311)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py#L243) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L268) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs#L311)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L268) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L161) · [Rust](../../examples/fiuu/fiuu.rs#L334)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py#L268) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L294) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L161) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs#L334)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L293) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L183) · [Rust](../../examples/fiuu/fiuu.rs#L357)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py#L293) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L320) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L183) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs#L357)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L315) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L202) · [Rust](../../examples/fiuu/fiuu.rs#L376)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py#L315) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L342) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L202) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs#L376)
 
 ## API Reference
 
@@ -339,7 +339,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L363) · [Kotlin](../../examples/fiuu/fiuu.kt#L220) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L363) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L220) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.Capture
 
@@ -350,7 +350,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L372) · [Kotlin](../../examples/fiuu/fiuu.kt#L232) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L372) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L232) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.Get
 
@@ -361,7 +361,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L381) · [Kotlin](../../examples/fiuu/fiuu.kt#L242) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L381) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -372,7 +372,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L408) · [Kotlin](../../examples/fiuu/fiuu.kt#L281) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L408) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L281) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -383,7 +383,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L417) · [Kotlin](../../examples/fiuu/fiuu.kt#L311) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L417) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L311) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.Refund
 
@@ -394,7 +394,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L435) · [Kotlin](../../examples/fiuu/fiuu.kt#L381) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L435) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L381) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -405,7 +405,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L453) · [Kotlin](../../examples/fiuu/fiuu.kt#L403) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L453) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L403) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 #### PaymentService.Void
 
@@ -416,7 +416,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts) · [Kotlin](../../examples/fiuu/fiuu.kt#L443) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L443) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 ### Refunds
 
@@ -429,7 +429,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L444) · [Kotlin](../../examples/fiuu/fiuu.kt#L391) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L444) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L391) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)
 
 ### Mandates
 
@@ -442,4 +442,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py) · [TypeScript](../../examples/fiuu/fiuu.ts#L426) · [Kotlin](../../examples/fiuu/fiuu.kt#L344) · [Rust](../../examples/fiuu/fiuu.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.ts#L426) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.kt#L344) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiuu/fiuu.rs)

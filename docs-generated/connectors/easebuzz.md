@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py easebuzz
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SALT`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -98,8 +98,8 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Easebuzz(EasebuzzConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_salt: Some(hyperswitch_masking::Secret::new("YOUR_API_SALT".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -254,7 +254,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L106) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L102) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L106) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L102) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Capture
 
@@ -265,7 +265,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L115) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L114) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L115) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L114) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.CreateOrder
 
@@ -276,7 +276,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L124) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L124) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L124) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L124) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Get
 
@@ -287,7 +287,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L133) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L138) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L133) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L138) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)
 
 #### PaymentService.Refund
 
@@ -298,7 +298,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L142) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L146) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L142) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L146) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)
 
 ### Refunds
 
@@ -311,4 +311,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/easebuzz/easebuzz.py) · [TypeScript](../../examples/easebuzz/easebuzz.ts#L151) · [Kotlin](../../examples/easebuzz/easebuzz.kt#L156) · [Rust](../../examples/easebuzz/easebuzz.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.ts#L151) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/easebuzz/easebuzz.rs)

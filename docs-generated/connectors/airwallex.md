@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py airwallex
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_CLIENT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Airwallex(AirwallexConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py#L193) · [JavaScript](../../examples/airwallex/airwallex.js) · [Kotlin](../../examples/airwallex/airwallex.kt#L150) · [Rust](../../examples/airwallex/airwallex.rs#L241)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py#L193) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L150) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs#L241)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py#L212) · [JavaScript](../../examples/airwallex/airwallex.js) · [Kotlin](../../examples/airwallex/airwallex.kt#L166) · [Rust](../../examples/airwallex/airwallex.rs#L257)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py#L212) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L223) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L166) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs#L257)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py#L237) · [JavaScript](../../examples/airwallex/airwallex.js) · [Kotlin](../../examples/airwallex/airwallex.kt#L188) · [Rust](../../examples/airwallex/airwallex.rs#L280)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py#L237) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L249) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L188) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs#L280)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py#L262) · [JavaScript](../../examples/airwallex/airwallex.js) · [Kotlin](../../examples/airwallex/airwallex.kt#L210) · [Rust](../../examples/airwallex/airwallex.rs#L303)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py#L262) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L275) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L210) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs#L303)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py#L284) · [JavaScript](../../examples/airwallex/airwallex.js) · [Kotlin](../../examples/airwallex/airwallex.kt#L229) · [Rust](../../examples/airwallex/airwallex.rs#L322)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py#L284) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L297) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L229) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs#L322)
 
 ## API Reference
 
@@ -364,7 +364,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L318) · [Kotlin](../../examples/airwallex/airwallex.kt#L247) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L318) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L247) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.Capture
 
@@ -375,7 +375,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L327) · [Kotlin](../../examples/airwallex/airwallex.kt#L259) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L327) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L259) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.CreateOrder
 
@@ -386,7 +386,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L336) · [Kotlin](../../examples/airwallex/airwallex.kt#L269) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L336) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L269) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.Get
 
@@ -397,7 +397,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L354) · [Kotlin](../../examples/airwallex/airwallex.kt#L300) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L354) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L300) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -408,7 +408,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L363) · [Kotlin](../../examples/airwallex/airwallex.kt#L308) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L363) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L308) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.Refund
 
@@ -419,7 +419,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L372) · [Kotlin](../../examples/airwallex/airwallex.kt#L345) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L372) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L345) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 #### PaymentService.Void
 
@@ -430,7 +430,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts) · [Kotlin](../../examples/airwallex/airwallex.kt#L374) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L374) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 ### Refunds
 
@@ -443,7 +443,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L381) · [Kotlin](../../examples/airwallex/airwallex.kt#L355) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L381) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L355) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)
 
 ### Authentication
 
@@ -456,4 +456,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/airwallex/airwallex.py) · [TypeScript](../../examples/airwallex/airwallex.ts#L345) · [Kotlin](../../examples/airwallex/airwallex.kt#L290) · [Rust](../../examples/airwallex/airwallex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.ts#L345) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/airwallex/airwallex.rs)

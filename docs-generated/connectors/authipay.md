@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py authipay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Authipay(AuthipayConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L127) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L120) · [Rust](../../examples/authipay/authipay.rs#L165)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py#L127) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L138) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L120) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs#L165)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L146) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L136) · [Rust](../../examples/authipay/authipay.rs#L181)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py#L146) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L157) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs#L181)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L171) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L158) · [Rust](../../examples/authipay/authipay.rs#L204)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py#L171) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L183) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L158) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs#L204)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L196) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L180) · [Rust](../../examples/authipay/authipay.rs#L227)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py#L196) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L209) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L180) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs#L227)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L218) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L199) · [Rust](../../examples/authipay/authipay.rs#L246)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py#L218) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L231) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L199) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs#L246)
 
 ## API Reference
 
@@ -306,7 +306,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L252) · [Kotlin](../../examples/authipay/authipay.kt#L217) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L252) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L217) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.Capture
 
@@ -317,7 +317,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L261) · [Kotlin](../../examples/authipay/authipay.kt#L229) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L261) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L229) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.Get
 
@@ -328,7 +328,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L270) · [Kotlin](../../examples/authipay/authipay.kt#L239) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L270) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L239) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -339,7 +339,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L279) · [Kotlin](../../examples/authipay/authipay.kt#L247) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L279) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L247) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.Refund
 
@@ -350,7 +350,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L288) · [Kotlin](../../examples/authipay/authipay.kt#L276) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L288) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L276) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.Reverse
 
@@ -361,7 +361,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L306) · [Kotlin](../../examples/authipay/authipay.kt#L298) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L306) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L298) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 #### PaymentService.Void
 
@@ -372,7 +372,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts) · [Kotlin](../../examples/authipay/authipay.kt#L306) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L306) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)
 
 ### Refunds
 
@@ -385,4 +385,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L297) · [Kotlin](../../examples/authipay/authipay.kt#L286) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.ts#L297) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.kt#L286) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/authipay/authipay.rs)

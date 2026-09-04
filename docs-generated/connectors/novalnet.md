@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py novalnet
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_PRODUCT_ACTIVATION_KEY`, `YOUR_PAYMENT_ACCESS_KEY`, `YOUR_TARIFF_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 product_activation_key: Some(hyperswitch_masking::Secret::new("YOUR_PRODUCT_ACTIVATION_KEY".to_string())),  // Authentication credential
                 payment_access_key: Some(hyperswitch_masking::Secret::new("YOUR_PAYMENT_ACCESS_KEY".to_string())),  // Authentication credential
                 tariff_id: Some(hyperswitch_masking::Secret::new("YOUR_TARIFF_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L250) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L125) · [Rust](../../examples/novalnet/novalnet.rs#L321)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py#L250) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L272) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L125) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs#L321)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L269) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L141) · [Rust](../../examples/novalnet/novalnet.rs#L337)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py#L269) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L291) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L141) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs#L337)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L294) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L163) · [Rust](../../examples/novalnet/novalnet.rs#L360)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py#L294) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L317) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L163) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs#L360)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L319) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L185) · [Rust](../../examples/novalnet/novalnet.rs#L383)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py#L319) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L343) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L185) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs#L383)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L341) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L204) · [Rust](../../examples/novalnet/novalnet.rs#L402)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py#L341) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L365) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L204) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs#L402)
 
 ## API Reference
 
@@ -387,7 +387,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L386) · [Kotlin](../../examples/novalnet/novalnet.kt#L222) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L386) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L222) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.Capture
 
@@ -398,7 +398,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L395) · [Kotlin](../../examples/novalnet/novalnet.kt#L234) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L395) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.Get
 
@@ -409,7 +409,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L404) · [Kotlin](../../examples/novalnet/novalnet.kt#L244) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L404) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L244) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -420,7 +420,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L422) · [Kotlin](../../examples/novalnet/novalnet.kt#L268) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L422) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L268) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -431,7 +431,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L440) · [Kotlin](../../examples/novalnet/novalnet.kt#L299) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L440) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L299) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -442,7 +442,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L449) · [Kotlin](../../examples/novalnet/novalnet.kt#L333) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L449) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L333) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.Refund
 
@@ -453,7 +453,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L467) · [Kotlin](../../examples/novalnet/novalnet.kt#L404) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L467) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L404) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -464,7 +464,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L485) · [Kotlin](../../examples/novalnet/novalnet.kt#L426) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L485) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L426) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 #### PaymentService.Void
 
@@ -475,7 +475,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts) · [Kotlin](../../examples/novalnet/novalnet.kt#L470) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L470) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 ### Refunds
 
@@ -488,7 +488,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L476) · [Kotlin](../../examples/novalnet/novalnet.kt#L414) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L476) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L414) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)
 
 ### Mandates
 
@@ -501,4 +501,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py) · [TypeScript](../../examples/novalnet/novalnet.ts#L458) · [Kotlin](../../examples/novalnet/novalnet.kt#L371) · [Rust](../../examples/novalnet/novalnet.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.ts#L458) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.kt#L371) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/novalnet/novalnet.rs)

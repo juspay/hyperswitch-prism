@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py imerchantsolutions
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Imerchantsolutions(ImerchantsolutionsConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L132) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L115) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L184)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py#L132) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L156) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs#L184)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L151) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L131) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L200)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py#L151) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L175) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs#L200)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L176) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L153) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L223)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py#L176) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L201) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs#L223)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L201) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L175) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L246)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py#L201) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L227) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L175) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs#L246)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L223) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L194) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L265)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py#L223) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L249) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L194) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs#L265)
 
 ## API Reference
 
@@ -307,7 +307,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L270) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L212) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L270) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Capture
 
@@ -318,7 +318,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L279) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L224) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L279) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L224) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Get
 
@@ -329,7 +329,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L288) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L234) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L288) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -340,7 +340,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L315) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L273) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L315) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L273) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Refund
 
@@ -351,7 +351,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L324) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L302) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L324) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L302) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 #### PaymentService.Void
 
@@ -362,7 +362,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L324) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L324) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)
 
 ### Refunds
 
@@ -375,4 +375,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](../../examples/imerchantsolutions/imerchantsolutions.ts#L333) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L312) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.ts#L333) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.kt#L312) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/imerchantsolutions/imerchantsolutions.rs)

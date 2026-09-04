@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py payconex
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_ACCOUNT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Payconex(PayconexConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 account_id: Some(hyperswitch_masking::Secret::new("YOUR_ACCOUNT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L121) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L113) · [Rust](../../examples/payconex/payconex.rs#L157)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py#L121) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L131) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L113) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs#L157)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L140) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L129) · [Rust](../../examples/payconex/payconex.rs#L173)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py#L140) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L150) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L129) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs#L173)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L165) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L151) · [Rust](../../examples/payconex/payconex.rs#L196)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py#L165) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L176) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L151) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs#L196)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L190) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L173) · [Rust](../../examples/payconex/payconex.rs#L219)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py#L190) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L202) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L173) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs#L219)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/payconex/payconex.py#L212) · [JavaScript](../../examples/payconex/payconex.js) · [Kotlin](../../examples/payconex/payconex.kt#L192) · [Rust](../../examples/payconex/payconex.rs#L238)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py#L212) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L224) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L192) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs#L238)
 
 ## API Reference
 
@@ -305,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L245) · [Kotlin](../../examples/payconex/payconex.kt#L210) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L245) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L210) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 #### PaymentService.Capture
 
@@ -316,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L254) · [Kotlin](../../examples/payconex/payconex.kt#L222) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L254) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L222) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 #### PaymentService.Get
 
@@ -327,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L263) · [Kotlin](../../examples/payconex/payconex.kt#L232) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L263) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L232) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -338,7 +338,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L272) · [Kotlin](../../examples/payconex/payconex.kt#L240) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L272) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L240) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 #### PaymentService.Refund
 
@@ -349,7 +349,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L281) · [Kotlin](../../examples/payconex/payconex.kt#L269) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L281) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L269) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 #### PaymentService.Void
 
@@ -360,7 +360,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts) · [Kotlin](../../examples/payconex/payconex.kt#L291) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L291) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)
 
 ### Refunds
 
@@ -373,4 +373,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/payconex/payconex.py) · [TypeScript](../../examples/payconex/payconex.ts#L290) · [Kotlin](../../examples/payconex/payconex.kt#L279) · [Rust](../../examples/payconex/payconex.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.ts#L290) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.kt#L279) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payconex/payconex.rs)

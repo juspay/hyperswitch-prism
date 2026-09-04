@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py fiserv
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ACCOUNT`, `YOUR_API_SECRET`, `YOUR_BASE_URL`, `YOUR_TERMINAL_ID` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -102,7 +102,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_account: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 terminal_id: Some(hyperswitch_masking::Secret::new("YOUR_TERMINAL_ID".to_string())),  // Authentication credential
                 ..Default::default()
             })),
@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py#L123) · [JavaScript](../../examples/fiserv/fiserv.js) · [Kotlin](../../examples/fiserv/fiserv.kt#L115) · [Rust](../../examples/fiserv/fiserv.rs#L159)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py#L123) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L133) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L115) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs#L159)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py#L142) · [JavaScript](../../examples/fiserv/fiserv.js) · [Kotlin](../../examples/fiserv/fiserv.kt#L131) · [Rust](../../examples/fiserv/fiserv.rs#L175)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py#L142) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L152) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs#L175)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py#L167) · [JavaScript](../../examples/fiserv/fiserv.js) · [Kotlin](../../examples/fiserv/fiserv.kt#L153) · [Rust](../../examples/fiserv/fiserv.rs#L198)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py#L167) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L178) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L153) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs#L198)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py#L192) · [JavaScript](../../examples/fiserv/fiserv.js) · [Kotlin](../../examples/fiserv/fiserv.kt#L175) · [Rust](../../examples/fiserv/fiserv.rs#L221)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py#L192) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L175) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs#L221)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py#L214) · [JavaScript](../../examples/fiserv/fiserv.js) · [Kotlin](../../examples/fiserv/fiserv.kt#L194) · [Rust](../../examples/fiserv/fiserv.rs#L240)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py#L214) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L226) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L194) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs#L240)
 
 ## API Reference
 
@@ -313,7 +313,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L247) · [Kotlin](../../examples/fiserv/fiserv.kt#L212) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L247) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L212) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 #### PaymentService.Capture
 
@@ -324,7 +324,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L256) · [Kotlin](../../examples/fiserv/fiserv.kt#L224) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L256) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L224) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 #### PaymentService.Get
 
@@ -335,7 +335,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L265) · [Kotlin](../../examples/fiserv/fiserv.kt#L234) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L265) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L234) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -346,7 +346,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L274) · [Kotlin](../../examples/fiserv/fiserv.kt#L242) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L274) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L242) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 #### PaymentService.Refund
 
@@ -357,7 +357,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L283) · [Kotlin](../../examples/fiserv/fiserv.kt#L271) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L283) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L271) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 #### PaymentService.Void
 
@@ -368,7 +368,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts) · [Kotlin](../../examples/fiserv/fiserv.kt#L293) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L293) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)
 
 ### Refunds
 
@@ -381,4 +381,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/fiserv/fiserv.py) · [TypeScript](../../examples/fiserv/fiserv.ts#L292) · [Kotlin](../../examples/fiserv/fiserv.kt#L281) · [Rust](../../examples/fiserv/fiserv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.ts#L292) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.kt#L281) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/fiserv/fiserv.rs)

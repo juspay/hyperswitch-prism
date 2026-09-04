@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py affirm
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_PUBLIC_KEY`, `YOUR_PRIVATE_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Affirm(AffirmConfig {
                 public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
                 private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -248,7 +248,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L103) · [Kotlin](../../examples/affirm/affirm.kt#L109) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts#L103) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L109) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)
 
 #### PaymentService.Capture
 
@@ -259,7 +259,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L112) · [Kotlin](../../examples/affirm/affirm.kt#L121) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts#L112) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L121) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)
 
 #### PaymentService.Get
 
@@ -270,7 +270,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L121) · [Kotlin](../../examples/affirm/affirm.kt#L131) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts#L121) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)
 
 #### PaymentService.Refund
 
@@ -281,7 +281,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L130) · [Kotlin](../../examples/affirm/affirm.kt#L139) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts#L130) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)
 
 #### PaymentService.Void
 
@@ -292,7 +292,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L161) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L161) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)
 
 ### Refunds
 
@@ -305,4 +305,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L139) · [Kotlin](../../examples/affirm/affirm.kt#L149) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.ts#L139) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.kt#L149) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/affirm/affirm.rs)

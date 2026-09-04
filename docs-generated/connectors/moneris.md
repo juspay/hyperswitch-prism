@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py moneris
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_CLIENT_SECRET`, `YOUR_MERCHANT_ID`, `YOUR_CLIENT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 client_secret: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_SECRET".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L240) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L151) · [Rust](../../examples/moneris/moneris.rs#L301)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py#L240) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L254) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L151) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs#L301)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L259) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L167) · [Rust](../../examples/moneris/moneris.rs#L317)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py#L259) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L273) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L167) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs#L317)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L284) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L189) · [Rust](../../examples/moneris/moneris.rs#L340)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py#L284) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L299) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L189) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs#L340)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L309) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L211) · [Rust](../../examples/moneris/moneris.rs#L363)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py#L309) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L325) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L211) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs#L363)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/moneris/moneris.py#L331) · [JavaScript](../../examples/moneris/moneris.js) · [Kotlin](../../examples/moneris/moneris.kt#L230) · [Rust](../../examples/moneris/moneris.rs#L382)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py#L331) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L347) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L230) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs#L382)
 
 ## API Reference
 
@@ -312,7 +312,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L368) · [Kotlin](../../examples/moneris/moneris.kt#L248) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L368) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L248) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentService.Capture
 
@@ -323,7 +323,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L377) · [Kotlin](../../examples/moneris/moneris.kt#L260) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L377) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L260) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentService.Get
 
@@ -334,7 +334,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L395) · [Kotlin](../../examples/moneris/moneris.kt#L280) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L395) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L280) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -345,7 +345,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L422) · [Kotlin](../../examples/moneris/moneris.kt#L363) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L422) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L363) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentService.Refund
 
@@ -356,7 +356,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L431) · [Kotlin](../../examples/moneris/moneris.kt#L399) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L431) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L399) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentService.Void
 
@@ -367,7 +367,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts) · [Kotlin](../../examples/moneris/moneris.kt#L428) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L428) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 ### Refunds
 
@@ -380,7 +380,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L440) · [Kotlin](../../examples/moneris/moneris.kt#L409) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L440) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L409) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 ### Authentication
 
@@ -393,7 +393,7 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L386) · [Kotlin](../../examples/moneris/moneris.kt#L270) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L386) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L270) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -404,7 +404,7 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L404) · [Kotlin](../../examples/moneris/moneris.kt#L288) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L404) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L288) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -415,4 +415,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/moneris/moneris.py) · [TypeScript](../../examples/moneris/moneris.ts#L413) · [Kotlin](../../examples/moneris/moneris.kt#L325) · [Rust](../../examples/moneris/moneris.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.ts#L413) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.kt#L325) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/moneris/moneris.rs)

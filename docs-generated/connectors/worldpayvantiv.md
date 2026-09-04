@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py worldpayvantiv
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USER`, `YOUR_PASSWORD`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL`, `YOUR_REPORT_GROUP`, `YOUR_MERCHANT_CONFIG_CURRENCY`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -108,10 +108,10 @@ let config = ConnectorConfig {
                 user: Some(hyperswitch_masking::Secret::new("YOUR_USER".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                report_group: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                report_group: Some("YOUR_REPORT_GROUP".to_string()),  // Connector setting
+                merchant_config_currency: Some("YOUR_MERCHANT_CONFIG_CURRENCY".to_string()),  // Connector setting
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -143,7 +143,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L142) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L124) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L182)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py#L142) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L154) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L124) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs#L182)
 
 ### Card Payment (Authorize + Capture)
 
@@ -157,25 +157,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L161) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L140) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L198)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py#L161) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L173) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L140) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs#L198)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L186) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L162) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L221)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py#L186) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L199) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L162) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs#L221)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L211) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L184) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L244)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py#L211) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L225) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L184) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs#L244)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py#L233) · [JavaScript](../../examples/worldpayvantiv/worldpayvantiv.js) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L203) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs#L263)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py#L233) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L247) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L203) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs#L263)
 
 ## API Reference
 
@@ -323,7 +323,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L268) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L221) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L268) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L221) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.Capture
 
@@ -334,7 +334,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L277) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L233) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L277) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L233) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.Get
 
@@ -345,7 +345,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L286) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L243) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L286) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L243) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -356,7 +356,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L295) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L251) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L295) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L251) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -367,7 +367,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L304) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L267) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L304) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L267) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.Refund
 
@@ -378,7 +378,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L313) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L296) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L313) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L296) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.Reverse
 
@@ -389,7 +389,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L331) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L318) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L331) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L318) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 #### PaymentService.Void
 
@@ -400,7 +400,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L326) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L326) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)
 
 ### Refunds
 
@@ -413,4 +413,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](../../examples/worldpayvantiv/worldpayvantiv.ts#L322) · [Kotlin](../../examples/worldpayvantiv/worldpayvantiv.kt#L306) · [Rust](../../examples/worldpayvantiv/worldpayvantiv.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.ts#L322) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.kt#L306) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/worldpayvantiv/worldpayvantiv.rs)

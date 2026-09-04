@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py helcim
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -91,7 +91,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Helcim(HelcimConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L163) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L147) · [Rust](../../examples/helcim/helcim.rs#L202)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py#L163) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L171) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L147) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs#L202)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L182) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L163) · [Rust](../../examples/helcim/helcim.rs#L218)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py#L182) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L190) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L163) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs#L218)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L207) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L185) · [Rust](../../examples/helcim/helcim.rs#L241)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py#L207) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L216) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L185) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs#L241)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L232) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L207) · [Rust](../../examples/helcim/helcim.rs#L264)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py#L232) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L242) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L207) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs#L264)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/helcim/helcim.py#L254) · [JavaScript](../../examples/helcim/helcim.js) · [Kotlin](../../examples/helcim/helcim.kt#L226) · [Rust](../../examples/helcim/helcim.rs#L283)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py#L254) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L264) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L226) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs#L283)
 
 ## API Reference
 
@@ -301,7 +301,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L285) · [Kotlin](../../examples/helcim/helcim.kt#L244) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L285) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L244) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 #### PaymentService.Capture
 
@@ -312,7 +312,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L294) · [Kotlin](../../examples/helcim/helcim.kt#L256) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L294) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L256) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 #### PaymentService.Get
 
@@ -323,7 +323,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L303) · [Kotlin](../../examples/helcim/helcim.kt#L266) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L303) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L266) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -334,7 +334,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L312) · [Kotlin](../../examples/helcim/helcim.kt#L274) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L312) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 #### PaymentService.Refund
 
@@ -345,7 +345,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L321) · [Kotlin](../../examples/helcim/helcim.kt#L309) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L321) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L309) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 #### PaymentService.Void
 
@@ -356,7 +356,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts) · [Kotlin](../../examples/helcim/helcim.kt#L331) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L331) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
 
 ### Refunds
 
@@ -369,4 +369,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/helcim/helcim.py) · [TypeScript](../../examples/helcim/helcim.ts#L330) · [Kotlin](../../examples/helcim/helcim.kt#L319) · [Rust](../../examples/helcim/helcim.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.ts#L330) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.kt#L319) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/helcim/helcim.rs)
