@@ -909,6 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
+  PAYDOTCOM = 144;
 }
 
 // Payment method types
@@ -5749,6 +5750,13 @@ message TravelhubConfig {
   optional string base_url = 50;
 }
 
+// Pay.com REST API v1.
+// api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
+message PaydotcomConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6081,6 +6089,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
+    // PAYDOTCOM = 144
+    PaydotcomConfig paydotcom = 155;
   }
 }
 

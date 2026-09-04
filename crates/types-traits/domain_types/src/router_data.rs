@@ -352,6 +352,12 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Pay.com REST API v1.
+    /// `api_key` = the `x-paycom-api-key` value (test_… sandbox / live_… production).
+    Paydotcom {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Imerchantsolutions {
         api_key: Secret<String>,
         merchant_id: Option<Secret<String>>,
@@ -1419,6 +1425,7 @@ impl ConnectorSpecificConfig {
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
+            Paydotcom { api_key },
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -1924,6 +1931,7 @@ impl ConnectorSpecificConfig {
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
+                Paydotcom { api_key },
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2583,6 +2591,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 terminal_id: jpmorgan_orbital.terminal_id,
                 base_url: jpmorgan_orbital.base_url,
                 merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
+            }),
+            AuthType::Paydotcom(paydotcom) => Ok(Self::Paydotcom {
+                api_key: paydotcom.api_key.ok_or_else(err)?,
+                base_url: paydotcom.base_url,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,
@@ -3642,6 +3654,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_key: key1.clone(),
                         website: api_secret.clone(),
                         client_id: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paydotcom => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -118,6 +118,16 @@ default = '{}'
 [connector_overrides."capture,void,get,refund,reverse,refund_get".helcim]
 "connector_transaction_id" = "12345"
 
+# Pay.com routes by resource-id prefix: `hld_` is a Hold (the only thing that can
+# be captured or cancelled) and `chrg_` is a Charge (the only thing that can be
+# synced or refunded). The default "probe_connector_txn_001" matches neither, so
+# every id-addressed flow is rejected before a request is built.
+[connector_overrides."capture,void".paydotcom]
+"connector_transaction_id" = "hld_146231656762572800"
+
+[connector_overrides."get,refund,refund_get".paydotcom]
+"connector_transaction_id" = "chrg_146231656762572800"
+
 # Braintree's refund_get (RSync) reads `currency` and `merchant_account_id` from
 # `refund_metadata` (a Secret<String> JSON blob) rather than top-level fields.
 # Pre-populate it so the probe never gets stuck on "Missing required field: currency".
