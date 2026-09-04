@@ -3646,6 +3646,11 @@ message PaymentServiceSetupRecurringRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 40;
+
+  // Sandbox/test mode flag (true for test environment). When unset, connectors
+  // that branch endpoint construction on this (e.g. Adyen's merchant-prefixed
+  // live URL) default to test mode and skip live-URL substitution.
+  optional bool test_mode = 41;
 }
 
 // Response message for a mandate setup operation
