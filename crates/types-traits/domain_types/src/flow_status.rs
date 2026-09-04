@@ -377,42 +377,96 @@ impl DisputeFlowStatusRules for connector_flow::DefendDispute {
 // ── Payout flow rules ─────────────────────────────────────────────────────
 
 pub trait PayoutFlowStatusRules {
-    const TERMINAL_SUCCESS: PayoutStatus;
-    const TERMINAL_FAILURE: PayoutStatus;
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus];
     const ALLOWED: &'static [PayoutStatus];
 }
 
 impl PayoutFlowStatusRules for connector_flow::PayoutTransfer {
-    const TERMINAL_SUCCESS: PayoutStatus = PayoutStatus::Success;
-    const TERMINAL_FAILURE: PayoutStatus = PayoutStatus::Failure;
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Success];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] =
+        &[PayoutStatus::Failure]; // EXPIRED, REVERSED
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Initiated,
         PayoutStatus::Pending,
         PayoutStatus::Success,
         PayoutStatus::Failure,
         PayoutStatus::Reversed,
+        PayoutStatus::Ineligible,
     ];
 }
 
 impl PayoutFlowStatusRules for connector_flow::PayoutGet {
-    const TERMINAL_SUCCESS: PayoutStatus = PayoutStatus::Success;
-    const TERMINAL_FAILURE: PayoutStatus = PayoutStatus::Failure;
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Success];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
+    // PayoutGet is a poll/sync flow — all statuses are valid responses.
     const ALLOWED: &'static [PayoutStatus] = &[
-        PayoutStatus::Initiated,
-        PayoutStatus::Pending,
         PayoutStatus::Success,
         PayoutStatus::Failure,
         PayoutStatus::Cancelled,
-        PayoutStatus::Reversed,
-        PayoutStatus::Ineligible,
+        PayoutStatus::Initiated,
         PayoutStatus::Expired,
+        PayoutStatus::Reversed,
+        PayoutStatus::Pending,
+        PayoutStatus::Ineligible,
+        PayoutStatus::NotPermitted,
+        PayoutStatus::RequiresCreation,
+        PayoutStatus::RequiresConfirmation,
+        PayoutStatus::RequiresPayoutMethodData,
+        PayoutStatus::RequiresFulfillment,
+        PayoutStatus::RequiresVendorAccountCreation,
     ];
 }
 
 impl PayoutFlowStatusRules for connector_flow::PayoutVoid {
-    const TERMINAL_SUCCESS: PayoutStatus = PayoutStatus::Cancelled;
-    const TERMINAL_FAILURE: PayoutStatus = PayoutStatus::Failure;
-    const ALLOWED: &'static [PayoutStatus] = &[PayoutStatus::Pending, PayoutStatus::Cancelled];
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Cancelled];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
+    const ALLOWED: &'static [PayoutStatus] = &[
+        PayoutStatus::Pending,
+        PayoutStatus::Cancelled,
+        PayoutStatus::Reversed, // REVERSED
+    ];
+}
+
+impl PayoutFlowStatusRules for connector_flow::PayoutCreate {
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::RequiresFulfillment];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
+    const ALLOWED: &'static [PayoutStatus] = &[
+        PayoutStatus::Pending,
+        PayoutStatus::RequiresFulfillment,
+        PayoutStatus::Failure,
+        PayoutStatus::RequiresPayoutMethodData,
+        PayoutStatus::RequiresConfirmation,
+    ];
+}
+
+impl PayoutFlowStatusRules for connector_flow::PayoutStage {
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] =
+        &[PayoutStatus::RequiresFulfillment, PayoutStatus::RequiresCreation];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
+    const ALLOWED: &'static [PayoutStatus] = &[
+        PayoutStatus::Pending,
+        PayoutStatus::RequiresFulfillment,
+        PayoutStatus::Failure,
+        PayoutStatus::RequiresCreation,
+    ];
+}
+
+impl PayoutFlowStatusRules for connector_flow::PayoutCreateRecipient {
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::RequiresCreation];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::Failure];
+    const ALLOWED: &'static [PayoutStatus] =
+        &[PayoutStatus::RequiresCreation, PayoutStatus::Failure];
+}
+
+impl PayoutFlowStatusRules for connector_flow::PayoutEligibility {
+    const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::RequiresCreation];
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[PayoutStatus::NotPermitted];
+    const ALLOWED: &'static [PayoutStatus] = &[
+        PayoutStatus::RequiresFulfillment,
+        PayoutStatus::NotPermitted,
+        PayoutStatus::RequiresCreation,
+    ];
 }
 
 /// Per-flow terminal status declaration for a specific connector.
