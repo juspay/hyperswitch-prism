@@ -273,9 +273,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let refund_id = event
             .data
             .as_ref()
-            .and_then(|d| d.get("refund_id"))
-            .and_then(|r| r.as_str())
-            .map(|s| s.to_string());
+            .and_then(|d| d.refund_id.clone());
 
         match event.event_type {
             TamaraWebhookEvent::OrderRefunded => Ok(Some(WebhookResourceReference::Refund(
@@ -345,12 +343,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TamaraWebhookEventType")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let refund_id = event
-            .data
-            .as_ref()
-            .and_then(|d| d.get("refund_id"))
-            .and_then(|r| r.as_str())
-            .map(|s| s.to_string());
+        let refund_id = event.data.and_then(|d| d.refund_id);
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
