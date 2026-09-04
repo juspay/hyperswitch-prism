@@ -3795,7 +3795,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
-            test_mode: None, // ProxySetupRecurringRequest proto has no test_mode field
+            test_mode: req.test_mode,
         }
     }
 }

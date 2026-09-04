@@ -6208,6 +6208,12 @@ message PaymentServiceProxySetupRecurringRequest {
   // Order Details
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
+
+  // Sandbox/test mode flag (true for test environment). Same purpose as on
+  // PaymentServiceSetupRecurringRequest/PaymentServiceProxyAuthorizeRequest:
+  // connectors that branch endpoint construction on this (e.g. Adyen's
+  // merchant-prefixed live URL) need the real value.
+  optional bool test_mode = 18;
 }
 
 // ============================================================================
