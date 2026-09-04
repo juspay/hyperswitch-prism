@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.04.0
+
+### Bug Fixes
+
+- **GRABPAY:** Adding rawConnectorStatus in sync responses ([#2225](https://github.com/juspay/connector-service/pull/2225)) ([`4bee369`](https://github.com/juspay/connector-service/commit/4bee369c77cf9b46fed9c26dd4c9152c574521e2))
+- **connector:** Align authorizedotnet, cybersource and adyen response parsing with hyperswitch ([#2227](https://github.com/juspay/connector-service/pull/2227)) ([`049a15c`](https://github.com/juspay/connector-service/commit/049a15c3d5e2718b617567afbf7092a7b349f62a))
+
+**Full Changelog:** [`2026.09.03.1...2026.09.04.0`](https://github.com/juspay/connector-service/compare/2026.09.03.1...2026.09.04.0)
+
+- - -
+
 ## 2026.09.03.1
 
 ### Features
