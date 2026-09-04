@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 shared_secret: Some(hyperswitch_masking::Secret::new("YOUR_SHARED_SECRET".to_string())),  // Authentication credential
                 recipient_id: Some("YOUR_RECIPIENT_ID".to_string()),  // Connector setting
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

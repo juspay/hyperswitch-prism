@@ -87,7 +87,7 @@ use grpc_api_types::payments::connector_specific_config;
 let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Cashtocode(CashtocodeConfig {
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Authorizedotnet(AuthorizedotnetConfig {
                 name: Some(hyperswitch_masking::Secret::new("YOUR_NAME".to_string())),  // Authentication credential
                 transaction_key: Some(hyperswitch_masking::Secret::new("YOUR_TRANSACTION_KEY".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

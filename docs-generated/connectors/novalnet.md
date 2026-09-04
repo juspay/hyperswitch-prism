@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 product_activation_key: Some(hyperswitch_masking::Secret::new("YOUR_PRODUCT_ACTIVATION_KEY".to_string())),  // Authentication credential
                 payment_access_key: Some(hyperswitch_masking::Secret::new("YOUR_PAYMENT_ACCESS_KEY".to_string())),  // Authentication credential
                 tariff_id: Some(hyperswitch_masking::Secret::new("YOUR_TARIFF_ID".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

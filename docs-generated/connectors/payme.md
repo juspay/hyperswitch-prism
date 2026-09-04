@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Payme(PaymeConfig {
                 seller_payme_id: Some(hyperswitch_masking::Secret::new("YOUR_SELLER_PAYME_ID".to_string())),  // Authentication credential
                 payme_client_key: Some(hyperswitch_masking::Secret::new("YOUR_PAYME_CLIENT_KEY".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

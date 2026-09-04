@@ -119,7 +119,7 @@ let config = ConnectorConfig {
                 paco_signing_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_SIGNING_PUBLIC_KEY".to_string())),  // Authentication credential
                 paco_encryption_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_ENCRYPTION_PUBLIC_KEY".to_string())),  // Authentication credential
                 response_audience: Some(hyperswitch_masking::Secret::new("YOUR_RESPONSE_AUDIENCE".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),

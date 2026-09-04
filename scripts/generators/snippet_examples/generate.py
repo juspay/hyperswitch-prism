@@ -152,8 +152,13 @@ def _config_field_comment(field_name: str) -> str:
     Only the url fields are endpoints (base_url, secondary_base_url,
     base_url_bank_redirects, merchant_url, …); the rest (terminal_id,
     report_group, site, bin, …) are ordinary settings, not URLs.
+
+    The url fields carry an example so the expected scheme/format is still
+    visible now that the value itself is a YOUR_* placeholder.
     """
-    return "Endpoint URL" if "url" in field_name else "Connector setting"
+    if "url" in field_name:
+        return "Endpoint URL, e.g. https://sandbox.example.com"
+    return "Connector setting"
 
 
 def _generate_connector_config_rust(connector_name: str) -> str:

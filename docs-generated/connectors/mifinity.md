@@ -97,7 +97,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Mifinity(MifinityConfig {
                 key: Some(hyperswitch_masking::Secret::new("YOUR_KEY".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 brand_id: Some(hyperswitch_masking::Secret::new("YOUR_BRAND_ID".to_string())),  // Authentication credential
                 destination_account_number: Some(hyperswitch_masking::Secret::new("YOUR_DESTINATION_ACCOUNT_NUMBER".to_string())),  // Authentication credential
                 ..Default::default()

@@ -102,7 +102,7 @@ let config = ConnectorConfig {
                 username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 entity_id: Some(hyperswitch_masking::Secret::new("YOUR_ENTITY_ID".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 merchant_name: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_NAME".to_string())),  // Authentication credential
                 ..Default::default()
             })),

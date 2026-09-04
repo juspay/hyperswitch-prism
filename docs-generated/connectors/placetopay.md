@@ -95,7 +95,7 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Placetopay(PlacetopayConfig {
                 login: Some(hyperswitch_masking::Secret::new("YOUR_LOGIN".to_string())),  // Authentication credential
                 tran_key: Some(hyperswitch_masking::Secret::new("YOUR_TRAN_KEY".to_string())),  // Authentication credential
-                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
