@@ -25,7 +25,6 @@ use domain_types::{
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::OffsetDateTime;
 
 use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
 
@@ -1618,7 +1617,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billed_person,
         }];
 
-        let creation_date_time = OffsetDateTime::now_utc()
+        let creation_date_time = common_utils::date_time::now()
+            .assume_utc()
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_default();
 

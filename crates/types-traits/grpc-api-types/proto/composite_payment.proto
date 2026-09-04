@@ -147,6 +147,7 @@ message CompositeAuthorizeRequest {
 
   // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
   optional AdditionalConnectorDetails additional_connector_details = 62;
+  optional string business_country = 63;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -809,6 +810,7 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Additional connector-specific details (e.g. purpose of payment for Checkout.com).
   optional AdditionalConnectorDetails additional_connector_details = 58;
+  optional string business_country = 59;
 }
 
 // Response message for composite verify redirect response flow.

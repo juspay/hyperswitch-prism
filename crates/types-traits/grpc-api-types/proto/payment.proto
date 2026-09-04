@@ -2680,6 +2680,9 @@ message PaymentServiceAuthorizeRequest {
 
   // Additional connector-specific information received from the merchant for the transaction
   optional AdditionalConnectorDetails additional_connector_details = 55;
+
+  // Merchant business country, ISO 3166-1 alpha-2
+  optional string business_country = 56;
 }
 
 // Partner / external-platform application details.
@@ -6584,6 +6587,12 @@ message SplitSettlementResponseVendor {
 message AdditionalConnectorDetails {
   // Checkout specific additional information for the transaction.
   optional CheckoutAdditionalInformation checkout = 1;
+  optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+}
+
+message WorldpayxmlAdditionalInformation {
+  optional string funding_transaction_type = 1;
+  optional string payment_purpose = 2;
 }
 
 // Checkout.com-specific additional information to be included in the payment request.

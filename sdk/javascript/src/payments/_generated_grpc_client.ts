@@ -557,7 +557,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   SplitSettlementResponse: { "marketplaceSplitDetails": "SplitSettlementResponseMarketplace", "vendorSplitDetails": "SplitSettlementResponseVendor" },
   SplitSettlementResponseMarketplace: { "amount": "Money", "refundedAmount": "Money", "totalSettlementAmount": "Money" },
   SplitSettlementResponseVendor: { "amount": "Money", "merchantCommission": "Money", "refundedAmount": "Money", "totalSettlementAmount": "Money" },
-  AdditionalConnectorDetails: { "checkout": "CheckoutAdditionalInformation" },
+  AdditionalConnectorDetails: { "checkout": "CheckoutAdditionalInformation", "worldpayxml": "WorldpayxmlAdditionalInformation" },
   FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "Customer", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "PaymentAddress", "state": "ConnectorState", "mandateDetails": "MandateAmountData", "merchantDetails": "MerchantDetails" },
   FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "Customer", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount", "state": "ConnectorState", "address": "PaymentAddress" },

@@ -378,7 +378,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             attributes,
         };
 
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let signature = generate_trustly_signature(
             TrustlyMethod::RegisterAccount.as_str(),
             uuid.as_str(),
@@ -580,7 +580,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             username: auth.username.clone(),
         };
 
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let signature = generate_trustly_signature(
             TrustlyMethod::AccountPayout.as_str(),
             uuid.as_str(),
@@ -723,7 +723,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             username: auth.username.clone(),
         };
 
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let signature = generate_trustly_signature(
             TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),
