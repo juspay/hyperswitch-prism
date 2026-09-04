@@ -11423,6 +11423,10 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
         use grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext;
 
         let permissions = value.permissions.map(|p| p.values);
+        let browser_info = value
+            .browser_info
+            .map(BrowserInformation::foreign_try_from)
+            .transpose()?;
 
         match value.domain_context {
             Some(DomainContext::Authenticator(auth_ctx)) => {
@@ -11457,6 +11461,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     locale: auth_ctx.locale,
                     permissions,
                     native_app_identifier: auth_ctx.native_app_identifier,
+                    browser_info: browser_info.clone(),
                 })
             }
             Some(DomainContext::Payment(payment_ctx)) => {
@@ -11511,6 +11516,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country_codes: vec![],
                     locale: None,
                     native_app_identifier: None,
+                    browser_info,
                 })
             }
             _ => Err(report!(IntegrationError::InvalidDataFormat {

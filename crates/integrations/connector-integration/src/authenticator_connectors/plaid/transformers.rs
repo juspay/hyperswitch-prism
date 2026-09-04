@@ -37,6 +37,12 @@ pub struct PlaidAuthType {
     pub client_id: Secret<String>,
     pub secret: Secret<String>,
     pub client_name: Option<String>,
+    /// Fallback redirect_uri for iOS/web Link sessions, used when the
+    /// request doesn't supply one.
+    pub redirect_uri: Option<String>,
+    /// Fallback android_package_name for native Android Link sessions, used
+    /// when the request doesn't supply one.
+    pub android_package_name: Option<String>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for PlaidAuthType {
@@ -48,11 +54,15 @@ impl TryFrom<&ConnectorSpecificConfig> for PlaidAuthType {
                 client_id,
                 secret,
                 client_name,
+                redirect_uri,
+                android_package_name,
                 ..
             } => Ok(Self {
                 client_id: client_id.clone(),
                 secret: secret.clone(),
                 client_name: client_name.clone(),
+                redirect_uri: redirect_uri.clone(),
+                android_package_name: android_package_name.clone(),
             }),
             _ => Err(report!(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
@@ -198,8 +208,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Plaid's Link token "return target": web/iOS merchants send a return
         // URL (-> redirect_uri), native-app merchants send a native app
-        // identifier (-> android_package_name). We forward whatever was
-        // provided without asserting mutual exclusivity.
+        // identifier (-> android_package_name). We pick which one to send
+        // based on the client's OS (from browser_info), falling back to the
+        // connector-level PlaidConfig default when the request doesn't
+        // supply the value for that platform.
+        let is_android = req
+            .browser_info
+            .as_ref()
+            .and_then(|browser_info| browser_info.os_type.as_deref())
+            .is_some_and(|os_type| os_type.to_lowercase().contains("android"));
+
+        let (redirect_uri, android_package_name) = if is_android {
+            (
+                None,
+                req.native_app_identifier
+                    .clone()
+                    .or_else(|| auth.android_package_name.clone()),
+            )
+        } else {
+            (
+                item.router_data
+                    .resource_common_data
+                    .return_url
+                    .clone()
+                    .or_else(|| auth.redirect_uri.clone()),
+                None,
+            )
+        };
+
         Ok(Self {
             client_id: auth.client_id,
             secret: auth.secret,
@@ -208,8 +244,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             products: vec!["auth".to_owned()],
             country_codes,
             language: req.locale.clone(),
-            redirect_uri: item.router_data.resource_common_data.return_url.clone(),
-            android_package_name: req.native_app_identifier.clone(),
+            redirect_uri,
+            android_package_name,
             webhook: req.webhook_url.clone(),
         })
     }

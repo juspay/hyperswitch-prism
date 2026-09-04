@@ -2428,6 +2428,8 @@ pub struct ClientAuthenticationTokenRequestData {
     /// flow completes (e.g. an Android package name). Sent instead of a return
     /// URL when the merchant integrates from a native app.
     pub native_app_identifier: Option<String>,
+    /// Client browser/device details.
+    pub browser_info: Option<BrowserInformation>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

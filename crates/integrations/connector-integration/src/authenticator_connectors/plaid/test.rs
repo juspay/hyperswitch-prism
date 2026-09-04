@@ -38,6 +38,27 @@ mod tests {
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         > {
+            make_req_full(client_name, customer, country_codes, None, None, None, None)
+        }
+
+        #[allow(clippy::too_many_arguments)]
+        fn make_req_full(
+            client_name: Option<&str>,
+            customer: Option<CustomerInfo>,
+            country_codes: Vec<CountryAlpha2>,
+            return_url: Option<&str>,
+            native_app_identifier: Option<&str>,
+            os_type: Option<&str>,
+            plaid_config_fallback: Option<(Option<&str>, Option<&str>)>,
+        ) -> RouterDataV2<
+            ClientAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ClientAuthenticationTokenRequestData,
+            PaymentsResponseData,
+        > {
+            let (redirect_uri, android_package_name) =
+                plaid_config_fallback.unwrap_or((None, None));
+
             RouterDataV2 {
                 flow: PhantomData,
                 resource_common_data: MerchantAuthenticationFlowData {
@@ -45,7 +66,7 @@ mod tests {
                     connectors: Connectors::default().into(),
                     connector_request_reference_id: "ref_test".to_owned(),
                     test_mode: None,
-                    return_url: None,
+                    return_url: return_url.map(str::to_owned),
                     connector_feature_data: None,
                     order_details: None,
                     merchant_request_id: None,
@@ -59,6 +80,8 @@ mod tests {
                     client_id: Secret::new("test_client_id".to_owned()),
                     secret: Secret::new("test_secret".to_owned()),
                     client_name: client_name.map(str::to_owned),
+                    redirect_uri: redirect_uri.map(str::to_owned),
+                    android_package_name: android_package_name.map(str::to_owned),
                     base_url: None,
                 },
                 request: ClientAuthenticationTokenRequestData {
@@ -74,7 +97,13 @@ mod tests {
                     country_codes,
                     locale: None,
                     permissions: None,
-                    native_app_identifier: None,
+                    native_app_identifier: native_app_identifier.map(str::to_owned),
+                    browser_info: os_type.map(|os_type| {
+                        domain_types::router_request_types::BrowserInformation {
+                            os_type: Some(os_type.to_owned()),
+                            ..Default::default()
+                        }
+                    }),
                 },
                 response: Err(ErrorResponse::default()),
             }
@@ -118,6 +147,140 @@ mod tests {
             assert_eq!(body.as_ref().unwrap()["client_name"], "My App");
             assert_eq!(body.as_ref().unwrap()["country_codes"], json!(["US"]));
             assert_eq!(body.as_ref().unwrap()["products"], json!(["auth"]));
+        }
+
+        #[test]
+        fn test_build_request_android_os_uses_request_package_name() {
+            let req = make_req_full(
+                Some("My App"),
+                Some(customer()),
+                vec![CountryAlpha2::US],
+                Some("https://example.com/return"),
+                Some("com.example.app"),
+                Some("android"),
+                None,
+            );
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(&req).unwrap();
+            let body = request.as_ref().map(|r| match r.body.as_ref() {
+                Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                _ => json!({}),
+            });
+            assert_eq!(
+                body.as_ref().unwrap()["android_package_name"],
+                "com.example.app"
+            );
+            assert!(body.as_ref().unwrap().get("redirect_uri").is_none());
+        }
+
+        #[test]
+        fn test_build_request_android_os_falls_back_to_plaid_config() {
+            // Request supplies no native_app_identifier — falls back to the
+            // connector-level PlaidConfig android_package_name.
+            let req = make_req_full(
+                Some("My App"),
+                Some(customer()),
+                vec![CountryAlpha2::US],
+                None,
+                None,
+                Some("Android"),
+                Some((None, Some("com.fallback.app"))),
+            );
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(&req).unwrap();
+            let body = request.as_ref().map(|r| match r.body.as_ref() {
+                Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                _ => json!({}),
+            });
+            assert_eq!(
+                body.as_ref().unwrap()["android_package_name"],
+                "com.fallback.app"
+            );
+        }
+
+        #[test]
+        fn test_build_request_non_android_os_uses_request_return_url() {
+            let req = make_req_full(
+                Some("My App"),
+                Some(customer()),
+                vec![CountryAlpha2::US],
+                Some("https://example.com/return"),
+                Some("com.example.app"),
+                Some("ios"),
+                None,
+            );
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(&req).unwrap();
+            let body = request.as_ref().map(|r| match r.body.as_ref() {
+                Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                _ => json!({}),
+            });
+            assert_eq!(
+                body.as_ref().unwrap()["redirect_uri"],
+                "https://example.com/return"
+            );
+            assert!(body.as_ref().unwrap().get("android_package_name").is_none());
+        }
+
+        #[test]
+        fn test_build_request_non_android_os_falls_back_to_plaid_config() {
+            // Request supplies no return_url — falls back to the
+            // connector-level PlaidConfig redirect_uri.
+            let req = make_req_full(
+                Some("My App"),
+                Some(customer()),
+                vec![CountryAlpha2::US],
+                None,
+                None,
+                Some("web"),
+                Some((Some("https://fallback.example.com/return"), None)),
+            );
+
+            let connector = Plaid::<DefaultPCIHolder>::new();
+            let integration: BoxedConnectorIntegrationV2<
+                '_,
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            > = connector.get_connector_integration_v2();
+
+            let request = integration.build_request_v2(&req).unwrap();
+            let body = request.as_ref().map(|r| match r.body.as_ref() {
+                Some(RequestContent::Json(v)) => v.masked_serialize().unwrap_or(json!({})),
+                _ => json!({}),
+            });
+            assert_eq!(
+                body.as_ref().unwrap()["redirect_uri"],
+                "https://fallback.example.com/return"
+            );
         }
 
         #[test]
@@ -256,6 +419,8 @@ mod tests {
                     client_id: Secret::new("test_client_id".to_owned()),
                     secret: Secret::new("test_secret".to_owned()),
                     client_name: Some("My App".to_owned()),
+                    redirect_uri: None,
+                    android_package_name: None,
                     base_url: None,
                 },
                 request: PaymentMethodTokenizationData {
@@ -418,6 +583,8 @@ mod tests {
                     client_id: Secret::new("test_client_id".to_owned()),
                     secret: Secret::new("test_secret".to_owned()),
                     client_name: Some("My App".to_owned()),
+                    redirect_uri: None,
+                    android_package_name: None,
                     base_url: None,
                 },
                 request: GetPaymentMethodData {
@@ -631,6 +798,8 @@ mod tests {
                 client_id: Secret::new("test_client_id".to_owned()),
                 secret: Secret::new("test_secret".to_owned()),
                 client_name: client_name.map(str::to_owned),
+                redirect_uri: None,
+                android_package_name: None,
                 base_url: None,
             }
         }
@@ -640,6 +809,27 @@ mod tests {
             let auth = PlaidAuthType::try_from(&plaid_config(Some("My App")));
             assert!(auth.is_ok());
             assert_eq!(auth.unwrap().client_name.as_deref(), Some("My App"));
+        }
+
+        #[test]
+        fn test_auth_type_carries_redirect_uri_and_android_package_name() {
+            let config = ConnectorSpecificConfig::Plaid {
+                client_id: Secret::new("test_client_id".to_owned()),
+                secret: Secret::new("test_secret".to_owned()),
+                client_name: Some("My App".to_owned()),
+                redirect_uri: Some("https://fallback.example.com/return".to_owned()),
+                android_package_name: Some("com.fallback.app".to_owned()),
+                base_url: None,
+            };
+            let auth = PlaidAuthType::try_from(&config).unwrap();
+            assert_eq!(
+                auth.redirect_uri.as_deref(),
+                Some("https://fallback.example.com/return")
+            );
+            assert_eq!(
+                auth.android_package_name.as_deref(),
+                Some("com.fallback.app")
+            );
         }
 
         #[test]
