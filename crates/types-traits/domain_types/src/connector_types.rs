@@ -170,6 +170,7 @@ pub enum ConnectorEnum {
     JpmorganOrbital,
     Saferpay,
     Travelhub,
+    Paynearme,
 }
 
 // snake case for enum variants
@@ -543,6 +544,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
             grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
+            grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5891,6 +5893,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
             AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
+            AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
