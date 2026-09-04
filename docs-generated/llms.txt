@@ -219,7 +219,7 @@ connector_id: d24
 doc: docs/connectors/d24.md
 scenarios: none
 payment_methods: none
-flows: get, refund_get
+flows: refund_get
 examples_python: none
 
 ## Datatrans

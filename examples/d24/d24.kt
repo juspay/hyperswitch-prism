@@ -9,9 +9,7 @@ package examples.d24
 
 import types.Payment.*
 import types.PaymentMethods.*
-import payments.PaymentClient
 import payments.RefundClient
-import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -19,7 +17,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.D24Config
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("get", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("refund_get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -36,26 +34,6 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .build()
 
 
-
-private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
-    return PaymentServiceGetRequest.newBuilder().apply {
-        merchantTransactionId = "probe_merchant_txn_001"  // Identification.
-        connectorTransactionId = connectorTransactionIdStr
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    }.build()
-}
-
-// Flow: PaymentService.Get
-fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildGetRequest("probe_connector_txn_001")
-    val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: RefundService.Get
 fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = RefundClient(config)
@@ -71,10 +49,9 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
 
 fun main(args: Array<String>) {
     val txnId = "order_001"
-    val flow = args.firstOrNull() ?: "get"
+    val flow = args.firstOrNull() ?: "refundGet"
     when (flow) {
-        "get" -> get(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: get, refundGet")
+        else -> System.err.println("Unknown flow: $flow. Available: refundGet")
     }
 }
