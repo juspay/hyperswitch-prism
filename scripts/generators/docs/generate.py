@@ -811,7 +811,7 @@ def generate_scenario_files(
 
     Returns (paths, scenario_lines, flow_lines) where:
       scenario_lines[scenario_key][sdk] = 1-based line of the process_* function
-      flow_lines[flow_key][sdk]         = 1-based line of the flow function (py/js only)
+      flow_lines[flow_key][sdk]         = 1-based line of the flow function (python/typescript only)
     """
     flow_metadata = get_flow_metadata()
     scenarios     = snippets.detect_scenarios(probe_connector)
@@ -834,7 +834,7 @@ def generate_scenario_files(
     written: list[Path] = []
     # scenario_lines[scenario_key][sdk] = 1-based line number of process_* function
     scenario_lines: dict[str, dict[str, int]] = {}
-    # flow_lines[flow_key][sdk] = 1-based line number of flow function (py/js)
+    # flow_lines[flow_key][sdk] = 1-based line number of flow function (python/typescript)
     flow_lines: dict[str, dict[str, int]] = {}
 
     return written, scenario_lines, flow_lines
@@ -1408,10 +1408,10 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
         n_flows         = len(get_flows_from_probe(probe_connector))
 
         # Generate example files first so we can compute line numbers for doc links.
-        scenario_files, scenario_lines, flow_lines_py_js     = generate_scenario_files(name, probe_connector, EXAMPLES_DIR)
+        scenario_files, scenario_lines, flow_lines_py_ts     = generate_scenario_files(name, probe_connector, EXAMPLES_DIR)
         flow_files, flow_lines_kt_rs, scenario_lines_kt_rs   = generate_flow_files(name, probe_connector, EXAMPLES_DIR)
 
-        # Supplement py/js line numbers from existing files when generate_scenario_files
+        # Supplement python/typescript line numbers from existing files when generate_scenario_files
         # returned early (e.g. scenario_groups missing from manifest).
         flow_items = _collect_flow_items(probe_connector, exclude_keys=set())
         for sdk, ext in [("python", "py"), ("typescript", "ts")]:
@@ -1419,14 +1419,14 @@ def cmd_generate(connectors: list[str], output_dir: Path, probe_path: Optional[P
             if existing.exists():
                 content = existing.read_text(encoding="utf-8")
                 for flow_key, _, _ in flow_items:
-                    if sdk not in flow_lines_py_js.get(flow_key, {}):
+                    if sdk not in flow_lines_py_ts.get(flow_key, {}):
                         lineno = _find_func_line(content, _flow_search(sdk, flow_key))
                         if lineno:
-                            flow_lines_py_js.setdefault(flow_key, {})[sdk] = lineno
+                            flow_lines_py_ts.setdefault(flow_key, {})[sdk] = lineno
 
-        # Merge py/js and kt/rs flow line numbers into one dict.
+        # Merge python/typescript and kotlin/rust flow line numbers into one dict.
         merged_flow_lines: dict[str, dict[str, int]] = {}
-        for flow_key, langs in flow_lines_py_js.items():
+        for flow_key, langs in flow_lines_py_ts.items():
             merged_flow_lines.setdefault(flow_key, {}).update(langs)
         for flow_key, langs in flow_lines_kt_rs.items():
             merged_flow_lines.setdefault(flow_key, {}).update(langs)
