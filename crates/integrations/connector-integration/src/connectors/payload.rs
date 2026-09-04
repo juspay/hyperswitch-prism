@@ -262,11 +262,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 context: Default::default(),
             },
         )?;
-        // The API key is the same for all currencies, so we can take any.
+        // The API key is documented-same for all currencies — but that is an
+        // unenforced invariant, so pick by smallest currency code rather than
+        // HashMap iteration's per-process arbitrary entry.
         let api_key = auth
             .auths
-            .values()
-            .next()
+            .iter()
+            .min_by_key(|(currency, _)| currency.to_string())
+            .map(|(_, value)| value)
             .ok_or(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
             })?

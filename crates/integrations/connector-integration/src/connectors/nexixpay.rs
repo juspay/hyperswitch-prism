@@ -2,8 +2,13 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
+use super::macros;
+use crate::types::ResponseRouterData;
+use crate::with_error_response_body;
 use common_enums::CurrencyUnit;
 use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
+use domain_types::errors::ConnectorError;
+use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PostAuthenticate, PreAuthenticate,
@@ -40,13 +45,6 @@ use transformers::{
     NexixpaySetupMandateRequest, NexixpaySetupMandateResponse, NexixpaySyncResponse,
     NexixpayVoidRequest, NexixpayVoidResponse,
 };
-use uuid::Uuid;
-
-use super::macros;
-use crate::types::ResponseRouterData;
-use crate::with_error_response_body;
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -384,7 +382,7 @@ macros::macro_connector_implementation!(
             let mut header = self.build_headers(req)?;
             header.push((
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into(),
+                common_utils::fp_utils::generate_uuid_v4().into(),
             ));
             Ok(header)
         }
@@ -433,7 +431,7 @@ macros::macro_connector_implementation!(
             let mut header = self.build_headers(req)?;
             header.push((
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into(),
+                common_utils::fp_utils::generate_uuid_v4().into(),
             ));
             Ok(header)
         }
@@ -482,7 +480,7 @@ macros::macro_connector_implementation!(
             let mut header = self.build_headers(req)?;
             header.push((
                 headers::IDEMPOTENCY_KEY.to_string(),
-                Uuid::new_v4().to_string().into(),
+                common_utils::fp_utils::generate_uuid_v4().into(),
             ));
             Ok(header)
         }
@@ -746,7 +744,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             (headers::X_API_KEY.to_string(), auth.api_key.expose().into()),
             (
                 headers::CORRELATION_ID.to_string(),
-                Uuid::new_v4().to_string().into(),
+                common_utils::fp_utils::generate_uuid_v4().into(),
             ),
         ])
     }

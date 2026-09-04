@@ -54,3 +54,13 @@ pub fn generate_id(length: usize, prefix: &str) -> String {
 pub fn generate_uuid_v7() -> String {
     uuid::Uuid::now_v7().to_string()
 }
+
+/// Generate a random (v4) UUID string. Connector code that needs a random
+/// idempotency key / client-request-id should call this helper rather than
+/// `uuid::Uuid::new_v4()` directly, so every entropy source in the codebase is
+/// a single, auditable function (enforced by the connector crate's clippy
+/// `disallowed-methods`).
+#[inline]
+pub fn generate_uuid_v4() -> String {
+    uuid::Uuid::new_v4().to_string()
+}

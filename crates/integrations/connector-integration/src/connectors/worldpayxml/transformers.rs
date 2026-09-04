@@ -668,7 +668,7 @@ pub(crate) fn handle_pre_authenticate_response<
             .into())
         }
     };
-    let iat = u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
+    let iat = u64::try_from(common_utils::date_time::now_unix_timestamp()).map_err(|_| {
         utils::response_handling_fail(
             res.status_code,
             "worldpayxml: system time is before the unix epoch.",
@@ -676,7 +676,7 @@ pub(crate) fn handle_pre_authenticate_response<
     })?;
     let jwt = sign_worldpayxml_jwt(
         &requests::WorldpayxmlDdcJwt {
-            jti: uuid::Uuid::new_v4().to_string(),
+            jti: common_utils::fp_utils::generate_uuid_v4(),
             iat,
             iss,
             org_unit_id,
@@ -1791,7 +1791,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             };
             let iat =
-                u64::try_from(time::OffsetDateTime::now_utc().unix_timestamp()).map_err(|_| {
+                u64::try_from(common_utils::date_time::now_unix_timestamp()).map_err(|_| {
                     utils::response_handling_fail(
                         item.http_code,
                         "worldpayxml: system time is before the unix epoch.",
@@ -1799,7 +1799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })?;
             let jwt = sign_worldpayxml_jwt(
                 &requests::WorldpayxmlChallengeJwt {
-                    jti: uuid::Uuid::new_v4().to_string(),
+                    jti: common_utils::fp_utils::generate_uuid_v4(),
                     iat,
                     iss,
                     org_unit_id,

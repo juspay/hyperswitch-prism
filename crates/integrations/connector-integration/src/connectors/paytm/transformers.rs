@@ -1,7 +1,4 @@
-use std::{
-    cmp,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::cmp;
 
 use aes::{Aes128, Aes192, Aes256};
 use base64::{engine::general_purpose, Engine};
@@ -27,10 +24,7 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
-use ring::{
-    digest,
-    rand::{SecureRandom, SystemRandom},
-};
+use ring::digest;
 use serde_json;
 use url::Url;
 
@@ -425,14 +419,7 @@ impl<
 
         match upi_flow {
             UpiFlowType::Intent => {
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .map_err(|_| IntegrationError::InvalidDataFormat {
-                        field_name: "timestamp",
-                        context: Default::default(),
-                    })?
-                    .as_secs()
-                    .to_string();
+                let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
 
                 let channel_id = get_channel_id_from_browser_info(
                     item.router_data.request.browser_info.as_ref(),
@@ -850,13 +837,8 @@ pub fn generate_paytm_signature(
     payload: &str,
     merchant_key: &str,
 ) -> CustomResult<String, IntegrationError> {
-    // Step 1: Generate random salt bytes using ring (same logic, different implementation)
-    let rng = SystemRandom::new();
-    let mut salt_bytes = [0u8; constants::SALT_LENGTH];
-    rng.fill(&mut salt_bytes)
-        .map_err(|_| IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+    // Step 1: Generate random salt bytes (same logic, different implementation)
+    let salt_bytes = domain_types::utils::generate_random_bytes(constants::SALT_LENGTH);
 
     // Step 2: Convert salt to Base64 (same logic)
     let salt_b64 = general_purpose::STANDARD.encode(salt_bytes);
@@ -1004,14 +986,7 @@ pub fn create_paytm_header(
         },
     )?;
     let signature = generate_paytm_signature(&_payload, auth.merchant_key.peek())?;
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| IntegrationError::InvalidDataFormat {
-            field_name: "timestamp",
-            context: Default::default(),
-        })?
-        .as_secs()
-        .to_string();
+    let timestamp = common_utils::date_time::now_unix_timestamp().to_string();
 
     Ok(PaytmRequestHeader {
         client_id: auth.client_id.clone(),
