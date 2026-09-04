@@ -384,8 +384,11 @@ pub trait PayoutFlowStatusRules {
 
 impl PayoutFlowStatusRules for connector_flow::PayoutTransfer {
     const TERMINAL_SUCCESS_SET: &'static [PayoutStatus] = &[PayoutStatus::Success];
-    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] =
-        &[PayoutStatus::Failure]; // EXPIRED, REVERSED
+    const TERMINAL_FAILURE_SET: &'static [PayoutStatus] = &[
+        PayoutStatus::Failure,
+        PayoutStatus::Expired,   // EXPIRED
+        PayoutStatus::Reversed,  // REVERSED
+    ];
     const ALLOWED: &'static [PayoutStatus] = &[
         PayoutStatus::Initiated,
         PayoutStatus::Pending,
