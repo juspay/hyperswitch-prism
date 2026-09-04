@@ -167,7 +167,9 @@ pub enum ConnectorEnum {
     Citigate,
     Ilixium,
     Worldpayraft,
+    JpmorganOrbital,
     Saferpay,
+    Travelhub,
 }
 
 // snake case for enum variants
@@ -538,7 +540,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
+            grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
+            grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1744,6 +1748,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -2972,6 +2980,24 @@ pub struct RefundWebhookDetailsResponse {
     pub response_headers: Option<http::HeaderMap>,
 }
 
+/// Details extracted from a payout webhook.
+///
+/// Mirrors [`RefundWebhookDetailsResponse`]: the connector maps the webhook
+/// event type to a terminal status and returns it alongside the identifiers, so
+/// the caller consumes this exactly as it consumes a `PayoutService.Get`
+/// response instead of re-deriving the status from the event type.
+#[derive(Debug, Clone)]
+pub struct PayoutWebhookDetailsResponse {
+    pub connector_payout_id: Option<String>,
+    pub merchant_payout_id: Option<String>,
+    pub status: common_enums::PayoutStatus,
+    /// Connector error code. Populated only for failure events.
+    pub error_code: Option<String>,
+    /// Connector error message. Populated only for failure events.
+    pub error_message: Option<String>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone)]
 pub struct DisputeWebhookDetailsResponse {
     pub amount: StringMinorUnit,
@@ -3638,6 +3664,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3745,6 +3775,10 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub is_account_funding_transaction: Option<bool>,
     /// Details about the recipient of funds for account-funded transactions.
     pub recipient_details: Option<RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<AdditionalConnectorDetails>,
+    /// Full customer details including date of birth, name, phone, etc.
+    pub customer: Option<CustomerInfo>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -5840,7 +5874,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
+            AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
+            AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
@@ -5908,4 +5944,18 @@ pub struct RecipientDetails {
     pub phone_number: Option<Secret<String>>,
     pub tax_id: Option<Secret<String>>,
     pub address: Option<AddressDetails>,
+}
+
+/// Connector-specific additional details passed through the payment request.
+#[derive(Debug, Clone)]
+pub struct AdditionalConnectorDetails {
+    /// Checkout.com-specific additional information.
+    pub checkout: Option<CheckoutAdditionalInformation>,
+}
+
+/// Checkout.com-specific additional information.
+#[derive(Debug, Clone)]
+pub struct CheckoutAdditionalInformation {
+    /// Free-text description of the reason or intent behind the payment.
+    pub purpose_of_payment: Option<String>,
 }

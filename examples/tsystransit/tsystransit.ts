@@ -13,7 +13,17 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { tsystransit: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        tsysTransit: {
+            deviceId: { value: 'YOUR_DEVICE_ID' },
+            transactionKey: { value: 'YOUR_TRANSACTION_KEY' },
+            developerId: { value: 'YOUR_DEVELOPER_ID' },
+            merchantStreetAddress: { value: 'YOUR_MERCHANT_STREET_ADDRESS' },
+            customerServicePhoneNumber: { value: 'YOUR_CUSTOMER_SERVICE_PHONE_NUMBER' },
+            merchantUrl: 'YOUR_MERCHANT_URL',
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

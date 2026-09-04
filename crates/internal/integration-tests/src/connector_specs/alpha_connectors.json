@@ -46,9 +46,15 @@
     "hyperpg": {},
     "hyperswitch": {},
     "iatapay": {},
+    "ilixium": {
+      "reason": "Ilixium sandbox credentials are not configured in CI, so certification cannot run at all; it fails before any scenario executes. Remove this entry once credentials are added."
+    },
     "imerchantsolutions": {},
     "itaubank": {},
     "jpmorgan": {},
+    "jpmorganorbital": {
+      "reason": "No JPMorgan Orbital sandbox credentials exist; validated against a local mock server only."
+    },
     "juspay": {},
     "kount": {},
     "loonio": {},
@@ -92,6 +98,9 @@
     "stax": {},
     "tamara": {},
     "tesouro": {},
+    "travelhub": {
+      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize — see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
+    },
     "truelayer": {},
     "trustly": {},
     "trustpay": {},

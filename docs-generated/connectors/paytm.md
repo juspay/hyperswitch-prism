@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -255,7 +255,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L76) · [Kotlin](../../examples/paytm/paytm.kt#L78) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L76) · [Kotlin](../../examples/paytm/paytm.kt#L79) · [Rust](../../examples/paytm/paytm.rs)
 
 #### PaymentService.Get
 
@@ -266,7 +266,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L94) · [Kotlin](../../examples/paytm/paytm.kt#L105) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L94) · [Kotlin](../../examples/paytm/paytm.kt#L106) · [Rust](../../examples/paytm/paytm.rs)
 
 ### Authentication
 
@@ -279,4 +279,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L85) · [Kotlin](../../examples/paytm/paytm.kt#L90) · [Rust](../../examples/paytm/paytm.rs)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L85) · [Kotlin](../../examples/paytm/paytm.kt#L91) · [Rust](../../examples/paytm/paytm.rs)

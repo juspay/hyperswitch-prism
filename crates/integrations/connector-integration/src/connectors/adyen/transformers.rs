@@ -5458,8 +5458,13 @@ pub fn get_wait_screen_metadata(
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
-    pub error_type: String,
+    /// Optional because adyen omits it on some gateway errors, and returns `title`
+    /// instead on others. Hyperswitch models both as optional and falls back
+    /// `message` -> `title` -> placeholder; requiring either here would fail the whole
+    /// parse on bodies hyperswitch handles.
+    pub message: Option<String>,
+    pub title: Option<String>,
+    pub error_type: Option<String>,
     pub psp_reference: Option<String>,
 }
 

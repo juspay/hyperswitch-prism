@@ -1802,6 +1802,8 @@ pub enum TruelayerWebhookEventType {
     PaymentDisputed,
     PaymentReversed,
     PaymentFundsReceived,
+    PayoutExecuted,
+    PayoutFailed,
     #[serde(other)]
     Unknown,
 }
@@ -1825,6 +1827,23 @@ pub struct TruelayerWebhookBody {
     pub user_id: Option<String>,
     pub payment_source: Option<TruelayerPaymentSource>,
     pub payment_method: Option<TruelayerPaymentMethod>,
+}
+
+/// Body of a Truelayer payout webhook.
+///
+/// Payout notifications share the envelope of payment and refund webhooks but
+/// carry `payout_id` in place of `payment_id`, so they need their own struct.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TruelayerPayoutWebhookBody {
+    #[serde(rename = "type")]
+    pub _type: TruelayerWebhookEventType,
+    pub event_version: i32,
+    pub event_id: String,
+    pub payout_id: String,
+    pub executed_at: Option<String>,
+    pub failed_at: Option<String>,
+    pub failure_reason: Option<String>,
+    pub scheme_id: Option<String>,
 }
 
 /// Discriminator for the type of account identifier provided in a payment source.
@@ -1932,6 +1951,12 @@ pub fn get_webhook_event(
         TruelayerWebhookEventType::PaymentReversed => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
         }
+        TruelayerWebhookEventType::PayoutExecuted => {
+            domain_types::connector_types::EventType::PayoutSuccess
+        }
+        TruelayerWebhookEventType::PayoutFailed => {
+            domain_types::connector_types::EventType::PayoutFailure
+        }
         TruelayerWebhookEventType::PaymentDisputed | TruelayerWebhookEventType::Unknown => {
             domain_types::connector_types::EventType::IncomingWebhookEventUnspecified
         }
@@ -1953,7 +1978,9 @@ pub fn get_truelayer_payment_webhook_status(
         TruelayerWebhookEventType::PaymentDisputed
         | TruelayerWebhookEventType::Unknown
         | TruelayerWebhookEventType::RefundExecuted
-        | TruelayerWebhookEventType::RefundFailed => Err(WebhookError::WebhookBodyDecodingFailed),
+        | TruelayerWebhookEventType::RefundFailed
+        | TruelayerWebhookEventType::PayoutExecuted
+        | TruelayerWebhookEventType::PayoutFailed => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }
 
@@ -1972,6 +1999,29 @@ pub fn get_truelayer_refund_webhook_status(
         | TruelayerWebhookEventType::PaymentFundsReceived
         | TruelayerWebhookEventType::PaymentReversed
         | TruelayerWebhookEventType::PaymentSettlementStalled
+        | TruelayerWebhookEventType::PayoutExecuted
+        | TruelayerWebhookEventType::PayoutFailed
+        | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
+    }
+}
+
+pub fn get_truelayer_payout_webhook_status(
+    event: TruelayerWebhookEventType,
+) -> Result<common_enums::PayoutStatus, WebhookError> {
+    match event {
+        TruelayerWebhookEventType::PayoutExecuted => Ok(common_enums::PayoutStatus::Success),
+        TruelayerWebhookEventType::PayoutFailed => Ok(common_enums::PayoutStatus::Failure),
+        TruelayerWebhookEventType::PaymentAuthorized
+        | TruelayerWebhookEventType::PaymentFailed
+        | TruelayerWebhookEventType::PaymentSettled
+        | TruelayerWebhookEventType::PaymentCreditable
+        | TruelayerWebhookEventType::PaymentDisputed
+        | TruelayerWebhookEventType::PaymentExecuted
+        | TruelayerWebhookEventType::PaymentFundsReceived
+        | TruelayerWebhookEventType::PaymentReversed
+        | TruelayerWebhookEventType::PaymentSettlementStalled
+        | TruelayerWebhookEventType::RefundExecuted
+        | TruelayerWebhookEventType::RefundFailed
         | TruelayerWebhookEventType::Unknown => Err(WebhookError::WebhookBodyDecodingFailed),
     }
 }

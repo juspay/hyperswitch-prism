@@ -200,6 +200,8 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -372,6 +374,8 @@ mod tests {
                     partner_merchant_identifier_details: None,
                     is_account_funding_transaction: None,
                     recipient_details: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };

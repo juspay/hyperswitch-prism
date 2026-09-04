@@ -434,7 +434,9 @@ pub struct Connectors {
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
     pub worldpayraft: ConnectorParams,
+    pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
+    pub travelhub: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -798,6 +800,9 @@ impl Connectors {
             ConnectorEnum::Boost => {
                 patched.boost.apply(params_patch);
             }
+            ConnectorEnum::JpmorganOrbital => {
+                patched.jpmorganorbital.apply(params_patch);
+            }
             ConnectorEnum::Ilixium => {
                 patched.ilixium.apply(params_patch);
             }
@@ -807,6 +812,9 @@ impl Connectors {
             ConnectorEnum::Grabpay => {
                 patched.grabpay.apply(params_patch);
             }
+            ConnectorEnum::Travelhub => {
+                patched.travelhub.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -814,7 +822,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub",
                             connector
                         )),
                         ..Default::default()
@@ -3491,6 +3499,8 @@ pub struct AuthorizationRequest {
     pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3532,6 +3542,8 @@ pub struct SetupRecurringRequest {
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     pub is_account_funding_transaction: Option<bool>,
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
 }
 
 /// ============================================================================
@@ -3601,6 +3613,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             currency_conversion_data: req.currency_conversion_data,
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
         }
     }
 }
@@ -3674,6 +3687,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             currency_conversion_data: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         }
     }
 }
@@ -3722,6 +3736,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
         }
     }
 }
@@ -3774,6 +3789,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             partner_merchant_identifier_details: None,
             is_account_funding_transaction: None,
             recipient_details: None,
+            additional_connector_details: None,
         }
     }
 }
@@ -4769,6 +4785,14 @@ impl<
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -4897,7 +4921,8 @@ impl<
                 .map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.connector_customer_id)
+                .as_ref()
+                .and_then(|customer| customer.connector_customer_id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -4927,6 +4952,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -10289,6 +10322,47 @@ impl
     }
 }
 
+impl ForeignTryFrom<crate::connector_types::PayoutWebhookDetailsResponse>
+    for grpc_api_types::payouts::PayoutServiceGetResponse
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: crate::connector_types::PayoutWebhookDetailsResponse,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Only surface an error object when the connector actually reported a
+        // failure; a successful payout webhook carries no error fields.
+        let error = (value.error_code.is_some() || value.error_message.is_some()).then(|| {
+            grpc_api_types::payouts::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                    code: value.error_code.clone(),
+                    message: value.error_message.clone(),
+                    reason: None,
+                    // Left unset: this field carries a *transaction* id (the sync
+                    // path sources it from `err.connector_transaction_id`), and a
+                    // payout webhook has no such id. The payout id is already on
+                    // the response as `connector_payout_id`.
+                    connector_transaction_id: None,
+                    status: None,
+                }),
+                issuer_details: None,
+            }
+        });
+
+        Ok(Self {
+            merchant_payout_id: value.merchant_payout_id,
+            payout_status: Some(
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(value.status)
+                    as i32,
+            ),
+            connector_payout_id: value.connector_payout_id,
+            error,
+            status_code: u32::from(value.status_code),
+        })
+    }
+}
+
 impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
     type Error = IntegrationError;
 
@@ -12336,8 +12410,8 @@ impl<
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.id)
-                .clone()
+                .as_ref()
+                .and_then(|customer| customer.id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -12373,6 +12447,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -14013,6 +14095,20 @@ impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
+    for connector_types::AdditionalConnectorDetails
+{
+    fn foreign_from(value: grpc_api_types::payments::AdditionalConnectorDetails) -> Self {
+        Self {
+            checkout: value
+                .checkout
+                .map(|c| connector_types::CheckoutAdditionalInformation {
+                    purpose_of_payment: c.purpose_of_payment,
+                }),
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::BrowserInformation> for BrowserInformation {
     type Error = IntegrationError;
 
@@ -15584,6 +15680,14 @@ impl<
             recipient_details: value
                 .recipient_details
                 .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -19841,6 +19945,7 @@ pub fn tokenized_authorize_to_base(
         currency_conversion_data: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     }
 }
 
@@ -19922,6 +20027,7 @@ pub fn tokenized_setup_recurring_to_base(
         partner_merchant_identifier_details: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     }
 }
 
@@ -20026,6 +20132,7 @@ pub fn proxied_authorize_to_base(
         currency_conversion_data: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     })
 }
 
@@ -20143,6 +20250,7 @@ pub fn proxied_setup_recurring_to_base(
         partner_merchant_identifier_details: None,
         is_account_funding_transaction: None,
         recipient_details: None,
+        additional_connector_details: None,
     })
 }
 

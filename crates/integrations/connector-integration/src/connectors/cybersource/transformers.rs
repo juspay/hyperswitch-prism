@@ -4835,6 +4835,8 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+    #[serde(other)]
+    Unknown,
 }
 
 /// std `TryFrom<&Response>` can't be implemented for the foreign `ErrorResponse`
@@ -4865,7 +4867,10 @@ impl ForeignTryFrom<&Response> for ErrorResponse {
             Some(Reason::SystemError) => {
                 Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
             }
-            Some(Reason::ServerTimeout) | Some(Reason::ServiceTimeout) | None => None,
+            Some(Reason::ServerTimeout)
+            | Some(Reason::ServiceTimeout)
+            | Some(Reason::Unknown)
+            | None => None,
         };
         Ok(Self {
             status_code: res.status_code,

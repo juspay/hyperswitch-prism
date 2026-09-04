@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -259,7 +259,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L84) · [Kotlin](../../examples/volt/volt.kt#L91) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L84) · [Kotlin](../../examples/volt/volt.kt#L92) · [Rust](../../examples/volt/volt.rs)
 
 #### PaymentService.Refund
 
@@ -270,7 +270,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L93) · [Kotlin](../../examples/volt/volt.kt#L99) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L93) · [Kotlin](../../examples/volt/volt.kt#L100) · [Rust](../../examples/volt/volt.rs)
 
 ### Authentication
 
@@ -283,4 +283,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L75) · [Kotlin](../../examples/volt/volt.kt#L81) · [Rust](../../examples/volt/volt.rs)
+**Examples:** [Python](../../examples/volt/volt.py) · [TypeScript](../../examples/volt/volt.ts#L75) · [Kotlin](../../examples/volt/volt.kt#L82) · [Rust](../../examples/volt/volt.rs)

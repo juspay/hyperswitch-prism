@@ -63,6 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/services.proto",
             "proto/health_check.proto",
             "proto/payment.proto",
+            "proto/events.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",
             "proto/composite_frm.proto",
