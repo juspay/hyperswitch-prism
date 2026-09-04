@@ -188,6 +188,11 @@ easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
+globalpayments_realex.base_url = "https://api.sandbox.realexpayments.com/"
+# 3DS2 lives on a different host, a different protocol (JSON, not XML) and a different
+# auth scheme (`Authorization: securehash`) from the XML gateway above. See
+# connectors/globalpayments_realex/three_ds_two.rs.
+globalpayments_realex.secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
 # {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix, substituted
 # per-request in connectors/netcetera.rs (resolve_netcetera_base_url) from the merchant's
 # `endpoint_prefix` forwarded on connector_feature_data.

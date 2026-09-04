@@ -39,6 +39,9 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
+    "globalpayments_realex": {
+      "reason": "GlobalpaymentsRealex sandbox credentials are not configured in CI; live sandbox verification for the six XML flows is attached to PR #2204. The 3DS2 legs past /protocol-versions cannot be exercised: the sandbox account is not entitled for 3D Secure."
+    },
     "glomopay": {},
     "grabpay": {},
     "helcim": {},

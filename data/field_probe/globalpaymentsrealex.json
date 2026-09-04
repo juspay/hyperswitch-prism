@@ -1,0 +1,742 @@
+{
+  "connector": "globalpaymentsrealex",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: redirect_response.payload — Missing required field: redirect_response.payload"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"auth\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><channel>ECOM</channel><orderid>probe_txn_001</orderid><amount currency=\"USD\">1000</amount><card><number>4111111111111111</number><expdate>0330</expdate><chname>John Doe</chname><type>VISA</type><cvn><number>737</number><presind>1</presind></cvn></card><autosettle flag=\"1\"/><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"settle\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><orderid>probe_capture_001</orderid><pasref>probe_connector_txn_001</pasref><amount>1000</amount><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by globalpayments_realex connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by globalpayments_realex connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by globalpayments_realex connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by globalpayments_realex connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by globalpayments_realex connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by globalpayments_realex connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by globalpayments_realex connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by globalpayments_realex connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by globalpayments_realex connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by globalpayments_realex connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"query\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><orderid>probe_merchant_txn_001</orderid><pasref>probe_connector_txn_001</pasref><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by globalpayments_realex connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: request.redirect_response.payload — Missing required field: request.redirect_response.payload"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: continue_redirection_url — Missing required field: continue_redirection_url"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"auth\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><channel>ECOM</channel><orderid>probe_proxy_txn_001</orderid><amount currency=\"USD\">1000</amount><card><number>{{$card_number}}</number><expdate>0330</expdate><chname>John Doe</chname><type>VISA</type><cvn><number>{{$card_cvc}}</number><presind>1</presind></cvn></card><autosettle flag=\"1\"/><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for globalpayments_realex"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for globalpayments_realex"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for globalpayments_realex"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.orderid. GlobalpaymentsRealex rebate needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund request, or set connector_order_id to the original order id — Missing required field: connector_feature_data.orderid. GlobalpaymentsRealex rebate needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund request, or set connector_order_id to the original order id"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.orderid. GlobalpaymentsRealex refund sync needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund sync request, or set connector_order_id to the original order id — Missing required field: connector_feature_data.orderid. GlobalpaymentsRealex refund sync needs the original <orderid>: echo the Authorize response's connector_feature_data back on the refund sync request, or set connector_order_id to the original order id"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by globalpayments_realex connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for globalpayments_realex"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by GlobalpaymentsRealex"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for globalpayments_realex"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.sandbox.realexpayments.com/epage-remote.cgi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<request type=\"void\" timestamp=\"00000000000000\"><merchantid>probe_merchant</merchantid><account>internet</account><orderid>probe_void_001</orderid><pasref>probe_connector_txn_001</pasref><sha1hash>a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3</sha1hash></request>"
+        }
+      }
+    }
+  }
+}

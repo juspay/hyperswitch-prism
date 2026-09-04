@@ -909,6 +909,7 @@ enum Connector {
   // (= JPMorgan Payments API v2) above.
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
+  GLOBALPAYMENTS_REALEX = 143;
 }
 
 // Payment method types
@@ -5528,6 +5529,20 @@ message MayaConfig {
   optional string base_url = 50;
 }
 
+// Global Payments Ecommerce XML API (legacy Realex Payments "XML API").
+// Distinct from GlobalpayConfig, which configures the modern GP-API JSON product.
+message GlobalpaymentsRealexConfig {
+  // Shared Secret - input to the two-stage sha1hash digest; never sent verbatim.
+  SecretString shared_secret = 1;
+  // Merchant ID (Client ID) - the <merchantid> element and a digest input.
+  SecretString merchant_id = 2;
+  // Sub-account name, e.g. "internet" - the <account> element.
+  SecretString account = 3;
+  // Refund / rebate password - hashed into <refundhash> on rebate/credit only.
+  SecretString refund_password = 4;
+  optional string base_url = 50;
+}
+
 message TsysTransitConfig {
   SecretString device_id = 1;
   SecretString transaction_key = 2;
@@ -6081,6 +6096,8 @@ message ConnectorSpecificConfig {
     JpmorganOrbitalConfig jpmorgan_orbital = 152;
     // TRAVELHUB = 142
     TravelhubConfig travelhub = 153;
+    // GLOBALPAYMENTS_REALEX = 143
+    GlobalpaymentsRealexConfig globalpayments_realex = 154;
   }
 }
 

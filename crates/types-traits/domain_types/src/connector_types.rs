@@ -170,6 +170,7 @@ pub enum ConnectorEnum {
     JpmorganOrbital,
     Saferpay,
     Travelhub,
+    GlobalpaymentsRealex,
 }
 
 // snake case for enum variants
@@ -524,6 +525,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::Maya => Ok(Self::Maya),
             grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
+            grpc_api_types::payments::Connector::GlobalpaymentsRealex => {
+                Ok(Self::GlobalpaymentsRealex)
+            }
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
@@ -5879,6 +5883,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
+            AuthType::GlobalpaymentsRealex(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsRealex))
+            }
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))
