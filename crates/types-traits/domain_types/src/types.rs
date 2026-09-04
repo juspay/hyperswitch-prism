@@ -20034,6 +20034,8 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        // TokenSetupRecurringRequest has no test_mode field
+        test_mode: None,
     }
 }
 
@@ -20257,6 +20259,7 @@ pub fn proxied_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        test_mode: v.test_mode,
     })
 }
 
