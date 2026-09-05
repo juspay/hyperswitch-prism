@@ -168,7 +168,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Checkout.com](connectors/checkout.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Citigate](connectors/citigate.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [CryptoPay](connectors/cryptopay.md) | ✓ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
-| [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ? | ✓ | ? | ✓ | ? | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | x | ✓ | ✓ | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Datatrans](connectors/datatrans.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ✓ | ✓ | ? | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Deutschebank](connectors/deutschebank.md) | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [dLocal](connectors/dlocal.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ? | ? | ? | ? | ? | ⚠ | ✓ | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ✓ | ✓ | x |
