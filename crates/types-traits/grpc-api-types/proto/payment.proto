@@ -1032,6 +1032,7 @@ enum PaymentMethodType {
   SKRILL = 114;
   PAYMAYA = 115;
   GRAB_PAY = 116;
+  NETELLER = 117;
 }
 
 // Product type enumeration
@@ -5087,6 +5088,8 @@ message PaysafePaymentMethodDetails {
   map<string, PaysafeRedirectAccountId> skrill = 5;
   // paysafecard processing accounts, keyed by currency.
   map<string, PaysafeRedirectAccountId> pay_safe_card = 6;
+  // Neteller wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> neteller = 7;
 }
 
 message LoonioConfig {

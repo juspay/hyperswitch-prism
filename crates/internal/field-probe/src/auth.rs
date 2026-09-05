@@ -231,6 +231,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                         three_ds: Some(Secret::new("probe_skrill_acct".to_string())),
                     },
                 )])),
+                neteller: None,
                 pay_safe_card: Some(HashMap::from([(
                     common_enums::enums::Currency::EUR,
                     PaysafeRedirectAccountId {
