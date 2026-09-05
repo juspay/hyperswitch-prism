@@ -475,6 +475,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Silverflow"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Silverflow"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Silverflow"

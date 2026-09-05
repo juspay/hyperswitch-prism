@@ -854,6 +854,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"

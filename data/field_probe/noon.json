@@ -626,6 +626,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Noon is not supported by Noon"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through Noon is not supported by Noon"

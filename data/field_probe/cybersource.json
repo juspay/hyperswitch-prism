@@ -797,6 +797,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through Cybersource is not supported by Cybersource"

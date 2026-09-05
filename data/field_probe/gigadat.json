@@ -491,6 +491,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
