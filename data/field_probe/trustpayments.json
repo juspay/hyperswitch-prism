@@ -559,6 +559,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"

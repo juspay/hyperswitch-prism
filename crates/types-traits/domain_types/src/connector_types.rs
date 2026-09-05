@@ -4197,6 +4197,11 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,
                 payment_method_data::CardRedirectData::MomoAtm {} => Self::MomoAtm,
                 payment_method_data::CardRedirectData::CardRedirect {} => Self::CardRedirect,
+                // `PaymentMethodDataType` is only a `HashSet` key for
+                // `is_mandate_supported`; WebPay has no mandate support, so it
+                // shares the generic card-redirect key rather than needing one
+                // of its own.
+                payment_method_data::CardRedirectData::Webpay {} => Self::CardRedirect,
             },
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payment_method_data::WalletData::BluecodeRedirect { .. } => Self::Bluecode,

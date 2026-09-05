@@ -702,6 +702,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"

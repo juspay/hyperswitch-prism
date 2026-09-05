@@ -21,10 +21,42 @@ use serde::{Deserialize, Serialize};
 
 use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 
-/// Directa24 payment method code for **WebPay** (Transbank, Chile). D24 method
-/// codes are an open, per-country set published on the coverage page, not a
-/// closed enum, so this stays a plain constant rather than a Rust enum.
-const D24_PAYMENT_METHOD_WEBPAY: &str = "WP";
+/// The Directa24 `payment_method` codes this integration can emit.
+///
+/// Directa24's own catalogue of method codes is an open, per-country set
+/// published on its coverage page — but that is not what this enum models. It
+/// models only the codes *this connector emits*, which is a closed set: today
+/// just WebPay (Transbank, Chile). Adding another Directa24 method is then one
+/// variant here plus one arm in the `TryFrom<&CardRedirectData>` below, mirroring
+/// how the domain `CardRedirectData` variants map onto connector-side brands.
+///
+/// `#[serde(rename)]` keeps the wire bytes identical to the previous `&'static str`
+/// constant: WebPay still serializes as `"WP"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum D24PaymentMethod {
+    #[serde(rename = "WP")]
+    Webpay,
+}
+
+impl TryFrom<&CardRedirectData> for D24PaymentMethod {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(card_redirect_data: &CardRedirectData) -> Result<Self, Self::Error> {
+        match card_redirect_data {
+            CardRedirectData::Webpay {} => Ok(Self::Webpay),
+            CardRedirectData::Knet {}
+            | CardRedirectData::Benefit {}
+            | CardRedirectData::MomoAtm {}
+            | CardRedirectData::CardRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Directa24 only supports PaymentMethodData::CardRedirect(Webpay {})"
+                        .to_string(),
+                    IntegrationErrorContext::default(),
+                )))
+            }
+        }
+    }
+}
 
 /// The `payer.document_type` values this integration can emit.
 ///
@@ -191,8 +223,8 @@ pub struct D24PaymentsRequest {
     pub currency: common_enums::Currency,
     pub invoice_id: String,
     pub payer: D24Payer,
-    /// Always `"WP"` for this integration.
-    pub payment_method: &'static str,
+    /// Always `D24PaymentMethod::Webpay`, which serializes as `"WP"`.
+    pub payment_method: D24PaymentMethod,
     /// Not optional: WebPay is a mandatory redirect, so all three are always
     /// sent. `get_router_return_url()` fails the request locally rather than
     /// letting a deposit be created that the customer cannot return from.
@@ -309,20 +341,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // --- Guard 1: payment method -----------------------------------------
         // WebPay is a hosted redirect — Transbank collects the card details on
         // its own page, so the only representable domain shape is the empty
-        // CardRedirect marker. No card data may reach this endpoint.
-        match &request.payment_method_data {
-            PaymentMethodData::CardRedirect(CardRedirectData::CardRedirect {}) => {}
+        // `Webpay` marker. No card data may reach this endpoint. The generic
+        // `CardRedirect {}` marker is deliberately *not* accepted: the wire code
+        // is chosen from the domain variant, so an unnamed redirect has no code.
+        let payment_method = match &request.payment_method_data {
+            PaymentMethodData::CardRedirect(card_redirect_data) => {
+                D24PaymentMethod::try_from(card_redirect_data)?
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Directa24 WebPay only supports \
-                     PaymentMethodData::CardRedirect(CardRedirect {}) — the customer enters \
+                     PaymentMethodData::CardRedirect(Webpay {}) — the customer enters \
                      card details on Transbank's own page, so no card data is sent to \
                      /v3/deposits"
                         .to_string(),
                     IntegrationErrorContext::default(),
                 )))
             }
-        }
+        };
 
         // --- Guard 2: billing country ----------------------------------------
         // WebPay is Chile-only.
@@ -428,7 +464,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(|phone| phone.get_number_with_country_code().ok()),
                 address: payer_address,
             },
-            payment_method: D24_PAYMENT_METHOD_WEBPAY,
+            payment_method,
             success_url: return_url.clone(),
             back_url: return_url.clone(),
             error_url: return_url,

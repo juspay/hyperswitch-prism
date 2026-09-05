@@ -1517,6 +1517,9 @@ impl<
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
                             payment_method_data::CardRedirectData::CardRedirect {}
                         }
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
+                            payment_method_data::CardRedirectData::Webpay {}
+                        }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
                             return Err(report!(IntegrationError::InvalidDataFormat { field_name: "payment_method.card_redirect.type", context: IntegrationErrorContext { additional_context: Some("Card redirect type cannot be unspecified".to_string()), ..Default::default() } }))
                         }
@@ -3040,6 +3043,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                             Ok(Some(PaymentMethodType::MomoAtm))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
+                            Ok(Some(PaymentMethodType::CardRedirect))
+                        }
+                        // WebPay is distinguished at the connector, not by
+                        // routing/analytics: it keeps the generic
+                        // `CardRedirect` payment method type.
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
                             Ok(Some(PaymentMethodType::CardRedirect))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {

@@ -3429,6 +3429,40 @@
           "body": "{\"partnerTxID\":\"probe_txn_001\"}"
         }
       },
+      "Webpay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_redirect": {
+              "type": "WEBPAY"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token"
+        },
+        "sample": {
+          "url": "https://partner-api.grab.com/grabpay/partner/v2/charge/complete",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_session_token",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "via": "HyperSwitch",
+            "x-gid-aux-pop": "signature"
+          },
+          "body": "{\"partnerTxID\":\"probe_txn_001\"}"
+        }
+      },
       "Wero": {
         "status": "supported",
         "proto_request": {

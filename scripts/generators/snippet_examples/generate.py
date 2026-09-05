@@ -468,7 +468,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
         ]
     },
     {
@@ -489,7 +489,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "refund"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "refund", "pm_key": None}
         ]
     },
@@ -500,7 +500,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "void"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "void", "pm_key": None}
         ]
     },
@@ -511,7 +511,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "get"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "get", "pm_key": None}
         ]
     },
