@@ -2783,6 +2783,10 @@ message PaymentServiceAuthorizeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
   optional string payment_account_reference = 28;
+
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
+  optional string sender_payment_instrument_id = 29;
 }
 
 // Request message for synchronizing payment status
@@ -2906,6 +2910,8 @@ message PaymentServiceGetResponse {
   // Payment method updates
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
 
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
   optional string sender_payment_instrument_id = 30;
 
   // Split payment response data from connector

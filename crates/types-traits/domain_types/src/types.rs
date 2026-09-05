@@ -7012,6 +7012,10 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
                     payment_account_reference,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 }
             }
             _ => {
@@ -7079,6 +7083,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 network_txn_link_id: None,
                 splits: None,
                 payment_account_reference: None,
+                sender_payment_instrument_id: None,
             }
         }
     };
