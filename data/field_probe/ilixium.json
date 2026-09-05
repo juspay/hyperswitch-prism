@@ -156,8 +156,8 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Reward"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -168,8 +168,8 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankTransfer(DanamonVaBankTransfer)"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -204,8 +204,8 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None })"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -292,8 +292,8 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Voucher(MiniStop(JCSVoucherData))"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -336,8 +336,8 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: BankRedirect(OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None })"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -372,12 +372,12 @@
         "error": "This feature is not implemented: Ilixium supports only raw card payments on POST /direct/auth; wallets, APMs, bank transfers and stored-card tokens are out of scope for this connector implementation. Unsupported payment_method_data variant for Ilixium /direct/auth: Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",

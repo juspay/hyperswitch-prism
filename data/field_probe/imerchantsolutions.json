@@ -191,8 +191,8 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -203,8 +203,8 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -239,8 +239,8 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -368,8 +368,8 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -412,8 +412,8 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -448,12 +448,12 @@
         "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
