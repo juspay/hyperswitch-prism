@@ -2736,6 +2736,10 @@ pub fn convert_to_payments_response_data_or_error(
 ) -> PaymentConversionResult {
     let status = get_hs_status(response, http_status_code, operation, capture_method);
 
+    // `Unresolved` (authorize.net responseCode "4" - held for review) is an accepted,
+    // non-terminal state: authorize.net returns no `transaction_response.errors` for it, so
+    // hyperswitch's direct path yields `response = Ok(TransactionResponse)`. Match that here
+    // instead of wrapping it as an `ErrorResponse`.
     let is_successful_status = matches!(
         status,
         AttemptStatus::Authorized
@@ -2744,6 +2748,7 @@ pub fn convert_to_payments_response_data_or_error(
             | AttemptStatus::Charged
             | AttemptStatus::Voided
             | AttemptStatus::VoidedPostCapture
+            | AttemptStatus::Unresolved
     );
 
     // Extract connector response data from transaction response if available
