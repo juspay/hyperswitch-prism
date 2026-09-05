@@ -322,8 +322,12 @@ pub struct SetupMandateRequest<
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
     pub return_url: Option<String>,
+    // Reusing a previously tokenized/saved Stripe PaymentMethod (PaymentMethodData::PaymentMethodToken)
+    // goes through `payment_method` (Stripe's top-level "use this existing PM" field) instead --
+    // mirrors PaymentIntentRequest, which already supports both paths.
+    pub payment_method: Option<Secret<String>>,
     #[serde(flatten)]
-    pub payment_data: StripePaymentMethodData<T>,
+    pub payment_data: Option<StripePaymentMethodData<T>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     #[serde(flatten)]
     pub meta_data: Option<HashMap<String, String>>,
@@ -5192,13 +5196,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        //Only cards supported for mandates
-        let pm_type = StripePaymentMethodType::Card;
-        let payment_data = StripePaymentMethodData::try_from((
-            &item,
-            item.router_data.resource_common_data.auth_type,
-            pm_type,
-        ))?;
+        // A previously tokenized/saved Stripe PaymentMethod (PaymentMethodData::PaymentMethodToken,
+        // e.g. one created via a prior PaymentMethodToken call) is reused by id through the
+        // top-level `payment_method` field -- Stripe rejects it if nested under
+        // payment_method_data[...] instead. Every other payment method still goes through the
+        // existing card-shaped payment_data builder (only cards are otherwise supported here).
+        let (payment_method, payment_data, payment_method_types) =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    (Some(token_data.token.clone()), None, None)
+                }
+                _ => {
+                    let pm_type = StripePaymentMethodType::Card;
+                    let payment_data = StripePaymentMethodData::try_from((
+                        &item,
+                        item.router_data.resource_common_data.auth_type,
+                        pm_type,
+                    ))?;
+                    (None, Some(payment_data), Some(pm_type))
+                }
+            };
 
         let meta_data = Some(get_transaction_metadata(
             item.router_data.request.metadata.clone(),
@@ -5237,6 +5254,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             confirm: true,
+            payment_method,
             payment_data,
             return_url: item.router_data.request.router_return_url.clone(),
             off_session: item.router_data.request.off_session,
@@ -5249,7 +5267,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .to_owned()
                 .map(Secret::new),
             meta_data,
-            payment_method_types: Some(pm_type),
+            payment_method_types,
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
             moto: is_moto,
@@ -6272,5 +6290,191 @@ mod setup_mandate_response_tests {
         let response = result.unwrap();
         assert_eq!(response.object.as_deref(), Some("setup_intent"));
         assert!(response.metadata.is_some());
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod setup_mandate_request_tests {
+    use std::marker::PhantomData;
+
+    use domain_types::{
+        connector_flow::SetupMandate,
+        connector_types::{
+            ConnectorEnum, PaymentFlowData, PaymentsResponseData, SetupMandateRequestData,
+        },
+        payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodToken},
+        router_data::{ConnectorSpecificConfig, ErrorResponse},
+        router_data_v2::RouterDataV2,
+        types::{ConnectorParams, Connectors},
+    };
+    use hyperswitch_masking::Secret;
+    use interfaces::{
+        connector_integration_v2::BoxedConnectorIntegrationV2, connector_types::BoxedConnector,
+    };
+    use serde_json::json;
+
+    use crate::{connectors::Stripe, types::ConnectorData};
+
+    // Regression for #23265/#23268/#23273: a previously tokenized/saved Stripe PaymentMethod
+    // (PaymentMethodData::PaymentMethodToken, e.g. from a prior PaymentMethodToken call) fell
+    // through to the card-only match in SetupMandateRequest's builder and errored NotImplemented
+    // -- confirmed in production ClickHouse logs as grpc_code=12 Unimplemented /
+    // "Selected payment method through stripe" for stripe/setup_mandate. build_request_v2 must
+    // now succeed and set the request's top-level `payment_method` to the token, without a
+    // payment_method_data[...] block.
+    #[test]
+    fn test_setup_mandate_payment_method_token_is_implemented() {
+        let req: RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<DefaultPCIHolder>,
+            PaymentsResponseData,
+        > = RouterDataV2 {
+            flow: PhantomData::<SetupMandate>,
+            resource_common_data: PaymentFlowData {
+                raw_connector_status: None,
+                merchant_id: common_utils::id_type::MerchantId::default(),
+                customer_id: None,
+                connector_customer: None,
+                payment_id: "pay_setup_mandate_token".to_string(),
+                attempt_id: "attempt_setup_mandate_token".to_string(),
+                status: common_enums::AttemptStatus::Pending,
+                payment_method: common_enums::PaymentMethod::Card,
+                payment_method_type: None,
+                description: None,
+                return_url: Some("https://example.com/return".to_string()),
+                order_details: None,
+                address: domain_types::payment_address::PaymentAddress::new(None, None, None, None),
+                auth_type: common_enums::AuthenticationType::NoThreeDs,
+                connector_feature_data: None,
+                amount_captured: None,
+                minor_amount_captured: None,
+                minor_amount_authorized: None,
+                access_token: None,
+                session_token: None,
+                reference_id: None,
+                connector_order_id: None,
+                preprocessing_id: None,
+                connector_api_version: None,
+                connector_request_reference_id: "conn_ref_setup_mandate_token".to_string(),
+                test_mode: None,
+                connector_http_status_code: None,
+                connectors: Connectors {
+                    stripe: ConnectorParams {
+                        base_url: "https://api.stripe.com/".to_string(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+                .into(),
+                external_latency: None,
+                connector_response_headers: None,
+                raw_connector_response: None,
+                vault_headers: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+                minor_amount_capturable: None,
+                amount: None,
+                connector_response: None,
+                recurring_mandate_payment_data: None,
+                l2_l3_data: None,
+                merchant_request_id: None,
+                sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
+                settlement_status: None,
+                typed_connector_response: None,
+            },
+            connector_config: ConnectorSpecificConfig::Stripe {
+                api_key: Secret::new("test_stripe_api_key".to_string()),
+                base_url: None,
+            },
+            request: SetupMandateRequestData {
+                currency: common_enums::Currency::USD,
+                payment_method_data: PaymentMethodData::PaymentMethodToken(PaymentMethodToken {
+                    token: Secret::new("pm_1U9Ve0Po8iAQ5uGJ8yRnPb9w".to_string()),
+                    token_payment_method_type: None,
+                }),
+                amount: Some(0),
+                confirm: true,
+                billing_descriptor: None,
+                customer_acceptance: None,
+                mandate_id: None,
+                setup_future_usage: Some(common_enums::FutureUsage::OffSession),
+                off_session: None,
+                setup_mandate_details: None,
+                router_return_url: Some("https://example.com/return".to_string()),
+                webhook_url: None,
+                browser_info: None,
+                email: None,
+                customer_document_details: None,
+                customer_name: None,
+                return_url: Some("https://example.com/return".to_string()),
+                payment_method_type: Some(common_enums::PaymentMethodType::Card),
+                request_incremental_authorization: false,
+                metadata: None,
+                complete_authorize_url: None,
+                capture_method: None,
+                merchant_order_id: None,
+                minor_amount: Some(common_utils::types::MinorUnit::new(0)),
+                shipping_cost: None,
+                customer_id: None,
+                integrity_object: None,
+                payment_channel: None,
+                enable_partial_authorization: None,
+                locale: None,
+                connector_testing_data: None,
+                mit_category: None,
+                split_payments: None,
+                authentication_data: None,
+                partner_merchant_identifier_details: None,
+                is_account_funding_transaction: None,
+                recipient_details: None,
+                additional_connector_details: None,
+                customer: None,
+            },
+            response: Err(ErrorResponse::default()),
+        };
+
+        let connector: BoxedConnector<DefaultPCIHolder> = Box::new(Stripe::new());
+        let connector_data = ConnectorData {
+            connector,
+            connector_name: ConnectorEnum::Stripe,
+        };
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<DefaultPCIHolder>,
+            PaymentsResponseData,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request = connector_integration.build_request_v2(&req);
+        let request = request.unwrap_or_else(|err| {
+            panic!("Expected PaymentMethodToken to be implemented for SetupMandate, got: {err:?}")
+        });
+
+        let body = request
+            .and_then(|r| r.body)
+            .expect("request should have a body");
+        let masked = match body {
+            common_utils::request::RequestContent::FormUrlEncoded(v) => {
+                v.masked_serialize().unwrap_or(json!({}))
+            }
+            other => panic!("expected form-urlencoded body, got: {other:?}"),
+        };
+
+        // Secret<String> fields render masked ("*** ... ***") through masked_serialize, so this
+        // asserts presence/shape rather than the literal token value.
+        assert!(
+            !masked["payment_method"].is_null(),
+            "expected top-level payment_method to carry the reused token, got: {masked:?}"
+        );
+        assert!(
+            masked.get("payment_method_data[type]").is_none(),
+            "reused token must not also be sent as payment_method_data[...], got: {masked:?}"
+        );
     }
 }
