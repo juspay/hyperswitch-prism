@@ -14,7 +14,7 @@ import payments.PaymentClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
-import payments.CardRedirectType
+import types.PaymentMethods.CardRedirect.CardRedirectType
 import payments.CountryAlpha2
 import payments.Currency
 import payments.DocumentKind

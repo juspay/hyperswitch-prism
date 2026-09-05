@@ -67,7 +67,7 @@ def _build_authorize_request(capture_method: str):
         ),
         payment_method=payment_methods_pb2.PaymentMethod(  # Payment method to be used.
             card_redirect=payment_methods_pb2.CardRedirect(
-                type=payment_methods_pb2.CardRedirectType.Value("WEBPAY"),
+                type=payment_methods_pb2.CardRedirect.CardRedirectType.Value("WEBPAY"),
             ),
         ),
         capture_method=payment_pb2.CaptureMethod.Value(capture_method),  # Method for capturing the payment.

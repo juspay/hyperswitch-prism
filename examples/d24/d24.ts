@@ -6,7 +6,8 @@
 // Run a scenario:  npx tsx d24.ts checkout_autocapture
 
 import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardRedirectType, CountryAlpha2, Currency, DocumentKind } = types;
+const { Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, DocumentKind } = types;
+const { CardRedirectType } = types.CardRedirect;
 export const SUPPORTED_FLOWS = ["get", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {

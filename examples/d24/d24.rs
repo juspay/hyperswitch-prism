@@ -84,7 +84,7 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         payment_method: Some(PaymentMethod {
             // Payment method to be used.
             payment_method: Some(payment_method::PaymentMethod::CardRedirect(CardRedirect {
-                r#type: CardRedirectType::Webpay.into(),
+                r#type: card_redirect::CardRedirectType::Webpay.into(),
             })),
             ..Default::default()
         }),
