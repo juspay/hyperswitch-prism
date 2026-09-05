@@ -170,6 +170,8 @@ pub enum ConnectorEnum {
     JpmorganOrbital,
     Saferpay,
     Travelhub,
+    Paynearme,
+    D24,
 }
 
 // snake case for enum variants
@@ -543,6 +545,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::JpmorganOrbital => Ok(Self::JpmorganOrbital),
             grpc_api_types::payments::Connector::Saferpay => Ok(Self::Saferpay),
             grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
+            grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
+            grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1681,6 +1685,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub surcharge_amount: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    /// The customer's date of birth, from `Customer.date_of_birth` on the gRPC request.
+    /// Connectors that need another shape (Ilixium's `ddmmyyyy`) reformat it themselves.
+    pub customer_date_of_birth: Option<Secret<time::Date>>,
     pub customer_name: Option<String>,
     pub currency: Currency,
     pub confirm: bool,
@@ -1752,6 +1759,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub additional_connector_details: Option<AdditionalConnectorDetails>,
     /// Full customer details including date of birth, name, phone, etc.
     pub customer: Option<CustomerInfo>,
+    /// Merchant business country, used for country-specific connector rules.
+    pub business_country: Option<common_enums::CountryAlpha2>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -1784,6 +1793,9 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
         self.customer_document_details
             .clone()
             .ok_or_else(missing_field_err("customer_document_details"))
+    }
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer_date_of_birth.clone()
     }
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
@@ -2282,12 +2294,18 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     /// The gRPC request has always carried this (`PaymentMethodAuthenticationService
     /// PreAuthenticateRequest.metadata`) but it was previously dropped on the floor here, so a
     /// connector whose PreAuthenticate leg sends a full authorisation could not reach
-    /// merchant-supplied fields that have no home in the UCS payment model — Ilixium's
-    /// schema-mandatory `customer.dateOfBirth`, for one.
+    /// merchant-supplied fields at all.
     pub metadata: Option<common_utils::pii::SecretSerdeValue>,
+    /// The customer's date of birth, from `Customer.date_of_birth` on the gRPC request.
+    /// Mirrors `PaymentsAuthorizeData::customer_date_of_birth` so a connector whose
+    /// PreAuthenticate leg sends a full authorisation resolves it identically on both legs.
+    pub customer_date_of_birth: Option<Secret<time::Date>>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
+    pub fn get_optional_customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer_date_of_birth.clone()
+    }
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(common_enums::CaptureMethod::Automatic)
@@ -4179,6 +4197,11 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,
                 payment_method_data::CardRedirectData::MomoAtm {} => Self::MomoAtm,
                 payment_method_data::CardRedirectData::CardRedirect {} => Self::CardRedirect,
+                // `PaymentMethodDataType` is only a `HashSet` key for
+                // `is_mandate_supported`; WebPay has no mandate support, so it
+                // shares the generic card-redirect key rather than needing one
+                // of its own.
+                payment_method_data::CardRedirectData::Webpay {} => Self::CardRedirect,
             },
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
                 payment_method_data::WalletData::BluecodeRedirect { .. } => Self::Bluecode,
@@ -5877,6 +5900,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
             AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
+            AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
+            AuthType::D24(_) => Ok(Self::Payment(ConnectorEnum::D24)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
@@ -5951,6 +5976,15 @@ pub struct RecipientDetails {
 pub struct AdditionalConnectorDetails {
     /// Checkout.com-specific additional information.
     pub checkout: Option<CheckoutAdditionalInformation>,
+    /// Worldpayxml-specific additional information.
+    pub worldpayxml: Option<WorldpayxmlAdditionalInformation>,
+}
+
+/// Worldpayxml-specific additional information.
+#[derive(Debug, Clone)]
+pub struct WorldpayxmlAdditionalInformation {
+    pub funding_transaction_type: Option<String>,
+    pub payment_purpose: Option<String>,
 }
 
 /// Checkout.com-specific additional information.

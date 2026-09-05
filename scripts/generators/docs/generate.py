@@ -146,6 +146,9 @@ _PROBE_PM_BY_CATEGORY: list[tuple[str, list[tuple[str, str]]]] = [
         ("OpenBankingPis", "PIS"),
         ("OpenBanking", "Generic"),
     ]),
+    ("Card Redirect", [
+        ("Webpay", "WebPay"),
+    ]),
     ("Bank Redirect", [
         ("LocalBankRedirect", "Local"),
         ("Ideal", "iDEAL"),
@@ -1678,6 +1681,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
                 # Shorten category names for compact display
                 short_cat = {
                     "Card": "CARD",
+                    "Card Redirect": "Card Redirect",
                     "Wallet": "WALLET", 
                     "BNPL": "BNPL",
                     "UPI": "UPI",

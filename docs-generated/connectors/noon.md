@@ -243,6 +243,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | UK | x |
 | PIS | x |
 | Generic | x |
+| WebPay | x |
 | Local | x |
 | iDEAL | x |
 | Sofort | x |

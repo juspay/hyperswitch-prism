@@ -754,3 +754,67 @@ pub fn build_error_response(
         typed_connector_request: None,
     }
 }
+
+/// Validates and normalizes a Chilean RUT (Rol Único Tributario).
+///
+/// A RUT is 7-8 body digits plus one check character (`0-9` or `K`), i.e. 8-9
+/// characters once dots and the hyphen are stripped. Returns the normalized
+/// form: separators removed and the check character upper-cased.
+///
+/// Both the shape **and** the mod-11 check digit are verified. Shape alone is
+/// not enough: a transposed digit keeps the length and the character classes
+/// intact, so it would still reach the connector and come back as an opaque
+/// validation error — which is exactly what this function exists to prevent.
+///
+/// `DocumentKind::Other` — the only spelling a RUT can arrive as, since
+/// `DocumentKind` has no `Rut` variant — skips the checksum validation that
+/// `Cpf`/`Cnpj` get, which is why it is done here.
+pub fn validate_and_normalize_chilean_rut(
+    document: &Secret<String>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let normalized: String = document
+        .peek()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+
+    let invalid = || {
+        error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "payer.document",
+            context: errors::IntegrationErrorContext::default(),
+        })
+    };
+
+    if !(8..=9).contains(&normalized.len()) {
+        return Err(invalid());
+    }
+
+    let (body, check) = normalized.split_at(normalized.len() - 1);
+    if !body.chars().all(|c| c.is_ascii_digit()) {
+        return Err(invalid());
+    }
+    if !check.chars().all(|c| c.is_ascii_digit() || c == 'K') {
+        return Err(invalid());
+    }
+
+    // Mod-11 check digit. Weights cycle 2,3,4,5,6,7 from the rightmost body
+    // digit; 11 - (sum mod 11) yields 11 => '0' and 10 => 'K'.
+    let sum: u32 = body
+        .chars()
+        .rev()
+        .zip((2..=7).cycle())
+        .map(|(digit, weight)| digit.to_digit(10).unwrap_or(0) * weight)
+        .sum();
+    let expected = match 11 - (sum % 11) {
+        11 => '0',
+        10 => 'K',
+        // 1..=9 are the only remaining values, so this cannot truncate.
+        other => char::from_digit(other, 10).unwrap_or('0'),
+    };
+    if !check.starts_with(expected) {
+        return Err(invalid());
+    }
+
+    Ok(Secret::new(normalized))
+}

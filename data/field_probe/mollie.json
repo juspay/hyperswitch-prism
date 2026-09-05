@@ -512,6 +512,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"

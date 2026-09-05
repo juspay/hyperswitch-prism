@@ -3225,6 +3225,38 @@
           "body": "{}"
         }
       },
+      "Webpay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card_redirect": {
+              "type": "WEBPAY"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
       "Wero": {
         "status": "supported",
         "proto_request": {

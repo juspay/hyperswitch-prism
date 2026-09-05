@@ -30,7 +30,6 @@ use domain_types::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
-use rand::distributions::DistString;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -268,7 +267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
 
         use sha2::{Digest, Sha512};
-        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let nonce = common_utils::crypto::generate_cryptographically_secure_random_string(12);
         let secret_input = format!("{}{}", nonce, auth.app_key.peek());
         let mut hasher = Sha512::new();
         hasher.update(secret_input.as_bytes());
@@ -1504,7 +1503,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
 
         use sha2::{Digest, Sha512};
-        let nonce = rand::distributions::Alphanumeric.sample_string(&mut rand::thread_rng(), 12);
+        let nonce = common_utils::crypto::generate_cryptographically_secure_random_string(12);
         let secret_input = format!("{}{}", nonce, auth.app_key.peek());
         let mut hasher = Sha512::new();
         hasher.update(secret_input.as_bytes());

@@ -485,6 +485,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Mifinity"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Mifinity"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Mifinity"
