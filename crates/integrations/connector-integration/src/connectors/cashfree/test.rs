@@ -2,6 +2,7 @@
 // Tests will be implemented once the basic connector is working
 
 #[cfg(test)]
+#[allow(clippy::expect_used)]
 mod tests {
     use domain_types::payment_method_data::DefaultPCIHolder;
     use interfaces::api::ConnectorCommon;
