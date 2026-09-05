@@ -2488,7 +2488,10 @@ impl From<StripePaymentStatus> for common_enums::AttemptStatus {
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
-    pub object: String,
+    // Stripe's own docs guarantee this, but HS treats it as optional (matching what's actually
+    // been observed on the wire) -- kept in parity so a response HS parses successfully doesn't
+    // fail here.
+    pub object: Option<String>,
     pub amount: MinorUnit,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
     // stripe gives amount_captured as 0 for payment intents instead of null
@@ -2504,7 +2507,7 @@ pub struct PaymentIntentResponse {
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub last_payment_error: Option<ErrorDetails>,
@@ -2838,14 +2841,15 @@ impl From<SetupMandateResponse> for PaymentIntentResponse {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SetupMandateResponse {
     pub id: String,
-    pub object: String,
+    // See PaymentIntentResponse::object -- optional in parity with HS/observed Stripe behavior.
+    pub object: Option<String>,
     pub status: StripePaymentStatus, // Change to SetupStatus
     pub client_secret: Secret<String>,
     pub customer: Option<Secret<String>>,
     pub payment_method: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub latest_attempt: Option<LatestAttempt>,
@@ -6221,5 +6225,52 @@ impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod setup_mandate_response_tests {
+    use super::*;
+
+    // Regression: HS's own SetupIntentResponse/PaymentIntentResponse treat `object` and
+    // `metadata` as optional (matching what Stripe actually sends on the wire in some
+    // responses). Connector-service's equivalents previously required both fields, so a Stripe
+    // SetupIntent response omitting either would fail to deserialize here while HS parsed the
+    // same payload fine -- surfacing as a UCS-only error for adyen/setup_mandate... er, stripe/
+    // setup_mandate (#23265, #23268, #23273).
+    #[test]
+    fn setup_mandate_response_without_object_and_metadata_deserializes() {
+        let json = serde_json::json!({
+            "id": "seti_1",
+            "status": "succeeded",
+            "client_secret": "seti_1_secret_abc"
+        });
+        let result: Result<SetupMandateResponse, _> = serde_json::from_value(json);
+        assert!(
+            result.is_ok(),
+            "Expected SetupMandateResponse without object/metadata to deserialize, got: {result:?}"
+        );
+        let response = result.unwrap();
+        assert_eq!(response.object, None);
+        assert!(response.metadata.is_none());
+    }
+
+    #[test]
+    fn setup_mandate_response_with_object_and_metadata_still_deserializes() {
+        let json = serde_json::json!({
+            "id": "seti_1",
+            "object": "setup_intent",
+            "status": "succeeded",
+            "client_secret": "seti_1_secret_abc",
+            "metadata": {}
+        });
+        let result: Result<SetupMandateResponse, _> = serde_json::from_value(json);
+        assert!(
+            result.is_ok(),
+            "Expected SetupMandateResponse with object/metadata to still deserialize, got: {result:?}"
+        );
+        let response = result.unwrap();
+        assert_eq!(response.object.as_deref(), Some("setup_intent"));
+        assert!(response.metadata.is_some());
     }
 }
