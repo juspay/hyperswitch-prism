@@ -5035,7 +5035,7 @@ message FinixConfig {
 message GlobalpayConfig {
   SecretString app_id = 1;
   SecretString app_key = 2;
-  optional SecretString account_name = 3;
+  optional SecretString account_name = 3;  // GlobalPay capability/account name (e.g. "transaction_processing"); required in production, where the value is assigned by the merchant's account manager
   optional string base_url = 50;
 }
 

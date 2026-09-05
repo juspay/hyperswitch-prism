@@ -639,6 +639,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         doc_url: None,
                                     },
                                 })?;
+                            let expiry_month = decrypted.get_expiry_month().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Failed to validate expiry month from decrypted \
+                                             Google Pay data for GlobalPay POST /transactions"
+                                                .to_string(),
+                                        ),
+                                        suggested_action: None,
+                                        doc_url: None,
+                                    },
+                                },
+                            )?;
                             GlobalpayDigitalWalletData::Decrypted {
                                 token: Secret::new(
                                     decrypted
@@ -647,7 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         .to_string(),
                                 ),
                                 token_format: "CARD_TOKEN".to_string(),
-                                expiry_month: decrypted.card_exp_month.clone(),
+                                expiry_month,
                                 expiry_year,
                                 cryptogram: decrypted.cryptogram.clone(),
                                 eci: decrypted.eci_indicator.clone(),
@@ -701,7 +714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     IntegrationErrorContext {
                         additional_context: Some(
                             "GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/\
-                             Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and \
+                             Giropay), Wallet (PaypalRedirect/GooglePay), and \
                              PaymentMethodToken; received an unsupported payment method type"
                                 .to_string(),
                         ),
