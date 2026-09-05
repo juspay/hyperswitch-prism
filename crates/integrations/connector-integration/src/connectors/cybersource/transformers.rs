@@ -83,14 +83,11 @@ impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObj
         // Cybersource metadata is optional (all fields are optional), so treat an absent
         // metadata object as the default rather than a missing required field.
         match meta_data {
-            Some(_) => {
-                utils::to_connector_meta_from_secret::<Self>(meta_data.clone()).change_context(
-                    IntegrationError::InvalidConnectorConfig {
-                        config: "metadata",
-                        context: Default::default(),
-                    },
-                )
-            }
+            Some(_) => utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                .change_context(IntegrationError::InvalidConnectorConfig {
+                    config: "metadata",
+                    context: Default::default(),
+                }),
             None => Ok(Self::default()),
         }
     }
