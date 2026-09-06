@@ -357,14 +357,14 @@ pub struct StoredCredential {
     pub initiator: Option<InitiatorType>,
 }
 
-/// Transaction type for GlobalPay. `Sale` moves funds from payer to merchant;
-/// `Refund` moves funds from merchant to payer (used on the dedicated /refund endpoint).
+/// Transaction type for GlobalPay. `Sale` moves funds from payer to merchant.
 /// Authorize and RepeatPayment flows always use `Sale`.
+/// Refunds use a dedicated `POST /transactions/{id}/refund` endpoint and do not
+/// send this field.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GlobalpayTransactionType {
     Sale,
-    Refund,
 }
 
 // ===== APM / BANK REDIRECT STRUCTURES =====
@@ -783,6 +783,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
+        // When a PMT token is used for a mandate payment (CIT), tell the card network
+        // this is the first charge in a stored-credential series so that subsequent
+        // MITs (RepeatPayment with MERCHANT/SUBSEQUENT) are accepted by the scheme.
+        let (initiator, stored_credential) = if matches!(
+            item.request.payment_method_data,
+            PaymentMethodData::PaymentMethodToken(_)
+        ) && item.request.is_mandate_payment()
+        {
+            (
+                Some(Initiator {
+                    initiator_type: Some(InitiatorType::Payer),
+                    id: None,
+                    stored_credential: None,
+                }),
+                Some(StoredCredential {
+                    credential_type: Some(StoredCredentialType::Recurring),
+                    sequence: Some(StoredCredentialSequence::First),
+                    initiator: Some(InitiatorType::Payer),
+                }),
+            )
+        } else {
+            (None, None)
+        };
+
         Ok(Self {
             account_name,
             type_: GlobalpayTransactionType::Sale,
@@ -795,9 +819,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
             country,
             capture_mode,
-            initiator: None,
+            initiator,
             notifications,
-            stored_credential: None,
+            stored_credential,
             payment_method,
         })
     }
@@ -939,16 +963,20 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
             .and_then(|card| card.brand_reference.as_ref())
             .map(|s| s.peek().to_string());
 
-        // When the Authorize was driven by a PMT token (CIT via tokenize+charge),
-        // echo the PMT token back as connector_mandate_id so HS persists it on the
-        // payment method record and can use it for subsequent MIT charges.
+        // Echo the PMT token back as connector_mandate_id only when the merchant
+        // explicitly set up a mandate (setup_future_usage=OffSession), so HS does
+        // not store a mandate reference for one-off PMT charges.
         let mandate_reference = match &item.router_data.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => Some(Box::new(MandateReference {
-                connector_mandate_id: Some(t.token.peek().to_string()),
-                payment_method_id: None,
-                connector_mandate_request_reference_id: None,
-                mandate_metadata: None,
-            })),
+            PaymentMethodData::PaymentMethodToken(t)
+                if item.router_data.request.is_mandate_payment() =>
+            {
+                Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(t.token.peek().to_string()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                }))
+            }
             _ => None,
         };
 
