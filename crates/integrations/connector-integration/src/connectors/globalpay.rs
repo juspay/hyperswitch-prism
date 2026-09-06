@@ -973,7 +973,8 @@ macros::macro_connector_implementation!(
                 .request
                 .connector_order_reference_id
                 .as_deref()
-                .ok_or_else(|| IntegrationError::MissingConnectorTransactionID {
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_order_reference_id",
                     context: IntegrationErrorContext {
                         additional_context: Some(
                             "connector_order_reference_id (TRN_xxx) is required to construct the \
