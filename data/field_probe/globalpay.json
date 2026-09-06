@@ -945,7 +945,7 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_order_reference_id. connector_order_reference_id — Missing required field: connector_order_reference_id. connector_order_reference_id (TRN_xxx) is required to construct the POST /transactions/{id}/confirmation URL for GlobalPay PostAuthenticate."
+        "error": "Stuck on field: connector_order_reference_id — Missing required field: connector_order_reference_id"
       }
     },
     "pre_authenticate": {
