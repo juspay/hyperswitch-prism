@@ -57,9 +57,13 @@ install-codegen-deps:
 # in the same target/<PLATFORM>/release/ directory as before.
 # ---------------------------------------------------------------------------
 generate-bindings: build-ffi-lib
-	@echo "Building uniffi-bindgen..."
-	@cd $(REPO_ROOT) && cargo build -p uniffi-bindgen \
-		--profile $(PROFILE) --target $(PLATFORM)
+	@if [ "$(FFI_SKIP_BUILD)" = "1" ] && [ -f "$(BINDGEN)" ]; then \
+		echo "Using pre-built uniffi-bindgen: $(BINDGEN)"; \
+	else \
+		echo "Building uniffi-bindgen..."; \
+		cd $(REPO_ROOT) && cargo build -p uniffi-bindgen \
+			--profile $(PROFILE) --target $(PLATFORM); \
+	fi
 	@echo "Generating UniFFI Python bindings from $(LIBRARY)..."
 	@mkdir -p $(GENERATED_OUT)
 	@cp -f $(LIBRARY) $(GENERATED_OUT)/
