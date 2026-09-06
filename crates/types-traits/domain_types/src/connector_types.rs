@@ -2475,6 +2475,7 @@ pub struct PaymentsPostAuthenticateData<T: PaymentMethodDataTypes> {
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
+    pub connector_order_reference_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {

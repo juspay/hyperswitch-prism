@@ -5,8 +5,8 @@ use common_utils::request::Method;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PostAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
@@ -14,9 +14,10 @@ use domain_types::{
         GlobalpayClientAuthenticationResponse as GlobalpayClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -67,6 +68,236 @@ pub struct GlobalpayTokenizedCard {
 }
 /// Response type for RSync flow - reuses GlobalpayRefundResponse
 pub type GlobalpayRSyncResponse = GlobalpayRefundResponse;
+
+// ===== INCOMING WEBHOOK STRUCTURES =====
+//
+// GlobalPay sends the full transaction object as the webhook payload.
+// Signature: SHA-512(json_body + merchant_secret), hex-encoded in `x-gp-signature` header.
+// The `type` field distinguishes payment (SALE) from refund (REFUND) webhooks.
+
+/// Distinguishes whether a webhook event is for a payment or a refund.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayWebhookTransactionType {
+    Sale,
+    Refund,
+    #[serde(other)]
+    Other,
+}
+
+/// Webhook status superset: covers all payment and refund statuses with a catch-all
+/// for forward-compatible parsing of unknown values.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum GlobalpayWebhookStatus {
+    Captured,
+    Preauthorized,
+    Declined,
+    Failed,
+    Rejected,
+    Pending,
+    Initiated,
+    #[serde(rename = "FOR_REVIEW")]
+    ForReview,
+    Funded,
+    Reversed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<&GlobalpayWebhookStatus> for AttemptStatus {
+    fn from(status: &GlobalpayWebhookStatus) -> Self {
+        match status {
+            GlobalpayWebhookStatus::Captured | GlobalpayWebhookStatus::Funded => Self::Charged,
+            GlobalpayWebhookStatus::Preauthorized => Self::Authorized,
+            GlobalpayWebhookStatus::Declined
+            | GlobalpayWebhookStatus::Failed
+            | GlobalpayWebhookStatus::Rejected => Self::Failure,
+            GlobalpayWebhookStatus::Reversed => Self::Voided,
+            GlobalpayWebhookStatus::Initiated => Self::AuthenticationPending,
+            GlobalpayWebhookStatus::Pending
+            | GlobalpayWebhookStatus::ForReview
+            | GlobalpayWebhookStatus::Unknown => Self::Pending,
+        }
+    }
+}
+
+impl From<&GlobalpayWebhookStatus> for RefundStatus {
+    fn from(status: &GlobalpayWebhookStatus) -> Self {
+        match status {
+            GlobalpayWebhookStatus::Captured | GlobalpayWebhookStatus::Funded => Self::Success,
+            GlobalpayWebhookStatus::Declined
+            | GlobalpayWebhookStatus::Failed
+            | GlobalpayWebhookStatus::Rejected
+            | GlobalpayWebhookStatus::Reversed => Self::Failure,
+            _ => Self::Pending,
+        }
+    }
+}
+
+/// Webhook payload sent by GlobalPay — structurally identical to a transaction response.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct GlobalpayWebhookBody {
+    pub id: String,
+    pub status: GlobalpayWebhookStatus,
+    #[serde(rename = "type")]
+    pub transaction_type: Option<GlobalpayWebhookTransactionType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<StringMinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+}
+
+// ===== CONFIRM TRANSACTION (POST-AUTHENTICATE) FLOW STRUCTURES =====
+//
+// GlobalPay requires an explicit confirmation call for APM payments (e.g. PayPal)
+// after the payer completes the external redirect. This maps to the Prism
+// `PostAuthenticate` flow, which is triggered once the user returns from the
+// provider's redirect page.
+//
+// API: POST /transactions/{id}/confirmation
+// The `{id}` is the connector transaction ID (TRN_xxx) from the prior Authorize call,
+// surfaced in `request.connector_order_reference_id`.
+
+/// Request body for POST /transactions/{id}/confirmation.
+/// GlobalPay identifies the transaction from the URL path, so the body can be
+/// empty. The optional `provider_payer_reference` (e.g. PayPal PayerID) is not
+/// included here because GlobalPay can resolve the payer context from the original
+/// transaction; this matches the behaviour of the Hyperswitch reference implementation.
+#[derive(Debug, Serialize)]
+pub struct GlobalpayConfirmRequest {}
+
+/// APM provider details returned in the confirmation response.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayConfirmApmDetails {
+    pub provider: Option<String>,
+    pub provider_payer_reference: Option<String>,
+    pub provider_transaction_reference: Option<String>,
+    pub provider_time_created: Option<String>,
+    pub provider_payer_name: Option<String>,
+}
+
+/// Payment method payload returned by POST /transactions/{id}/confirmation.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayConfirmPaymentMethod {
+    pub apm: Option<GlobalpayConfirmApmDetails>,
+}
+
+/// Full response from POST /transactions/{id}/confirmation.
+/// GlobalPay returns the complete transaction object (including `id` and `status`)
+/// alongside the APM-specific fields. The `id` and `status` fields mirror those of
+/// `GlobalpayPaymentsResponse` so we can derive the final attempt status consistently.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct GlobalpayConfirmResponse {
+    pub id: String,
+    pub status: GlobalpayPaymentStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method: Option<GlobalpayConfirmPaymentMethod>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        GlobalpayRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for GlobalpayConfirmRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _value: GlobalpayRouterData<
+            RouterDataV2<
+                PostAuthenticate,
+                PaymentFlowData,
+                PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayConfirmResponse, Self>>
+    for RouterDataV2<
+        PostAuthenticate,
+        PaymentFlowData,
+        PaymentsPostAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<GlobalpayConfirmResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = AttemptStatus::from(item.response.status.clone());
+
+        let response = match status {
+            AttemptStatus::Failure => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: item
+                    .response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.apm.as_ref())
+                    .and_then(|apm| apm.provider_transaction_reference.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+            // Return Err (not Ok) so the HS should_continue gate evaluates to false,
+            // preventing CompleteAuthorize from being re-fired after confirmation.
+            // The old Direct-gateway connector achieves the same effect via a no-op
+            // PostAuthenticate (connector_request = None → default Err response).
+            // attempt_status carries the real terminal state so the attempt is persisted
+            // as Pending (→ Processing intent) or Charged (→ Succeeded intent) without
+            // triggering another connector call.
+            _ => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: None,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
 
 // ===== CONSTANTS =====
 
@@ -732,13 +963,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let country = item.resource_common_data.get_billing_country()?;
 
-        let notifications = if let (Some(return_url), Some(webhook_url)) = (
-            item.request.router_return_url.as_ref(),
-            item.request.webhook_url.as_ref(),
-        ) {
+        // For wallet (PayPal) payments GlobalPay redirects the payer back to
+        // `return_url` after they approve on PayPal. HS uses two distinct URLs:
+        //   • router_return_url → /redirect/response/... → triggers PSync
+        //   • complete_authorize_url → /redirect/complete/... → triggers CompleteAuthorize
+        //
+        // We must use `complete_authorize_url` for wallets so the redirect lands
+        // on HS's CompleteAuthorize handler, which then calls our PostAuthenticate
+        // flow (POST /transactions/{id}/confirmation). Using `router_return_url`
+        // instead sends the user to PSync, which never calls the confirmation.
+        //
+        // For non-wallet APMs (bank redirects) and cards, `router_return_url` is
+        // the correct redirect target since no confirmation call is required.
+        let redirect_return_url = match &item.request.payment_method_data {
+            PaymentMethodData::Wallet(_) => item
+                .request
+                .complete_authorize_url
+                .as_deref()
+                .or(item.request.router_return_url.as_deref()),
+            _ => item.request.router_return_url.as_deref(),
+        };
+
+        let notifications = if let (Some(return_url), Some(webhook_url)) =
+            (redirect_return_url, item.request.webhook_url.as_ref())
+        {
             Some(GlobalpayNotifications {
-                cancel_url: return_url.clone(),
-                return_url: return_url.clone(),
+                cancel_url: item
+                    .request
+                    .router_return_url
+                    .clone()
+                    .unwrap_or_else(|| return_url.to_string()),
+                return_url: return_url.to_string(),
                 status_url: webhook_url.clone(),
             })
         } else {
@@ -1064,23 +1319,38 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
             .and_then(|card| card.brand_reference.as_ref())
             .map(|s| s.peek().to_string());
 
-        // For pending APM payments, the GET /transactions/{id} response still includes
-        // the redirect URL so the caller can re-redirect the user if needed.
-        let redirection_data = item
-            .response
-            .payment_method
-            .as_ref()
-            .and_then(|pm| pm.apm.as_ref())
-            .and_then(|apm| apm.redirect_url.as_ref())
-            .filter(|url| !url.is_empty())
-            .map(|url| {
-                Url::parse(url).change_context(crate::utils::response_handling_fail_for_connector(
-                    item.http_code,
-                    "globalpay",
-                ))
-            })
-            .transpose()?
-            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+        // GlobalPay keeps the APM redirect URL (PayPal, iDEAL, etc.) in the
+        // transaction response until either confirmation is called (PayPal) or the
+        // bank confirms (iDEAL/Giropay). The URL is only meaningful while the
+        // transaction is INITIATED — i.e. the user is still on the provider's page.
+        //
+        // Once the status moves to PENDING (user completed PayPal, awaiting
+        // confirmation) or any terminal state, surfacing the URL as redirection_data
+        // causes HS to think the user needs to be re-redirected, which blocks the
+        // CompleteAuthorize/PostAuthenticate (confirmation) step from running.
+        let apm_redirect_url = if matches!(item.response.status, GlobalpayPaymentStatus::Initiated)
+        {
+            item.response
+                .payment_method
+                .as_ref()
+                .and_then(|pm| pm.apm.as_ref())
+                .and_then(|apm| apm.redirect_url.as_ref())
+                .filter(|url| !url.is_empty())
+                .map(|url| {
+                    Url::parse(url).change_context(
+                        crate::utils::response_handling_fail_for_connector(
+                            item.http_code,
+                            "globalpay",
+                        ),
+                    )
+                })
+                .transpose()?
+        } else {
+            None
+        };
+
+        let redirection_data =
+            apm_redirect_url.map(|url| Box::new(RedirectForm::from((url, Method::Get))));
 
         let response = match status {
             AttemptStatus::Failure => Err(ErrorResponse {
