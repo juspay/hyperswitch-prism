@@ -971,6 +971,12 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         secret: Secret<String>,
         client_name: Option<String>,
+        /// Fallback redirect_uri for iOS/web Link sessions, used when the
+        /// request doesn't supply one.
+        redirect_uri: Option<String>,
+        /// Fallback android_package_name for native Android Link sessions,
+        /// used when the request doesn't supply one.
+        android_package_name: Option<String>,
         base_url: Option<String>,
     },
     Tesouro {
@@ -2725,6 +2731,8 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 client_id: plaid.client_id.ok_or_else(err)?,
                 secret: plaid.secret.ok_or_else(err)?,
                 client_name: plaid.client_name,
+                redirect_uri: plaid.redirect_uri,
+                android_package_name: plaid.android_package_name,
                 base_url: plaid.base_url,
             }),
             AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
@@ -4089,6 +4097,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                             client_id: api_key.clone(),
                             secret: key1.clone(),
                             client_name: None,
+                            redirect_uri: None,
+                            android_package_name: None,
                             base_url: None,
                         }),
                         _ => Err(err().into()),

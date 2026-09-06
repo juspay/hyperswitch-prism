@@ -3144,6 +3144,10 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
   // Connector-specific permissions for client authentication token
   // e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
   optional Permissions permissions = 7;
+
+  // Client browser/device details, used e.g. to detect the OS (Android vs
+  // iOS/web) and select the appropriate return target.
+  optional BrowserInformation browser_info = 9;
 }
 
 // Payment-specific context for client authentication token creation
@@ -5583,6 +5587,12 @@ message PlaidConfig {
   SecretString secret = 2;
   // Application name displayed to users in the Plaid Link UI.
   optional string client_name = 3;
+  // Fallback redirect_uri for iOS/web Link sessions, used when the request
+  // doesn't supply one.
+  optional string redirect_uri = 4;
+  // Fallback android_package_name for native Android Link sessions, used
+  // when the request doesn't supply one.
+  optional string android_package_name = 5;
   optional string base_url = 50;
 }
 
