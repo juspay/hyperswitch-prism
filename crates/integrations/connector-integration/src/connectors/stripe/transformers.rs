@@ -5197,14 +5197,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         // A previously tokenized/saved Stripe PaymentMethod (PaymentMethodData::PaymentMethodToken,
-        // e.g. one created via a prior PaymentMethodToken call) is reused by id through the
-        // top-level `payment_method` field -- Stripe rejects it if nested under
-        // payment_method_data[...] instead. Every other payment method still goes through the
-        // existing card-shaped payment_data builder (only cards are otherwise supported here).
+        // e.g. one created via a prior PaymentMethodToken call) is reused differently depending
+        // on what was tokenized -- matching Authorize's own card_token/payment_method_id split:
+        // an Apple Pay / Google Pay decrypted-token payload was exchanged for a Stripe *token*
+        // (via the Tokens API) and must be sent nested as payment_method_data[card][token]; a
+        // plain saved PaymentMethod id is reused directly through the top-level `payment_method`
+        // field instead (Stripe rejects a PaymentMethod id nested under payment_method_data[...]).
+        // Every other payment method still goes through the existing card-shaped payment_data
+        // builder (only cards are otherwise supported here).
         let (payment_method, payment_data, payment_method_types) =
             match &item.router_data.request.payment_method_data {
                 PaymentMethodData::PaymentMethodToken(token_data) => {
-                    (Some(token_data.token.clone()), None, None)
+                    match token_data.token_payment_method_type {
+                        Some(
+                            payment_method_data::TokenPaymentMethod::ApplePay
+                            | payment_method_data::TokenPaymentMethod::GooglePay,
+                        ) => (
+                            None,
+                            Some(StripePaymentMethodData::CardTokenPayment(
+                                StripeCardTokenPayment {
+                                    payment_method_data_type: StripePaymentMethodType::Card,
+                                    token: token_data.token.clone(),
+                                },
+                            )),
+                            Some(StripePaymentMethodType::Card),
+                        ),
+                        None => (Some(token_data.token.clone()), None, None),
+                    }
                 }
                 _ => {
                     let pm_type = StripePaymentMethodType::Card;
