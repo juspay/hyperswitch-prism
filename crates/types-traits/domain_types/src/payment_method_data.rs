@@ -46,7 +46,9 @@ impl CardWithNoCvc {
         match year {
             y if y.contains("{{") => Ok(Secret::new(y.to_string())),
             y => Ok(Secret::new(
-                y.get(y.len() - 2..)
+                y.len()
+                    .checked_sub(2)
+                    .and_then(|start| y.get(start..))
                     .ok_or(IntegrationError::InvalidDataFormat {
                         field_name: "payment_method_data.card.card_exp_year",
                         context: IntegrationErrorContext {
@@ -206,7 +208,9 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         match year {
             y if y.contains("{{") => Ok(Secret::new(y.to_string())),
             y => Ok(Secret::new(
-                y.get(y.len() - 2..)
+                y.len()
+                    .checked_sub(2)
+                    .and_then(|start| y.get(start..))
                     .ok_or(IntegrationError::InvalidDataFormat {
                         field_name: "payment_method_data.card.card_exp_year",
                         context: IntegrationErrorContext {
@@ -1570,7 +1574,9 @@ impl DecryptedWalletTokenDetailsForNetworkTransactionId {
         let binding = self.token_exp_year.clone();
         let year = binding.peek();
         Ok(Secret::new(
-            year.get(year.len() - 2..)
+            year.len()
+                .checked_sub(2)
+                .and_then(|start| year.get(start..))
                 .ok_or(IntegrationError::InvalidDataFormat {
                     field_name: "payment_method_data.decrypted_wallet_token.token_exp_year",
                     context: IntegrationErrorContext {
@@ -1665,7 +1671,9 @@ impl CardDetailsForNetworkTransactionId {
         match year {
             y if y.contains("{{") => Ok(Secret::new(y.to_string())),
             y => Ok(Secret::new(
-                y.get(y.len() - 2..)
+                y.len()
+                    .checked_sub(2)
+                    .and_then(|start| y.get(start..))
                     .ok_or(IntegrationError::InvalidDataFormat {
                         field_name: "payment_method_data.card.card_exp_year",
                         context: IntegrationErrorContext {
@@ -2032,4 +2040,52 @@ pub struct WalletDetails {
     pub product_id: Option<String>,
     /// Payment method items stored in this wallet (for container/hybrid wallets)
     pub items: Vec<WalletItem>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyperswitch_masking::Secret;
+
+    #[test]
+    fn test_get_card_expiry_year_2_digit_valid() {
+        let card = CardWithNoCvc {
+            card_exp_year: Secret::new("2030".to_string()),
+            ..Default::default()
+        };
+        let year = card.get_card_expiry_year_2_digit().unwrap();
+        assert_eq!(year.peek(), "30");
+
+        let card_yy = CardWithNoCvc {
+            card_exp_year: Secret::new("30".to_string()),
+            ..Default::default()
+        };
+        let year_yy = card_yy.get_card_expiry_year_2_digit().unwrap();
+        assert_eq!(year_yy.peek(), "30");
+    }
+
+    #[test]
+    fn test_get_card_expiry_year_2_digit_short_string_returns_err_no_panic() {
+        let card_single = CardWithNoCvc {
+            card_exp_year: Secret::new("5".to_string()),
+            ..Default::default()
+        };
+        assert!(card_single.get_card_expiry_year_2_digit().is_err());
+
+        let card_empty = CardWithNoCvc {
+            card_exp_year: Secret::new("".to_string()),
+            ..Default::default()
+        };
+        assert!(card_empty.get_card_expiry_year_2_digit().is_err());
+    }
+
+    #[test]
+    fn test_get_card_expiry_year_2_digit_vault_template() {
+        let card = CardWithNoCvc {
+            card_exp_year: Secret::new("{{$card_exp_year}}".to_string()),
+            ..Default::default()
+        };
+        let year = card.get_card_expiry_year_2_digit().unwrap();
+        assert_eq!(year.peek(), "{{$card_exp_year}}");
+    }
 }

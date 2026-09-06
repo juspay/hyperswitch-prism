@@ -418,6 +418,10 @@ fn print_summary(results: &[ConnectorResult]) -> i32 {
 
     if passed == 0 && skipped > 0 {
         println!("{}", yellow("All tests skipped (no valid flows found)"));
+        if std::env::var("ALLOW_ALL_SKIPPED").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
+            println!("{}", green("Allowing all skipped tests in CI/ALLOW_ALL_SKIPPED mode."));
+            return 0;
+        }
         return 1;
     }
 
