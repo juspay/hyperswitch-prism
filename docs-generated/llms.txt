@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 112
+# Connectors: 114
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 112
+  total_connectors: 114
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -214,6 +214,14 @@ payment_methods: Ach, ApplePay, ApplePayDecrypted, Card, GooglePay, GooglePayDec
 flows: authenticate, authorize, capture, get, incremental_authorization, post_authenticate, pre_authenticate, proxy_authorize, recurring_charge, recurring_revoke, refund, refund_get, reverse, token_authorize, void
 examples_python: examples/cybersource/cybersource.py
 
+## D24
+connector_id: d24
+doc: docs/connectors/d24.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Webpay
+flows: authorize, get, refund, refund_get
+examples_python: examples/d24/d24.py
+
 ## Datatrans
 connector_id: datatrans
 doc: docs/connectors/datatrans.md
@@ -298,7 +306,7 @@ examples_python: examples/fiuu/fiuu.py
 connector_id: flywire
 doc: docs/connectors/flywire.md
 scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
 flows: authorize, get, handle_event, parse_event, proxy_authorize, refund, refund_get, token_authorize, verify_redirect
 examples_python: examples/flywire/flywire.py
 
@@ -338,7 +346,7 @@ examples_python: examples/givepayments/givepayments.py
 connector_id: globalpay
 doc: docs/connectors/globalpay.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect
+payment_methods: Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, PaypalRedirect
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, handle_event, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
 
@@ -354,7 +362,7 @@ examples_python: examples/glomopay/glomopay.py
 connector_id: grabpay
 doc: docs/connectors/grabpay.md
 scenarios: checkout_autocapture, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
 flows: authorize, get, handle_event, parse_event, verify_redirect
 examples_python: examples/grabpay/grabpay.py
 
@@ -498,7 +506,7 @@ examples_python: examples/moneris/moneris.py
 connector_id: multisafepay
 doc: docs/connectors/multisafepay.md
 scenarios: checkout_autocapture, refund, get_payment
-payment_methods: AliPayRedirect, Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, Sepa, Sofort, Trustly
+payment_methods: AliPayRedirect, Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, Sepa, Sofort, Trustly, Webpay
 flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get
 examples_python: examples/multisafepay/multisafepay.py
 
@@ -589,6 +597,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card
 flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/payme/payme.py
+
+## Paynearme
+connector_id: paynearme
+doc: docs/connectors/paynearme.md
+scenarios: checkout_autocapture, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, create_order, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/paynearme/paynearme.py
 
 ## Paypal
 connector_id: paypal
@@ -698,7 +714,7 @@ examples_python: none
 connector_id: razorpayv2
 doc: docs/connectors/razorpayv2.md
 scenarios: checkout_autocapture, refund, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
 flows: authorize, create_order, get, proxy_authorize, refund, refund_get, token_authorize
 examples_python: examples/razorpayv2/razorpayv2.py
 
@@ -714,7 +730,7 @@ examples_python: none
 connector_id: revolut
 doc: docs/connectors/revolut.md
 scenarios: checkout_autocapture, checkout_card, refund, get_payment
-payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Wero
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
 flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, proxy_authorize, refund, refund_get, token_authorize, verify_redirect
 examples_python: examples/revolut/revolut.py
 

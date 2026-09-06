@@ -437,6 +437,8 @@ pub struct Connectors {
     pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
     pub travelhub: ConnectorParams,
+    pub paynearme: ConnectorParams,
+    pub d24: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -815,6 +817,9 @@ impl Connectors {
             ConnectorEnum::Travelhub => {
                 patched.travelhub.apply(params_patch);
             }
+            ConnectorEnum::D24 => {
+                patched.d24.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -822,7 +827,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24",
                             connector
                         )),
                         ..Default::default()
@@ -1512,6 +1517,9 @@ impl<
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
                             payment_method_data::CardRedirectData::CardRedirect {}
                         }
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
+                            payment_method_data::CardRedirectData::Webpay {}
+                        }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
                             return Err(report!(IntegrationError::InvalidDataFormat { field_name: "payment_method.card_redirect.type", context: IntegrationErrorContext { additional_context: Some("Card redirect type cannot be unspecified".to_string()), ..Default::default() } }))
                         }
@@ -1755,12 +1763,13 @@ impl<
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
                     payment_method_data::MifinityData {
-                        date_of_birth: Secret::<time::Date>::foreign_try_from(
+                        date_of_birth: Secret::<time::Date>::foreign_try_from((
                             mifinity_data
                                 .date_of_birth
                                 .ok_or(IntegrationError::InvalidDataFormat { field_name: "payment_method.mifinity.date_of_birth", context: IntegrationErrorContext { additional_context: Some("Missing Date of Birth".to_string()), ..Default::default() } })?
                                 .expose(),
-                        )?,
+                            "payment_method.mifinity.date_of_birth",
+                        ))?,
                         language_preference: mifinity_data.language_preference,
                     },
                 ))),
@@ -3036,6 +3045,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
                             Ok(Some(PaymentMethodType::CardRedirect))
                         }
+                        // WebPay is distinguished at the connector, not by
+                        // routing/analytics: it keeps the generic
+                        // `CardRedirect` payment method type.
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
+                            Ok(Some(PaymentMethodType::CardRedirect))
+                        }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
                             Err(report!(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Card redirect type cannot be unspecified".to_string()), ..Default::default() } }))
                         }
@@ -3501,6 +3516,8 @@ pub struct AuthorizationRequest {
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
+    pub business_country: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3544,6 +3561,10 @@ pub struct SetupRecurringRequest {
     pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
     /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
     pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Sandbox/test mode flag (true for test environment). Connectors that branch
+    /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
+    /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
+    pub test_mode: Option<bool>,
 }
 
 /// ============================================================================
@@ -3614,6 +3635,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
+            business_country: req.business_country,
         }
     }
 }
@@ -3688,6 +3710,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            business_country: None,
         }
     }
 }
@@ -3737,6 +3760,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             is_account_funding_transaction: req.is_account_funding_transaction,
             recipient_details: req.recipient_details,
             additional_connector_details: req.additional_connector_details,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -3790,6 +3814,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             is_account_funding_transaction: None,
             recipient_details: None,
             additional_connector_details: None,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -4574,6 +4599,19 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
+        // ISO-8601 on the wire (see `Customer.date_of_birth` in payment.proto); the shared
+        // parser below is the same one `CustomerInfo` uses, so both paths accept one format.
+        let customer_date_of_birth = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.date_of_birth.clone())
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
         let connector_feature_data = value
@@ -4686,6 +4724,7 @@ impl<
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             email,
             customer_document_details,
+            customer_date_of_birth,
             customer_name: value
                 .customer
                 .as_ref()
@@ -4766,6 +4805,10 @@ impl<
             threeds_method_comp_ind: value.threeds_completion_indicator.and_then(|i| {
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
+            business_country: value
+                .business_country
+                .as_ref()
+                .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -5775,7 +5818,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -10181,7 +10224,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -10297,7 +10340,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),
@@ -12709,7 +12752,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
         let date_of_birth = value
             .date_of_birth
             .clone()
-            .map(|s| Secret::<time::Date>::foreign_try_from(s.expose()))
+            .map(|s| Secret::<time::Date>::foreign_try_from((s.expose(), "customer.date_of_birth")))
             .transpose()?;
 
         Ok(Self {
@@ -13823,25 +13866,33 @@ pub enum PaymentMethodDataType {
     CardWithNoCvc,
 }
 
-impl ForeignTryFrom<String> for Secret<time::Date> {
+/// Parses an ISO-8601 date, naming the field it came from.
+///
+/// The field name is threaded in by the caller — the same shape
+/// `ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue` uses — because
+/// `InvalidDataFormat::field_name` is `&'static str` and every caller knows its own path.
+/// Without it a malformed date reports `field_name: "unknown"`, which tells an integrator
+/// nothing about which of several dates on a request was rejected.
+impl ForeignTryFrom<(String, &'static str)> for Secret<time::Date> {
     type Error = IntegrationError;
 
-    fn foreign_try_from(date_string: String) -> Result<Self, error_stack::Report<Self::Error>> {
-        let date = time::Date::parse(
+    fn foreign_try_from(
+        (date_string, field_name): (String, &'static str),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        time::Date::parse(
             &date_string,
             &time::format_description::well_known::Iso8601::DATE,
         )
-        .map_err(|err| {
-            tracing::error!("Failed to parse date string: {}", err);
-            IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Invalid date format".to_string()),
-                    ..Default::default()
-                },
-            }
-        })?;
-        Ok(Self::new(date))
+        .map(Self::new)
+        // `change_context` rather than `map_err`: it keeps the underlying `time::error::Parse`
+        // in the report, which says *why* the date was rejected.
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name,
+            context: IntegrationErrorContext {
+                additional_context: Some("Expected an ISO-8601 date (YYYY-MM-DD)".to_string()),
+                ..Default::default()
+            },
+        })
     }
 }
 
@@ -14105,6 +14156,12 @@ impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
                 .map(|c| connector_types::CheckoutAdditionalInformation {
                     purpose_of_payment: c.purpose_of_payment,
                 }),
+            worldpayxml: value.worldpayxml.map(|w| {
+                connector_types::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: w.funding_transaction_type,
+                    payment_purpose: w.payment_purpose,
+                }
+            }),
         }
     }
 }
@@ -18457,6 +18514,18 @@ impl<
             Option<PaymentMethodData<T>>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read before the `email` binding below, which consumes `value.customer`.
+        let customer_date_of_birth = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.date_of_birth.clone())
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
@@ -18541,6 +18610,7 @@ impl<
                 .metadata
                 .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
                 .transpose()?,
+            customer_date_of_birth,
         })
     }
 }
@@ -19961,6 +20031,7 @@ pub fn tokenized_authorize_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        business_country: None,
     }
 }
 
@@ -20043,6 +20114,8 @@ pub fn tokenized_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        // TokenSetupRecurringRequest has no test_mode field
+        test_mode: None,
     }
 }
 
@@ -20148,6 +20221,7 @@ pub fn proxied_authorize_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        business_country: None,
     })
 }
 
@@ -20266,6 +20340,7 @@ pub fn proxied_setup_recurring_to_base(
         is_account_funding_transaction: None,
         recipient_details: None,
         additional_connector_details: None,
+        test_mode: v.test_mode,
     })
 }
 

@@ -526,6 +526,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Volt is not supported by Volt"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through Volt is not supported by Volt"

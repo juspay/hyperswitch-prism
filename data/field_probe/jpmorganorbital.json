@@ -477,6 +477,10 @@
         "status": "not_supported",
         "error": "This payment method is not supported by jpmorganorbital"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "This payment method is not supported by jpmorganorbital"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "This payment method is not supported by jpmorganorbital"

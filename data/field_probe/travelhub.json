@@ -475,6 +475,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by travelhub. Travelhub currently supports only card payments"

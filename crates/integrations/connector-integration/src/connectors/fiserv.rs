@@ -30,8 +30,6 @@ use interfaces::{
 };
 use ring::hmac;
 use serde::Serialize;
-use time::OffsetDateTime;
-use uuid::Uuid;
 
 pub mod transformers;
 
@@ -199,8 +197,8 @@ macros::create_all_prerequisites!(
                     .attach_printable("Unsupported request body type for signature generation")?
 };
 
-            let timestamp_ms = OffsetDateTime::now_utc().unix_timestamp_nanos() / 1_000_000;
-            let client_request_id = Uuid::new_v4().to_string();
+            let timestamp_ms = i128::from(common_utils::date_time::now_unix_millis());
+            let client_request_id = common_utils::fp_utils::generate_uuid_v4();
 
             let auth_type_for_sig = transformers::FiservAuthType::try_from(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;

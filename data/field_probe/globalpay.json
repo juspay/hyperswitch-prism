@@ -10,23 +10,23 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
@@ -50,11 +50,11 @@
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "BancontactCard": {
         "status": "not_implemented",
@@ -62,11 +62,11 @@
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
@@ -86,15 +86,15 @@
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Card": {
         "status": "supported",
@@ -151,11 +151,11 @@
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Crypto": {
         "status": "not_supported",
@@ -167,7 +167,7 @@
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -175,7 +175,7 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
@@ -183,7 +183,7 @@
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Eft": {
         "status": "not_implemented",
@@ -230,7 +230,7 @@
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "GCash": {
         "status": "not_implemented",
@@ -435,23 +435,23 @@
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Interac": {
         "status": "not_implemented",
@@ -463,11 +463,11 @@
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
@@ -479,11 +479,11 @@
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "MbWay": {
         "status": "not_implemented",
@@ -495,7 +495,7 @@
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -507,7 +507,7 @@
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Netbanking": {
         "status": "not_implemented",
@@ -551,19 +551,19 @@
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -624,7 +624,7 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
@@ -632,7 +632,7 @@
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Przelewy24": {
         "status": "not_implemented",
@@ -640,15 +640,15 @@
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "RevolutPay": {
         "status": "not_implemented",
@@ -664,23 +664,23 @@
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Skrill": {
         "status": "not_implemented",
@@ -708,15 +708,15 @@
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay/Sofort), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Vipps": {
         "status": "not_implemented",
@@ -725,6 +725,10 @@
       "WeChatPayQr": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet payment method not supported. GlobalPay Authorize supports PaypalRedirect and GooglePay wallets; received an unsupported wallet variant"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Wero": {
         "status": "not_implemented",

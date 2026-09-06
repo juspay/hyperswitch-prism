@@ -444,6 +444,10 @@
         "status": "not_supported",
         "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through AbsaSanlam is not supported by AbsaSanlam"

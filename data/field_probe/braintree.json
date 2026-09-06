@@ -528,6 +528,10 @@
         "status": "not_supported",
         "error": "Selected payment method through braintree is not supported by Braintree"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through braintree is not supported by Braintree"

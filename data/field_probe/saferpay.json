@@ -444,6 +444,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
