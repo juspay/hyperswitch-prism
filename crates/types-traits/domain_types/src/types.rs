@@ -14529,16 +14529,28 @@ impl<
         }?;
         let currency = money.currency;
 
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            fu => Some(common_enums::FutureUsage::foreign_try_from(fu)?),
+        };
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let setup_mandate_details = value
+            .setup_mandate_details
+            .map(MandateData::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             amount: money.amount,
             currency,
             payment_method_data,
             browser_info: None,
             capture_method: None,
-            customer_acceptance: None,
-            setup_future_usage: None,
+            customer_acceptance,
+            setup_future_usage,
             mandate_id: None,
-            setup_mandate_details: None,
+            setup_mandate_details,
             integrity_object: None,
             split_payments: value
                 .split_payments
