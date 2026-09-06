@@ -859,6 +859,31 @@ impl PaymentFlowData {
         self.status = status;
     }
 
+    /// Set `status` for a specific flow, validating at runtime that the status is in
+    /// the flow's `ALLOWED` set.  Prefer this over `set_status` in connector response
+    /// handlers — it prevents cross-flow status leaks (e.g. Capture returning `Voided`).
+    ///
+    /// Returns `Err` if `status` is not allowed for `F`.
+    pub fn set_status_for_flow<F: crate::flow_status::FlowStatusRules>(
+        mut self,
+        status: AttemptStatus,
+    ) -> Result<Self, crate::ConnectorError> {
+        if crate::flow_status::const_contains(F::ALLOWED, status) {
+            self.status = status;
+            Ok(self)
+        } else {
+            Err(
+                crate::ConnectorError::response_handling_failed_http_status_unknown_with_context(
+                    Some(format!(
+                        "status {:?} is not allowed in flow {}",
+                        status,
+                        F::NAME,
+                    )),
+                ),
+            )
+        }
+    }
+
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
         self.amount.as_ref().map(|money| money.currency)
     }

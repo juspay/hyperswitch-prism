@@ -4,6 +4,7 @@ use std::str::FromStr;
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{CustomResult, SecretSerdeValue};
 pub use domain_types::connector_types::WebhookIntegrityCheck;
+pub use domain_types::flow_status::ConnectorTerminalMapping;
 use domain_types::{
     connector_flow,
     connector_types::{
