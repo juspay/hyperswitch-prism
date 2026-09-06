@@ -976,12 +976,13 @@ macros::macro_connector_implementation!(
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "connector_order_reference_id",
                     context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "connector_order_reference_id (TRN_xxx) is required to construct the \
-                             POST /transactions/{id}/confirmation URL for GlobalPay PostAuthenticate."
+                        additional_context: None,
+                        suggested_action: Some(
+                            "Populate connector_order_reference_id with the TRN_xxx returned \
+                             by the Authorize step to construct the \
+                             POST /transactions/{id}/confirmation URL."
                                 .to_string(),
                         ),
-                        suggested_action: None,
                         doc_url: None,
                     },
                 })?;
