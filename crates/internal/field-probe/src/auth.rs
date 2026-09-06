@@ -766,7 +766,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         },
         ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
             api_key: k(),
-            client_id: "probe_client_id".to_string(),
+            client_id: Some("probe_client_id".to_string()),
             auth_server_id: None,
             base_url: None,
         },

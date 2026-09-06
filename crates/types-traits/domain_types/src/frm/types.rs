@@ -772,16 +772,7 @@ impl ForeignTryFrom<grpc_api_types::payments::NotifyConnectorRequest> for FrmPay
             }
         };
 
-        // Callers may send `connector_feature_data` at the top level of the notify
-        // request instead of nested in the FRM content (the composite request
-        // carries it top-level, mirroring PreRiskCheck). Fall back to it so the
-        // connector receives the blob either way; the nested value wins, being
-        // the more specific of the two.
-        let mut request = Self::foreign_try_from(frm_content)?;
-        request.connector_feature_data = request
-            .connector_feature_data
-            .or(value.connector_feature_data);
-        Ok(request)
+        Self::foreign_try_from(frm_content)
     }
 }
 

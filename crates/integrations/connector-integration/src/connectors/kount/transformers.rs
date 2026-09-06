@@ -15,7 +15,7 @@ use domain_types::{
     },
     mandates::MandateAmountData,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_address::Address,
+    payment_address::{e123_phone_number, Address},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -45,13 +45,14 @@ pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 /// "API Key"); it is used directly as the `Authorization: Basic {api_key}`
 /// value on the token request. `client_id` is the Kount-assigned merchant CID
 /// rendered into the Device Data Collection script as the Web SDK `clientID`;
-/// it is required and only ever read from the connector config.
+/// it is only ever read from the connector config, and is optional here —
+/// only the DDC flow requires one, and validates that itself.
 /// `auth_server_id` is the account/environment specific OAuth
 /// authorization-server id (sandbox vs production differ).
 #[derive(Debug, Clone)]
 pub struct KountAuthType {
     pub api_key: Secret<String>,
-    pub client_id: String,
+    pub client_id: Option<String>,
     pub auth_server_id: Option<String>,
 }
 
@@ -1202,19 +1203,6 @@ pub struct KountPerson {
     pub address: Option<KountAddress>,
 }
 
-impl KountPerson {
-    /// Fill missing contact fields from a fallback person, leaving name and
-    /// postal address untouched. The receiver's own values always win, so an
-    /// address-supplied email or phone is never overwritten.
-    fn fill_contact_from(mut self, fallback: &Self) -> Self {
-        self.email_address = self
-            .email_address
-            .or_else(|| fallback.email_address.clone());
-        self.phone_number = self.phone_number.or_else(|| fallback.phone_number.clone());
-        self
-    }
-}
-
 #[derive(Debug, Clone, Serialize)]
 pub struct KountName {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1292,10 +1280,9 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         .email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = addr
-        .phone
-        .as_ref()
-        .and_then(|phone| e123_phone(phone.country_code.as_deref(), phone.number.as_ref()?.peek()));
+    let phone_number = addr.phone.as_ref().and_then(|phone| {
+        e123_phone_number(phone.country_code.as_deref(), phone.number.as_ref()?.peek())
+    });
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -1313,9 +1300,8 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
 
 /// Person block from customer info (name / email / phone, no address). Serves
 /// the billed person two ways: wholesale when there is no billing address at
-/// all, and via [`KountPerson::fill_contact_from`] to supply an email or phone
-/// the billing address left out. `None` when the customer carries no usable
-/// fields.
+/// all, and to supply an email or phone the billing address left out. `None`
+/// when the customer carries no usable fields.
 fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
     let first = customer
         .first_name
@@ -1330,7 +1316,7 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
     let phone_number = customer.customer_phone_number.as_ref().and_then(|phone| {
-        e123_phone(
+        e123_phone_number(
             customer.customer_phone_country_code.as_deref(),
             phone.peek(),
         )
@@ -1410,10 +1396,21 @@ pub(super) fn merge_pre_risk_merchant(
 /// Card expiry as Kount's `expirationMonth` / `expirationYear` integers. The
 /// year is expanded to four digits first. Either part that isn't numeric — a
 /// vault template token, say — yields `None` rather than failing the order.
-fn card_expiry<T: PaymentMethodDataTypes>(card: &Card<T>) -> (Option<i32>, Option<i32>) {
-    let month = card.card_exp_month.peek().trim().parse().ok();
-    let year = card.get_expiry_year_4_digit().peek().trim().parse().ok();
-    (month, year)
+fn card_expiry<T: PaymentMethodDataTypes>(
+    card: &Card<T>,
+) -> Result<(Option<i32>, Option<i32>), errors::IntegrationError> {
+    let month = card
+        .get_card_expiry_month_2_digit()?
+        .peek()
+        .parse::<i32>()
+        .ok();
+    let year = card
+        .get_expiry_year_4_digit()
+        .peek()
+        .trim()
+        .parse::<i32>()
+        .ok();
+    Ok((month, year))
 }
 
 /// Kount payment type for a card, from its (optional) `card_type`. Falls back to
@@ -1674,43 +1671,6 @@ pub(super) fn non_empty_secret(value: Option<Secret<String>>) -> Option<Secret<S
     })
 }
 
-/// Format a phone number in E.123 international notation (`+<country><number>`),
-/// which is the format Kount documents for its `phoneNumber` fields. Fail-soft
-/// like the rest of this module: an unusable part yields the best string we can
-/// build rather than dropping the number or failing the order.
-///
-/// The number is emitted *compact* (`+447700900123`), without E.123's optional
-/// visual separators — grouping digits correctly is country-specific and we have
-/// no phone-number library here. The `+` and country code are the parts that
-/// carry meaning for Kount's cross-order matching.
-///
-/// A national trunk `0` is deliberately **not** stripped, so a caller sending
-/// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
-/// the zero is wrong for the countries that keep it (Italy, notably), and the
-/// separate `phone_country_code` field implies callers send the national
-/// significant number rather than the dialling form.
-pub(super) fn e123_phone(country_code: Option<&str>, number: &str) -> Option<Secret<String>> {
-    let number = number.trim();
-    if number.is_empty() {
-        return None;
-    }
-    // Already international — the caller did the work, don't double-prefix.
-    if number.starts_with('+') {
-        return Some(Secret::new(number.to_owned()));
-    }
-    // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
-    let country_code = country_code
-        .map(str::trim)
-        .map(|code| code.trim_start_matches('+'))
-        .map(|code| code.strip_prefix("00").unwrap_or(code))
-        .filter(|code| !code.is_empty());
-    Some(Secret::new(match country_code {
-        Some(code) => format!("+{code}{number}"),
-        // No country to prefix — send the bare number rather than nothing.
-        None => number.to_owned(),
-    }))
-}
-
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         KountRouterData<
@@ -1754,13 +1714,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .customer_creating_time
             .as_deref()
             .and_then(normalize_kount_timestamp);
-        if account_created_at.is_some() && req.customer_info.is_none() {
-            tracing::warn!(
-                "Kount pre risk check carried customerDataCreated but the request has no \
-                 customer_info, so there is no account block to attach it to; \
-                 account.creationDateTime will not be sent"
-            );
-        }
 
         // Device / IP from browser info.
         let browser = req.browser_info.as_ref();
@@ -1846,21 +1799,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .customer_info
             .as_ref()
             .and_then(kount_person_from_customer);
-        let billed_person = match address
+        // The billing address wins per field; customer info fills only the gaps,
+        // so an address carrying just a name still sends Kount the customer's
+        // email and phone. Name and postal address stay as the address supplied
+        // them. No usable billing address falls back to the customer wholesale.
+        let billed_person = address
             .and_then(|addr| addr.get_payment_billing())
             .and_then(kount_person_from_address)
-        {
-            // The billing address wins per field; customer info fills only the
-            // gaps, so an address carrying just a name still sends Kount the
-            // customer's email and phone. Name and postal address stay as the
-            // address supplied them.
-            Some(person) => Some(match customer_person.as_ref() {
-                Some(customer) => person.fill_contact_from(customer),
-                None => person,
-            }),
-            // No usable billing address — fall back to the customer wholesale.
-            None => customer_person,
-        };
+            .map(|person| KountPerson {
+                email_address: person.email_address.clone().or_else(|| {
+                    customer_person
+                        .as_ref()
+                        .and_then(|customer| customer.email_address.clone())
+                }),
+                phone_number: person.phone_number.clone().or_else(|| {
+                    customer_person
+                        .as_ref()
+                        .and_then(|customer| customer.phone_number.clone())
+                }),
+                ..person
+            })
+            .or(customer_person);
         // Fulfillment recipient: built entirely from the shipping address (name,
         // email, phone, and postal address) — no fallback to customer_info or to
         // billing. If no shipping address was supplied, no fulfillment recipient
@@ -1881,38 +1840,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // a missing/invalid Kount config is surfaced rather than silently dropped.
         let api_key = KountAuthType::try_from(&item.router_data.connector_config)?.api_key;
         let salted_token = |source: &str| payment_token_hash(&api_key, source);
-        let payment = req.payment_method.as_ref().and_then(|pm| {
-            kount_instrument(pm, req.payment_method_type).map(|instrument| {
-                // Cards carry BIN/last4 + expiry + a PAN-derived token; the type
-                // reflects credit/debit.
-                let (bin, last4, payment_token, exp_month, exp_year) = match pm {
-                    PaymentMethodData::Card(card) => {
-                        let pan = card.card_number.peek();
-                        let (bin, last4) = card_bin_last4(pan);
-                        let (exp_month, exp_year) = card_expiry(card);
-                        (bin, last4, salted_token(pan), exp_month, exp_year)
-                    }
-                    // Non-card methods: salted token of the instrument identifier
-                    // (payer email, IBAN, account number, …) when one is available.
-                    // No expiry — Kount only defines it for cards.
-                    _ => (
-                        None,
-                        None,
-                        instrument.token_source.as_deref().and_then(salted_token),
-                        None,
-                        None,
-                    ),
-                };
-                KountPayment {
-                    payment_type: instrument.payment_type,
-                    bin: bin.map(Secret::new),
-                    last4: last4.map(Secret::new),
-                    payment_token: payment_token.map(Secret::new),
-                    expiration_month: exp_month.map(Secret::new),
-                    expiration_year: exp_year.map(Secret::new),
-                }
+        let payment = req
+            .payment_method
+            .as_ref()
+            .and_then(|pm| {
+                kount_instrument(pm, req.payment_method_type).map(
+                    |instrument| -> Result<KountPayment, errors::IntegrationError> {
+                        // Cards carry BIN/last4 + expiry + a PAN-derived token; the type
+                        // reflects credit/debit.
+                        let (bin, last4, payment_token, exp_month, exp_year) = match pm {
+                            PaymentMethodData::Card(card) => {
+                                let pan = card.card_number.peek();
+                                let (bin, last4) = card_bin_last4(pan);
+                                let (exp_month, exp_year) = card_expiry(card)?;
+                                (bin, last4, salted_token(pan), exp_month, exp_year)
+                            }
+                            // Non-card methods: salted token of the instrument identifier
+                            // (payer email, IBAN, account number, …) when one is available.
+                            // No expiry — Kount only defines it for cards.
+                            _ => (
+                                None,
+                                None,
+                                instrument.token_source.as_deref().and_then(salted_token),
+                                None,
+                                None,
+                            ),
+                        };
+                        Ok(KountPayment {
+                            payment_type: instrument.payment_type,
+                            bin: bin.map(Secret::new),
+                            last4: last4.map(Secret::new),
+                            payment_token: payment_token.map(Secret::new),
+                            expiration_month: exp_month.map(Secret::new),
+                            expiration_year: exp_year.map(Secret::new),
+                        })
+                    },
+                )
             })
-        });
+            .transpose()?;
 
         let amount = super::KountAmountConvertor::convert(req.amount.amount, currency)?;
         let transactions = vec![KountTransaction {

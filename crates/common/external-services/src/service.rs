@@ -638,14 +638,26 @@ where
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
         (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
-            let response = Response {
-                headers: None,
-                response: bytes::Bytes::new(),
-                status_code: 200,
-            };
+            // The flow makes no outbound call, so `build_request_v2` is expected to
+            // return `None` and its value is discarded. It is still run first because it
+            // is the only request-phase hook these flows get: a connector can reject the
+            // request there with an `IntegrationError` (mapped by status, e.g. a bad
+            // merchant config -> FAILED_PRECONDITION) instead of having to report the
+            // failure from `handle_response_v2`, which can only produce a `ConnectorError`
+            // and therefore always reads as INTERNAL.
             connector
-                .handle_response_v2(&router_data, None, response)
-                .map_err(report_connector_response_to_flow)
+                .build_request_v2(&router_data)
+                .map_err(report_connector_request_to_flow)
+                .and_then(|_| {
+                    let response = Response {
+                        headers: None,
+                        response: bytes::Bytes::new(),
+                        status_code: 200,
+                    };
+                    connector
+                        .handle_response_v2(&router_data, None, response)
+                        .map_err(report_connector_response_to_flow)
+                })
         }
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
         (common_enums::CallConnectorAction::HandleResponse(_), _) => {

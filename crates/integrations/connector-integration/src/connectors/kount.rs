@@ -157,6 +157,40 @@ fn kount_order_id(
         )
 }
 
+/// Resolve the Kount-assigned merchant CID rendered into the Device Data
+/// Collection script as the Web SDK `clientID`. Read only from the connector
+/// config (`x-connector-config`).
+///
+/// `client_id` is optional on `ConnectorSpecificConfig::Kount` because no other
+/// Kount flow needs one, so DDC is where an absent CID is rejected: rendering
+/// `clientID: ""` would produce a script that loads and silently collects
+/// nothing. Returning `IntegrationError` (rather than failing later in
+/// `handle_response_v2`, which can only produce a `ConnectorError`) is what lets
+/// the caller see a configuration error instead of an internal one.
+fn ddc_client_id(
+    connector_config: &ConnectorSpecificConfig,
+) -> CustomResult<String, IntegrationError> {
+    kount::KountAuthType::try_from(connector_config)?
+        .client_id
+        .ok_or(
+            IntegrationError::InvalidConnectorConfig {
+                config: "client_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Kount Device Data Collection requires the Kount-assigned merchant CID, \
+                         but the connector config carried no client_id"
+                            .to_owned(),
+                    ),
+                    suggested_action: Some(
+                        "Send client_id in the Kount x-connector-config header".to_owned(),
+                    ),
+                    doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
+                },
+            }
+            .into(),
+        )
+}
+
 // Kount Orders amounts are sent as strings in the smallest currency unit.
 macros::create_amount_converter_wrapper!(connector_name: Kount, amount_type: StringMinorUnit);
 
@@ -372,7 +406,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn build_request_v2(
         &self,
-        _req: &RouterDataV2<
+        req: &RouterDataV2<
             PreAuthenticate,
             PaymentFlowData,
             PaymentsPreAuthenticateData<T>,
@@ -380,6 +414,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
         // No outbound call: the DDC HTML is built locally in `handle_response_v2`.
+        // The CID is still resolved here, because this is the request-phase hook the
+        // executor runs for `HandleResponseWithoutBuildRequest` flows: rejecting a
+        // missing one as an `IntegrationError` surfaces it as a configuration error
+        // rather than the internal error a `ConnectorError` would produce.
+        ddc_client_id(&req.connector_config)?;
         Ok(None)
     }
 
@@ -446,26 +485,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .clone()
             });
         let session_id = kount::hash_session_id(&session_ref);
-        // DDC `clientID` is the Kount-assigned merchant CID, read only from the
-        // connector config (`x-connector-config`). There is deliberately no
-        // fallback: an absent CID renders a script that silently collects
-        // nothing, so a missing value is rejected when the config is parsed
-        // (`ConnectorSpecificConfig::Kount.client_id` is a non-optional `String`)
-        // rather than defaulted to an empty string here.
-        //
-        // The only way this conversion fails is a non-Kount config reaching the
-        // Kount flow, which would be a routing bug rather than bad merchant data.
-        let client_id = kount::KountAuthType::try_from(&data.connector_config)
-            .change_context(ConnectorError::ResponseHandlingFailed {
+        // Already validated in `build_request_v2`, which the executor runs first for
+        // `HandleResponseWithoutBuildRequest` flows, so failing here would mean the two
+        // hooks disagreed rather than that the merchant sent a bad config.
+        let client_id = ddc_client_id(&data.connector_config).change_context(
+            ConnectorError::ResponseHandlingFailed {
                 context: domain_types::errors::ResponseTransformationErrorContext {
                     http_status_code: None,
                     additional_context: Some(
-                        "expected a Kount connector config while rendering the DDC script"
-                            .to_owned(),
+                        "Kount client_id missing while rendering the DDC script".to_owned(),
                     ),
                 },
-            })?
-            .client_id;
+            },
+        )?;
         // DDC `environment` follows the deployment environment: only a production
         // deployment gets PROD, everything else (development/sandbox) gets TEST.
         // Deliberately `!matches!(.., Production)` rather than listing the non-prod
