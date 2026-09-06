@@ -1,4 +1,6 @@
-use common_utils::{ext_traits::OptionExt, request::Method, FloatMajorUnit, StringMajorUnit};
+use common_utils::{
+    ext_traits::OptionExt, pii::Email, request::Method, FloatMajorUnit, StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, RepeatPayment, SetupMandate,
@@ -22,7 +24,7 @@ use domain_types::{
 };
 use error_stack;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -274,7 +276,7 @@ pub enum RapydCustomerRef {
 #[derive(Debug, Serialize)]
 pub struct RapydInlineCustomer {
     pub name: String,
-    pub email: String,
+    pub email: Email,
 }
 
 /// Rapyd payment_method field can be either a token string (for saved/tokenized
@@ -1193,12 +1195,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     field_name: "customer.name",
                     context: Default::default(),
                 })?;
-        let customer_email = request.email.as_ref().map(|e| e.peek().to_string()).ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "customer.email",
-                context: Default::default(),
-            },
-        )?;
+        let customer_email =
+            request
+                .email
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "customer.email",
+                    context: Default::default(),
+                })?;
         let inline_customer = RapydInlineCustomer {
             name: customer_name,
             email: customer_email,

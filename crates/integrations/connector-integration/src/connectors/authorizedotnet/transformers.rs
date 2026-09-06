@@ -1909,7 +1909,7 @@ struct ShipToList {
 struct Profile<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> {
     merchant_customer_id: Option<String>,
     description: Option<String>,
-    email: Option<String>,
+    email: Option<Email>,
     payment_profiles: Option<Vec<PaymentProfiles<T>>>,
     ship_to_list: Option<Vec<ShipToList>>,
 }
@@ -3617,7 +3617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .request
                         .email
                         .as_ref()
-                        .map(|e| e.peek().clone().expose().expose()),
+                        .map(|e| e.peek().clone()),
                     payment_profiles: None,
                     ship_to_list,
                 },

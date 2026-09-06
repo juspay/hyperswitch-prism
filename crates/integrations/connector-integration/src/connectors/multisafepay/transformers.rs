@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::types::MinorUnit;
+use common_utils::{pii::Email, types::MinorUnit};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, ClientAuthenticationToken, PSync, RSync},
@@ -586,7 +586,7 @@ pub struct CustomerInfo {
     pub ip_address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    pub email: String,
+    pub email: Email,
 }
 
 #[derive(Debug, Serialize)]
@@ -714,9 +714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     field_name: "email",
                     context: Default::default(),
                 })
-                .attach_printable("Missing email for transaction")?
-                .expose()
-                .expose(),
+                .attach_printable("Missing email for transaction")?,
         };
 
         // Build payment_options
@@ -818,9 +816,7 @@ impl<T: PaymentMethodDataTypes>
                     field_name: "email",
                     context: Default::default(),
                 })
-                .attach_printable("Missing email for transaction")?
-                .expose()
-                .expose(),
+                .attach_printable("Missing email for transaction")?,
         };
 
         // Build payment_options
