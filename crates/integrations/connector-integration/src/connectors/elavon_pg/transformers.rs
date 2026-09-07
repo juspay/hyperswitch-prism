@@ -21,7 +21,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -1738,6 +1741,23 @@ impl TryFrom<ResponseRouterData<ElavonPgCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<ElavonPgCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        // The parent sale this capture belongs to; see the resource_id note below.
+        let parent_transaction_id = item
+            .router_data
+            .request
+            .get_connector_transaction_id()
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Elavon Payment Gateway needs the parent sale's transaction id to report \
+                         the captured resource; a PartialCapture id would send PSync to \
+                         /transactions/{id}, which does not hold it"
+                            .to_string(),
+                    ),
+                },
+            })?;
+
         // A capture that EPG authorized is money committed to settlement, so the
         // shared sale table is evaluated with auto-capture semantics: `authorized`
         // here means `Charged`, never "still needs capturing".
@@ -1758,14 +1778,21 @@ impl TryFrom<ResponseRouterData<ElavonPgCaptureResponse, Self>>
                 None,
             ))
         } else {
+            // A capture is a *PartialCapture* resource with its own id, living at
+            // `/partial-captures/{id}`. PSync reads `/transactions/{id}`, so reporting
+            // the PartialCapture id as the resource id would send a later sync to a
+            // path that does not hold it. The resource UCS reports back is therefore
+            // the parent sale — the thing that was captured — and the PartialCapture's
+            // own id is surfaced as the connector response reference. Same split as
+            // the Void mapping below, for the same reason.
             Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(parent_transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: item.response.processor_reference.clone(),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
