@@ -145,10 +145,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Datatrans<T>
 {
-    /// Google Pay payments are tokenized into a Datatrans alias
+    /// Google Pay and Apple Pay payments are tokenized into a Datatrans alias
     /// (`POST /v1/aliases/tokenize`) before Authorize / SetupMandate. Charging or
     /// registering the alias as an `ALIAS` card is the Datatrans path that supports a
-    /// native 3DS challenge for Google Pay (the raw `PAY` payload cannot be
+    /// native 3DS challenge for wallets (the raw `PAY` / `APL` payload cannot be
     /// 3DS-authenticated).
     fn should_do_payment_method_token(
         &self,
@@ -158,7 +158,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> bool {
         matches!(
             (payment_method, payment_method_type),
-            (PaymentMethod::Wallet, Some(PaymentMethodType::GooglePay))
+            (
+                PaymentMethod::Wallet,
+                Some(PaymentMethodType::GooglePay | PaymentMethodType::ApplePay)
+            )
         )
     }
 }
@@ -437,8 +440,8 @@ macros::macro_connector_implementation!(
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
             let native_three_ds =
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            // A Google Pay alias charge (produced by the PaymentMethodToken flow) is
-            // card-like: native 3DS on the alias needs the redirect-capable
+            // A Google Pay / Apple Pay alias charge (produced by the PaymentMethodToken
+            // flow) is card-like: native 3DS on the alias needs the redirect-capable
             // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge.
             let is_alias_charge = matches!(
                 req.request.payment_method_data,
@@ -722,7 +725,7 @@ macros::macro_connector_implementation!(
     }
 );
 
-// PaymentMethodToken (Google Pay alias tokenization) Flow — converts the Google Pay
+// PaymentMethodToken (Google Pay / Apple Pay alias tokenization) Flow — converts the
 // wallet payload into a Datatrans alias via POST /v1/aliases/tokenize, so the
 // subsequent Authorize can charge it as an `ALIAS` card with native 3DS support.
 macros::macro_connector_implementation!(
