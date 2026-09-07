@@ -379,13 +379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .router_data
                         .resource_common_data
                         .connector_request_reference_id,
-                    notification_u_r_l: "https://1593-110-227-219-118.ngrok-free.app/webhooks/merchant_1788768744/trustly".to_string(),
-                    // item.router_data.request.webhook_url.clone().ok_or(
-                    //     errors::IntegrationError::MissingRequiredField {
-                    //         field_name: "webhook_url",
-                    //         context: Default::default(),
-                    //     },
-                    // )?,
+                    notification_u_r_l: item.router_data.request.webhook_url.clone().ok_or(
+                        errors::IntegrationError::MissingRequiredField {
+                            field_name: "webhook_url",
+                            context: Default::default(),
+                        },
+                    )?,
                     password: auth_details.password.clone(),
                     username: auth_details.username.clone(),
                 };

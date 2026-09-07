@@ -561,12 +561,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             item.request.source_currency,
         )?;
 
-        let notification_url = "https://1593-110-227-219-118.ngrok-free.app/webhooks/merchant_1788768744/trustly".to_string();
-        // item
-        //     .request
-        //     .webhook_url
-        //     .clone()
-        //     .ok_or_else(|| missing_field("webhook_url", "Payout Transfer"))?;
+        let notification_url = item
+            .request
+            .webhook_url
+            .clone()
+            .ok_or_else(|| missing_field("webhook_url", "Payout Transfer"))?;
 
         let shopper_statement = item
             .resource_common_data
