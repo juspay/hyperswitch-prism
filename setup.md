@@ -144,49 +144,57 @@ grpcurl -plaintext \
   -H "x-api-secret: your_api_secret" \
   -H "x-reference-id: test_ref_123" \
   -d '{
-    "request_ref_id": {
-      "id": "ref_000987654321"
+    "merchant_transaction_id": "ref_000987654321",
+    "amount": {
+      "minor_amount": 6540,
+      "currency": "USD"
     },
-    "amount": 6540,
-    "minor_amount": 6540,
-    "currency": "USD",
     "capture_method": "AUTOMATIC",
     "auth_type": "NO_THREE_DS",
     "payment_method": {
       "card": {
-        "credit": {
-          "card_number": { "value": "4242424242424242"},
-          "card_cvc": {"value": "123"},
-          "card_exp_month": {"value": "10"},
-          "card_exp_year": {"value": "2025" },
-          "card_network":  "VISA" 
-        }
+        "card_number": { "value": "4242424242424242" },
+        "card_exp_month": { "value": "10" },
+        "card_exp_year": { "value": "2030" },
+        "card_cvc": { "value": "123" },
+        "card_network": "VISA"
       }
     },
     "address": {},
-    "connector_customer_id": "customer123",
+    "state": {
+      "connector_customer_id": "customer123"
+    },
     "return_url": "https://google.com",
     "webhook_url": "https://google.com",
     "order_category": "pay",
+    "description": "Test payment from setup guide",
     "enrolled_for_3ds": false,
     "request_incremental_authorization": false,
     "metadata": {
-      "udf1": "value1",
-      "new_customer": "true",
-      "login_date": "2019-09-10T10:11:12Z",
-      "description": "Test payment from setup guide",
-      "merchant_account_id": "your_merchant_account"
+      "value": "{\"udf1\":\"value1\",\"merchant_account_id\":\"your_merchant_account\"}"
     }
   }' \
-  localhost:8000 ucs.v2.PaymentService/Authorize
+  localhost:8000 types.PaymentService/Authorize
 ```
+
+**Method path:** the protobuf package is `types` (see `package types;` in
+`crates/types-traits/grpc-api-types/proto/services.proto`), so every UCS method is
+addressed as `types.<Service>/<Rpc>` — e.g. `types.PaymentService/Authorize`,
+`types.PaymentService/Get` (PSync), `types.RefundService/Get` (RSync). The only
+exception is the health check, which uses the standard `grpc.health.v1` package.
+
+**Payload notes** (fields are from `PaymentServiceAuthorizeRequest` in
+`proto/payment.proto`):
+- `amount` is a `Money` message (`minor_amount` + `currency`), not a scalar.
+- `card` is a `CardDetails` message directly under `payment_method` — there is no
+  `credit` / `debit` nesting.
+- `metadata` is a `SecretString` (a `{ "value": "<string>" }` wrapper), not a map.
+- The connector customer id lives under `state` (`ConnectorState`).
 
 **Expected Success Response:**
 ```json
 {
-  "transactionId": {
-    "id": "dHJhbnNhY3Rpb25fOGs4ZXRjMzU"
-  },
+  "connectorTransactionId": "dHJhbnNhY3Rpb25fOGs4ZXRjMzU",
   "status": "CHARGED",
   "statusCode": 200,
   "rawConnectorResponse": {

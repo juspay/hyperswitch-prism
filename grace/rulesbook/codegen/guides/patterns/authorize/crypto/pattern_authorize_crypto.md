@@ -335,11 +335,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .unwrap_or_else(|| "Payment failed".to_string()),
                 reason: crypto_response.data.status_context.clone(),
                 status_code: http_code,
-                attempt_status: None,
+                // In-band 2xx failure: the status IS known here, so surface it.
+                // `attempt_status` is `Option<FlowStatus>`, not `Option<AttemptStatus>`.
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(crypto_response.data.id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                ..Default::default()
             })
         } else {
             // Create redirect form for successful invoice creation
@@ -354,12 +357,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: crypto_response
                     .data
                     .custom_id
                     .or(Some(crypto_response.data.id)),
                 incremental_authorization_allowed: None,
+                splits: None,
                 status_code: http_code,
+                payment_account_reference: None,
             })
         };
 
@@ -474,16 +480,18 @@ pub enum WebhookEvent {
 ### Webhook Event Mapping
 
 ```rust
+// `get_event_type` takes exactly ONE argument besides `&self`, and its error type is
+// `WebhookError` (not `IntegrationError`). Signature:
+// `crates/types-traits/interfaces/src/connector_types.rs:612`.
+// Live exemplar: `crates/integrations/connector-integration/src/connectors/cryptopay.rs:374`.
 fn get_event_type(
     &self,
     request: RequestDetails,
-    _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-    _connector_account_details: Option<ConnectorAuthType>,
-) -> Result<EventType, error_stack::Report<errors::IntegrationError>> {
+) -> Result<EventType, error_stack::Report<WebhookError>> {
     let notif: CryptoWebhookDetails = request
         .body
         .parse_struct("CryptoWebhookDetails")
-        .change_context(errors::IntegrationError::WebhookEventTypeNotFound)?;
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
     match notif.data.status {
         CryptoPaymentStatus::Completed => Ok(EventType::PaymentIntentSuccess),
@@ -504,22 +512,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         let signature = request
             .headers
             .get("x-crypto-signature")
-            .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)
+            .ok_or(WebhookError::WebhookSignatureNotFound)
             .attach_printable("Missing webhook signature")?;
 
         hex::decode(signature)
-            .change_context(errors::IntegrationError::WebhookSourceVerificationFailed)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
         &self,
         request: &RequestDetails,
         _connector_webhook_secrets: &ConnectorWebhookSecrets,
-    ) -> Result<Vec<u8>, error_stack::Report<errors::IntegrationError>> {
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
         // Return raw body for HMAC verification
         Ok(request.body.to_vec())
     }
@@ -590,6 +598,7 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut events::Event>,
+    _connector_config: &ConnectorSpecificConfig,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: CryptoErrorResponse = res
         .response
@@ -603,11 +612,18 @@ fn build_error_response(
         code: response.error.code,
         message: response.error.message,
         reason: response.error.reason,
+        // `attempt_status` is `Option<FlowStatus>`, NOT `Option<AttemptStatus>`. Keep it
+        // non-terminal unless the vendor documents this error code as terminal: hard-coding
+        // `Some(FlowStatus::Payment(AttemptStatus::Failure))` reports charged payments as
+        // FAILURE, and a blanket `None` leaves a hard-declined refund Pending and retrying.
+        // Exemplars: `connectors/noon.rs:499-512` (minimal),
+        // `connectors/flywire.rs:362-370` (flow-aware, sets `FlowStatus::Refund(..)`).
         attempt_status: None,
         connector_transaction_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
+        ..Default::default()
     })
 }
 ```
@@ -640,20 +656,27 @@ use domain_types::{
 };
 
 use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{GenerateDigest, SignMessage},
     errors::CustomResult,
+    events,
     ext_traits::ByteSliceExt,
     request::Method,
 };
 
 use domain_types::{
-    router_data::ConnectorAuthType,
+    connector_types::EventContext,
+    errors::{ConnectorError, WebhookError},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    utils::is_payment_failure,
 };
 
+// `SourceVerification` and `BodyDecoding` take NO type parameters -- exactly one impl of
+// each per connector (`crates/types-traits/interfaces/src/verification.rs:20`).
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, verification::SourceVerification,
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    decode::BodyDecoding, verification::SourceVerification,
 };
 
 use hyperswitch_masking::{Maskable, PeekInterface};
@@ -684,7 +707,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
         let auth = cryptopay::CryptopayAuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -702,6 +725,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Error handling implementation
     }
@@ -720,6 +744,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Cryptopay<T>
+{
+}
+
+// `SourceVerification` and `BodyDecoding` take NO type parameters
+// (`crates/types-traits/interfaces/src/verification.rs:20`,
+// `crates/types-traits/interfaces/src/decode.rs:6`). Exactly ONE blanket impl of each per
+// connector -- writing one per flow, or one carrying <Flow, Data, Req, Resp>, is an E0107.
+// Exemplar: `crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for Cryptopay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for Cryptopay<T>
 {
 }
 
@@ -890,10 +929,29 @@ impl IncomingWebhook for CryptoConnector {
 
 **✅ RIGHT**: Implement full webhook support
 ```rust
+// Argument counts and error type are fixed by the trait
+// (`crates/types-traits/interfaces/src/connector_types.rs:612`, `:629`).
+// `get_event_type` takes ONE argument; `process_payment_webhook` takes FOUR.
+// The error type is `WebhookError`, never `IntegrationError`.
 impl<T> connector_types::IncomingWebhook for CryptoConnector<T> {
-    fn get_event_type(...) -> Result<EventType, ...> { ... }
-    fn process_payment_webhook(...) -> Result<WebhookDetailsResponse, ...> { ... }
-    fn verify_webhook_source(...) -> Result<bool, ...> { ... }
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> { ... }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> { ... }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> { ... }
 }
 ```
 

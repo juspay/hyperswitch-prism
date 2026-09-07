@@ -190,16 +190,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                         _ => Err(IntegrationError::MissingRequiredField {
                             field_name: "paze_decrypted_data",
-                        , context: Default::default() })?
+                            context: Default::default() })?
                     }
                 }
 
                 _ => Err(IntegrationError::NotImplemented(
-                    "Wallet not supported".to_string(, Default::default())
+                    "Wallet not supported".to_string(), Default::default()
                 ))
             },
             _ => Err(IntegrationError::NotImplemented(
-                "Payment method not supported".to_string(, Default::default())
+                "Payment method not supported".to_string(), Default::default()
             ))
         }
     }
@@ -298,11 +298,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
 
                 _ => Err(IntegrationError::NotImplemented(
-                    "Wallet not supported".to_string(, Default::default())
+                    "Wallet not supported".to_string(), Default::default()
                 ))
             },
             _ => Err(IntegrationError::NotImplemented(
-                "Payment method not supported".to_string(, Default::default())
+                "Payment method not supported".to_string(), Default::default()
             ))
         }
     }
@@ -333,9 +333,12 @@ impl<T> TryFrom<ResponseRouterData<ConnectorAuthResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
@@ -413,9 +416,12 @@ impl<F, T> TryFrom<ResponseRouterData<WalletPaymentsResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(payload.trace_id),
                         incremental_authorization_allowed: None,
+                        splits: None,
                         status_code: item.http_code,
+                        payment_account_reference: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::AuthenticationPending,
@@ -493,11 +499,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // ...
                 }
                 _ => Err(IntegrationError::NotImplemented(
-                    "Wallet not supported".to_string(, Default::default())
+                    "Wallet not supported".to_string(), Default::default()
                 ))
             },
             _ => Err(IntegrationError::NotImplemented(
-                "Payment method not supported".to_string(, Default::default())
+                "Payment method not supported".to_string(), Default::default()
             ))
         }
     }
@@ -539,7 +545,10 @@ fn extract_payment_method_and_data<
 >(
     payment_method_data: &PaymentMethodData<T>,
     _customer_name: Option<String>,
-) -> Result<(PaymentMethodType, PaymentMethodSpecificData<T>), errors::ConnectorError> {
+) -> Result<(PaymentMethodType, PaymentMethodSpecificData<T>), errors::IntegrationError> {
+    // Request-side mapping failures are `IntegrationError`, NOT `ConnectorError`.
+    // `ConnectorError` has only five variants (all response-side) --
+    // see `crates/types-traits/domain_types/src/errors.rs:371`.
     match payment_method_data {
         PaymentMethodData::Wallet(wallet_data) => {
             let wallet_name = match wallet_data {
@@ -549,14 +558,16 @@ fn extract_payment_method_and_data<
                 WalletData::CashfreeRedirect(_) => "cashfree",
                 WalletData::PayURedirect(_) => "payu",
                 WalletData::EaseBuzzRedirect(_) => "easebuzz",
-                _ => return Err(errors::ConnectorError::NotImplemented(
+                _ => return Err(errors::IntegrationError::NotImplemented(
                     "This wallet type is not supported".to_string(),
+                    Default::default(),
                 )),
             };
             Ok((PaymentMethodType::Wallet, PaymentMethodSpecificData::Wallet(wallet_name.to_string())))
         },
-        _ => Err(errors::ConnectorError::NotImplemented(
+        _ => Err(errors::IntegrationError::NotImplemented(
             "Only Wallet payment methods are supported".to_string(),
+            Default::default(),
         )),
     }
 }
@@ -671,7 +682,7 @@ Variant declared at `crates/types-traits/domain_types/src/payment_method_data.rs
   - `cryptogram` and `eci_indicator` cloned from the decrypted payload at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1395-1396`.
   - `card: GooglePayDecryptedCard` (struct at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:593`) with `number` sourced from `decrypted_data.application_primary_account_number.get_card_no()` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1400-1402` and `expiry` formatted via `decrypted_data.get_expiry_date_as_yyyymm("-")` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1375`.
   - The resulting `GooglePayRequest` is wrapped in `PaymentSourceItem::GooglePay(...)` (variant added to the `PaymentSourceItem` enum at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:687`) and attached as the order's `payment_source`.
-- `GpayTokenizationData::Encrypted(_)` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1413` returns `IntegrationError::not_implemented("PayPal GooglePay encrypted flow")` because PayPal requires the pre-decrypted cryptogram/PAN payload server-side rather than the raw encrypted token.
+- `GpayTokenizationData::Encrypted(_)` at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1413` returns `IntegrationError::not_implemented("PayPal GooglePay encrypted flow", Default::default())` because PayPal requires the pre-decrypted cryptogram/PAN payload server-side rather than the raw encrypted token.
 
 PayPal's response-side handling for Google Pay order responses treats the `PaymentSourceItemResponse::GooglePay(_)` arm at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:2279` as producing no additional redirection or network-txn-id metadata, since the decrypted-token flow completes synchronously without a customer redirect.
 
@@ -695,7 +706,7 @@ The dispatch lives in the `PaymentMethodData::Wallet(wallet_data)` arm at `crate
 | `PayURedirect` | `"payu"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:359` |
 | `EaseBuzzRedirect` | `"easebuzz"` | `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:360` |
 
-Unsupported wallet variants fall through to the `_ =>` arm at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:361`, which returns `IntegrationError::not_implemented_with_context("This wallet type is not supported for Cashfree", ...)` with a suggested-action pointer to the supported set.
+Unsupported wallet variants fall through to the `_ =>` arm at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:355-361`, which returns the struct-literal form `IntegrationError::NotImplemented("This wallet type is not supported for Cashfree".into(), IntegrationErrorContext { suggested_action: Some(..), doc_url: Some(..), additional_context: None })`. (`NotImplemented` is a two-field tuple variant — `errors.rs:171`; the helper `IntegrationError::not_implemented(message, context)` at `errors.rs:248` is the shorthand. There is no `not_implemented_with_context`.)
 
 The `CashfreeAppDetails` payload is assembled at `crates/integrations/connector-integration/src/connectors/cashfree/transformers.rs:373-386`:
 - `channel: "link"` (deep-link/redirect)
@@ -875,11 +886,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     WalletRequestData::GooglePay { token }
                 }
                 _ => Err(IntegrationError::NotImplemented(
-                    "Wallet not supported".to_string(, Default::default())
+                    "Wallet not supported".to_string(), Default::default()
                 ))?
             },
             _ => Err(IntegrationError::NotImplemented(
-                "Payment method not supported".to_string(, Default::default())
+                "Payment method not supported".to_string(), Default::default()
             ))?
         };
 
@@ -904,7 +915,7 @@ impl<T> TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
-        let status = map_wallet_status(&item.response.status)?;
+        let status = map_wallet_status(&item.response.status);
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -919,21 +930,40 @@ impl<T> TryFrom<ResponseRouterData<ConnectorWalletResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id),
                 incremental_authorization_allowed: None,
+                splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             }),
             ..item.router_data
         })
     }
 }
 
-fn map_wallet_status(status: &str) -> Result<AttemptStatus, IntegrationError> {
+// Do NOT put a catch-all `_ =>` at the status-mapping layer. Absorb unknown wire values
+// at the DESERIALIZATION layer with `#[serde(other)] Unknown`, then map `Unknown` to a
+// non-terminal status. Reviewers require both halves.
+// Exemplar: `crates/integrations/connector-integration/src/connectors/flywire/transformers.rs:468`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ConnectorWalletStatus {
+    Succeeded,
+    Completed,
+    Pending,
+    Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+fn map_wallet_status(status: &ConnectorWalletStatus) -> AttemptStatus {
     match status {
-        "succeeded" | "completed" => Ok(AttemptStatus::Charged),
-        "pending" => Ok(AttemptStatus::Pending),
-        "failed" => Ok(AttemptStatus::Failure),
-        _ => Err(ConnectorError::ResponseDeserializationFailed { context: Default::default() })
+        ConnectorWalletStatus::Succeeded | ConnectorWalletStatus::Completed => AttemptStatus::Charged,
+        ConnectorWalletStatus::Pending => AttemptStatus::Pending,
+        ConnectorWalletStatus::Failed => AttemptStatus::Failure,
+        // Unrecognised wire value: stay non-terminal and let PSync/webhook settle it.
+        ConnectorWalletStatus::Unknown => AttemptStatus::Pending,
     }
 }
 ```
@@ -1034,8 +1064,9 @@ WalletData::LazyPayRedirect(_)
 | WalletData::BillDeskRedirect(_)
 | WalletData::CashfreeRedirect(_)
 | WalletData::PayURedirect(_)
-| WalletData::EaseBuzzRedirect(_) => Err(errors::ConnectorError::NotImplemented(
-    "payment_method".into(),
+| WalletData::EaseBuzzRedirect(_) => Err(errors::IntegrationError::NotImplemented(
+    "payment_method".to_string(),
+    Default::default(),
 ))?,
 ```
 

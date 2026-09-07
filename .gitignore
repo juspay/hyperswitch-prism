@@ -429,8 +429,16 @@ sdk/java/bin
 artifacts/
 sdk/tests/client_sanity/artifacts/
 
-.claude
-CLAUDE.md
+# --- Agent / AI tooling -------------------------------------------------
+# `.claude` and `CLAUDE.md` were blanket-ignored as drive-by lines in two
+# unrelated PRs (#661 "chore(error): ffi error handling", #774
+# "feat(client): add support for non-pci payment client"); no commit or
+# comment ever established them as repo policy. Shared, checked-in agent
+# instructions (a root CLAUDE.md router, a shared .claude/ config) are
+# therefore trackable; only per-user and per-run state stays ignored.
+.claude/settings.local.json
+.claude/*.local.json
+CLAUDE.local.md
 opencode.json
 .opencode/**
 .sisyphus/
@@ -476,3 +484,23 @@ grace/grace-workspace/packages/dashboard/playwright-report/
 /past_runs*.png
 /create_modal.png
 docs/qwikcilver.postman_collection.json
+
+# Per-run agent worktrees (checkouts, not source; ~189 MB on a working clone)
+.claude/worktrees/
+.ct-worktrees/
+
+# GRACE per-run artifacts (task ledgers, run logs, scratch downloads).
+# Root-anchored on purpose: a bare `connectors.json` would also swallow
+# grace/grace-workspace/packages/dashboard/src/data/connectors.json, which
+# is tracked.
+/task.json
+/connectors.json
+grace/task_*_archive.json
+grace/runs/
+grace/*.log
+# Vendor API PDFs dropped at the repo root while drafting a tech spec
+/*.pdf
+# Rollback backups add_connector.sh leaves at the repo root when it dies mid-run
+# (created as $ROOT_DIR/.connector_backup_$(date +%s); removed on success).
+# Untracked, they would also trip that script's own clean-tree precondition.
+/.connector_backup_*/

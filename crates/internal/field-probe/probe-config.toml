@@ -12,7 +12,7 @@ skip_connectors = []
 max_iterations = 30
 
 [access_token]
-# Mock access token for OAuth connectors that require a cached token from CreateAccessToken flow
+# Mock access token for OAuth connectors that require a cached token from CreateServerAuthenticationToken flow
 token = "probe_access_token"
 token_type = "Bearer"
 expires_in_seconds = 3600
@@ -23,7 +23,7 @@ expires_in_seconds = 3600
 [access_token.overrides]
 fiservcommercehub = "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"
 
-# OAuth connectors that require a cached access_token from a prior CreateAccessToken flow.
+# OAuth connectors that require a cached access_token from a prior MerchantAuthenticationService/CreateServerAuthenticationToken flow.
 # These connectors will have the mock access_token populated in the request state.
 [[oauth_connectors]]
 name = "airwallex"
