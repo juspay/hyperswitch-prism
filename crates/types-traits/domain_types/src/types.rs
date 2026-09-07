@@ -439,6 +439,7 @@ pub struct Connectors {
     pub travelhub: ConnectorParams,
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
+    pub paydotcom: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

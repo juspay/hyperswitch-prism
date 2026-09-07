@@ -835,6 +835,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
             merchant_config_currency: None,
         },
+        ConnectorEnum::Paydotcom => ConnectorSpecificConfig::Paydotcom {
+            api_key: k(),
+            base_url: None,
+        },
         ConnectorEnum::Saferpay => ConnectorSpecificConfig::Saferpay {
             api_key: k(),
             key1: k(),
