@@ -478,12 +478,9 @@ impl EventServiceImpl {
         )
         .to_grpc_error()?;
 
-        let common_flow_data = SurchargeFlowData::foreign_try_from((
-            req.clone(),
-            connectors,
-            &masked_metadata,
-        ))
-        .to_grpc_error()?;
+        let common_flow_data =
+            SurchargeFlowData::foreign_try_from((req.clone(), connectors, &masked_metadata))
+                .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             SurchargePaymentSucceeded,
@@ -601,12 +598,9 @@ impl EventServiceImpl {
         )
         .to_grpc_error()?;
 
-        let common_flow_data = SurchargeFlowData::foreign_try_from((
-            req.clone(),
-            connectors,
-            &masked_metadata,
-        ))
-        .to_grpc_error()?;
+        let common_flow_data =
+            SurchargeFlowData::foreign_try_from((req.clone(), connectors, &masked_metadata))
+                .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             SurchargeRefundSucceeded,
@@ -724,12 +718,9 @@ impl EventServiceImpl {
         )
         .to_grpc_error()?;
 
-        let common_flow_data = FrmFlowData::foreign_try_from((
-            req.clone(),
-            connectors,
-            &masked_metadata,
-        ))
-        .to_grpc_error()?;
+        let common_flow_data =
+            FrmFlowData::foreign_try_from((req.clone(), connectors, &masked_metadata))
+                .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmPaymentOutcome,
@@ -844,12 +835,9 @@ impl EventServiceImpl {
         )
         .to_grpc_error()?;
 
-        let common_flow_data = FrmFlowData::foreign_try_from((
-            req.clone(),
-            connectors,
-            &masked_metadata,
-        ))
-        .to_grpc_error()?;
+        let common_flow_data =
+            FrmFlowData::foreign_try_from((req.clone(), connectors, &masked_metadata))
+                .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmRefundProcessed,
@@ -964,12 +952,9 @@ impl EventServiceImpl {
         )
         .to_grpc_error()?;
 
-        let common_flow_data = FrmFlowData::foreign_try_from((
-            req.clone(),
-            connectors,
-            &masked_metadata,
-        ))
-        .to_grpc_error()?;
+        let common_flow_data =
+            FrmFlowData::foreign_try_from((req.clone(), connectors, &masked_metadata))
+                .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmChargebackReceived,
