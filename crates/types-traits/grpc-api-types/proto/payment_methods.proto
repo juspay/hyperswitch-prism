@@ -338,6 +338,7 @@ message CardRedirect {
     BENEFIT = 2;
     MOMO_ATM = 3;
     CARD_REDIRECT = 4;
+    WEBPAY = 5;
   }
   CardRedirectType type = 1;
 }

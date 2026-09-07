@@ -444,6 +444,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"

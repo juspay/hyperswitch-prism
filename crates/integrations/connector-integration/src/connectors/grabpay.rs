@@ -157,7 +157,7 @@ macros::create_all_prerequisites!(
             path: &str,
             body: &[u8],
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let date = format_rfc7231_date(time::OffsetDateTime::now_utc())?;
+            let date = format_rfc7231_date(common_utils::date_time::now().assume_utc())?;
             let authorization =
                 build_hmac_authorization(auth, method, CONTENT_TYPE, path, body, &date)?;
 
@@ -172,7 +172,7 @@ macros::create_all_prerequisites!(
             auth: &grabpay::GrabpayAuthType,
             access_token: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let now = time::OffsetDateTime::now_utc();
+            let now = common_utils::date_time::now().assume_utc();
             let date = format_rfc7231_date(now)?;
             let timestamp = now.unix_timestamp().to_string();
             let pop = build_pop_signature(auth, access_token, &timestamp)?;

@@ -444,6 +444,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by tsysTransit"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by tsysTransit"

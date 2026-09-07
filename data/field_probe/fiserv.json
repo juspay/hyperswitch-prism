@@ -479,6 +479,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiserv"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through fiserv"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through fiserv"

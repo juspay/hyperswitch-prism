@@ -1,5 +1,8 @@
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
+use common_utils::{
+    pii::EmailStrategy,
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund},
     connector_types::{
@@ -131,7 +134,7 @@ pub struct EasebuzzInitiateLinkRequest {
     pub productinfo: String,
     pub firstname: String,
     pub phone: String,
-    pub email: String,
+    pub email: Secret<String, EmailStrategy>,
     pub surl: String,
     pub furl: String,
     pub hash: String,
@@ -250,7 +253,7 @@ impl
             productinfo,
             firstname,
             phone,
-            email,
+            email: Secret::new(email),
             surl: return_url.clone(),
             furl: return_url,
             hash,
@@ -1102,7 +1105,7 @@ pub struct EasebuzzSyncRequest {
     /// Transaction amount in major units (rupees as float string, e.g. "100.00")
     pub amount: String,
     /// Customer email (defaults to "mail@gmail.com" if empty)
-    pub email: String,
+    pub email: Secret<String, EmailStrategy>,
     /// Customer phone (defaults to "9999999999" if empty)
     pub phone: String,
     /// Merchant API key
@@ -1249,7 +1252,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             txnid,
             amount: amount_str,
-            email,
+            email: Secret::new(email),
             phone,
             key: auth.api_key,
             hash,

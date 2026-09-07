@@ -247,7 +247,7 @@ macros::create_all_prerequisites!(
             FlowData: AccessTokenProvider,
             Self: ConnectorIntegrationV2<F, FlowData, Req, Res>,
         {
-            let idempotency_key = uuid::Uuid::new_v4().to_string();
+            let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
             let truelayer_req = self
                 .get_request_body(req)?
                 .map(|req| req.content.get_inner_value().expose().clone());

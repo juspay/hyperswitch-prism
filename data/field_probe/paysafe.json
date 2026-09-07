@@ -500,6 +500,10 @@
         "status": "error",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
+      },
       "Wero": {
         "status": "error",
         "error": "Stuck on field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data — Missing required field: payment_method_token. Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata."
