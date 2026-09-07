@@ -7,7 +7,7 @@ SHELL := /bin/bash
 
 .PHONY: help build build-all build-macos build-linux clean check-cargo generate install-deps \
         generate-rust generate-flows-python generate-flows-javascript generate-flows-java \
-        test test-rust test-grpc test-python test-javascript test-java \
+        test test-rust test-grpc test-grpc-single test-python test-javascript test-java \
         dist dist-python dist-javascript dist-java \
         publish-check-python publish-check-javascript publish-check-java publish-check
 
@@ -307,6 +307,56 @@ test-grpc: _cleanup-grpc ## Run gRPC smoke tests for all SDKs (Rust + JS + Pytho
 			&& printf "\033[32mAll gRPC tests passed.\033[0m\n" \
 			|| printf "\033[31mSome gRPC tests FAILED.\033[0m\n"; \
 		exit $$TOTAL; \
+	}
+
+# ---------------------------------------------------------------------------
+# test-grpc-single
+# Runs the gRPC smoke tests for ONE SDK with a locally started grpc-server.
+# Used by CI to run each SDK's gRPC suite in a parallel job.
+# Usage:
+#   make test-grpc-single GRPC_SDK=rust        (rust|python|javascript|kotlin)
+#   GRPC_SKIP_BUILD=1 make test-grpc-single GRPC_SDK=kotlin
+# ---------------------------------------------------------------------------
+GRPC_SDK_DIR_rust       := rust
+GRPC_SDK_DIR_python     := python
+GRPC_SDK_DIR_javascript := javascript
+GRPC_SDK_DIR_kotlin     := java
+
+test-grpc-single: _cleanup-grpc ## Run gRPC smoke tests for one SDK (GRPC_SDK=rust|python|javascript|kotlin)
+	@{ \
+		set -o pipefail; \
+		SDK_DIR="$(GRPC_SDK_DIR_$(GRPC_SDK))"; \
+		if [ -z "$$SDK_DIR" ]; then \
+			echo "ERROR: set GRPC_SDK to one of: rust, python, javascript, kotlin (got '$(GRPC_SDK)')"; \
+			exit 1; \
+		fi; \
+		if [ "$(GRPC_SKIP_BUILD)" = "1" ]; then \
+			if [ -f "$(GRPC_SERVER_BIN)" ]; then \
+				printf "Using cached grpc-server ($(GRPC_PROFILE))...\n"; \
+			else \
+				printf "ERROR: GRPC_SKIP_BUILD=1 but grpc-server not found: $(GRPC_SERVER_BIN)\n"; \
+				exit 1; \
+			fi; \
+		else \
+			printf "Building grpc-server, gRPC FFI library, connector FFI library, smoke-test, and uniffi-bindgen ($(GRPC_PROFILE))...\n"; \
+			cd $(REPO_ROOT) && cargo build -p grpc-server -p hyperswitch-grpc-ffi -p ffi -p hyperswitch-smoke-test -p uniffi-bindgen \
+				--profile $(GRPC_PROFILE) --target $(PLATFORM); \
+		fi; \
+		printf "\nStarting gRPC server...\n"; \
+		rm -f /tmp/grpc-server.pid 2>/dev/null; \
+		cd $(REPO_ROOT) && $(GRPC_SERVER_BIN) > /tmp/grpc-server.log 2>&1 & \
+		echo $$! > /tmp/grpc-server.pid; \
+		$(MAKE) -C $(REPO_ROOT)/sdk _wait-for-server; \
+		printf "\n\033[1m── %s gRPC ──\033[0m\n" "$(GRPC_SDK)"; \
+		$(MAKE) -C $(REPO_ROOT)/sdk/$$SDK_DIR test-grpc-no-server \
+			GRPC_CONNECTOR=$(GRPC_CONNECTOR) CONNECTORS=$(CONNECTORS) GRPC_PROFILE=$(GRPC_PROFILE); \
+		EXIT=$$?; \
+		printf "\nStopping gRPC server...\n"; \
+		if [ -f /tmp/grpc-server.pid ]; then \
+			kill $$(cat /tmp/grpc-server.pid) 2>/dev/null || true; \
+			rm -f /tmp/grpc-server.pid; \
+		fi; \
+		exit $$EXIT; \
 	}
 
 test-python: build-ffi-lib ## Build FFI → Run Python smoke test
