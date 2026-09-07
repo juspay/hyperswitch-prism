@@ -437,7 +437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                common_utils::types::MinorUnit::new(request_data.amount_to_capture),
+                request_data.minor_amount_to_capture,
                 request_data.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -526,7 +526,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector
             .amount_converter
             .convert(
-                common_utils::types::MinorUnit::new(request_data.refund_amount),
+                request_data.minor_refund_amount,
                 request_data.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {
@@ -846,7 +846,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .convert(
                 request_data
                     .minor_amount
-                    .unwrap_or(common_utils::types::MinorUnit::new(0)),
+                    .unwrap_or(common_utils::types::MinorUnit::default()),
                 request_data.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

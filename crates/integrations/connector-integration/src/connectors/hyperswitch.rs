@@ -9,7 +9,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{PSync, RepeatPayment},

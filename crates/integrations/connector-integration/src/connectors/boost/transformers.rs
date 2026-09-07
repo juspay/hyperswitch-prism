@@ -4,6 +4,7 @@ use common_utils::{
     crypto::{self, SignMessage},
     date_time,
     pii::Email,
+
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector},
 };
 use domain_types::{
@@ -386,9 +387,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} to Boost's FloatMajorUnit \
+                        "Failed to convert minor_amount {:?} {} to Boost's FloatMajorUnit \
                          (unquoted JSON decimal, e.g. 1.00) for the Authorize request.",
-                        item.router_data.request.minor_amount.get_amount_as_i64(),
+                        item.router_data.request.minor_amount,
                         item.router_data.request.currency
                     )),
                 },
@@ -660,13 +661,12 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} to Boost's \
+                        "Failed to convert minor_refund_amount {:?} {} to Boost's \
                          FloatMajorUnit (unquoted JSON decimal, e.g. 1.00) for the reversal \
                          (refund/void) request against connector_transaction_id {}.",
                         item.router_data
                             .request
-                            .minor_refund_amount
-                            .get_amount_as_i64(),
+                            .minor_refund_amount,
                         item.router_data.request.currency,
                         item.router_data.request.connector_transaction_id
                     )),
@@ -863,8 +863,7 @@ impl BoostWebhookBody {
             }
             _ => None,
         };
-        let amount_captured =
-            minor_amount_captured.map(|minor_unit| minor_unit.get_amount_as_i64());
+        let amount_captured = None;
 
         WebhookDetailsResponse {
             connector_returned_payment_method_details: None,

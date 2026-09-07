@@ -2,7 +2,7 @@ pub mod transformers;
 
 use common_enums;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::FloatMajorUnit,
+    consts, errors::CustomResult, events, ext_traits::ByteSliceExt,
 };
 use domain_types::{
     connector_flow::{

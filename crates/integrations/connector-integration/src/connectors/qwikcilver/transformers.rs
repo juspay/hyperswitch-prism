@@ -288,9 +288,9 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Redeem amount {} {} to FloatMajorUnit. \
+                        "Failed to convert Redeem amount {:?} {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.minor_amount.get_amount_as_i64(),
+                        item.router_data.request.minor_amount,
                         item.router_data.request.currency,
                     ),
                     "Verify `amount.minor_amount` is a non-negative integer and \
@@ -601,8 +601,8 @@ where
             .change_context(IntegrationError::AmountConversionFailed {
                 context: qc_err_ctx(
                     format!(
-                        "Failed to convert Recharge amount {} {} to FloatMajorUnit.",
-                        req.amount.get_amount_as_i64(),
+                        "Failed to convert Recharge amount {:?} {} to FloatMajorUnit.",
+                        req.amount,
                         req.currency,
                     ),
                     "Verify `amount.minor_amount` is a non-negative integer and \
@@ -1017,10 +1017,7 @@ fn card_to_wallet_item(
     let available_balance = currency.and_then(|c| {
         crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(card.amount, c)
             .ok()
-            .map(|minor| common_utils::types::Money {
-                amount: minor,
-                currency: c,
-            })
+            .map(|minor| common_utils::types::Money::from_minor_unit(minor, c))
     });
     Some(payment_method_data::WalletItem {
         wallet_item_id,
@@ -1240,7 +1237,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                let currency = data.request.amount.currency;
+                let currency = data.request.amount.currency();
                 let (eligibility, payment_method_details) =
                     if let Some(wallet) = body.wallet.as_ref() {
                         let eligibility = match map_wallet_status(wallet.status.as_ref()) {

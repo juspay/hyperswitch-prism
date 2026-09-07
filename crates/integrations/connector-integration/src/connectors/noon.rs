@@ -7,7 +7,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{

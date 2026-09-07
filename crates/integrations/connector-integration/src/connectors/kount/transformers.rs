@@ -1,4 +1,5 @@
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
+use error_stack::ResultExt;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
@@ -1100,8 +1101,11 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
         // independent of the connector's main amount converter. Omit a 0 value so
         // we never emit a bogus "0" to Kount.
         let minor_unit_amount = |money: &common_utils::types::Money| {
-            let amount = money.amount.get_amount_as_i64();
-            (amount != 0).then(|| amount.to_string())
+            money
+                .convert(&common_utils::types::MinorUnitForConnector)
+                .ok()
+                .filter(|a| *a != common_utils::ConnectorMinorUnit::default())
+                .map(|a| a.to_string())
         };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
         // recurring block wants RFC 3339 (UTC) strings.
@@ -1502,7 +1506,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             account_is_active: None,
         });
 
-        let currency = req.amount.currency;
+        let currency = req.amount.currency();
 
         // Subscription / recurring context, applied to every line item when the
         // order carries mandate info.
@@ -1608,7 +1612,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         });
 
-        let amount = super::KountAmountConvertor::convert(req.amount.amount, currency)?;
+        let amount = req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+            .change_context(errors::IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         let transactions = vec![KountTransaction {
             subtotal: amount.clone(),
             order_total: amount,
@@ -1962,11 +1969,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_status: req
                 .payment_status
                 .and_then(KountPaymentStatus::from_attempt_status),
-            order_total: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
-            currency: req.amount.currency.to_string(),
+            order_total: req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+            currency: req.amount.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,
@@ -2100,11 +2107,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .or_else(|| req.merchant_refund_id.clone()),
             refund_reason: req.refund_reason.clone(),
-            refund_amount: super::KountAmountConvertor::convert(
-                req.amount.amount,
-                req.amount.currency,
-            )?,
-            currency: req.amount.currency.to_string(),
+            refund_amount: req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+            currency: req.amount.currency().to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
             merchant_category_code,
             merchant,

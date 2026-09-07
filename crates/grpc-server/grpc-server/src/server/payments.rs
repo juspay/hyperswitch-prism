@@ -7,7 +7,10 @@ use crate::{
     utils::{self, get_config_from_request, grpc_logging_wrapper},
 };
 use common_enums;
-use common_utils::{events::FlowName, lineage, metadata::MaskedMetadata, SecretSerdeValue};
+use common_utils::{
+    events::FlowName, lineage, metadata::MaskedMetadata,
+    proto_boundary::MinorUnitProtoAccess, SecretSerdeValue,
+};
 use connector_integration::types::{
     AuthenticatorConnectorData, ConnectorData, ConnectorDataProvider, FrmConnectorData,
     PayoutConnectorData,

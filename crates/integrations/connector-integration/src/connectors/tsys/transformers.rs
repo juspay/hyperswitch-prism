@@ -1,5 +1,5 @@
 use common_enums::AttemptStatus;
-use common_utils::types::{MinorUnit, StringMinorUnit};
+use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -927,7 +927,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             transaction_amount: item_data
                 .connector
                 .amount_converter
-                .convert(MinorUnit(item.request.refund_amount), item.request.currency)
+                .convert(item.request.minor_refund_amount, item.request.currency)
                 .change_context(IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -1114,7 +1114,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 let minor_amount = item
                     .request
                     .minor_amount
-                    .unwrap_or_else(|| MinorUnit::new(1));
+                    .unwrap_or_default();
                 let transaction_amount = item_data
                     .connector
                     .amount_converter

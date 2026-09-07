@@ -623,7 +623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data
                     .request
                     .minor_amount
-                    .unwrap_or(common_utils::types::MinorUnit::new(0)),
+                    .unwrap_or(common_utils::types::MinorUnit::default()),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

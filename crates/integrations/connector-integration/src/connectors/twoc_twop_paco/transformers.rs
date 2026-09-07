@@ -232,8 +232,25 @@ impl PacoTransactionAmount {
                     )),
                 },
             })?;
-        let raw = minor_amount.get_amount_as_i64();
-        let amount_text = format!("{raw:0>12}");
+        let connector_minor = <common_utils::types::MinorUnitForConnector as common_utils::types::AmountConvertor>::convert(
+            &common_utils::types::MinorUnitForConnector,
+            minor_amount,
+            currency,
+        )
+        .map_err(|_| errors::IntegrationError::InvalidDataFormat {
+            field_name: "amount",
+            context: errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Verify the request `amount` is a positive integer minor-unit value."
+                        .to_string(),
+                ),
+                doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+                additional_context: Some(format!(
+                    "Failed to convert minor amount to ConnectorMinorUnit for currency {currency:?}"
+                )),
+            },
+        })?;
+        let amount_text = format!("{:0>12}", connector_minor);
         let amount = <FloatMajorUnitForConnector as common_utils::types::AmountConvertor>::convert(
             &FloatMajorUnitForConnector,
             minor_amount,
@@ -635,7 +652,48 @@ pub struct PacoPassenger {
 impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
     type Error = errors::IntegrationError;
     fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
-        Self::new(money.amount, money.currency)
+        let currency = money.currency();
+        let decimals = currency
+            .number_of_digits_after_decimal_point()
+            .map_err(|_| errors::IntegrationError::InvalidDataFormat {
+                field_name: "currency",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use an ISO 4217 currency PACO accepts (e.g. PHP, USD).".to_string(),
+                    ),
+                    doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+                    additional_context: Some(format!(
+                        "Currency {currency:?} not supported for amount conversion"
+                    )),
+                },
+            })?;
+        let minor_unit = money
+            .convert(&common_utils::types::MinorUnitForConnector)
+            .map_err(|_| errors::IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+        let amount_text = format!("{:0>12}", minor_unit);
+        let amount = money
+            .convert(&FloatMajorUnitForConnector)
+            .map_err(|err| errors::IntegrationError::InvalidDataFormat {
+                field_name: "amount",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Verify the request `amount` is a positive integer minor-unit value."
+                            .to_string(),
+                    ),
+                    doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+                    additional_context: Some(format!(
+                        "Failed to convert minor amount to FloatMajorUnit: {err}"
+                    )),
+                },
+            })?;
+        Ok(PacoTransactionAmount {
+            amount_text,
+            currency_code: currency,
+            decimal_places: decimals,
+            amount,
+        })
     }
 }
 

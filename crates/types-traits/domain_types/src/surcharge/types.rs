@@ -12,7 +12,7 @@ use crate::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
-use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
+use common_utils::{metadata::MaskedMetadata, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
 use error_stack::ResultExt;
 impl
     ForeignTryFrom<(

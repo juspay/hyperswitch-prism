@@ -8,7 +8,7 @@ mod tests {
         use std::marker::PhantomData;
 
         use common_enums::CountryAlpha2;
-        use common_utils::{id_type::CustomerId, request::RequestContent};
+        use common_utils::{id_type::CustomerId, proto_boundary::MinorUnitProtoAccess, request::RequestContent};
         use domain_types::{
             connector_flow::ClientAuthenticationToken,
             connector_types::{
@@ -175,7 +175,7 @@ mod tests {
     pub mod token_exchange {
         use std::marker::PhantomData;
 
-        use common_utils::request::RequestContent;
+        use common_utils::{proto_boundary::MinorUnitProtoAccess, request::RequestContent};
         use domain_types::{
             connector_flow::PaymentMethodToken,
             connector_types::{

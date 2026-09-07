@@ -163,7 +163,7 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(router_data.request.amount.get_amount_as_i64()),
+            value: router_data.request.amount,
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
@@ -832,12 +832,11 @@ where
                     .resource_common_data
                     .amount
                     .as_ref()
-                    .map(|m| m.currency)
+                    .map(|m| m.currency())
             });
 
-        let response_amount = resolved_minor_amount.map(|minor| common_utils::types::Money {
-            amount: minor,
-            currency: resolved_currency.unwrap_or_default(),
+        let response_amount = resolved_minor_amount.map(|minor| {
+            common_utils::types::Money::from_minor_unit(minor, resolved_currency.unwrap_or_default())
         });
 
         let connector_response_reference_id = item
@@ -859,7 +858,7 @@ where
             .captures
             .as_ref()
             .and_then(|c| c.last())
-            .map(|c| c.amount.get_amount_as_i64());
+            .map(|c| c.amount);
 
         let response = if let Some(err) = error_response {
             Err(err)
@@ -883,8 +882,8 @@ where
             resource_common_data: PaymentFlowData {
                 status,
                 amount: response_amount.or(item.router_data.resource_common_data.amount),
-                amount_captured: captured_amount
-                    .or(item.router_data.resource_common_data.amount_captured),
+                minor_amount_captured: captured_amount
+                    .or(item.router_data.resource_common_data.minor_amount_captured),
                 ..item.router_data.resource_common_data
             },
             response,
@@ -1177,13 +1176,10 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(
-                router_data
+            value: router_data
                     .request
                     .minor_amount
-                    .map(|a| a.get_amount_as_i64())
-                    .unwrap_or(0),
-            ),
+                    .unwrap_or_default(),
         };
 
         let authentication_settings =
@@ -1575,9 +1571,7 @@ where
         let router_data = item.router_data;
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: common_utils::MinorUnit::new(
-                router_data.request.minor_amount.get_amount_as_i64(),
-            ),
+            value: router_data.request.minor_amount,
         };
 
         let initiator = if router_data.request.off_session.unwrap_or(true) {

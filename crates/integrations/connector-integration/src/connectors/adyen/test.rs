@@ -8,7 +8,7 @@ mod tests {
     pub mod authorize {
         use std::{borrow::Cow, marker::PhantomData, str::FromStr};
 
-        use common_utils::{pii::Email, request::RequestContent, types::MinorUnit};
+        use common_utils::{pii::Email, proto_boundary::MinorUnitProtoAccess, request::RequestContent, types::MinorUnit};
         use domain_types::{
             connector_flow::Authorize,
             connector_types::{

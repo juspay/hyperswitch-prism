@@ -17,7 +17,6 @@ use common_utils::{
     events,
     ext_traits::ByteSliceExt,
     pii::SecretSerdeValue,
-    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -807,13 +806,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         // Adyen HMAC message format: pspReference:originalReference:merchantAccountCode:merchantReference:amount.value:amount.currency:eventCode:success
+        let amount_value = common_utils::AmountConvertor::convert(
+            &common_utils::MinorUnitForConnector,
+            notif.amount.value,
+            notif.amount.currency,
+        )
+        .map(|a| a.to_string())
+        .unwrap_or_default();
         let message = format!(
             "{}:{}:{}:{}:{}:{}:{}:{}",
             notif.psp_reference,
             notif.original_reference.as_deref().unwrap_or(""),
             notif.merchant_account_code,
             notif.merchant_reference,
-            notif.amount.value,
+            amount_value,
             notif.amount.currency,
             notif.event_code,
             notif.success

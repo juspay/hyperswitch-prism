@@ -5,6 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, ValueExt},
+
     request::Method,
     types::{MinorUnit, SemanticVersion},
     SecretSerdeValue,
@@ -4373,7 +4374,7 @@ where
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+                amount_captured: None,
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
@@ -4496,7 +4497,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+                amount_captured: None,
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
@@ -6802,7 +6803,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             ),
             resource_common_data: PaymentFlowData {
                 status: adyen_payments_response_data.status,
-                amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+                amount_captured: None,
                 minor_amount_captured,
                 connector_response: adyen_payments_response_data.connector_response,
                 ..router_data.resource_common_data
@@ -6827,7 +6828,7 @@ fn get_amount_data_for_setup_mandate<
 ) -> Amount {
     Amount {
         currency: item.router_data.request.currency,
-        value: MinorUnit::new(item.router_data.request.amount.unwrap_or(0)),
+        value: item.router_data.request.minor_amount.unwrap_or_default(),
     }
 }
 

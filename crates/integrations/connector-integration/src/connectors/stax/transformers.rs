@@ -307,7 +307,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: MinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -1267,7 +1267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: false,
             pre_auth: true,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: MinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data
@@ -1440,7 +1440,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_refundable: true,
             pre_auth: !is_auto_capture,
             meta: StaxMeta {
-                tax: MinorUnit::zero(),
+                tax: MinorUnit::default(),
             },
             idempotency_id: Some(
                 item.router_data

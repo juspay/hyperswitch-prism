@@ -6,7 +6,8 @@ use std::{
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
 use common_utils::{
-    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
+    consts, fp_utils::when, metadata::MaskedMetadata, proto_boundary::MinorUnitProtoAccess,
+    AmountConvertor, CustomResult, MinorUnit,
 };
 use error_stack::{report, Result, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -361,6 +362,17 @@ pub fn convert_back_amount_to_minor_units<T>(
     currency: common_enums::Currency,
 ) -> core::result::Result<MinorUnit, error_stack::Report<common_utils::errors::ParsingError>> {
     amount_convertor.convert_back(amount, currency)
+}
+
+/// Compute capturable amount as `total - captured`.
+///
+/// This keeps arithmetic on [`MinorUnit`] in the domain layer so that
+/// connector code never needs subtraction.
+pub fn compute_capturable_amount(
+    total: MinorUnit,
+    captured: MinorUnit,
+) -> MinorUnit {
+    MinorUnit::new(total.get_amount_as_i64() - captured.get_amount_as_i64())
 }
 
 #[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]

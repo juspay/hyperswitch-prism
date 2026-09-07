@@ -32,7 +32,11 @@ mod tests {
             AttemptStatus, AuthenticationType, Currency, PaymentMethod, PaymentMethodType,
         };
         use common_utils::{
-            id_type::MerchantId, pii::Email, request::RequestContent, types::MinorUnit,
+            id_type::MerchantId,
+            pii::Email,
+            proto_boundary::MinorUnitProtoAccess,
+            request::RequestContent,
+            types::MinorUnit,
         };
         use domain_types::{
             connector_types::{PaymentFlowData, PaymentsAuthorizeData},
@@ -624,7 +628,7 @@ mod tests {
             use std::str::FromStr;
 
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
             use domain_types::{
                 connector_types::PaymentFlowData,
                 payment_address::PaymentAddress,
@@ -1016,7 +1020,7 @@ mod tests {
         use std::str::FromStr;
 
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
         use domain_types::{
             connector_types::PaymentFlowData,
             payment_address::PaymentAddress,
@@ -1241,7 +1245,7 @@ mod tests {
         use std::str::FromStr;
 
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
         use domain_types::{
             connector_types::PaymentFlowData,
             payment_address::PaymentAddress,
@@ -1469,7 +1473,7 @@ mod tests {
         #[test]
         fn test_build_request_valid_order() {
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, request::RequestContent, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, proto_boundary::MinorUnitProtoAccess, request::RequestContent, types::MinorUnit};
             use domain_types::{
                 connector_types::PaymentCreateOrderData,
                 payment_address::PaymentAddress,
@@ -1615,7 +1619,7 @@ mod tests {
         #[test]
         fn test_build_request_missing() {
             use common_enums::Currency;
-            use common_utils::{id_type::MerchantId, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
             use domain_types::{
                 connector_types::PaymentCreateOrderData,
                 payment_address::PaymentAddress,
@@ -1749,7 +1753,7 @@ mod tests {
             use common_enums::{
                 AttemptStatus, AuthenticationType, Currency, PaymentMethod, PaymentMethodType,
             };
-            use common_utils::{id_type::MerchantId, types::MinorUnit};
+            use common_utils::{id_type::MerchantId, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
             use domain_types::{
                 connector_types::{PaymentFlowData, PaymentsAuthorizeData},
                 payment_address::PaymentAddress,
@@ -1928,7 +1932,7 @@ mod tests {
     #[test]
     fn test_handle_response_v2_valid_order_response() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
         use domain_types::{
             connector_types::{PaymentCreateOrderData, PaymentFlowData},
             payment_address::PaymentAddress,
@@ -2072,7 +2076,7 @@ mod tests {
     #[test]
     fn test_handle_response_missing() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
         use domain_types::{
             connector_types::PaymentCreateOrderData,
             payment_address::PaymentAddress,
@@ -2206,7 +2210,7 @@ mod tests {
     #[test]
     fn test_handle_response_invalid() {
         use common_enums::Currency;
-        use common_utils::{id_type::MerchantId, pii::Email, types::MinorUnit};
+        use common_utils::{id_type::MerchantId, pii::Email, proto_boundary::MinorUnitProtoAccess, types::MinorUnit};
         use domain_types::{
             connector_types::PaymentCreateOrderData,
             payment_address::PaymentAddress,

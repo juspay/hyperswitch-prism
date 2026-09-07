@@ -38,6 +38,7 @@ use transformers::{
 };
 
 use super::macros;
+macros::create_amount_converter_wrapper!(connector_name: Nexinets, amount_type: MinorUnit);
 use crate::{types::ResponseRouterData, utils, with_error_response_body};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -262,7 +263,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: MinorUnit],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,

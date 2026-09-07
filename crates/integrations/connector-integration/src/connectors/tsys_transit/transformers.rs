@@ -1338,7 +1338,7 @@ fn build_tsys_product_details(
         let priority = 1;
         let has_discount = detail
             .unit_discount_amount
-            .map(|amount| amount.get_amount_as_i64() > 0)
+            .map(|amount| amount.is_positive())
             .unwrap_or(false);
         let stackable = if has_discount {
             TsysTransitYesNo::Yes
@@ -1964,7 +1964,13 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
         .request
         .surcharge_amount
         .as_ref()
-        .map(|amount| super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency))
+        .map(|amount| {
+            amount
+                .convert(&common_utils::types::StringMajorUnitForConnector)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })
+        })
         .transpose()?;
     let billing = router_data
         .resource_common_data
@@ -2545,7 +2551,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             })
             .flatten();
-        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        let amount_captured = None;
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
@@ -3130,7 +3136,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .refund_money
             .as_ref()
             .map(|amount| {
-                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
+                amount
+                    .convert(&common_utils::types::StringMajorUnitForConnector)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })
             })
             .transpose()?;
         // TSYS <voidReason> only accepts a fixed set of enum values, so an
