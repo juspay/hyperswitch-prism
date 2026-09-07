@@ -325,8 +325,8 @@
         "error": "This feature is not implemented: Payment method `reward` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `reward`"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -337,8 +337,8 @@
         "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -373,8 +373,8 @@
         "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -515,8 +515,8 @@
         "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -559,8 +559,8 @@
         "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -595,12 +595,12 @@
         "error": "This feature is not implemented: Payment method `paypal_sdk` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `paypal_sdk`"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
