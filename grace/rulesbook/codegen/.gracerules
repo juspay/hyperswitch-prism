@@ -90,12 +90,20 @@ Procedure:
 4. **MANDATORY**: Stop for user-approval if any gaps or issues found during validation
 5. **MANDATORY**: List out the flows to be implemented based on tech spec analysis
 6. **MANDATORY**: Detect pre-authorization flows required by the connector from tech spec:
-   - **ServerAuthenticationToken**: Connector uses OAuth/token-based auth (e.g., POST /login, POST /oauth/token)
+   - **ServerAuthenticationToken**: Connector uses OAuth/token-based auth (e.g., POST /login, POST /oauth/token, session-token bootstrap such as Qwikcilver `/authorize`)
+   - **PreAuthenticate**: Connector needs a *local* step before Authorize that produces no outbound HTTP call (e.g. device-data-collection script/SDK snippet, as in Kount). Implemented with `CallConnectorAction::HandleResponseWithoutBuildRequest`.
    - **CreateOrder**: Connector requires order/intent creation before payment confirmation
    - **CreateConnectorCustomer**: Connector requires customer creation before payment
    - **PaymentMethodToken**: Connector requires tokenizing payment method before authorization
    - **ServerSessionAuthenticationToken**: Connector requires session initialization before payment
    - Record which pre-auth flows are needed — these will be implemented BEFORE Authorize in Phase 3
+
+   Also detect **non-payment support flows** (implement them but mark `not_implemented`/`not_supported` in `macro_connector_flow_status_impls!` if out of scope for this run):
+   - **PreRiskCheck / PostRiskCheck / FrmPaymentOutcome / FrmRefundProcessed / FrmChargebackReceived** — FR M provider (e.g. Kount). `resource_common_data` is `FrmFlowData`.
+   - **CreatePaymentMethod / GetPaymentMethod / PaymentMethodEligibility / Recharge** — gift-card / wallet-provisioning provider (e.g. Qwikcilver).
+
+   And detect **transport-level wrapping**, which dictates `macro_connector_implementation!` flags:
+   - **JOSE / JWS / JWE / request+response envelope wrapping** (e.g. 2C2P PACO uses `application/jose`) → set `preprocess_request: true` and `preprocess_response: true`, and add `preprocess_request_bytes` / `preprocess_response_bytes` to `create_all_prerequisites!` `member_functions`
 
 ### PHASE 2: FOUNDATION SETUP (Subagent Delegation)
 1. **DELEGATE TO**: Foundation Setup Subagent
@@ -119,10 +127,15 @@ Procedure:
 Execute flows in EXACT sequence - each must complete before next begins.
 **Pre-Authorization flows** (only if detected in Phase 1 tech spec analysis):
 - IF ServerAuthenticationToken needed: **DELEGATE TO**: ServerAuthenticationToken Flow Subagent → **WAIT FOR COMPLETION**
+- IF PreAuthenticate needed (local DDC/script, no outbound call): **DELEGATE TO**: PreAuthenticate Flow Subagent → **WAIT FOR COMPLETION**
 - IF CreateOrder needed: **DELEGATE TO**: CreateOrder Flow Subagent → **WAIT FOR COMPLETION**
 - IF CreateConnectorCustomer needed: **DELEGATE TO**: CreateConnectorCustomer Flow Subagent → **WAIT FOR COMPLETION**
 - IF PaymentMethodToken needed: **DELEGATE TO**: PaymentMethodToken Flow Subagent → **WAIT FOR COMPLETION**
 - IF ServerSessionAuthenticationToken needed: **DELEGATE TO**: ServerSessionAuthenticationToken Flow Subagent → **WAIT FOR COMPLETION**
+
+**Support flows (only if detected in Phase 1 tech spec analysis):**
+- IF the connector is a fraud/risk provider: **DELEGATE TO**: FRM Subagent (PreRiskCheck → PostRiskCheck/FrmPaymentOutcome/FrmRefundProcessed/FrmChargebackReceived as applicable) → **WAIT FOR COMPLETION**
+- IF the connector is a gift-card / wallet-provisioning provider: **DELEGATE TO**: Payment-Method-Service Subagent (CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge as applicable) → **WAIT FOR COMPLETION**
 
 **Core flows** (always executed):
 1. **DELEGATE TO**: Authorize Flow Subagent → **WAIT FOR COMPLETION**
@@ -525,6 +538,31 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Primary Responsibility**: Session initialization before payment
 - **Key Implementation**: ConnectorIntegrationV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 - **ValidationTrait**: Override `should_do_session_token()` to return `true`
+
+#### PREAUTHENTICATE FLOW SUBAGENT (local DDC / script-only, no outbound call)
+- **Flow Name**: PreAuthenticate
+- **Reference implementation**: `connectors/kount.rs` → `ConnectorIntegrationV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>`
+- **Primary Responsibility**: Build a device-data-collection (or equivalent) response locally without calling the connector
+- **Key Implementation**: manual `ConnectorIntegrationV2` impl (NOT `macro_connector_implementation!`) — return `CallConnectorAction::HandleResponseWithoutBuildRequest` from `get_call_connector_action()`, return `Ok(None)` from `build_request_v2`, and build `PaymentsResponseData::PreAuthenticateResponse { redirection_data: Some(Box::new(RedirectForm::Script { script_data })), .. }` inside `handle_response_v2`
+- **ValidationTrait**: Override `next_authentication_step()` to return `AuthenticationStep::PreAuthenticate` so the composite loop knows to run it before `Authorize`
+
+#### FRM (FRAUD & RISK) FLOW SUBAGENT
+- **Flow Names**: PreRiskCheck, PostRiskCheck, FrmPaymentOutcome, FrmRefundProcessed, FrmChargebackReceived
+- **Reference implementation**: `connectors/kount.rs`
+- **Primary Responsibility**: Evaluate orders and push payment outcomes to a fraud provider
+- **Key Implementation**: `resource_common_data = FrmFlowData` in `create_all_prerequisites!`; use `macros::frm_flow_not_implemented!` for unsupported FRM flows; implement `connector_types::FrmServiceTrait`
+- **ValidationTrait**: Override `should_do_access_token()` if FRM calls need an OAuth bearer token (stored in `FrmFlowData.access_token`)
+
+#### PAYMENT-METHOD-SERVICE FLOW SUBAGENT (wallets / gift cards)
+- **Flow Names**: CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge
+- **Reference implementation**: `connectors/qwikcilver.rs`
+- **Primary Responsibility**: Wallet/gift-card provisioning, lookup, eligibility, and top-up — all outside the payment state machine
+- **Key Implementation**: use `resource_common_data = PaymentFlowData` and the corresponding request/response types (`CreatePaymentMethodData`/`CreatePaymentMethodResponseData`, `GetPaymentMethodData`/`GetPaymentMethodResponseData`, `PaymentMethodEligibilityData`/`PaymentMethodEligibilityResponse`, `RechargeRequestData`/`RechargeResponseData`)
+
+#### JOSE / ENVELOPE-WRAPPED CONNECTOR (request+response preprocessing)
+- **Reference implementation**: `connectors/twoc_twop_paco.rs` (2C2P PACO)
+- **Signals**: Tech spec says requests/responses are JWS/JWE wrapped, `Content-Type: application/jose`
+- **Action**: Set `preprocess_request: true` **and** `preprocess_response: true` in `macro_connector_implementation!`; define `preprocess_request_bytes` (wrap raw JSON → envelope) and `preprocess_response_bytes` (decrypt envelope → raw JSON) in `create_all_prerequisites!` `member_functions` using `common_utils::crypto::jose::{sign_then_encrypt, decrypt_then_verify, JoseConfig}`
 
 #### CANONICAL PATTERN INDEX (for all flows and payment methods)
 

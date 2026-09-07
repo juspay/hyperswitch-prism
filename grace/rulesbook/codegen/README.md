@@ -188,6 +188,12 @@ debug PayPal connector - getting timeout errors
 | **MandateRevoke** | `flows/mandate_revoke/` | SetupMandate | Cancel stored mandates |
 | **IncrementalAuthorization** | `flows/IncrementalAuthorization/` | Authorize | Incremental auth flow |
 | **VoidPC** | `flows/void_pc/` | Capture | Void post-capture |
+| **PreAuthenticate** | `guides/patterns/pattern_preauthenticate.md` | - | Local device-data-collection / script-only step (no outbound call — see `kount`) |
+| **ServerAuthenticationToken** | `flows/server_authentication_token/` | - | OAuth / login-token bootstrap (feeds `state.access_token`) |
+| **PreRiskCheck / PostRiskCheck** | `guides/patterns/pattern_frm.md` | - | Fraud evaluation (FRM) |
+| **FrmPaymentOutcome / FrmRefundProcessed** | `guides/patterns/pattern_frm.md` | PreRiskCheck | Notify fraud provider of final outcome |
+| **CreatePaymentMethod / GetPaymentMethod** | `guides/patterns/pattern_payment_method_service.md` | - | Gift-card/wallet provisioning and lookup (see `qwikcilver`) |
+| **PaymentMethodEligibility / Recharge** | `guides/patterns/pattern_payment_method_service.md` | - | Gift-card/wallet eligibility and top-up (see `qwikcilver`) |
 
 ### Payment Method Patterns (for Authorize Flow)
 

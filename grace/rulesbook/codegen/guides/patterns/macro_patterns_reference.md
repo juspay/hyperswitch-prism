@@ -159,7 +159,8 @@ macros::macro_connector_implementation!(
 - `flow_request`: Request data type from domain_types
 - `flow_response`: Response data type from domain_types
 - `http_method`: HTTP method (Post, Get, Put, Patch, Delete)
-- `preprocess_response`: Optional - set to `true` if connector needs response preprocessing
+- `preprocess_request`: Optional - set to `true` if the connector needs to transform the raw JSON body bytes before sending (e.g. wrap/encrypt/sign it). Implement `preprocess_request_bytes` in `create_all_prerequisites!` `member_functions`. See [Request/Response Preprocessing](#advanced-requestresponse-preprocessing) below.
+- `preprocess_response`: Optional - set to `true` if the connector needs response preprocessing (e.g., XML → JSON, or decrypting a JWE envelope). Implement `preprocess_response_bytes` in `create_all_prerequisites!` `member_functions`.
 - `generic_type`: Generic type variable (usually `T`)
 - `[trait_bounds]`: Trait bounds for the generic type
 - `other_functions`: Block containing flow-specific custom methods
@@ -237,9 +238,11 @@ macros::macro_connector_implementation!(
 ## Flow-Specific Data Types
 
 ### Resource Common Data Types
-- **PaymentFlowData** - Used for: Authorize, PSync, Capture, Void, VoidPC, SetupMandate
+- **PaymentFlowData** - Used for: Authorize, PSync, Capture, Void, VoidPC, SetupMandate, Recharge, CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility
 - **RefundFlowData** - Used for: Refund, RSync
 - **DisputeFlowData** - Used for: Accept, SubmitEvidence, DefendDispute
+- **MerchantAuthenticationFlowData** - Used for: ServerAuthenticationToken, ServerSessionAuthenticationToken, ClientAuthenticationToken (OAuth/login bootstrap calls)
+- **FrmFlowData** - Used for: PreRiskCheck, PostRiskCheck, FrmPaymentOutcome, FrmRefundProcessed, FrmChargebackReceived (fraud/FraudAndRiskManagementService flows)
 
 ### Request Data Types (from domain_types::connector_types)
 - **PaymentsAuthorizeData\<T\>** - For Authorize flow
@@ -253,11 +256,153 @@ macros::macro_connector_implementation!(
 - **AcceptDisputeData** - For Accept flow
 - **SubmitEvidenceData** - For SubmitEvidence flow
 - **DisputeDefendData** - For DefendDispute flow
+- **ServerAuthenticationTokenRequestData** - For ServerAuthenticationToken (OAuth/login bootstrap)
+- **RechargeRequestData** - For Recharge (card/wallet top-up, e.g. Qwikcilver)
+- **CreatePaymentMethodData** - For CreatePaymentMethod (provision a wallet/payment-method record)
+- **GetPaymentMethodData** - For GetPaymentMethod (fetch a wallet/payment-method record)
+- **PaymentMethodEligibilityData** - For PaymentMethodEligibility (check a payment method's eligibility)
 
 ### Response Data Types (from domain_types::connector_types)
 - **PaymentsResponseData** - For all payment flows
 - **RefundsResponseData** - For all refund flows
 - **DisputeResponseData** - For all dispute flows
+- **ServerAuthenticationTokenResponseData** - For ServerAuthenticationToken
+- **RechargeResponseData** - For Recharge
+- **CreatePaymentMethodResponseData** - For CreatePaymentMethod
+- **GetPaymentMethodResponseData** - For GetPaymentMethod
+- **PaymentMethodEligibilityResponse** - For PaymentMethodEligibility
+
+## Advanced: Request/Response Preprocessing (e.g. JOSE/JWE wrapping, XML, custom decoding)
+
+A few connectors do not send plain JSON — they require the raw request bytes to be wrapped (encrypted/signed)
+before they hit the wire, and/or the raw response bytes to be unwrapped (decrypted/verified) before the
+JSON response type is deserialized. Two patterns exist for this:
+
+### `preprocess_response: true` (existing connectors: `worldpayxml`, `twoc_twop_paco`, and others)
+Set this flag when the connector's response is not directly deserializable as JSON. You must provide a
+`preprocess_response_bytes` member function in `create_all_prerequisites!`:
+
+```rust
+pub fn preprocess_response_bytes<F, FCD, Req, Res>(
+    &self,
+    _req: &RouterDataV2<F, FCD, Req, Res>,
+    bytes: bytes::Bytes,
+    status_code: u16,
+) -> CustomResult<bytes::Bytes, errors::ConnectorError> {
+    // convert/decrypt; return the JSON bytes that match `curl_response`'s schema
+    Ok(bytes)
+}
+```
+
+### `preprocess_request: true` (introduced by `twoc_twop_paco`)
+Set this flag — **together with** `preprocess_response: true` when the connector also wraps responses —
+when the connector's request must be transformed after serialization but before HTTP dispatch. You must
+provide a `preprocess_request_bytes` member function. `curl_request` still describes the **logical**
+(JSON) request; the macro emits code that passes the serialized JSON bytes through your
+`preprocess_request_bytes` before sending.
+
+```rust
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: TwocTwopPaco,
+    curl_request: Json(TwocTwopPacoAuthorizeRequest),   // logical JSON body
+    curl_response: TwocTwopPacoAuthorizeResponse,
+    flow_name: Authorize,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthorizeData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    preprocess_request: true,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/jose"            // wire format (not the logical JSON)
+        }
+        // ...
+    }
+);
+```
+
+And in `create_all_prerequisites!`:
+```rust
+pub fn preprocess_request_bytes<F, FCD, Req, Res>(
+    &self,
+    req: &RouterDataV2<F, FCD, Req, Res>,
+    bytes: Vec<u8>,
+) -> CustomResult<Vec<u8>, errors::IntegrationError> {
+    // wrap `bytes` (already JSON). E.g. JOSE sign+encrypt:
+    let inner: serde_json::Value = serde_json::from_slice(&bytes)?;
+    let claims = PacoJoseClaims::new(auth.access_token.peek(), inner);
+    let jwe = common_utils::crypto::jose::sign_then_encrypt(&claims, &auth.jose_cfg)?;
+    Ok(jwe.into_bytes())
+}
+```
+
+**When to use:**
+- JOSE/JWS/JWE wrapping (request signing/encryption), e.g. 2C2P PACO → `application/jose`
+- XML-in/proto-out or other transport encodings
+- Any time the connector's HTTP payload is not the direct JSON of your request type
+
+## Advanced: Local-only flow (no outbound connector call)
+
+Some flows need to return a response **without ever calling the connector's API** — for example,
+Kount's `PreAuthenticate` builds a Device-Data-Collection `<script>` locally. Implement
+`ConnectorIntegrationV2` directly (no `macro_connector_implementation!`) and return
+`CallConnectorAction::HandleResponseWithoutBuildRequest`:
+
+```rust
+impl<T: ...> ConnectorIntegrationV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>
+    for Kount<T>
+{
+    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+    }
+
+    fn build_request_v2(&self, _req: &RouterDataV2<...>) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
+        Ok(None)    // nothing is sent to the connector
+    }
+
+    fn handle_response_v2(&self, data: &RouterDataV2<...>, _event_builder, _res: Response)
+        -> CustomResult<RouterDataV2<...>, ConnectorError>
+    {
+        // Build the response locally.
+        router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            redirection_data: Some(Box::new(RedirectForm::Script { script_data: script })),
+            // ...
+            status_code: 200,
+        });
+        Ok(router_data)
+    }
+}
+```
+
+The `RedirectForm::Script { script_data }` variant is how a connector returns a raw `<script>` blob
+(e.g. a DDC collector) that the embedding page executes — distinct from an HTML form redirect.
+
+## Advanced: Pre-auth / composite flows
+
+A connector may need one of these **before** `Authorize`:
+- `ServerAuthenticationToken` — OAuth client-credentials or session-token bootstrap. When the rest of
+  the API is bearered with the returned token, set `ValidationTrait::should_do_access_token -> true`
+  and mark the flow's `resource_common_data` as `MerchantAuthenticationFlowData`. GRPC clients can
+  either call the composite HTTP endpoint (which bootstraps the token automatically) or pass the token
+  back via `state.access_token`. Example: Qwikcilver `/authorize`.
+- `PreAuthenticate` — builds local device-data-collection content (see Kount). Mark the flow in
+  `ValidationTrait::next_authentication_step` to return `AuthenticationStep::PreAuthenticate` so the
+  composite loop runs it before Authorize.
+
+## Advanced: FRM / Risk-service flows
+
+For fraud-check providers (e.g. Kount), implement:
+- `PreRiskCheck` — submit the order for evaluation (`POST`), using `FrmFlowData`
+- `PostRiskCheck` — signal "payment authorized" (often unused → `frm_flow_not_implemented!`)
+- `FrmPaymentOutcome` / `FrmRefundProcessed` — notify the provider of the final outcome (`PATCH`)
+- `FrmChargebackReceived` — provider pushed a dispute (often unused → `frm_flow_not_implemented!`)
+
+Use `macros::frm_flow_not_implemented!` for the ones you don't support, and
+`impl connector_types::FrmServiceTrait` for the connector.
 
 ## Complete Connector Template
 
