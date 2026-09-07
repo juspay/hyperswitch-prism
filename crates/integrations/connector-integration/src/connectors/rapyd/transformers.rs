@@ -98,10 +98,7 @@ impl RapydPaymentMethodType {
         network: &str,
         card_type: Option<&str>,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let is_debit = matches!(
-            card_type.map(str::to_lowercase).as_deref(),
-            Some("debit")
-        );
+        let is_debit = matches!(card_type.map(str::to_lowercase).as_deref(), Some("debit"));
         match network.to_lowercase().as_str() {
             "visa" if is_debit => Ok(Self::InDebitVisaCard),
             "visa" => Ok(Self::InCreditVisaCard),
@@ -561,11 +558,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 expiration_month: decrypt_data
                                                     .get_expiry_month()
                                                     .change_context(
-                                                        IntegrationError::MissingRequiredField {
-                                                            field_name: "gpay expiration_month",
-                                                            context: Default::default(),
-                                                        },
-                                                    )?,
+                                                    IntegrationError::MissingRequiredField {
+                                                        field_name: "gpay expiration_month",
+                                                        context: Default::default(),
+                                                    },
+                                                )?,
                                                 pan: decrypt_data
                                                     .application_primary_account_number
                                                     .clone(),
