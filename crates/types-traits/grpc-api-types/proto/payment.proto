@@ -1059,7 +1059,7 @@ enum PaymentMethodType {
   PIX_QR = 133;
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
-  NETELLER = 117;
+  NETELLER = 136;
 }
 
 // Product type enumeration
