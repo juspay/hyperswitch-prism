@@ -476,6 +476,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
