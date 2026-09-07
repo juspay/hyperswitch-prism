@@ -19,6 +19,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.07.1
+
+### Features
+
+- **proto:** PaymentMethodType enum gaps + sender_payment_instrument_id on authorize response ([#2244](https://github.com/juspay/connector-service/pull/2244)) ([`5eff10e`](https://github.com/juspay/connector-service/commit/5eff10ed2154f8dbc12a8dc1da8bd0d69e89ddbd))
+
+### Bug Fixes
+
+- **adyen:** Support Wallet payment methods in SetupMandate (Apple Pay / Google Pay) ([#2240](https://github.com/juspay/connector-service/pull/2240)) ([`829a727`](https://github.com/juspay/connector-service/commit/829a727336d8bd752dbf454c84b4f9235beb9a56))
+- **pii:** Mask email fields in connector transformers ([#2242](https://github.com/juspay/connector-service/pull/2242)) ([`0cb0501`](https://github.com/juspay/connector-service/commit/0cb0501fd0374678e06feb2945465b1c2d0b47aa))
+- **prism:** Connector transformer parity fixes (cybersource metadata, authorizedotnet held-for-review) ([#2243](https://github.com/juspay/connector-service/pull/2243)) ([`9388381`](https://github.com/juspay/connector-service/commit/93883811d5f7348394f6bd52dd99c82347f179b9))
+- **stripe:**
+  - Support reused PaymentMethod token in SetupMandate ([#2241](https://github.com/juspay/connector-service/pull/2241)) ([`d6e3ee5`](https://github.com/juspay/connector-service/commit/d6e3ee5ef45373310bdad8964e2045c381b89b87))
+  - Implement CardDetailsForNetworkTransactionId, fix classifier misclassification ([#2245](https://github.com/juspay/connector-service/pull/2245)) ([`cff965b`](https://github.com/juspay/connector-service/commit/cff965bf2bb58c2ba335f3e72f8d518f6edd092b))
+
+### Refactors
+
+- **logs:** Remove duplicate connector outgoing request logs ([#2238](https://github.com/juspay/connector-service/pull/2238)) ([`beb0260`](https://github.com/juspay/connector-service/commit/beb0260ee30df90af8bb7acb70c8648311868d6e))
+
+**Full Changelog:** [`2026.09.07.0...2026.09.07.1`](https://github.com/juspay/connector-service/compare/2026.09.07.0...2026.09.07.1)
+
+- - -
+
 ## 2026.09.07.0
 
 ### Features
