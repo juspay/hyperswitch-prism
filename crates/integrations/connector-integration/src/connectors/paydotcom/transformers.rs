@@ -536,7 +536,11 @@ pub fn pending_resource_id_from_authentication_data(
     authentication_data
         .and_then(|data| data.transaction_id.as_deref())
         .map(str::trim)
-        .filter(|id| !id.is_empty())
+        // An external MPI populates this same field with the id its own 3DS system
+        // generated, alongside `eci`/`cavv`. That is not a Pay.com resource, and taking it
+        // for one would route the Authorize to `Confirm` and then fail in
+        // `payment_resource_path`. Only a `chrg_`/`hld_` id is ours.
+        .filter(|id| id.starts_with(CHARGE_ID_PREFIX) || id.starts_with(HOLD_ID_PREFIX))
         .map(str::to_string)
 }
 
@@ -1322,7 +1326,12 @@ impl PaydotcomPaymentsResponse {
     /// A 2xx carrying `status: "failed"` is the normal decline path once the transaction
     /// has reached the network, so it is turned into an `ErrorResponse` here rather than
     /// being left to `build_error_response`.
-    fn in_band_error(&self, http_code: u16) -> ErrorResponse {
+    ///
+    /// `attempt_status` is the status the caller derived for its own flow, not a constant:
+    /// `get_attempt_status_for_grpc` prefers this field over the `resource_common_data`
+    /// fallback, so hardcoding `Failure` would report a declined capture as a failed
+    /// payment while the hold is in fact intact and still capturable.
+    fn in_band_error(&self, http_code: u16, attempt_status: AttemptStatus) -> ErrorResponse {
         let (failure_code, failure_message) = self.failure();
         ErrorResponse {
             status_code: http_code,
@@ -1333,7 +1342,7 @@ impl PaydotcomPaymentsResponse {
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: failure_message,
-            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+            attempt_status: Some(FlowStatus::Payment(attempt_status)),
             connector_transaction_id: Some(self.id().to_string()),
             network_decline_code: failure_code,
             network_advice_code: None,
@@ -1393,7 +1402,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // can hand it back on the next leg (linked session, then confirm).
         let connector_feature_data = item.response.pending_metadata().map(Secret::new);
         let response = match status {
-            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
             _ => Ok(item.response.transaction_response(item.http_code)),
         };
 
@@ -1448,7 +1457,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
             .map(|_| resource_id_authentication_data(&resource_id));
 
         let response = match status {
-            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
             _ => Ok(PaymentsResponseData::PreAuthenticateResponse {
                 resource_id: Some(ResponseId::ConnectorTransactionId(resource_id)),
                 // The challenge URL does not exist yet — it is minted by the linked-session
@@ -1501,7 +1510,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
 
         let response = match status {
             AttemptStatus::Failure | AttemptStatus::AuthenticationFailed => {
-                Err(item.response.in_band_error(item.http_code))
+                Err(item.response.in_band_error(item.http_code, status))
             }
             _ => Ok(PaymentsResponseData::AuthenticateResponse {
                 resource_id: Some(ResponseId::ConnectorTransactionId(resource_id)),
@@ -1541,7 +1550,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = item.response.attempt_status();
         let response = match status {
-            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
             _ => Ok(item.response.transaction_response(item.http_code)),
         };
 
@@ -1587,7 +1596,9 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
         };
 
         let response = match status {
-            AttemptStatus::CaptureFailed => Err(item.response.in_band_error(item.http_code)),
+            AttemptStatus::CaptureFailed => {
+                Err(item.response.in_band_error(item.http_code, status))
+            }
             // `resource_id` is the **new** `chrg_` id minted by the capture. Rewriting the
             // attempt's connector_transaction_id here is what makes a later refund work,
             // because `POST /v1/refunds` only accepts `^chrg_` ids.
@@ -1617,7 +1628,7 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let status = item.response.attempt_status();
         let response = match status {
-            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
             _ => Ok(item.response.transaction_response(item.http_code)),
         };
 
@@ -1656,6 +1667,36 @@ pub struct PaydotcomRefundResponse {
     pub failure_message: Option<String>,
 }
 
+impl PaydotcomRefundResponse {
+    /// A 2xx carrying `status: "failed"` is how Pay.com reports a declined refund, so it
+    /// becomes an `ErrorResponse` here rather than an `Ok` the merchant cannot explain.
+    /// `failure_code`/`failure_message` are the only place the reason appears; the
+    /// payments path does the same with the same shape.
+    fn in_band_error(&self, http_code: u16) -> ErrorResponse {
+        ErrorResponse {
+            status_code: http_code,
+            code: self
+                .failure_code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: self
+                .failure_message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: self.failure_message.clone(),
+            attempt_status: Some(FlowStatus::Refund(RefundStatus::Failure)),
+            connector_transaction_id: self.charge.clone(),
+            network_decline_code: self.failure_code.clone(),
+            network_advice_code: None,
+            network_error_message: self.failure_message.clone(),
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
+        }
+    }
+}
+
 impl TryFrom<ResponseRouterData<PaydotcomRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
@@ -1664,13 +1705,19 @@ impl TryFrom<ResponseRouterData<PaydotcomRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaydotcomRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let refund_status = RefundStatus::from(item.response.status);
+        let response = match refund_status {
+            RefundStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            _ => Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
-                refund_status: RefundStatus::from(item.response.status),
+                refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -1684,13 +1731,19 @@ impl TryFrom<ResponseRouterData<PaydotcomRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<PaydotcomRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            response: Ok(RefundsResponseData {
+        let refund_status = RefundStatus::from(item.response.status);
+        let response = match refund_status {
+            RefundStatus::Failure => Err(item.response.in_band_error(item.http_code)),
+            _ => Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
-                refund_status: RefundStatus::from(item.response.status),
+                refund_status,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+        };
+
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -1782,9 +1835,11 @@ impl PaydotcomErrorResponse {
 
     pub fn to_refund_error_response(&self, status_code: u16) -> ErrorResponse {
         let mut error_response = self.to_error_response(status_code);
-        // `attempt_status` is a payment concept; a failed refund must not rewrite the
-        // payment attempt.
-        error_response.attempt_status = None;
+        // The refund error builder reads `attempt_status` alone and falls back to
+        // `REFUND_STATUS_UNSPECIFIED` — there is no `resource_common_data.status` fallback
+        // on this path the way there is for payments. So it carries the *refund* status
+        // here; a payment `AttemptStatus` would be wrong, and `None` loses the failure.
+        error_response.attempt_status = Some(FlowStatus::Refund(RefundStatus::Failure));
         error_response
     }
 }
