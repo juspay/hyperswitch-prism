@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L282) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L112) · [Rust](../../examples/shift4/shift4.rs#L341)
+**Examples:** [Python](../../examples/shift4/shift4.py#L282) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L112) · [Rust](../../examples/shift4/shift4.rs#L339)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,19 +137,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L301) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L128) · [Rust](../../examples/shift4/shift4.rs#L357)
+**Examples:** [Python](../../examples/shift4/shift4.py#L301) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L128) · [Rust](../../examples/shift4/shift4.rs#L355)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L326) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L150) · [Rust](../../examples/shift4/shift4.rs#L380)
+**Examples:** [Python](../../examples/shift4/shift4.py#L326) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L150) · [Rust](../../examples/shift4/shift4.rs#L378)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/shift4/shift4.py#L351) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L172) · [Rust](../../examples/shift4/shift4.rs#L403)
+**Examples:** [Python](../../examples/shift4/shift4.py#L351) · [JavaScript](../../examples/shift4/shift4.js) · [Kotlin](../../examples/shift4/shift4.kt#L172) · [Rust](../../examples/shift4/shift4.rs#L401)
 
 ## API Reference
 

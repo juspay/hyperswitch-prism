@@ -2831,6 +2831,21 @@ def _rust_field(key: str) -> str:
     return f"r#{key}" if key in _RUST_KEYWORDS else key
 
 
+# Every `[deprecated = true]` field in the proto sources carries this exact
+# marker in its trailing comment (see e.g. MandateAmountData.amount/currency
+# in payment.proto). Rust denies `#[warn(deprecated)]` as an error under the
+# repo's `-D warnings` clippy/build config, so emitting a deprecated field's
+# value into a compiled example (anything wired into sdk/rust/Cargo.toml's
+# [[example]] targets) breaks CI. Skip such fields entirely in generated Rust
+# examples -- the replacement field (named in the same comment) is emitted
+# alongside it and is what examples should demonstrate.
+_DEPRECATED_FIELD_MARKER = "will be removed in a future release"
+
+
+def _is_deprecated_field(comment: str | None) -> bool:
+    return bool(comment) and _DEPRECATED_FIELD_MARKER in comment
+
+
 def _rust_struct_lines(
     obj: dict,
     msg_name: str,
@@ -2858,6 +2873,8 @@ def _rust_struct_lines(
 
     for key, val in obj.items():
         comment   = db.get_comment(msg_name, key)
+        if _is_deprecated_field(comment):
+            continue
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  // {comment}" if comment else ""
         field     = _rust_field(key)
@@ -3037,6 +3054,8 @@ def _rust_payload_lines(
 
     for key, val in obj.items():
         comment   = db.get_comment(msg_name, key)
+        if _is_deprecated_field(comment):
+            continue
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  // {comment}" if comment else ""
         field     = _rust_field(key)

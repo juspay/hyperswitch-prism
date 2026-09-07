@@ -322,8 +322,12 @@ pub struct SetupMandateRequest<
     pub customer: Option<Secret<String>>,
     pub off_session: Option<bool>,
     pub return_url: Option<String>,
+    // Reusing a previously tokenized/saved Stripe PaymentMethod (PaymentMethodData::PaymentMethodToken)
+    // goes through `payment_method` (Stripe's top-level "use this existing PM" field) instead --
+    // mirrors PaymentIntentRequest, which already supports both paths.
+    pub payment_method: Option<Secret<String>>,
     #[serde(flatten)]
-    pub payment_data: StripePaymentMethodData<T>,
+    pub payment_data: Option<StripePaymentMethodData<T>>,
     pub payment_method_options: Option<StripePaymentMethodOptions>, // For mandate txns using network_txns_id, needs to be validated
     #[serde(flatten)]
     pub meta_data: Option<HashMap<String, String>>,
@@ -2489,7 +2493,10 @@ impl From<StripePaymentStatus> for common_enums::AttemptStatus {
 #[derive(Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentIntentResponse {
     pub id: String,
-    pub object: String,
+    // Stripe's own docs guarantee this, but HS treats it as optional (matching what's actually
+    // been observed on the wire) -- kept in parity so a response HS parses successfully doesn't
+    // fail here.
+    pub object: Option<String>,
     pub amount: MinorUnit,
     #[serde(default, deserialize_with = "deserialize_zero_minor_amount_as_none")]
     // stripe gives amount_captured as 0 for payment intents instead of null
@@ -2505,7 +2512,7 @@ pub struct PaymentIntentResponse {
     pub description: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub last_payment_error: Option<ErrorDetails>,
@@ -2839,14 +2846,15 @@ impl From<SetupMandateResponse> for PaymentIntentResponse {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SetupMandateResponse {
     pub id: String,
-    pub object: String,
+    // See PaymentIntentResponse::object -- optional in parity with HS/observed Stripe behavior.
+    pub object: Option<String>,
     pub status: StripePaymentStatus, // Change to SetupStatus
     pub client_secret: Secret<String>,
     pub customer: Option<Secret<String>>,
     pub payment_method: Option<String>,
     pub statement_descriptor: Option<String>,
     pub statement_descriptor_suffix: Option<String>,
-    pub metadata: StripeMetadata,
+    pub metadata: Option<StripeMetadata>,
     pub next_action: Option<StripeNextActionResponse>,
     pub payment_method_options: Option<StripePaymentMethodOptions>,
     pub latest_attempt: Option<LatestAttempt>,
@@ -5189,13 +5197,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        //Only cards supported for mandates
-        let pm_type = StripePaymentMethodType::Card;
-        let payment_data = StripePaymentMethodData::try_from((
-            &item,
-            item.router_data.resource_common_data.auth_type,
-            pm_type,
-        ))?;
+        // A previously tokenized/saved Stripe PaymentMethod (PaymentMethodData::PaymentMethodToken,
+        // e.g. one created via a prior PaymentMethodToken call) is reused differently depending
+        // on what was tokenized -- matching Authorize's own card_token/payment_method_id split:
+        // an Apple Pay / Google Pay decrypted-token payload was exchanged for a Stripe *token*
+        // (via the Tokens API) and must be sent nested as payment_method_data[card][token]; a
+        // plain saved PaymentMethod id is reused directly through the top-level `payment_method`
+        // field instead (Stripe rejects a PaymentMethod id nested under payment_method_data[...]).
+        // Every other payment method still goes through the existing card-shaped payment_data
+        // builder (only cards are otherwise supported here).
+        let (payment_method, payment_data, payment_method_types) =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::PaymentMethodToken(token_data) => {
+                    match token_data.token_payment_method_type {
+                        Some(
+                            payment_method_data::TokenPaymentMethod::ApplePay
+                            | payment_method_data::TokenPaymentMethod::GooglePay,
+                        ) => (
+                            None,
+                            Some(StripePaymentMethodData::CardTokenPayment(
+                                StripeCardTokenPayment {
+                                    payment_method_data_type: StripePaymentMethodType::Card,
+                                    token: token_data.token.clone(),
+                                },
+                            )),
+                            Some(StripePaymentMethodType::Card),
+                        ),
+                        None => (Some(token_data.token.clone()), None, None),
+                    }
+                }
+                _ => {
+                    let pm_type = StripePaymentMethodType::Card;
+                    let payment_data = StripePaymentMethodData::try_from((
+                        &item,
+                        item.router_data.resource_common_data.auth_type,
+                        pm_type,
+                    ))?;
+                    (None, Some(payment_data), Some(pm_type))
+                }
+            };
 
         let meta_data = Some(get_transaction_metadata(
             item.router_data.request.metadata.clone(),
@@ -5234,6 +5274,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             confirm: true,
+            payment_method,
             payment_data,
             return_url: item.router_data.request.router_return_url.clone(),
             off_session: item.router_data.request.off_session,
@@ -5246,7 +5287,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .to_owned()
                 .map(Secret::new),
             meta_data,
-            payment_method_types: Some(pm_type),
+            payment_method_types,
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
             moto: is_moto,

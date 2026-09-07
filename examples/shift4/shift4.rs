@@ -355,8 +355,6 @@ pub fn build_token_setup_recurring_request() -> PaymentServiceTokenSetupRecurrin
             mandate_type: Some(MandateType {
                 // Type of mandate (single_use or multi_use) with amount details.
                 mandate_type: Some(mandate_type::MandateType::MultiUse(MandateAmountData {
-                    amount: 0, // Use amount_money instead (will be removed in a future release).
-                    currency: Currency::Usd.into(), // Use amount_money.currency instead (will be removed in a future release).
                     amount_money: Some(Money {
                         // Amount in Money type.
                         minor_amount: 0, // Amount in minor units (e.g., 1000 = $10.00).
