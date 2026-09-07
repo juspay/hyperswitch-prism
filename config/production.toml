@@ -24,6 +24,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
+d24.base_url = "https://api.directa24.com"
 citigate.base_url = "https://gw.cgate.tech"
 paynearme.base_url = "https://api.paynearme.com/json-api"
 saferpay.base_url = "https://www.saferpay.com/api"

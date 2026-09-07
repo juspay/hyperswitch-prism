@@ -1042,6 +1042,9 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
             test_mode: item.test_mode,
             state: item.state.clone(),
             split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
         }
     }
 }

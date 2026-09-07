@@ -910,6 +910,7 @@ enum Connector {
   JPMORGAN_ORBITAL = 141;
   TRAVELHUB = 142;
   PAYNEARME = 143;
+  D24 = 144;
 }
 
 // Payment method types
@@ -4430,6 +4431,11 @@ message PaymentMethodServiceTokenizeRequest {
   // (platform fees, transfers, etc.), read only by connectors still on the old
   // split_payments contract (e.g. Stripe, Adyen).
   optional SplitPaymentsDetails split_payments = 11;
+
+  // Mandate/Recurring configuration
+  optional FutureUsage setup_future_usage = 12;      // Indicates future usage intention (e.g. off_session for mandates)
+  optional CustomerAcceptance customer_acceptance = 13; // Details of customer consent for mandate setup
+  optional SetupMandateDetails setup_mandate_details = 14; // Mandate data for recurring payment setup
 }
 
 // Response message for tokenizing a payment method
@@ -5029,6 +5035,7 @@ message FinixConfig {
 message GlobalpayConfig {
   SecretString app_id = 1;
   SecretString app_key = 2;
+  optional SecretString account_name = 3;  // GlobalPay capability/account name (e.g. "transaction_processing"); required in production, where the value is assigned by the merchant's account manager
   optional string base_url = 50;
 }
 
@@ -5777,6 +5784,16 @@ message TravelhubConfig {
   optional string base_url = 50;
 }
 
+message D24Config {
+  // Directa24 API Key -- sent verbatim in the X-Login header
+  SecretString api_key = 1;
+  // Directa24 read-only API Key -- X-Login on read-only GET endpoints
+  SecretString key1 = 2;
+  // Directa24 API Signature -- HMAC key only, never transmitted
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6111,6 +6128,8 @@ message ConnectorSpecificConfig {
     TravelhubConfig travelhub = 153;
     // PAYNEARME = 143
     PaynearmeConfig paynearme = 154;
+    // D24 = 144
+    D24Config d24 = 155;
   }
 }
 

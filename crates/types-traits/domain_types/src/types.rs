@@ -438,6 +438,7 @@ pub struct Connectors {
     pub saferpay: ConnectorParams,
     pub travelhub: ConnectorParams,
     pub paynearme: ConnectorParams,
+    pub d24: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -816,6 +817,9 @@ impl Connectors {
             ConnectorEnum::Travelhub => {
                 patched.travelhub.apply(params_patch);
             }
+            ConnectorEnum::D24 => {
+                patched.d24.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -823,7 +827,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24",
                             connector
                         )),
                         ..Default::default()
@@ -1512,6 +1516,9 @@ impl<
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
                             payment_method_data::CardRedirectData::CardRedirect {}
+                        }
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
+                            payment_method_data::CardRedirectData::Webpay {}
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
                             return Err(report!(IntegrationError::InvalidDataFormat { field_name: "payment_method.card_redirect.type", context: IntegrationErrorContext { additional_context: Some("Card redirect type cannot be unspecified".to_string()), ..Default::default() } }))
@@ -3036,6 +3043,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                             Ok(Some(PaymentMethodType::MomoAtm))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
+                            Ok(Some(PaymentMethodType::CardRedirect))
+                        }
+                        // WebPay is distinguished at the connector, not by
+                        // routing/analytics: it keeps the generic
+                        // `CardRedirect` payment method type.
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
                             Ok(Some(PaymentMethodType::CardRedirect))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
@@ -7110,6 +7123,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(_)),
+            } => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_)),
             } => Ok(Self::NetworkToken),
             grpc_api_types::payments::PaymentMethod {
@@ -7570,6 +7587,24 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PaySafeCard(_)),
             } => Ok(Self::GiftCard),
+            // A present-but-unmapped variant is a real, known payment method this classifier
+            // simply hasn't been taught yet -- that's a NotImplemented gap, not bad input.
+            grpc_api_types::payments::PaymentMethod {
+                payment_method: Some(_),
+            } => Err(report!(IntegrationError::NotImplemented(
+                "payment_method".to_owned(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
+                            .to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "The provided payment method variant is not yet supported by this flow"
+                            .to_owned(),
+                    ),
+                },
+            ))),
             _ => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
@@ -7579,7 +7614,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                     ),
                     doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is empty or not supported by this flow"
+                        "The provided payment method variant is empty"
                             .to_owned(),
                     ),
                 },
@@ -14516,16 +14551,28 @@ impl<
         }?;
         let currency = money.currency;
 
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            fu => Some(common_enums::FutureUsage::foreign_try_from(fu)?),
+        };
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let setup_mandate_details = value
+            .setup_mandate_details
+            .map(MandateData::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             amount: money.amount,
             currency,
             payment_method_data,
             browser_info: None,
             capture_method: None,
-            customer_acceptance: None,
-            setup_future_usage: None,
+            customer_acceptance,
+            setup_future_usage,
             mandate_id: None,
-            setup_mandate_details: None,
+            setup_mandate_details,
             integrity_object: None,
             split_payments: value
                 .split_payments
