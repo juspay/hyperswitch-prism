@@ -36,6 +36,7 @@
   "scripts": {
     "build": "tsc && cp -r src/payments/generated dist/src/payments/ && cp src/payments/_generated_flows.js dist/src/payments/",
     "start": "node dist/src/index.js",
+    "test:unit": "tsx --test tests/**/*.test.ts",
     "test": "node test_smoke.js"
   },
   "dependencies": {

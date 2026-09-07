@@ -56,7 +56,11 @@ export class NetworkError extends Error {
 }
 
 /**
- * Resolve proxy URL, honoring bypass rules.
+ * Resolve proxy URL for a given target URL, honoring bypass rules.
+ * 
+ * @param url - The target origin URL (e.g., 'https://api.stripe.com')
+ * @param proxy - The proxy configuration options including httpUrl, httpsUrl, and bypassUrls
+ * @returns The resolved proxy URL string, or null if a bypass rule matches or no proxy is configured
  */
 export function resolveProxyUrl(url: string, proxy?: types.IProxyOptions | null): string | null {
   if (!proxy) return null;
@@ -66,8 +70,11 @@ export function resolveProxyUrl(url: string, proxy?: types.IProxyOptions | null)
 }
 
 /**
- * Generate a cache key from proxy configuration for HTTP client caching.
- * Returns empty string when no proxy is configured.
+ * Generate a deterministic cache key from proxy configuration for HTTP client connection pooling.
+ * This ensures that dispatchers are properly reused across requests with identical proxy configs.
+ * 
+ * @param proxy - The proxy configuration options
+ * @returns A string cache key, or an empty string when no proxy is configured
  */
 export function generateProxyCacheKey(proxy?: types.IProxyOptions | null): string {
   if (!proxy) return "";
@@ -82,8 +89,13 @@ export function generateProxyCacheKey(proxy?: types.IProxyOptions | null): strin
 }
 
 /**
- * Creates a high-performance dispatcher with specialized fintech timeouts.
- * (The instance-level connection pool)
+ * Creates a high-performance undici dispatcher with specialized fintech timeouts.
+ * Serves as the instance-level connection pool for HTTP requests.
+ * Automatically configures TLS and proxy tunneling based on the provided configuration.
+ * 
+ * @param config - The HTTP configuration including timeouts, custom CA certs, and proxy settings
+ * @returns An undici Dispatcher (either Agent or ProxyAgent) configured for optimal connection reuse
+ * @throws {NetworkError} If proxy configuration is invalid or dispatcher creation fails
  */
 export function createDispatcher(config: types.IHttpConfig): Dispatcher {
   let ca: string | Uint8Array | undefined;
@@ -130,6 +142,13 @@ export function createDispatcher(config: types.IHttpConfig): Dispatcher {
 
 /**
  * Standardized network execution engine for Unified Connector Service.
+ * Handles request timeouts, execution via undici, and error normalization.
+ * 
+ * @param request - The normalized HTTP request object (url, method, headers, body)
+ * @param options - HTTP configuration options (timeouts)
+ * @param dispatcher - The undici Dispatcher instance to use for connection pooling
+ * @returns A Promise resolving to the normalized HTTP response
+ * @throws {NetworkError} On connection timeouts, response timeouts, parsing errors, or network failures
  */
 export async function execute(
   request: HttpRequest,
