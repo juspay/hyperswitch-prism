@@ -16,6 +16,7 @@ import { FLOWS, SINGLE_FLOWS } from "./_generated_flows.js";
 // @ts-ignore - generated protobuf types
 import { types } from "./generated/proto.js";
 import { IntegrationError, ConnectorError } from "./errors";
+import { resolveNativeLib } from "./native_lib";
 
 // Standard Node.js __dirname
 declare const __dirname: string;
@@ -60,12 +61,8 @@ interface FfiFunctions {
 
 function loadLib(libPath?: string): FfiFunctions {
   if (!libPath) {
-    const ext = process.platform === "darwin" ? "dylib" : "so";
-    // Native libs are bundled per platform under generated/<platform>-<arch>/
-    // (e.g. linux-x64, linux-arm64, darwin-arm64) so one package serves every
-    // architecture; select the one matching this runtime.
-    const target = `${process.platform}-${process.arch}`;
-    libPath = path.join(_dirname, "generated", target, `libconnector_service_ffi.${ext}`);
+    // Bundled per platform under generated/<platform>-<arch>/; see native_lib.ts.
+    libPath = resolveNativeLib(path.join(_dirname, "generated"), "libconnector_service_ffi");
   }
 
   const lib = koffi.load(libPath);
