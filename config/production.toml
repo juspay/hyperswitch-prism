@@ -156,12 +156,14 @@ axisbank.base_url = "https://upisdk.axisbank.co.in/api/b2/"
 tsys_transit.base_url = "https://gateway.transit-pass.com/servlets/TransNox_API_Server"
 globalpayments_realex.base_url = "https://api.realexpayments.com/"
 # 3DS2 lives on a different host, a different protocol (JSON, not XML) and a different
-# auth scheme (`Authorization: securehash`) from the XML gateway above. See
-# connectors/globalpayments_realex/three_ds_two.rs.
-# NOTE: two Global Payments documents disagree on the production 3DS2 host
-# (`api.globalpay-ecommerce.com` vs `api.globalpay.com`); the majority spelling is
-# configured here and must be confirmed with GP before the production cut-over.
-globalpayments_realex.secondary_base_url = "https://api.globalpay-ecommerce.com/"
+# auth scheme (`Authorization: securehash`) from the XML gateway above. See the 3DS2
+# section of connectors/globalpayments_realex/transformers.rs.
+# DELIBERATELY UNSET: two Global Payments documents disagree on the production 3DS2
+# host (`api.globalpay-ecommerce.com` vs `api.globalpay.com`) and neither has been
+# confirmed. `connector_3ds2_base_url` answers an unset value with
+# InvalidConnectorConfig naming this key, which is a loud, correct failure; a guessed
+# host would instead send real PANs and a real securehash somewhere unverified.
+# Set this once GP confirms the host.
 # {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix; see
 # the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prod.netcetera-cloud-payment.ch"

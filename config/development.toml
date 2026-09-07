@@ -191,7 +191,7 @@ tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Serv
 globalpayments_realex.base_url = "https://api.sandbox.realexpayments.com/"
 # 3DS2 lives on a different host, a different protocol (JSON, not XML) and a different
 # auth scheme (`Authorization: securehash`) from the XML gateway above. See
-# connectors/globalpayments_realex/three_ds_two.rs.
+# the 3DS2 section of connectors/globalpayments_realex/transformers.rs.
 globalpayments_realex.secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
 # {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix, substituted
 # per-request in connectors/netcetera.rs (resolve_netcetera_base_url) from the merchant's

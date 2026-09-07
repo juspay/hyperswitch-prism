@@ -604,7 +604,8 @@ connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
 [[overrides]]
 _context_ = { connector = "globalpayments_realex" }
 connector_base_url = "https://api.sandbox.realexpayments.com/"
-# 3DS2 is a separate JSON API on a separate host (see three_ds_two.rs).
+# 3DS2 is a separate JSON API on a separate host (see the 3DS2 section of
+# connectors/globalpayments_realex/transformers.rs).
 connector_secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
 
 # ============================================================================
@@ -617,9 +618,10 @@ connector_secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
 [[overrides]]
 _context_ = { connector = "globalpayments_realex", environment = "production" }
 connector_base_url = "https://api.realexpayments.com/"
-# 3DS2 is a separate JSON API on a separate host (see three_ds_two.rs). Two GP
-# documents disagree on this host; confirm with GP before the production cut-over.
-connector_secondary_base_url = "https://api.globalpay-ecommerce.com/"
+# 3DS2 is a separate JSON API on a separate host (see the 3DS2 section of
+# connectors/globalpayments_realex/transformers.rs). DELIBERATELY UNSET: two GP
+# documents disagree on the production host and neither is confirmed, so the
+# connector's InvalidConnectorConfig error is the intended behaviour until it is.
 
 # Adyen Production
 [[overrides]]

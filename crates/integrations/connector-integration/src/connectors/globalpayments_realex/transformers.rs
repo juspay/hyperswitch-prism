@@ -26,7 +26,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId as DomainResponseId,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -72,6 +75,19 @@ pub const CVN_PRESENCE_INDICATOR_PRESENT: u8 = 1;
 pub const DEFAULT_CARDHOLDER_NAME: &str = "Cardholder";
 /// `<orderid>` maximum length accepted by the gateway.
 const ORDER_ID_MAX_LEN: usize = 50;
+
+/// The longest order id this connector will ever **mint**.
+///
+/// `<orderid>` itself accepts [`ORDER_ID_MAX_LEN`] characters, but a refund can only ever be read
+/// back under `_rebate_<orderid>` (see [`REBATE_LEG_ORDER_ID_PREFIX`]), and that synthetic id has
+/// to fit in the same 50. Minting anything longer produces a payment that authorizes, captures and
+/// refunds perfectly and is then **unsyncable** — every RSync on it fails the length check at the
+/// far end of the flow, long after the order id could have been chosen differently.
+///
+/// So the prefix is paid for up front, at the one place the id is chosen. Order ids that arrive
+/// from stored metadata are still round-tripped at full length by [`sanitize_order_id`]: truncating
+/// those would change an id the gateway has already accepted.
+const MINTED_ORDER_ID_MAX_LEN: usize = ORDER_ID_MAX_LEN - REBATE_LEG_ORDER_ID_PREFIX.len();
 /// Success result code. Every other value is a decline or an error (tech spec §9).
 const RESULT_SUCCESS: &str = "00";
 /// `508 Original transaction not found.` — on a `type="query"` this means the gateway holds no
@@ -195,6 +211,32 @@ pub struct GlobalpaymentsRealexPaymentMetadata {
 // =============================================================================
 // HASHING (tech spec §3)
 // =============================================================================
+
+/// The debugging context a response-phase failure should carry.
+///
+/// This gateway answers **HTTP 200 for everything** — success, decline, bad digest and malformed
+/// document alike — so the transport status tells an operator nothing and `<result>` / `<message>`
+/// are the only signal there is. A `ResponseHandlingFailed` with an empty context is therefore
+/// close to undebuggable: it says a response could not be handled, on a connector where every
+/// response looks identical from the outside.
+///
+/// The order id is included because it is the only key that ties the failure back to a payment;
+/// `<pasref>`, `<authcode>` and the digest are deliberately **not**, since this string is
+/// appended to an error message that travels.
+fn response_error_context(
+    response: &GlobalpaymentsRealexPaymentsResponse,
+    http_code: u16,
+) -> ResponseTransformationErrorContext {
+    ResponseTransformationErrorContext {
+        http_status_code: Some(http_code),
+        additional_context: Some(format!(
+            "GlobalpaymentsRealex answered result {} ({}) for order id {}",
+            response.result,
+            response.message.as_deref().unwrap_or("<no message>"),
+            response.orderid.as_deref().unwrap_or("<no order id>"),
+        )),
+    }
+}
 
 /// Lowercase hex SHA-1 of the UTF-8 bytes of `input`.
 ///
@@ -367,7 +409,7 @@ fn verify_response_hash(
 }
 
 // -----------------------------------------------------------------------------
-// 3DS2 JSON API digests (separate API — see `super::three_ds_two`)
+// 3DS2 JSON API digests (separate API — see the 3DS2 section below)
 // -----------------------------------------------------------------------------
 
 /// The `Authorization: securehash <digest>` blueprints of the Global Payments **3DS2 JSON API**.
@@ -376,7 +418,7 @@ fn verify_response_hash(
 /// Shared Secret, but **nothing else**: different field lists, a different timestamp format
 /// ([`current_3ds2_timestamp`]) and a different card-scheme vocabulary
 /// (`MASTERCARD`, not the XML `MC` — see [`map_card_type`] and
-/// [`super::three_ds_two::map_3ds2_scheme`]).
+/// [`map_3ds2_scheme`]).
 ///
 /// Blueprints (source: `sources/source_2_3d_secure_two.md` § "Generate hash"):
 ///
@@ -515,6 +557,17 @@ pub fn sanitize_order_id(reference: &str) -> Result<String, error_stack::Report<
     }
 
     Ok(sanitized)
+}
+
+/// Mints the `<orderid>` for a **new** payment: [`sanitize_order_id`] plus the
+/// [`MINTED_ORDER_ID_MAX_LEN`] cap that keeps the refund leg addressable.
+///
+/// Every site that derives an order id from `connector_request_reference_id` goes through here, so
+/// the Authorize request, the metadata the Authorize response publishes and the 3DS2 AReq all agree
+/// byte for byte.
+fn mint_order_id(reference: &str) -> Result<String, error_stack::Report<IntegrationError>> {
+    let sanitized = sanitize_order_id(reference)?;
+    Ok(sanitized.chars().take(MINTED_ORDER_ID_MAX_LEN).collect())
 }
 
 /// RealEx expects the integer amount in the smallest unit of the currency, with no leading zeros,
@@ -787,7 +840,7 @@ where
         // All six digest inputs must be byte-identical to what ends up on the wire, so build the
         // strings once and reuse them for both the body and the hash.
         let timestamp = current_timestamp()?;
-        let order_id = sanitize_order_id(
+        let order_id = mint_order_id(
             &router_data
                 .resource_common_data
                 .connector_request_reference_id,
@@ -1067,12 +1120,12 @@ where
         let auto_settle =
             GlobalpaymentsRealexAutoSettleFlag::try_from(router_data.request.capture_method)
                 .change_context(ConnectorError::ResponseHandlingFailed {
-                    context: Default::default(),
+                    context: response_error_context(&response, http_code),
                 })?;
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         let hash_verification = verify_response_hash(&response, auth.shared_secret.peek());
@@ -1115,13 +1168,13 @@ where
 
             // The order id we actually put on the wire — recomputed rather than read back from
             // the response so that a follow-up `settle` reuses a byte-identical value.
-            let sent_order_id = sanitize_order_id(
+            let sent_order_id = mint_order_id(
                 &router_data
                     .resource_common_data
                     .connector_request_reference_id,
             )
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
             let connector_metadata = serde_json::to_value(GlobalpaymentsRealexPaymentMetadata {
@@ -1458,7 +1511,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexCaptureResponse, Self>>
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         // The `settle` response uses the same check-hash blueprint as `auth` (verified live), and
@@ -1785,7 +1838,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexVoidResponse, Self>>
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         // Same check-hash blueprint as `auth` and `settle`, and the same "no <sha1hash> on the
@@ -2145,10 +2198,21 @@ where
 /// `<result>` here rather than from a transport status.
 fn map_refund_status(result: &str) -> RefundStatus {
     if result == RESULT_SUCCESS {
-        RefundStatus::Success
-    } else {
-        RefundStatus::Failure
+        return RefundStatus::Success;
     }
+
+    // The gateway refused to act on the request at all — a bad digest, a wrong rebate password, a
+    // malformed element, an unknown transaction. No money moved, but neither did the refund get
+    // *declined*: the request never reached that decision. `Failure` is terminal, so recording one
+    // here turns a fixable misconfiguration into a refund nobody can retry. See
+    // [`is_integration_fault`].
+    if is_integration_fault(result) {
+        return RefundStatus::ManualReview;
+    }
+
+    // Everything else is the gateway's actual answer about this refund — `512 already been
+    // rebated`, the over-refund ceiling, a decline — and those are genuine terminal failures.
+    RefundStatus::Failure
 }
 
 impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>>
@@ -2167,7 +2231,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRefundResponse, Self>>
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         // Same check-hash blueprint as `auth`, `settle` and `void`
@@ -2491,13 +2555,19 @@ where
 /// Dead guards that read as safety are worse than no guard, so it was removed rather than left in
 /// place. Carrying the current attempt status on the sync request is the proper long-term fix, but
 /// it is a proto and shared-domain change and therefore out of scope for this connector.
-/// `query` result codes that describe the **lookup**, not the payment.
+/// Result codes that describe **our request**, not the transaction it was about.
 ///
-/// The `5xx` family on this API is the integration-error family: `505` bad digest, `506` malformed
-/// order id, `508` no such transaction, `502`/`503` malformed or disallowed request. None of them
-/// is evidence about the underlying payment's outcome, so a sync that hits one must not overwrite
-/// a known status.
-fn is_query_lookup_fault(result: &str) -> bool {
+/// The `5xx` family on this API is the integration-error family: `502` mandatory field missing,
+/// `503` request type not allowed for this merchant, `505` bad `sha1hash` *or* bad rebate password,
+/// `506` malformed element, `508` no such transaction. Every one of them means the gateway refused
+/// to act on the request — none is a statement about the payment or the refund.
+///
+/// Two flows read this, for the same reason. On `query` it prevents a sync from overwriting a known
+/// status. On `rebate` it prevents a **credential misconfiguration** from being recorded as a
+/// permanently failed refund: `505 The refund password you entered was incorrect.` is a wrong
+/// `api_secret`, and burning the refund to a terminal `Failure` leaves an operator with a record
+/// that cannot be retried once the credential is fixed.
+fn is_integration_fault(result: &str) -> bool {
     matches!(result, "502" | "503" | "505" | "506" | "508")
 }
 
@@ -2513,7 +2583,7 @@ fn map_psync_attempt_status(
     // any of them would flip a perfectly healthy Charged payment to failed on a sync — the exact
     // trap `map_rsync_outcome` already refuses to fall into. Leave the attempt where it was and
     // let the structured connector error carry the fault.
-    if is_query_lookup_fault(result) {
+    if is_integration_fault(result) {
         return AttemptStatus::Unresolved;
     }
 
@@ -2553,7 +2623,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexPSyncResponse, Self>>
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         // A `query` response's `<sha1hash>` does not follow the documented blueprint and is not
@@ -2674,7 +2744,7 @@ const GATEWAY_ECHO_ORDER_ID_PREFIXES: [&str; 3] = ["_rebate_", "_settle_", "_voi
 /// characters, so this is headroom rather than a live constraint — but it must be an explicit,
 /// actionable error rather than a silently truncated request that would `508`
 /// (tech spec §12.6.2 item 3).
-const RSYNC_ORIGINAL_ORDER_ID_MAX_LEN: usize = ORDER_ID_MAX_LEN - REBATE_LEG_ORDER_ID_PREFIX.len();
+const RSYNC_ORIGINAL_ORDER_ID_MAX_LEN: usize = MINTED_ORDER_ID_MAX_LEN;
 
 /// The RSync request is **byte-identical in shape** to the PSync request — same `type="query"`,
 /// same elements, same digest blueprint. Only the `<orderid>` value differs: RSync sends
@@ -3005,7 +3075,7 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsRealexRSyncResponse, Self>>
 
         let auth = GlobalpaymentsRealexAuthType::try_from(&router_data.connector_config)
             .change_context(ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: response_error_context(&response, http_code),
             })?;
 
         // Rule 8. The `query` response digest blueprint is unrecovered (see
@@ -3930,6 +4000,12 @@ pub fn read_method_return(
         })
     })?;
 
+    // Same shape check the challenge return applies. There is no injection path here — this id
+    // travels in the AReq's JSON body and its digest, never in a URL — but a value that is not a
+    // 3DS Server transaction id cannot identify an authentication either way, and the asymmetry
+    // between the two browser returns is not worth keeping.
+    validate_server_trans_id(&server_trans_id)?;
+
     // Our own synthesised no-DDC form is the only thing that ever sets this field; a real ACS
     // echo carries only `threeDSMethodData`.
     let method_url_completion =
@@ -4119,7 +4195,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 date_time_created: format!("{request_timestamp}Z"),
                 amount: format_amount(request.amount, currency)?,
                 currency: currency.to_string(),
-                id: sanitize_order_id(
+                id: mint_order_id(
                     &router_data
                         .resource_common_data
                         .connector_request_reference_id,
@@ -4589,7 +4665,7 @@ mod tests {
 
     #[test]
     fn method_completion_is_unavailable_only_for_the_synthesised_no_ddc_form() {
-        let encoded = encode_synthetic_method_data("sid-1", "https://example.com/complete");
+        let encoded = encode_synthetic_method_data(SERVER_TRANS_ID, "https://example.com/complete");
 
         let ddc = serde_json::json!({ FIELD_THREE_DS_METHOD_DATA: encoded.clone() });
         let no_ddc = serde_json::json!({
@@ -4619,6 +4695,9 @@ mod tests {
     /// The published SHA-1 of the ASCII string "password" — an independent oracle, not a value
     /// copied out of this connector's own output.
     const SHA1_OF_PASSWORD: &str = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8";
+    /// A syntactically valid 3DS Server transaction id. EMVCo defines the field as a UUID and both
+    /// browser-return paths now enforce that, so the fixtures have to look like the real thing.
+    const SERVER_TRANS_ID: &str = "6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33";
 
     /// The digest the RealEx spec describes, computed from the **joined wire string** rather than
     /// from a field array.
@@ -5077,18 +5156,87 @@ mod tests {
     }
 
     #[test]
-    fn a_tampered_rebate_document_is_not_reported_as_a_failed_refund() {
-        // Guards the distinction the status map alone cannot express: `Failure` invites a retry
-        // and a double refund, `ManualReview` does not.
+    fn a_minted_order_id_leaves_room_for_the_rebate_prefix() {
+        // The trap: `<orderid>` accepts 50 characters, but a refund is only ever readable back
+        // under `_rebate_<orderid>`, which must also fit in 50. A 43-50 character reference used to
+        // authorize, capture and refund perfectly and then fail every RSync — at the far end of the
+        // flow, long after the id could have been chosen differently.
+        let long_reference = "r".repeat(ORDER_ID_MAX_LEN);
+        let minted = mint_order_id(&long_reference).expect("minted");
+        assert_eq!(minted.len(), MINTED_ORDER_ID_MAX_LEN);
+        assert!(
+            REBATE_LEG_ORDER_ID_PREFIX.len() + minted.len() <= ORDER_ID_MAX_LEN,
+            "a minted order id must still address its own rebate leg"
+        );
+        // The RSync guard is the same number, by construction rather than by coincidence.
+        assert_eq!(MINTED_ORDER_ID_MAX_LEN, RSYNC_ORIGINAL_ORDER_ID_MAX_LEN);
+
+        // Ids that arrive from stored metadata are still round-tripped at full length: truncating
+        // one the gateway has already accepted would break every follow-up on that payment.
+        assert_eq!(
+            sanitize_order_id(&long_reference)
+                .expect("round-tripped")
+                .len(),
+            ORDER_ID_MAX_LEN
+        );
+
+        // Minting is otherwise just sanitizing.
+        assert_eq!(mint_order_id("pay_ABC-123").expect("short"), "pay_ABC-123");
+        assert!(mint_order_id("").is_err());
+    }
+
+    #[test]
+    fn both_browser_returns_check_the_transaction_id_shape() {
+        // The challenge return validates because its id reaches a URL. The method return has no
+        // injection path — its id travels in the AReq body and digest — but a value that is not a
+        // 3DS Server transaction id cannot identify an authentication either way.
+        let bad = serde_json::json!({
+            FIELD_THREE_DS_METHOD_DATA:
+                encode_synthetic_method_data("../../protocol-versions", "https://example.com/x"),
+        });
+        assert!(read_method_return(Some(&bad)).is_err());
+
+        let good = serde_json::json!({
+            FIELD_THREE_DS_METHOD_DATA:
+                encode_synthetic_method_data(SERVER_TRANS_ID, "https://example.com/x"),
+        });
+        assert_eq!(
+            read_method_return(Some(&good))
+                .expect("good")
+                .server_trans_id,
+            SERVER_TRANS_ID
+        );
+    }
+
+    #[test]
+    fn a_rejected_rebate_request_is_not_a_refused_refund() {
         assert_eq!(map_refund_status(RESULT_SUCCESS), RefundStatus::Success);
-        assert_eq!(map_refund_status("508"), RefundStatus::Failure);
+
+        // The gateway refused to act on the request: a bad digest, the wrong rebate password, a
+        // malformed element, an unknown transaction. `Failure` is terminal, so recording one here
+        // turns a fixable misconfiguration — `505 The refund password you entered was incorrect.`
+        // is simply the wrong `api_secret` — into a refund nobody can retry.
+        for fault in ["502", "503", "505", "506", "508"] {
+            assert_eq!(
+                map_refund_status(fault),
+                RefundStatus::ManualReview,
+                "{fault} is a rejected request, not a refused refund"
+            );
+        }
+
+        // These are the gateway's actual answer about this refund, and they are terminal.
+        assert_eq!(map_refund_status("512"), RefundStatus::Failure); // already rebated / over ceiling
+        assert_eq!(map_refund_status("101"), RefundStatus::Failure);
+
+        // A tampered document is handled one level up, in the response transformer, and lands on
+        // ManualReview for the same reason: the money almost certainly moved.
         assert_ne!(RefundStatus::ManualReview, RefundStatus::Failure);
     }
 
     #[test]
     fn a_browser_supplied_server_trans_id_must_be_uuid_shaped() {
         // The happy path: exactly what an ACS returns.
-        assert!(validate_server_trans_id("6d8b0a1e-6f5f-4d67-9d1e-2f0b6a1c9e33").is_ok());
+        assert!(validate_server_trans_id(SERVER_TRANS_ID).is_ok());
 
         // Everything that would rewrite the results URL or its digest-covered query.
         for hostile in [
@@ -5120,7 +5268,7 @@ mod tests {
         // A genuine device-profiling return still works.
         let ddc = serde_json::json!({
             FIELD_THREE_DS_METHOD_DATA:
-                encode_synthetic_method_data("sid-1", "https://example.com/complete"),
+                encode_synthetic_method_data(SERVER_TRANS_ID, "https://example.com/complete"),
         });
         assert!(read_method_return(Some(&ddc)).is_ok());
     }
