@@ -737,6 +737,22 @@ pub struct RsaOaepSha256;
 
 impl RsaOaepSha256 {
     /// Encrypts plaintext using RSA public key with OAEP-SHA256 padding.
+    ///
+    /// Seamed at the OUTCOME for déjà replay: the OAEP seed is drawn inside
+    /// OpenSSL and cannot be substituted individually — the same key and
+    /// plaintext produce a different ciphertext on every call — so replay
+    /// substitutes the recorded ciphertext, the same posture as
+    /// `NonceSequence::new` above (real crypto still runs at record; the tape
+    /// carries the one value a re-run cannot reproduce).
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::id(
+            component = "common_utils::crypto",
+            operation = "rsa_oaep_sha256_encrypt",
+            codec = ResultOkCodec,
+        )
+    )]
     pub fn encrypt(
         public_key_der: &[u8],
         plaintext: &[u8],
