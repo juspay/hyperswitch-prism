@@ -260,7 +260,7 @@ enabled = false
 # Only has any effect when built with the `deja` feature; ignored otherwise.
 # mode: "disabled" (default, byte-identical to today) | "record" | "replay".
 [deja]
-mode = "disabled"
+mode = "disabled"     # "disabled" | "record" | "replay"
 
 [deja.recording.kafka]
 topic = "ucs-deja-recording-events"
@@ -269,3 +269,21 @@ brokers = []          # empty => inherit the [events] brokers at boot
 [deja.sampler]
 record_key = "deja_record"
 fail_closed = true
+
+# Replay is a sealed-pod mode driven by the déjà orchestrator, not something a
+# serving deployment turns on: the replay job boots the SAME image with
+# `mode = "replay"` (env: CS__DEJA__MODE=replay) plus a rendered lookup table,
+# then re-drives the recorded requests against it while every side effect is
+# substituted from the tape. Locally, `scripts/deja-local/replay-dev.sh` sets
+# this up end to end. The knobs, for reference:
+#
+# [deja]
+# mode = "replay"
+# run_id = "<run id>"                # or env CS__DEJA__RUN_ID
+#
+# [deja.replay]
+# source = "/path/to/lookup.jsonl"   # rendered LookupTable JSONL (a directory
+#                                    # of raw tape artifacts also works);
+#                                    # relative paths resolve under lookup_dir
+# lookup_dir = "/path/to/tables"     # with no `source`, uses <dir>/<run_id>.jsonl
+# observed_sink = "/tmp/observed.jsonl"  # optional: what the candidate DID

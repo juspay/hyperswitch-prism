@@ -83,7 +83,7 @@ fn canonical_json_bytes(value: &serde_json::Value) -> Vec<u8> {
 }
 
 /// `(origin, path, sorted query KEY names)` — the URL split that never
-/// carries a credential. Unparseable URLs record verbatim under origin (a
+/// carries a credential. Unparsable URLs record verbatim under origin (a
 /// broken URL is itself a fact worth comparing).
 pub fn split_url(raw: &str) -> (String, String, String) {
     match url::Url::parse(raw) {
@@ -202,7 +202,7 @@ impl ConnectorCallSpan {
         self.0.record("method", "kafka");
     }
 
-    pub fn record_status(&self, status_code: Option<i32>) {
+    pub fn record_http_status_code(&self, status_code: Option<i32>) {
         if let Some(code) = status_code {
             self.0.record("status_code", code);
         }

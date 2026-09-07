@@ -1083,7 +1083,7 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
                     #[cfg(feature = "deja")]
-                    connector_call.record_status(status_code);
+                    connector_call.record_http_status_code(status_code);
 
                     #[cfg(feature = "log-transformations")]
                     {
@@ -1210,7 +1210,7 @@ where
                         Ok(body) | Err(body) => i32::from(body.status_code),
                     });
                     #[cfg(feature = "deja")]
-                    connector_call.record_status(status_code);
+                    connector_call.record_http_status_code(status_code);
 
                     #[cfg(feature = "log-transformations")]
                     {

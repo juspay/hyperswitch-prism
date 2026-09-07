@@ -165,12 +165,27 @@ impl Default for SamplerConfig {
     }
 }
 
+/// Who this recorder IS — stamped onto every tape envelope so a recording can
+/// be traced back to the build and pod that produced it.
+///
+/// Set like every other `[deja]` key: `[deja.identity]` in the config TOML or
+/// `CS__DEJA__IDENTITY__*` environment overrides. Nothing needs to be set for
+/// the defaults to work: `pod_name_env`/`git_sha_env` name ENVIRONMENT
+/// VARIABLES to read at boot (defaults `POD_NAME` — the k8s Downward API
+/// convention — and `VERGEN_GIT_SHA`), while `instance_id`/`code_sha` are
+/// direct literal overrides that win over the env lookups. When everything is
+/// absent, boot falls back to `pi-{pid}-{boot_nanos}` for the instance and the
+/// compile-time `VERGEN_GIT_SHA` baked into the binary for the sha.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct IdentityConfig {
+    /// Name of the env var carrying the pod name (default `POD_NAME`).
     pub pod_name_env: String,
+    /// Name of the env var carrying the git sha (default `VERGEN_GIT_SHA`).
     pub git_sha_env: String,
+    /// Literal instance-id override; wins over `pod_name_env`.
     pub instance_id: Option<String>,
+    /// Literal code-sha override; wins over `git_sha_env` and the baked sha.
     pub code_sha: Option<String>,
 }
 

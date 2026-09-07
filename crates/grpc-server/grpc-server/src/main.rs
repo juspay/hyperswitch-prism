@@ -29,7 +29,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )
     .map_err(|error| format!("deja replay configuration error: {error}"))?;
 
-    // Load superposition.toml for connector URL resolution
+    let _guard = logger::setup(
+        &config.log,
+        ucs_env::service_name!(),
+        [ucs_env::service_name!(), "grpc_server", "tower_http"],
+    );
+
+    // Now that the logger is up, surface how the déjà hook resolved.
+    #[cfg(feature = "deja")]
+    tracing::info!(
+        mode = deja_report.mode,
+        run_id = ?deja_report.run_id,
+        detail = ?deja_report.detail,
+        "deja runtime hook installed"
+    );
+
+    // Load superposition.toml for connector URL resolution. AFTER `logger::setup`,
+    // deliberately: this block logs through `tracing`, and events emitted before the
+    // subscriber is installed are discarded, not buffered — the fallback warning below
+    // is the one signal that connectors are using default URLs, and it must not vanish.
+    // (Only the déjà hook install above genuinely needs to precede the logger.)
     let superposition_config_path = format!(
         "{}/config/superposition.toml",
         configs::workspace_path().display()
@@ -50,21 +69,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
-
-    let _guard = logger::setup(
-        &config.log,
-        ucs_env::service_name!(),
-        [ucs_env::service_name!(), "grpc_server", "tower_http"],
-    );
-
-    // Now that the logger is up, surface how the déjà hook resolved.
-    #[cfg(feature = "deja")]
-    tracing::info!(
-        mode = deja_report.mode,
-        run_id = ?deja_report.run_id,
-        detail = ?deja_report.detail,
-        "deja runtime hook installed"
-    );
 
     // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the
     // hyperswitch app). Additive to the Prometheus /metrics scrape endpoint.
