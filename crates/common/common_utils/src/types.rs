@@ -165,7 +165,7 @@ impl Serialize for ConnectorMinorUnit {
 impl<'de> Deserialize<'de> for ConnectorMinorUnit {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = <i64 as Deserialize>::deserialize(deserializer)?;
-        Ok(ConnectorMinorUnit(MinorUnit(value)))
+        Ok(Self(MinorUnit(value)))
     }
 }
 
@@ -193,7 +193,7 @@ impl Serialize for MinorUnit {
 impl<'de> Deserialize<'de> for MinorUnit {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = <i64 as Deserialize>::deserialize(deserializer)?;
-        Ok(MinorUnit(value))
+        Ok(Self(value))
     }
 }
 
@@ -601,7 +601,7 @@ impl<'de> Deserialize<'de> for Money {
             currency: enums::Currency,
         }
         let helper = MoneyHelper::deserialize(deserializer)?;
-        Ok(Money {
+        Ok(Self {
             amount: MinorUnit::from_i64(helper.amount),
             currency: helper.currency,
         })
