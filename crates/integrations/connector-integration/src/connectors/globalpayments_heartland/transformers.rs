@@ -247,8 +247,24 @@ fn to_pos_request_envelope<TXN: Serialize>(
     header: &GlobalpaymentsHeartlandRequestHeader,
     transaction: &TXN,
 ) -> String {
-    let header_xml = quick_xml::se::to_string(header).unwrap_or_else(|_| String::from("<Header/>"));
-    let transaction_xml = quick_xml::se::to_string(transaction).unwrap_or_else(|_| String::new());
+    // A serialization failure must never produce a SENDABLE request. The previous fallbacks
+    // (`<Header/>` and an empty transaction) are both well-formed XML, so
+    // `validate_xml_structure` passed them and the connector posted a request carrying no
+    // `SecretAPIKey` — Portico then rejected it as an auth failure, with nothing anywhere
+    // pointing at the real cause.
+    //
+    // `GetSoapXml::to_soap_xml` returns `String`, not `Result`, and is shared with other
+    // connectors, so the error cannot be returned from here. Instead the fallback is
+    // deliberately malformed: `validate_xml_structure` rejects it and the request is never
+    // sent, and the failure is logged rather than swallowed.
+    let header_xml = quick_xml::se::to_string(header).unwrap_or_else(|error| {
+        tracing::error!(?error, "globalpayments_heartland: failed to serialize request header");
+        String::from("<SerializationFailed")
+    });
+    let transaction_xml = quick_xml::se::to_string(transaction).unwrap_or_else(|error| {
+        tracing::error!(?error, "globalpayments_heartland: failed to serialize transaction");
+        String::from("<SerializationFailed")
+    });
 
     format!(
         concat!(

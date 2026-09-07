@@ -177,11 +177,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _req: &RouterDataV2<F, FCD, Req, Res>,
         bytes: bytes::Bytes,
-        _status_code: u16,
+        status_code: u16,
     ) -> CustomResult<bytes::Bytes, IntegrationError> {
+        // This decodes a RESPONSE, so a UTF-8 failure is a deserialization problem, not a
+        // request-encoding one. The helper carries the HTTP status and a message; the previous
+        // `RequestEncodingFailed { context: Default::default() }` carried neither.
         let response_str = String::from_utf8(bytes.to_vec()).change_context(
-            IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+            IntegrationError::InvalidDataFormat {
+                field_name: "response_body",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "globalpayments_heartland: response body is not valid UTF-8 \
+                         (HTTP {status_code})"
+                    )),
+                    ..Default::default()
+                },
             },
         )?;
 
