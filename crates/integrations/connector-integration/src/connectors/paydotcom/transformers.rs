@@ -26,7 +26,8 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnit},
+    AmountConvertor,
 };
 use domain_types::{
     connector_flow::{
@@ -171,7 +172,7 @@ mod paydotcom_currency {
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
     /// Minor units, JSON integer.
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
@@ -619,7 +620,7 @@ pub fn authorize_leg<T: PaymentMethodDataTypes>(
 #[allow(clippy::too_many_arguments)]
 fn build_create_resource_request<T: PaymentMethodDataTypes>(
     card: &Card<T>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     common: &PaymentFlowData,
     request_email: Option<common_utils::pii::Email>,
@@ -1149,9 +1150,9 @@ pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
     #[serde(default)]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(default)]
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1174,9 +1175,9 @@ pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
     #[serde(default)]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(default)]
-    pub amount_capturable: Option<MinorUnit>,
+    pub amount_capturable: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",
@@ -1288,7 +1289,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    pub fn amount(&self) -> Option<MinorUnit> {
+    pub fn amount(&self) -> Option<ConnectorMinorUnit> {
         match self {
             Self::Charge(charge) => charge.amount,
             Self::Hold(hold) => hold.amount,
@@ -1581,7 +1582,11 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             .resource_common_data
             .amount
             .as_ref()
-            .map(|money| money.amount);
+            .and_then(|money| {
+                money
+                    .convert(&common_utils::types::MinorUnitForConnector)
+                    .ok()
+            });
 
         let status = match item.response.attempt_status() {
             // A capture smaller than the amount originally held leaves the payment
@@ -1607,12 +1612,26 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
             _ => Ok(item.response.transaction_response(item.http_code)),
         };
 
+        // Convert the captured ConnectorMinorUnit back to MinorUnit for minor_amount_captured,
+        // using the currency from the capture response or falling back to the request currency.
+        let response_currency = match &item.response {
+            PaydotcomPaymentsResponse::Charge(ref charge) => charge.currency,
+            PaydotcomPaymentsResponse::Hold(ref hold) => hold.currency,
+            PaydotcomPaymentsResponse::AuthenticationSession(_) => None,
+        };
+        let currency = response_currency.or(Some(item.router_data.request.currency));
+        let minor_amount_captured = captured_amount.zip(currency).and_then(|(amount, cur)| {
+            common_utils::types::MinorUnitForConnector
+                .convert_back(amount, cur)
+                .ok()
+        });
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                amount_captured: captured_amount.map(|amount| amount.get_amount_as_i64()),
-                minor_amount_captured: captured_amount,
+                amount_captured: None,
+                minor_amount_captured,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

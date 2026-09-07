@@ -90,7 +90,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::{MinorUnit, StringMinorUnit},
 };
 use domain_types::{
     connector_flow::{

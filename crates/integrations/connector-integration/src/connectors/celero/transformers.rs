@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{pii::Email, MinorUnit};
+use common_utils::{pii::Email, types::{AmountConvertor, ConnectorMinorUnit}};
 use domain_types::errors::ConnectorError;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -170,7 +170,7 @@ pub struct CeleroPaymentsRequest<T: PaymentMethodDataTypes> {
     pub idempotency_key: Option<String>,
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub order_id: String,
     pub payment_method: CeleroPaymentMethod<T>,
@@ -280,6 +280,7 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let payment_method = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => CeleroPaymentMethod::Card {
                 card: CeleroCard {
@@ -327,7 +328,11 @@ impl<T: PaymentMethodDataTypes>
             } else {
                 TransactionType::Authorize
             },
-            amount: item.request.minor_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.request.minor_amount, item.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             currency: item.request.currency,
             order_id: reference_id.clone(),
             payment_method,
@@ -547,10 +552,10 @@ pub struct CeleroTransactionData {
     pub id: String,
     #[serde(rename = "type")]
     pub transaction_type: TransactionType,
-    pub amount: MinorUnit,
-    pub tax_amount: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub tax_amount: Option<ConnectorMinorUnit>,
     pub tax_exempt: Option<bool>,
-    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<ConnectorMinorUnit>,
     pub currency: common_enums::Currency,
     pub description: Option<String>,
     pub order_id: Option<String>,
@@ -710,13 +715,13 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
 pub struct CeleroCaptureRequest {
     /// Total amount to capture, in cents
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     /// Tax amount to capture, in cents
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tax_amount: Option<MinorUnit>,
+    pub tax_amount: Option<ConnectorMinorUnit>,
     /// Shipping amount to capture, in cents
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub shipping_amount: Option<MinorUnit>,
+    pub shipping_amount: Option<ConnectorMinorUnit>,
     /// Is the transaction tax exempt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_exempt: Option<bool>,
@@ -763,8 +768,15 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
     fn try_from(
         item: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
-            amount: Some(item.request.minor_amount_to_capture),
+            amount: Some(
+                common_utils::types::MinorUnitForConnector
+                    .convert(item.request.minor_amount_to_capture, item.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
+            ),
             tax_amount: None,      // Not available in PaymentsCaptureData
             shipping_amount: None, // Not available in PaymentsCaptureData
             tax_exempt: None,      // Not available in PaymentsCaptureData
@@ -861,10 +873,10 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
 pub struct CeleroRefundRequest {
     /// Total amount to refund, in cents (optional - defaults to full amount)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     /// Surcharge amount, in cents (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub surcharge: Option<MinorUnit>,
+    pub surcharge: Option<ConnectorMinorUnit>,
 }
 
 // Refund response structure - simplified based on Celero API pattern
@@ -899,8 +911,15 @@ impl TryFrom<&RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseD
     fn try_from(
         item: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
-            amount: Some(item.request.minor_refund_amount),
+            amount: Some(
+                common_utils::types::MinorUnitForConnector
+                    .convert(item.request.minor_refund_amount, item.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
+            ),
             surcharge: None, // Not available in RefundsData - could be added if needed
         })
     }

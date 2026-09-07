@@ -1,6 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{enums::Currency, AttemptStatus, CaptureMethod};
-use common_utils::{fp_utils::when, types::MinorUnit};
+use common_utils::{fp_utils::when, types::{AmountConvertor, ConnectorMinorUnit}};
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
@@ -178,7 +178,7 @@ pub struct SilverflowPaymentType {
 
 #[derive(Debug, Serialize)]
 pub struct SilverflowAmount {
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
     pub currency: Currency,
 }
 
@@ -278,7 +278,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 order: SilverflowOrderType::Checkout,
             },
             amount: SilverflowAmount {
-                value: router_data.request.minor_amount,
+                value: common_utils::types::MinorUnitForConnector
+                    .convert(router_data.request.minor_amount, router_data.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: router_data.request.currency,
             },
             clearing_mode: match router_data.request.capture_method {
@@ -324,7 +328,7 @@ pub struct SilverflowCardResponse {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SilverflowAmountResponse {
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
     pub currency: String,
 }
 
@@ -540,7 +544,7 @@ impl TryFrom<ResponseRouterData<SilverflowSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowCaptureRequest {
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub close_charge: Option<bool>,
     pub reference: Option<String>,
 }
@@ -583,7 +587,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the capture amount for partial capture, omit for full capture
-        let amount = Some(router_data.request.minor_amount_to_capture);
+        let amount = Some(
+            common_utils::types::MinorUnitForConnector
+                .convert(router_data.request.minor_amount_to_capture, router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+        );
 
         // Get connector transaction ID string for reference
         let reference = Some(
@@ -650,7 +660,7 @@ impl TryFrom<ResponseRouterData<SilverflowCaptureResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowRefundRequest {
-    pub refund_amount: Option<MinorUnit>,
+    pub refund_amount: Option<ConnectorMinorUnit>,
     pub reference: Option<String>,
 }
 
@@ -706,7 +716,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
 
         // Use the refund amount for partial refund, omit for full refund
-        let amount = Some(router_data.request.minor_refund_amount);
+        let amount = Some(
+            common_utils::types::MinorUnitForConnector
+                .convert(router_data.request.minor_refund_amount, router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
+        );
 
         // Get refund ID as reference
         let reference = Some(router_data.request.refund_id.clone());
@@ -813,7 +829,7 @@ impl TryFrom<ResponseRouterData<SilverflowRefundSyncResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SilverflowVoidRequest {
-    pub replacement_amount: Option<MinorUnit>,
+    pub replacement_amount: Option<ConnectorMinorUnit>,
     pub reference: Option<String>,
 }
 
@@ -857,7 +873,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let reference = Some(router_data.request.connector_transaction_id.clone());
 
         Ok(Self {
-            replacement_amount: Some(MinorUnit::default()), // 0 means full reversal according to Silverflow docs
+            replacement_amount: Some(ConnectorMinorUnit::default()), // 0 means full reversal according to Silverflow docs
             reference,
         })
     }

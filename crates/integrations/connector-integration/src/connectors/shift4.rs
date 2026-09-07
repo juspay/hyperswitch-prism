@@ -211,7 +211,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: MinorUnit],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,

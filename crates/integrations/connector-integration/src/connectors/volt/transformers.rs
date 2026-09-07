@@ -1,5 +1,5 @@
 use common_enums::{self, AttemptStatus};
-use common_utils::{consts, request::Method, types::MinorUnit, CustomerId};
+use common_utils::{consts, request::Method, types::{AmountConvertor, ConnectorMinorUnit}, CustomerId};
 use domain_types::{
     connector_flow::{Authorize, PSync, ServerAuthenticationToken},
     connector_types::{
@@ -84,7 +84,7 @@ pub mod webhook_headers {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsRequest {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     open_banking_u_k: Option<OpenBankingUk>,
@@ -179,6 +179,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::BankRedirect(ref bank_redirect) => {
                 let transaction_type = TransactionType::Services; //transaction_type is a form of enum, it is pre defined and value for this can not be taken from user so we are keeping it as Services as this transaction is type of service.
@@ -232,7 +233,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }?;
 
-                let amount = item.router_data.request.amount;
+                let amount = common_utils::types::MinorUnitForConnector
+                    .convert(item.router_data.request.amount, item.router_data.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
                 let internal_reference = item
                     .router_data
                     .resource_common_data
@@ -423,7 +428,7 @@ impl TryFrom<&ConnectorSpecificConfig> for VoltAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct VoltPaymentsResponse {
     id: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
     status: VoltPaymentStatus,
     payment_initiation_flow: VoltPaymentInitiationFlow,
@@ -539,7 +544,7 @@ pub struct VoltPsyncResponse {
     status: VoltPaymentStatus,
     id: String,
     merchant_internal_reference: Option<String>,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: common_enums::Currency,
 }
 
@@ -672,7 +677,7 @@ impl From<VoltWebhookPaymentStatus> for AttemptStatus {
 #[derive(Default, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoltRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub external_reference: String,
 }
 
@@ -684,8 +689,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     fn try_from(
         item: VoltRouterData<RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>, T>,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             external_reference: item.router_data.request.refund_id.clone(),
         })
     }
