@@ -400,6 +400,9 @@ pub fn install(
 
 #[cfg(test)]
 mod tests {
+    // Fixture assertions index freely — a panic IS the test failing.
+    #![allow(clippy::indexing_slicing)]
+
     use super::*;
 
     /// The stamp is `MMDDhhmm` UTC — checked at the epoch, at a current-era
