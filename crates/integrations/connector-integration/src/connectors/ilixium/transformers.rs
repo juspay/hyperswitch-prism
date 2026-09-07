@@ -735,9 +735,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount {} {} into Ilixium's \
+                        "Failed to convert minor_amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount.get_amount_as_i64(),
+                        request.minor_amount,
                         request.currency
                     )),
                 },
@@ -836,9 +836,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert amount {} {} into Ilixium's transaction.amount \
+                        "Failed to convert amount {:?} {} into Ilixium's transaction.amount \
                          (minor units, digits only, sent as a JSON string).",
-                        request.amount.get_amount_as_i64(),
+                        request.amount,
                         currency
                     )),
                 },
@@ -1054,9 +1054,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_amount_to_capture {} {} into Ilixium's \
+                        "Failed to convert minor_amount_to_capture {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_amount_to_capture.get_amount_as_i64(),
+                        request.minor_amount_to_capture,
                         request.currency
                     )),
                 },
@@ -1189,9 +1189,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert void amount {} {} into Ilixium's \
+                        "Failed to convert void amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        minor_amount.get_amount_as_i64(),
+                        minor_amount,
                         currency
                     )),
                 },
@@ -1404,9 +1404,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     suggested_action: None,
                     doc_url: None,
                     additional_context: Some(format!(
-                        "Failed to convert minor_refund_amount {} {} into Ilixium's \
+                        "Failed to convert minor_refund_amount {:?} {} into Ilixium's \
                          transaction.amount (minor units, digits only, sent as a JSON string).",
-                        request.minor_refund_amount.get_amount_as_i64(),
+                        request.minor_refund_amount,
                         request.currency
                     )),
                 },
@@ -3732,7 +3732,12 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumRefundHistoryResponse, Self
         let refund_amount = request
             .refund_money
             .as_ref()
-            .map(|money| money.amount.get_amount_as_i64());
+            .and_then(|money| {
+                money
+                    .convert(&common_utils::types::MinorUnitForConnector)
+                    .ok()
+                    .map(|c| c.to_string().parse::<i64>().unwrap_or(0))
+            });
 
         let Some(matched) = response.match_refund_operation(
             &merchant_ref,

@@ -1,5 +1,6 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
+use common_utils::types::MinorUnitForConnector;
 use common_utils::types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector};
 use domain_types::{
     connector_flow::{
@@ -1511,6 +1512,24 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                         context: Default::default(),
                     },
                 )?;
+                let connector_amount = AmountConvertor::convert(
+                    &MinorUnitForConnector,
+                    amount_data,
+                    currency_data,
+                )
+                .map_err(|_| {
+                    error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })
+                })?;
+                let minor_amount_i64: i64 = connector_amount
+                    .to_string()
+                    .parse()
+                    .map_err(|_| {
+                        error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                            context: Default::default(),
+                        })
+                    })?;
                 let customer_vault_id = response.customer_vault_id.clone().ok_or_else(|| {
                     error_stack::report!(ConnectorError::UnexpectedResponseError {
                         context: Default::default(),
@@ -1524,7 +1543,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
                             amount: Money {
-                                minor_amount: amount_data.get_amount_as_i64(),
+                                minor_amount: minor_amount_i64,
                                 currency: Currency::foreign_try_from(currency_data)
                                     .map_err(|_| {
                                         error_stack::report!(

@@ -145,7 +145,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
         // Hyperswitch treats `shipping_cost` as optional for the Authorize flow,
-        // defaulting to zero when absent (req.request.shipping_cost.unwrap_or(MinorUnit::zero())).
+        // defaulting to zero when absent (req.request.shipping_cost.unwrap_or(MinorUnit::default())).
         // Mirror that here instead of hard-failing with MissingRequiredField, otherwise UCS
         // returns gRPC InvalidArgument for card payments that carry no shipping_cost.
         let shipping_value = item
@@ -155,7 +155,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data
                     .request
                     .shipping_cost
-                    .unwrap_or(common_utils::types::MinorUnit::zero()),
+                    .unwrap_or(common_utils::types::MinorUnit::default()),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
@@ -222,7 +222,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 item.router_data
                     .request
                     .shipping_cost
-                    .unwrap_or(common_utils::types::MinorUnit::zero()),
+                    .unwrap_or(common_utils::types::MinorUnit::default()),
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {

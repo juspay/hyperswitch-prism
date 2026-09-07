@@ -2,7 +2,7 @@ use crate::{connectors::zift::ZiftRouterData, types::ResponseRouterData};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
-    types::{MinorUnit, StringMinorUnit},
+    types::StringMinorUnit,
 };
 use error_stack::{report, Report, ResultExt};
 use std::fmt::Debug;
@@ -1304,7 +1304,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector
             .amount_converter
             .convert(
-                MinorUnit::new(item.router_data.request.refund_amount),
+                item.router_data.request.minor_refund_amount,
                 item.router_data.request.currency,
             )
             .change_context(IntegrationError::RequestEncodingFailed {

@@ -709,10 +709,10 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
             None => map_order_state(response.state),
         };
 
-        let amount = Some(Money {
-            amount: response.amount,
-            currency: response.currency,
-        });
+        let amount = Some(Money::from_minor_unit(
+            response.amount,
+            response.currency,
+        ));
 
         let merchant_reference = response
             .merchant_order_data

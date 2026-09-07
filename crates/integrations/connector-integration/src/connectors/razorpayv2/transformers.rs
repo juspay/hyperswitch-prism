@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::{consts, pii::Email, types::MinorUnit};
+use common_utils::{consts, pii::Email, types::ConnectorMinorUnit};
 use domain_types::{
     connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund},
     connector_types::{
@@ -83,7 +83,7 @@ pub struct RazorpayV2RouterData<
     T,
     U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub order_id: Option<String>,
     pub router_data: T,
     pub billing_address: Option<Address>,
@@ -92,12 +92,12 @@ pub struct RazorpayV2RouterData<
 }
 
 impl<T, U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(MinorUnit, T, Option<String>, Option<Address>)> for RazorpayV2RouterData<T, U>
+    TryFrom<(ConnectorMinorUnit, T, Option<String>, Option<Address>)> for RazorpayV2RouterData<T, U>
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        (amount, item, order_id, billing_address): (MinorUnit, T, Option<String>, Option<Address>),
+        (amount, item, order_id, billing_address): (ConnectorMinorUnit, T, Option<String>, Option<Address>),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -111,12 +111,12 @@ impl<T, U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 // Keep backward compatibility for existing usage
 impl<T, U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(MinorUnit, T, Option<String>)> for RazorpayV2RouterData<T, U>
+    TryFrom<(ConnectorMinorUnit, T, Option<String>)> for RazorpayV2RouterData<T, U>
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        (amount, item, order_id): (MinorUnit, T, Option<String>),
+        (amount, item, order_id): (ConnectorMinorUnit, T, Option<String>),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
@@ -132,7 +132,7 @@ impl<T, U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 #[derive(Debug, Serialize)]
 pub struct RazorpayV2CreateOrderRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub receipt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -147,9 +147,9 @@ pub type RazorpayV2Notes = Value;
 pub struct RazorpayV2CreateOrderResponse {
     pub id: String,
     pub entity: String,
-    pub amount: MinorUnit,
-    pub amount_paid: MinorUnit,
-    pub amount_due: MinorUnit,
+    pub amount: ConnectorMinorUnit,
+    pub amount_paid: ConnectorMinorUnit,
+    pub amount_due: ConnectorMinorUnit,
     pub currency: String,
     pub receipt: String,
     pub status: String,
@@ -189,7 +189,7 @@ impl TryFrom<ResponseRouterData<RazorpayV2CreateOrderResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct RazorpayV2PaymentsRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub order_id: String,
     pub email: Email,
@@ -499,7 +499,7 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(item: &RazorpayV2RouterData<&RefundsData, U>) -> Result<Self, Self::Error> {
-        let amount_in_minor_units = item.amount.get_amount_as_i64();
+        let amount_in_minor_units = item.amount.to_string().parse::<i64>().unwrap_or(0);
         Ok(Self {
             amount: amount_in_minor_units,
         })

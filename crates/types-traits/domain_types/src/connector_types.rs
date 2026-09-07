@@ -860,7 +860,7 @@ impl PaymentFlowData {
     }
 
     pub fn get_currency(&self) -> Option<common_enums::Currency> {
-        self.amount.as_ref().map(|money| money.currency)
+        self.amount.as_ref().map(|money| money.currency())
     }
 
     pub fn get_merchant_request_id(&self) -> Result<String, Error> {

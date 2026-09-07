@@ -4,6 +4,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
     request::Method,
+    types::ConnectorMinorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -41,7 +42,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 pub struct NexinetsPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    initial_amount: i64,
+    initial_amount: ConnectorMinorUnit,
     currency: enums::Currency,
     channel: NexinetsChannel,
     product: NexinetsProduct,
@@ -234,7 +235,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => None,
         };
         Ok(Self {
-            initial_amount: item.router_data.request.amount.get_amount_as_i64(),
+            initial_amount: super::NexinetsAmountConvertor::convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )?,
             currency: item.router_data.request.currency,
             channel: NexinetsChannel::Ecom,
             product,
@@ -462,7 +466,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsCaptureOrVoidRequest {
-    pub initial_amount: i64,
+    pub initial_amount: ConnectorMinorUnit,
     pub currency: enums::Currency,
 }
 
@@ -488,7 +492,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.router_data.request.amount_to_capture,
+            initial_amount: super::NexinetsAmountConvertor::convert(
+                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.currency,
+            )?,
             currency: item.router_data.request.currency,
         })
     }
@@ -526,7 +533,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     context: Default::default(),
                 })?;
         Ok(Self {
-            initial_amount: amount.get_amount_as_i64(),
+            initial_amount: super::NexinetsAmountConvertor::convert(amount, currency)?,
             currency,
         })
     }
@@ -596,7 +603,7 @@ impl<F, T> TryFrom<ResponseRouterData<NexinetsPaymentResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRefundRequest {
-    pub initial_amount: i64,
+    pub initial_amount: ConnectorMinorUnit,
     pub currency: enums::Currency,
 }
 
@@ -613,7 +620,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            initial_amount: item.router_data.request.refund_amount,
+            initial_amount: super::NexinetsAmountConvertor::convert(
+                item.router_data.request.minor_refund_amount,
+                item.router_data.request.currency,
+            )?,
             currency: item.router_data.request.currency,
         })
     }
@@ -956,7 +966,7 @@ fn is_mandate_payment<
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsClientAuthRequest {
-    pub initial_amount: i64,
+    pub initial_amount: ConnectorMinorUnit,
     pub currency: enums::Currency,
     pub channel: NexinetsChannel,
     pub transaction_type: NexinetsTransactionType,
@@ -998,7 +1008,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         Ok(Self {
-            initial_amount: router_data.request.amount.get_amount_as_i64(),
+            initial_amount: super::NexinetsAmountConvertor::convert(
+                router_data.request.amount,
+                router_data.request.currency,
+            )?,
             currency: router_data.request.currency,
             channel: NexinetsChannel::Ecom,
             transaction_type: NexinetsTransactionType::Preauth,
@@ -1068,7 +1081,7 @@ impl TryFrom<ResponseRouterData<NexinetsClientAuthResponse, Self>>
 pub struct NexinetsSetupMandateRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    initial_amount: i64,
+    initial_amount: ConnectorMinorUnit,
     currency: enums::Currency,
     channel: NexinetsChannel,
     product: NexinetsProduct,
@@ -1163,12 +1176,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Nexinets requires a positive initialAmount. Error upfront when
         // the caller omits amount instead of silently defaulting.
         let initial_amount = request
-            .amount
-            .or_else(|| request.minor_amount.map(|m| m.get_amount_as_i64()))
+            .minor_amount
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "amount",
                 context: Default::default(),
             })?;
+        let initial_amount = super::NexinetsAmountConvertor::convert(
+            initial_amount,
+            request.currency,
+        )?;
 
         let merchant_order_id = Some(
             router_data
@@ -1312,7 +1328,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NexinetsRepeatPaymentRequest {
-    initial_amount: i64,
+    initial_amount: ConnectorMinorUnit,
     currency: enums::Currency,
     channel: NexinetsChannel,
     product: NexinetsProduct,
@@ -1402,7 +1418,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
 
         Ok(Self {
-            initial_amount: request.amount,
+            initial_amount: super::NexinetsAmountConvertor::convert(
+                request.minor_amount,
+                request.currency,
+            )?,
             currency: request.currency,
             channel: NexinetsChannel::Ecom,
             product: NexinetsProduct::Creditcard,

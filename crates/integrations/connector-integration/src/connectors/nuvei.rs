@@ -1,5 +1,5 @@
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::BytesExt, types::StringMajorUnit,
+    consts, errors::CustomResult, events, ext_traits::BytesExt,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{

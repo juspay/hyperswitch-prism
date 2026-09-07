@@ -76,7 +76,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::Method, types::StringMinorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, request::Method,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},

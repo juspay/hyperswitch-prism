@@ -1,7 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::MinorUnit;
+use common_utils::{AmountConvertor, ConnectorMinorUnit, MinorUnit, MinorUnitForConnector};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -170,7 +170,7 @@ pub struct TravelhubTravelFlight {
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubTravelFare {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -225,8 +225,8 @@ fn build_travel_data(
                     .or_else(|| airline.flight_date.clone()),
                 air_class: s.class_of_service.clone(),
                 fare: s.fare_amount.as_ref().map(|m| TravelhubTravelFare {
-                    amount: Some(m.amount),
-                    currency: Some(m.currency),
+                    amount: m.convert(&MinorUnitForConnector).ok(),
+                    currency: Some(m.currency()),
                     fare_class: s.class_of_service.clone(),
                     fare_basis: s.fare_basis_code.clone(),
                     stopover_allowed: s.stopover_code.as_deref().map(|c| c == "O"),

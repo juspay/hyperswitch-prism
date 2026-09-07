@@ -12,7 +12,7 @@ use base64::Engine;
 use bytes::Bytes;
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::MinorUnit,
+    consts, errors::CustomResult, events, ext_traits::ByteSliceExt,
 };
 use domain_types::{
     connector_flow::{

@@ -586,7 +586,7 @@ macros::macro_connector_implementation!(
                 .request
                 .refund_money
                 .as_ref()
-                .map(|money| money.currency)
+                .map(|money| money.currency())
                 .map(Ok)
                 .unwrap_or_else(|| {
                     grabpay::currency_from_connector_feature_data(

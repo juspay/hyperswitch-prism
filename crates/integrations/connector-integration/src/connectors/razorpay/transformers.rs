@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{self, AttemptStatus, CardNetwork};
-use common_utils::{ext_traits::ByteSliceExt, pii::Email, request::Method, types::MinorUnit};
+use common_utils::{ext_traits::ByteSliceExt, pii::Email, request::Method, types::ConnectorMinorUnit};
 use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
@@ -49,7 +49,7 @@ pub enum Currency {
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Amount {
     pub currency: common_enums::Currency,
-    pub value: MinorUnit,
+    pub value: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -162,7 +162,7 @@ pub struct BrowserInfo {
 pub struct RazorpayPaymentRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub contact: Secret<String>,
     pub email: Email,
@@ -207,13 +207,13 @@ pub enum PaymentMethodType {
 }
 
 pub struct RazorpayRouterData<T> {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub router_data: T,
 }
 
-impl<T> TryFrom<(MinorUnit, T)> for RazorpayRouterData<T> {
+impl<T> TryFrom<(ConnectorMinorUnit, T)> for RazorpayRouterData<T> {
     type Error = error_stack::Report<IntegrationError>;
-    fn try_from((amount, item): (MinorUnit, T)) -> Result<Self, Self::Error> {
+    fn try_from((amount, item): (ConnectorMinorUnit, T)) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,
             router_data: item,
@@ -651,7 +651,7 @@ pub enum RazorpayResponse {
 pub struct RazorpayPsyncResponse {
     pub id: String,
     pub entity: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub base_amount: i64,
     pub currency: String,
     pub base_currency: String,
@@ -688,7 +688,7 @@ pub struct RazorpayRefundResponse {
     pub id: String,
     pub status: RazorpayRefundStatus,
     pub receipt: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
 }
 
@@ -696,7 +696,7 @@ pub struct RazorpayRefundResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RazorpayRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
 }
 
 impl ForeignTryFrom<RazorpayRefundStatus> for common_enums::RefundStatus {
@@ -1031,11 +1031,11 @@ pub struct Metadata {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct RazorpayOrderRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     pub receipt: String,
     pub partial_payment: Option<bool>,
-    pub first_payment_min_amount: Option<MinorUnit>,
+    pub first_payment_min_amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_capture: Option<i8>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1167,9 +1167,9 @@ pub enum RazorpayNotes {
 pub struct RazorpayOrderResponse {
     pub id: String,
     pub entity: String,
-    pub amount: MinorUnit,
-    pub amount_paid: MinorUnit,
-    pub amount_due: MinorUnit,
+    pub amount: ConnectorMinorUnit,
+    pub amount_paid: ConnectorMinorUnit,
+    pub amount_due: ConnectorMinorUnit,
     pub currency: String,
     pub receipt: String,
     pub status: String,
@@ -1222,7 +1222,7 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
 pub struct RazorpaySessionTokenRequest {
     // `amount` and `currency` are mandatory because Razorpay's session-token flow creates
     // an Order server-side (POST /v1/orders); order creation requires both fields.
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt: Option<String>,
@@ -1468,7 +1468,7 @@ pub(crate) fn get_razorpay_refund_webhook_status(
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RazorpayCaptureRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
 }
 #[derive(Debug, Serialize, Deserialize)]
@@ -1569,7 +1569,7 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
 #[derive(Debug, Serialize)]
 pub struct RazorpayWebCollectRequest {
     pub currency: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<Email>,
     pub order_id: String,
@@ -1886,7 +1886,7 @@ fn map_bank_name_to_razorpay_code(
 
 #[derive(Debug, Serialize)]
 pub struct RazorpayNetbankingRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<Email>,

@@ -14,7 +14,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::{ByteSliceExt, BytesExt},
-    types::FloatMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, PSync},

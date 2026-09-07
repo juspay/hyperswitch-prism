@@ -2,7 +2,7 @@ use super::macros;
 pub mod transformers;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use common_enums::{CaptureMethod, CardNetwork, CurrencyUnit, PaymentMethod, PaymentMethodType};
-use common_utils::{errors::CustomResult, events, StringMinorUnit};
+use common_utils::{errors::CustomResult, events};
 use hyperswitch_masking::Maskable;
 use serde_json::Value;
 use std::{

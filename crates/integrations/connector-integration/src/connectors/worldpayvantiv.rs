@@ -7,7 +7,6 @@ use common_utils::{
     events,
     ext_traits::{deserialize_xml_to_struct, BytesExt},
     request::RequestContent,
-    types::MinorUnit,
 };
 use domain_types::{
     connector_flow::{

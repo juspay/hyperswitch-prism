@@ -417,26 +417,21 @@ fn get_repeat_payment_original_authorized_amount<T>(
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
-    let original_pair = router_data
+    router_data
         .request
         .recurring_mandate_payment_data
         .as_ref()
         .and_then(|data| {
-            data.original_payment_authorized_amount
-                .as_ref()
-                .map(|oa| (oa.amount, oa.currency))
-        });
-
-    match original_pair {
-        Some((original_amount, original_currency)) => {
-            Ok(Some(domain_types::utils::get_amount_as_string(
-                &common_enums::CurrencyUnit::Base,
-                original_amount,
-                original_currency,
-            )?))
-        }
-        None => Ok(None),
-    }
+            data.original_payment_authorized_amount.as_ref()
+        })
+        .map(|oa| {
+            oa.convert(&common_utils::types::StringMajorUnitForConnector)
+                .map(|s| s.get_amount_as_string())
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })
+        })
+        .transpose()
 }
 
 fn get_error_reason(

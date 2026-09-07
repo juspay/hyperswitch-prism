@@ -606,7 +606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .minor_amount
-            .unwrap_or(MinorUnit::new(0));
+            .unwrap_or(MinorUnit::default());
         Ok(Self {
             handle: item
                 .router_data
