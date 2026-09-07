@@ -1451,7 +1451,13 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Paynearme { api_key, key1 },
-            Payhere { api_key, key1, api_secret, key2, base_url },
+            Payhere {
+                api_key,
+                key1,
+                api_secret,
+                key2,
+                base_url
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1963,7 +1969,13 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Paynearme { api_key, key1 },
-                Payhere { api_key, key1, api_secret, key2, base_url },
+                Payhere {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                    base_url
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {

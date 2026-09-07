@@ -1,38 +1,38 @@
 pub mod transformers;
 
-use std::fmt::Debug;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, crypto::GenerateDigest};
+use common_utils::{
+    crypto::GenerateDigest, errors::CustomResult, events, ext_traits::ByteSliceExt,
+};
+use std::fmt::Debug;
 
-use domain_types::{merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    connector_flow::{ServerAuthenticationToken, Authorize, PSync, Refund},
-    router_data_v2::RouterDataV2,
-
-    
+use domain_types::{
+    connector_flow::{Authorize, PSync, Refund, ServerAuthenticationToken},
     connector_types::*,
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
+    router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Maskable, ExposeInterface};
-use interfaces::{connector_integration_v2::ConnectorIntegrationV2, 
-    api::ConnectorCommon,
-    decode::BodyDecoding,
+use hyperswitch_masking::{ExposeInterface, Maskable};
+use interfaces::{
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, decode::BodyDecoding,
 };
 use serde::Serialize;
 
-use transformers::*;
-use crate::types::ResponseRouterData;
 use super::macros;
-use common_utils::types::StringMajorUnit;
+use crate::types::ResponseRouterData;
 use base64::Engine;
+use common_utils::types::StringMajorUnit;
+use transformers::*;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
-use domain_types::router_data::ErrorResponse;
 use crate::with_error_response_body;
+use domain_types::router_data::ErrorResponse;
 
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
@@ -67,20 +67,22 @@ macros::create_all_prerequisites!(
     member_functions: {
         fn build_headers<F, FCD, Req, Res>(
             &self,
-            req: &RouterDataV2<F, FCD, Req, Res>,
+            _req: &RouterDataV2<F, FCD, Req, Res>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let mut header = vec![(
+            // Authentication for payment flows comes from the per-request access
+            // token (`get_access_token`), not from the static connector config, so
+            // the shared header builder must not emit an Authorization header.
+            Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
-            )];
-            let mut api_key = self.get_auth_header(&req.connector_config)?;
-            header.append(&mut api_key);
-            Ok(header)
+            )])
         }
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon for Payhere<T> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
+    for Payhere<T>
+{
     fn id(&self) -> &'static str {
         "payhere"
     }
@@ -97,18 +99,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         connectors.payhere.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-        let auth = PayhereAuthType::try_from(auth_type)
-            .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            format!("Bearer {}", auth.access_token.expose()).into(),
-        )])
-    }
-
     fn build_error_response(
         &self,
         res: Response,
@@ -118,10 +108,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let response: PayhereErrorResponse = res
             .response
             .parse_struct("PayhereErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
 
         with_error_response_body!(event_builder, response);
-        let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -141,37 +134,56 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::ValidationTrait for Payhere<T> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::ValidationTrait for Payhere<T>
+{
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::IncomingWebhook for Payhere<T> {
-    
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::IncomingWebhook for Payhere<T>
+{
     fn verify_webhook_source(
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        let secret = connector_webhook_secret.ok_or(errors::WebhookError::WebhookSourceVerificationFailed)?;
-        let merchant_secret = std::str::from_utf8(&secret.secret)
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed))?;
-        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body)
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed))?;
-        
-        let hash_secret = common_utils::crypto::Md5.generate_digest(merchant_secret.as_bytes())
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed))?;
+        let secret = connector_webhook_secret
+            .ok_or(errors::WebhookError::WebhookSourceVerificationFailed)?;
+        let merchant_secret = std::str::from_utf8(&secret.secret).map_err(|_| {
+            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+        })?;
+        let payload: PayhereWebhookPayload =
+            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
+                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+            })?;
+
+        let hash_secret = common_utils::crypto::Md5
+            .generate_digest(merchant_secret.as_bytes())
+            .map_err(|_| {
+                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+            })?;
         let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
-        
-        let message = format!("{}{}{}{}{}{}", payload.merchant_id, payload.order_id, payload.payhere_amount, payload.payhere_currency, payload.status_code, hash_secret_upper);
-        
-        let final_hash = common_utils::crypto::Md5.generate_digest(message.as_bytes())
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed))?;
-        
+
+        let message = format!(
+            "{}{}{}{}{}{}",
+            payload.merchant_id,
+            payload.order_id,
+            payload.payhere_amount,
+            payload.payhere_currency,
+            payload.status_code,
+            hash_secret_upper
+        );
+
+        let final_hash = common_utils::crypto::Md5
+            .generate_digest(message.as_bytes())
+            .map_err(|_| {
+                error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+            })?;
+
         Ok(hex::encode(final_hash).to_uppercase() == payload.md5sig)
     }
 
@@ -179,9 +191,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> inte
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
-        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body)
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound))?;
-        
+        let payload: PayhereWebhookPayload =
+            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
+                error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound)
+            })?;
+
         match payload.status_code {
             2 => Ok(EventType::PaymentIntentSuccess),
             0 => Ok(EventType::PaymentIntentProcessing),
@@ -197,11 +211,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> inte
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
-        let payload: PayhereWebhookPayload = serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body)
-            .map_err(|_| error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound))?;
-        
+        let payload: PayhereWebhookPayload =
+            serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
+                error_stack::report!(errors::WebhookError::WebhookEventTypeNotFound)
+            })?;
+
         Ok(WebhookDetailsResponse {
-            resource_id: payload.payment_id.map(|id| ResponseId::ConnectorTransactionId(id.to_string())),
+            resource_id: payload
+                .payment_id
+                .map(|id| ResponseId::ConnectorTransactionId(id.to_string())),
             status: get_status_from_code(payload.status_code),
             connector_response_reference_id: None,
             connector_request_reference_id: Some(payload.order_id),
@@ -221,7 +239,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> inte
         })
     }
 }
-
 
 macros::macro_connector_payout_implementation!(
     connector: Payhere,
@@ -306,7 +323,6 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let mut headers = self.build_headers(req)?;
             let access_token = req.resource_common_data.get_access_token().map_err(|err| {
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
@@ -316,11 +332,16 @@ macros::macro_connector_implementation!(
                     },
                 }
             })?;
-            headers.push((
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token).into(),
-            ));
-            Ok(headers)
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token).into(),
+                ),
+            ])
         }
     }
 );
@@ -348,7 +369,6 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let mut headers = self.build_headers(req)?;
             let access_token = req.resource_common_data.get_access_token().map_err(|err| {
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
@@ -358,11 +378,16 @@ macros::macro_connector_implementation!(
                     },
                 }
             })?;
-            headers.push((
-                headers::AUTHORIZATION.to_string(),
-                format!("Bearer {}", access_token).into(),
-            ));
-            Ok(headers)
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    "application/json".to_string().into(),
+                ),
+                (
+                    headers::AUTHORIZATION.to_string(),
+                    format!("Bearer {}", access_token).into(),
+                ),
+            ])
         }
     }
 );
@@ -397,15 +422,36 @@ macros::macro_connector_flow_status_impls!(
     ],
 );
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::ConnectorServiceTrait<T> for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::VerifyRedirectResponse for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::verification::SourceVerification for Payhere<T>
+{
+}
 
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::ConnectorServiceTrait<T> for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::VerifyRedirectResponse for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::verification::SourceVerification for Payhere<T> {}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::PaymentAuthorizeV2<T> for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::PaymentSyncV2 for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::RefundV2 for Payhere<T> {}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> interfaces::connector_types::ServerAuthentication for Payhere<T> {}
-
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::PaymentAuthorizeV2<T> for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::PaymentSyncV2 for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::RefundV2 for Payhere<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    interfaces::connector_types::ServerAuthentication for Payhere<T>
+{
+}

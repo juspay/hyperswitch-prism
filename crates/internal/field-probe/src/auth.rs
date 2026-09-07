@@ -861,6 +861,5 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key2: k(),
             base_url: None,
         },
-
     }
 }
