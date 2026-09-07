@@ -3,9 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
-use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt,
-};
+use common_utils::{consts, errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
     connector_types::{
