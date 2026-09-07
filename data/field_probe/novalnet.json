@@ -658,6 +658,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through novalnet"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through novalnet"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through novalnet"

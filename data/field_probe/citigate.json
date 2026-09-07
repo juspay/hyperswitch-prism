@@ -488,6 +488,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by citigate"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by citigate"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by citigate"

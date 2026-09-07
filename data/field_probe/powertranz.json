@@ -476,6 +476,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"

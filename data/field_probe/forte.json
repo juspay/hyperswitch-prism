@@ -510,6 +510,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Forte"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Forte"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Forte"
