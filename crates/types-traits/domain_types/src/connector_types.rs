@@ -3092,6 +3092,9 @@ pub enum EventType {
     MandateFailed,
     MandateRevoked,
 
+    // Associated Data events
+    PaymentAssociatedDataUpdate,
+
     // Misc events
     EndpointVerification,
     ExternalAuthenticationAres,
@@ -3139,6 +3142,7 @@ impl EventType {
                 | Self::PaymentActionRequired
                 | Self::SourceChargeable
                 | Self::SourceTransactionCreated
+                | Self::PaymentAssociatedDataUpdate
                 | Self::Payment
         )
     }
@@ -3290,6 +3294,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::MandateActive => Ok(Self::MandateActive),
             grpc_api_types::payments::WebhookEventType::MandateFailed => Ok(Self::MandateFailed),
             grpc_api_types::payments::WebhookEventType::MandateRevoked => Ok(Self::MandateRevoked),
+            grpc_api_types::payments::WebhookEventType::PaymentAssociatedDataUpdate => {
+                Ok(Self::PaymentAssociatedDataUpdate)
+            }
             grpc_api_types::payments::WebhookEventType::EndpointVerification => {
                 Ok(Self::EndpointVerification)
             }
@@ -3364,6 +3371,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::MandateActive => Ok(Self::MandateActive),
             EventType::MandateFailed => Ok(Self::MandateFailed),
             EventType::MandateRevoked => Ok(Self::MandateRevoked),
+            EventType::PaymentAssociatedDataUpdate => Ok(Self::PaymentAssociatedDataUpdate),
             EventType::EndpointVerification => Ok(Self::EndpointVerification),
             EventType::ExternalAuthenticationAres => Ok(Self::ExternalAuthenticationAres),
             EventType::FrmApproved => Ok(Self::FrmApproved),

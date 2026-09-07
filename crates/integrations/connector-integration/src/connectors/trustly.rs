@@ -306,33 +306,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let webhook_resource_reference = match webhook_body.method {
-            trustly::TrustlyWebhookMethod::Credit
-            | trustly::TrustlyWebhookMethod::Debit
-            | trustly::TrustlyWebhookMethod::Cancel
-            | trustly::TrustlyWebhookMethod::Account
-            | trustly::TrustlyWebhookMethod::Pending => {
+        let message_id = webhook_body.params.data.messageid.clone().expose();
+        let order_id = webhook_body.params.data.orderid;
+
+        if trustly::is_payment_webhook_event(&webhook_body.method, &message_id) {
+            return Ok(Some(
                 domain_types::connector_types::WebhookResourceReference::Payment(
                     domain_types::connector_types::PaymentWebhookReference {
-                        connector_transaction_id: Some(webhook_body.params.data.orderid.clone()),
+                        connector_transaction_id: Some(order_id),
                         merchant_transaction_id: None,
                     },
-                )
-            }
-            trustly::TrustlyWebhookMethod::PayoutConfirmation
-            | trustly::TrustlyWebhookMethod::PayoutFailed => {
+                ),
+            ));
+        }
+
+        if trustly::is_refund_webhook_event(&webhook_body.method, &message_id) {
+            return Ok(Some(
                 domain_types::connector_types::WebhookResourceReference::Refund(
                     domain_types::connector_types::RefundWebhookReference {
-                        connector_refund_id: Some(webhook_body.params.data.orderid.clone()),
+                        connector_refund_id: Some(order_id.clone()),
                         merchant_refund_id: None,
-                        connector_transaction_id: Some(webhook_body.params.data.orderid.clone()),
+                        connector_transaction_id: Some(order_id),
                         merchant_transaction_id: None,
                     },
-                )
-            }
-        };
+                ),
+            ));
+        }
 
-        Ok(Some(webhook_resource_reference))
+        if trustly::is_payout_webhook_event(&webhook_body.method, &message_id) {
+            return Ok(Some(
+                domain_types::connector_types::WebhookResourceReference::Payout(
+                    domain_types::connector_types::PayoutWebhookReference {
+                        connector_payout_id: Some(order_id),
+                        merchant_payout_id: None,
+                    },
+                ),
+            ));
+        }
+
+        Ok(None)
     }
 
     fn process_payment_webhook(
@@ -351,7 +363,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let status = trustly::get_trustly_payment_webhook_status(&details.method);
+        let status = trustly::get_trustly_payment_webhook_status(
+            &details.method,
+            &details.params.data.messageid.clone().expose(),
+        )?;
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             connector_returned_payment_method_details: None,
@@ -393,7 +408,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let status = trustly::get_trustly_refund_webhook_status(&details.method);
+        let status = trustly::get_trustly_refund_webhook_status(
+            &details.method,
+            &details.params.data.messageid.clone().expose(),
+        )?;
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
@@ -408,6 +426,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
                 status_code: 200,
                 response_headers: None,
+            },
+        )
+    }
+
+    fn process_payout_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<
+        domain_types::connector_types::PayoutWebhookDetailsResponse,
+        error_stack::Report<errors::WebhookError>,
+    > {
+        let details: TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let message_id = details.params.data.messageid.clone().expose();
+        let status = trustly::get_trustly_payout_webhook_status(&details.method, &message_id)?;
+
+        Ok(
+            domain_types::connector_types::PayoutWebhookDetailsResponse {
+                connector_payout_id: Some(details.params.data.orderid.clone()),
+                merchant_payout_id: None,
+                status,
+                error_code: details.params.data.errorcode.clone(),
+                error_message: details.params.data.errormessage.clone(),
+                status_code: 200,
             },
         )
     }
