@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent,
+    errors::CustomResult, events, ext_traits::ByteSliceExt,
 };
 use domain_types::{
     connector_flow::{

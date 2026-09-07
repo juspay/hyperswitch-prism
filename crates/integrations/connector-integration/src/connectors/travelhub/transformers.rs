@@ -1,7 +1,7 @@
 use crate::types::ResponseRouterData;
 use base64::Engine;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{AmountConvertor, ConnectorMinorUnit, MinorUnit, MinorUnitForConnector};
+use common_utils::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
