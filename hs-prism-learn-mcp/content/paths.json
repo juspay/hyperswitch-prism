@@ -1,0 +1,95 @@
+[
+  {
+    "id": "understand-payment-end-to-end",
+    "title": "Understand how a payment works, end to end",
+    "role": "explorer",
+    "audience": "everyone",
+    "summary": "Start here if you just want to understand what this project does and how a payment moves through it. No Rust required.",
+    "steps": [
+      { "slug": "payments-101", "why": "the four steps of any online payment" },
+      { "slug": "what-is-prism", "why": "what this project is and the problem it solves" },
+      { "slug": "three-layer-architecture", "file": "docs/architecture/README.md", "why": "the SDK / gRPC / Rust-core layers" },
+      { "slug": "unified-request", "why": "one request shape for every processor" },
+      { "slug": "connector", "why": "how one processor is plugged in" },
+      { "slug": "flow-authorize", "file": "docs/getting-started/first-payment.md", "why": "the first real operation: authorize" },
+      { "slug": "flow-capture", "file": "docs/getting-started/extend-to-more-flows.md", "why": "taking the money, then refunding" },
+      { "slug": "flow-refund", "why": "returning captured money" },
+      { "slug": "status-codes", "why": "reading the numeric result of a payment" },
+      { "slug": "error-model", "why": "telling a decline apart from a crash" }
+    ]
+  },
+  {
+    "id": "add-a-connector",
+    "title": "Add a brand-new connector",
+    "role": "contributor",
+    "audience": "engineer",
+    "summary": "The path for integrating a payment processor that does not exist yet. Build the foundation, then implement the six core flows.",
+    "steps": [
+      { "slug": "connector", "file": "crates/integrations/connector-integration/src/connectors/stripe.rs", "why": "the shape every connector follows" },
+      { "slug": "transformer", "file": "crates/integrations/connector-integration/src/connectors/stripe/transformers.rs", "why": "where the real mapping logic lives" },
+      { "slug": "payment-proto", "why": "the unified contract you map to and from" },
+      { "slug": "grace", "file": ".skills/generate-tech-spec/SKILL.md", "why": "generate a tech spec, then most of the code" },
+      { "slug": "macros", "why": "let the macros write the trait boilerplate" },
+      { "slug": "flow-authorize", "why": "implement the foundational flow first" },
+      { "slug": "flow-refund", "file": ".skills/new-connector/SKILL.md", "why": "run the new-connector skill to build all six flows in order" },
+      { "slug": "status-codes", "file": ".skills/_shared/references/quality-checklist.md", "why": "map statuses correctly and pass the quality checklist" }
+    ]
+  },
+  {
+    "id": "add-flow-or-payment-method",
+    "title": "Add one flow or payment method to an existing connector",
+    "role": "contributor",
+    "audience": "engineer",
+    "summary": "The path for extending a connector that already exists -- adding a missing flow (e.g. Refund) or a new payment method (e.g. a wallet).",
+    "steps": [
+      { "slug": "flow", "file": ".skills/add-connector-flow/references/flow-dependencies.md", "why": "check the flow dependency graph before you start" },
+      { "slug": "flow-refund", "file": ".skills/add-connector-flow/SKILL.md", "why": "run add-connector-flow in dependency order" },
+      { "slug": "payment-method", "file": ".skills/add-payment-method/SKILL.md", "why": "or run add-payment-method to add a payment type" },
+      { "slug": "transformer", "why": "add the matching arm and map its fields" },
+      { "slug": "macros", "why": "remember: every flow must be in both macros" },
+      { "slug": "flow-psync", "file": ".skills/_shared/references/grpc-testing-guide.md", "why": "test the new flow against the gRPC server" }
+    ]
+  },
+  {
+    "id": "fix-a-connector-bug",
+    "title": "Fix a bug in an existing connector",
+    "role": "contributor",
+    "audience": "engineer",
+    "summary": "The path for diagnosing and fixing a connector that compiles wrong or behaves wrong.",
+    "steps": [
+      { "slug": "connector", "file": "crates/integrations/connector-integration/src/connectors.rs", "why": "find the connector in the registry" },
+      { "slug": "router-data-v2", "why": "understand the data the flow carries" },
+      { "slug": "domain-types", "why": "fix the most common compile error (wrong imports)" },
+      { "slug": "error-model", "why": "tell a real bug apart from an expected decline" },
+      { "slug": "status-codes", "why": "verify status mapping is correct" },
+      { "slug": "flow-psync", "file": ".skills/_shared/references/grpc-testing-guide.md", "why": "reproduce and verify against the gRPC server" }
+    ]
+  },
+  {
+    "id": "review-a-pr",
+    "title": "Review a connector pull request",
+    "role": "reviewer",
+    "audience": "engineer",
+    "summary": "The path for reviewing changes -- especially connector and GRACE-generated PRs -- against the repo's conventions.",
+    "steps": [
+      { "slug": "repo-tour", "why": "know which area the PR touches" },
+      { "slug": "connector", "why": "the connector shape you are checking against" },
+      { "slug": "domain-types", "why": "verify V2 types and correct imports" },
+      { "slug": "status-codes", "file": ".skills/_shared/references/quality-checklist.md", "why": "check status mapping and the quality checklist" },
+      { "slug": "macros", "file": ".skills/pr-reviewer/SKILL.md", "why": "run the pr-reviewer skill for a scenario-aware review" }
+    ]
+  },
+  {
+    "id": "use-the-sdk",
+    "title": "Use the SDK in your own app",
+    "role": "integrator",
+    "audience": "engineer",
+    "summary": "If you want to TAKE payments from an app (not modify the repo), you want the SDKs and the integration tooling -- this path hands you off to them.",
+    "steps": [
+      { "slug": "ucs-vs-sdk", "why": "understand that you want the SDK layer, not the core" },
+      { "slug": "what-is-prism", "file": ".skills/sdk-integration/SKILL.md", "why": "use the sdk-integration skill for your language" },
+      { "slug": "status-codes", "why": "handle results correctly in your app" },
+      { "slug": "error-model", "why": "handle declines vs exceptions in your app" }
+    ]
+  }
+]
