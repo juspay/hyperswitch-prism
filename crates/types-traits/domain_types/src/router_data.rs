@@ -152,6 +152,8 @@ pub struct PaysafePaymentMethodDetails {
     pub apple_pay: Option<HashMap<common_enums::enums::Currency, PaysafeApplePayAccountId>>,
     /// Skrill wallet processing accounts, keyed by currency.
     pub skrill: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
+    /// Neteller wallet processing accounts, keyed by currency.
+    pub neteller: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
     /// paysafecard processing accounts, keyed by currency.
     pub pay_safe_card: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
 }
@@ -210,6 +212,7 @@ pub enum PaysafeAccountKind {
     Interac,
     ApplePay(PaysafeApplePayFlow),
     Skrill,
+    Neteller,
     PaysafeGiftCard,
 }
 
@@ -270,6 +273,13 @@ impl PaysafePaymentMethodDetails {
                     .and_then(|skrill| skrill.get(&currency))
                     .and_then(|skrill| skrill.three_ds.clone()),
                 "Missing skrill account_id",
+            ),
+            PaysafeAccountKind::Neteller => (
+                self.neteller
+                    .as_ref()
+                    .and_then(|neteller| neteller.get(&currency))
+                    .and_then(|neteller| neteller.three_ds.clone()),
+                "Missing neteller account_id",
             ),
             PaysafeAccountKind::PaysafeGiftCard => (
                 self.pay_safe_card

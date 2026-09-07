@@ -136,6 +136,11 @@
     "https://www.checkout.com/docs/developer-resources/testing/test-cards",
     "https://www.checkout.com/docs/developer-resources/testing/payments-testing"
   ],
+  "Paysafe": [
+    "https://developer.paysafe.com/en/payments-api/#/schemas/neteller",
+    "https://developer.paysafe.com/en/api-docs/payments-api/add-payment-methods/neteller/",
+    "https://developer.paysafe.com/en/api-docs/paysafe-checkout/payment-methods/wallets/neteller/"
+  ],
   "Ilixium": [
     "https://docs.ilixium.com/docs/api/authorisation",
     "https://docs.ilixium.com/docs/api/threedcomplete",
