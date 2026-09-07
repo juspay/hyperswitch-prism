@@ -21,8 +21,10 @@ use crate::service::CustomResult;
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TapeResponse {
     pub status_code: u16,
-    /// Sorted (name, value) header pairs. Non-UTF-8 header values are dropped (they never
-    /// occur on the connector paths and the existing masking helpers already drop them).
+    /// Header pairs sorted by name (stable — same-name values keep arrival order, so
+    /// multi-valued headers rebuild exactly as the live response carried them). Non-UTF-8
+    /// header values are dropped (they never occur on the connector paths and the existing
+    /// masking helpers already drop them).
     pub headers: Vec<(String, String)>,
     /// Response body, base64 so arbitrary bytes round-trip losslessly.
     pub body_b64: String,
@@ -44,7 +46,11 @@ impl TapeResponse {
                     .collect()
             })
             .unwrap_or_default();
-        headers.sort();
+        // Stable sort by NAME ONLY: same-name values (multiple `set-cookie`s from a
+        // CDN, say) keep their arrival order, which is part of the recorded truth —
+        // the response-header echo collapses duplicates last-wins, so reordering
+        // them changes which value the replayed response appears to carry.
+        headers.sort_by(|a, b| a.0.cmp(&b.0));
         Self {
             status_code: response.status_code,
             headers,
@@ -60,7 +66,9 @@ impl TapeResponse {
                 reqwest::header::HeaderName::from_bytes(name.as_bytes()),
                 reqwest::header::HeaderValue::from_str(value),
             ) {
-                header_map.insert(name, value);
+                // `append`, not `insert`: a name may carry several values and
+                // `insert` would keep only the loop-last one.
+                header_map.append(name, value);
             }
         }
         let body = base64::engine::general_purpose::STANDARD
@@ -341,6 +349,43 @@ mod tests {
             response: bytes::Bytes::copy_from_slice(body),
             status_code: status,
         }
+    }
+
+    /// Multi-valued headers survive the tape round-trip complete and in arrival
+    /// order — the authipay regression: five `set-cookie`s from a bot-protection
+    /// CDN, where the tuple-sort + `insert` rebuild used to keep only the
+    /// alphabetically-last one, flipping the last-wins response-header echo
+    /// (`__uzmd` recorded vs `__uzme` replayed).
+    #[test]
+    fn multi_valued_headers_round_trip_in_arrival_order() {
+        let mut headers = reqwest::header::HeaderMap::new();
+        // Deliberately NOT alphabetical: e arrives before d, d arrives last.
+        for cookie in ["__uzma=1", "__uzmb=2", "__uzme=1759", "__uzmd=1788799789"] {
+            headers.append("set-cookie", cookie.parse().unwrap());
+        }
+        headers.insert("content-type", "application/json".parse().unwrap());
+        let live = Response {
+            headers: Some(headers),
+            response: bytes::Bytes::from_static(b"{}"),
+            status_code: 200,
+        };
+
+        let rebuilt = TapeResponse::from_response(&live).into_response();
+        let rebuilt_headers = rebuilt.headers.expect("headers survive");
+        let cookies: Vec<&str> = rebuilt_headers
+            .get_all("set-cookie")
+            .iter()
+            .map(|value| value.to_str().unwrap())
+            .collect();
+        assert_eq!(
+            cookies,
+            ["__uzma=1", "__uzmb=2", "__uzme=1759", "__uzmd=1788799789"],
+            "all values, arrival order — the last-wins echo must pick __uzmd on both sides"
+        );
+        assert_eq!(
+            rebuilt_headers.get("content-type").unwrap(),
+            "application/json"
+        );
     }
 
     /// Every arm round-trips through capture -> reconstruct (always-substitute), including
