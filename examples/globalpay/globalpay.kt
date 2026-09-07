@@ -8,6 +8,7 @@
 package examples.globalpay
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
@@ -37,6 +38,7 @@ val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
             .setGlobalpay(GlobalpayConfig.newBuilder()
                 .setAppId(SecretString.newBuilder().setValue("YOUR_APP_ID").build())
                 .setAppKey(SecretString.newBuilder().setValue("YOUR_APP_KEY").build())
+                .setAccountName(SecretString.newBuilder().setValue("YOUR_ACCOUNT_NAME").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()

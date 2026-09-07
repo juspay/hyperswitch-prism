@@ -632,6 +632,10 @@
         "status": "not_supported",
         "error": "Selected wallet is not supported by worldpayxml"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected wallet is not supported by worldpayxml"

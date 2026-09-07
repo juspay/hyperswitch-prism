@@ -479,6 +479,10 @@
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Payment method not yet implemented for Payme is not supported by Payme"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Payment method not yet implemented for Payme is not supported by Payme"

@@ -576,6 +576,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Bank of America"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Bank of America"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Bank of America"

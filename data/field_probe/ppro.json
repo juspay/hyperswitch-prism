@@ -767,6 +767,10 @@
           "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "payment method card_redirect is not supported by PPRO is not supported by ppro"
+      },
       "Wero": {
         "status": "supported",
         "proto_request": {

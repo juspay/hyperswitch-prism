@@ -706,6 +706,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method `wechat_pay_qr` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `wechat_pay_qr`"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method `card_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `card_redirect`"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method `wero` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `wero`"

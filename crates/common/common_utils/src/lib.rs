@@ -108,6 +108,15 @@ pub mod date_time {
         OffsetDateTime::now_utc().unix_timestamp()
     }
 
+    /// Return the UNIX timestamp of the current date and time in UTC, in milliseconds.
+    ///
+    /// Derived from [`now`] the same way `date_as_yyyymmddthhmmssmmmz` is, so every
+    /// wall-clock read in the codebase flows through one function — one clock source,
+    /// no second one to drift from it.
+    pub fn now_unix_millis() -> i64 {
+        i64::try_from(now().assume_utc().unix_timestamp_nanos() / 1_000_000).unwrap_or(i64::MAX)
+    }
+
     /// Calculate execution time for a async block in milliseconds
     #[cfg(feature = "async_ext")]
     pub async fn time_it<T, Fut: futures::Future<Output = T>, F: FnOnce() -> Fut>(

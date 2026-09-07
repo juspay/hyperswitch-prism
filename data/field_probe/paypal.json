@@ -815,6 +815,10 @@
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through Paypal is not supported by Paypal"
