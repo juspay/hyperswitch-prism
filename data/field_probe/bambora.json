@@ -477,6 +477,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by bambora"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by bambora"

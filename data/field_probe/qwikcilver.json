@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
+      },
       "Wero": {
         "status": "error",
         "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"

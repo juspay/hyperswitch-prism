@@ -17,6 +17,7 @@ const _defaultConfig: types.IConnectorConfig = {
         globalpay: {
             appId: { value: 'YOUR_APP_ID' },
             appKey: { value: 'YOUR_APP_KEY' },
+            accountName: { value: 'YOUR_ACCOUNT_NAME' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },

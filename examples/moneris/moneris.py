@@ -11,7 +11,7 @@ from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import PaymentMethodAuthenticationClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 SUPPORTED_FLOWS = ["authorize", "capture", "create_server_authentication_token", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void"]
 

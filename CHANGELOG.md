@@ -19,6 +19,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.07.0
+
+### Features
+
+- **connector:**
+  - Implement D24 (Directa24) WebPay Authorize, PSync, Refund and RSync ([#2212](https://github.com/juspay/connector-service/pull/2212)) ([`37aff07`](https://github.com/juspay/connector-service/commit/37aff078dd8dce97a002d1cb9124a51d10389bf2))
+  - Globalpay wallet integration ([#2215](https://github.com/juspay/connector-service/pull/2215)) ([`8da7353`](https://github.com/juspay/connector-service/commit/8da7353c54aee6978fd763bdb42f75911d8181d2))
+
+**Full Changelog:** [`2026.09.04.2...2026.09.07.0`](https://github.com/juspay/connector-service/compare/2026.09.04.2...2026.09.07.0)
+
+- - -
+
+## 2026.09.04.2
+
+### Features
+
+- **connector:** [PayNearMe] add connector with Authorize, PSync, Void, Refund, RSync for cards ([#2221](https://github.com/juspay/connector-service/pull/2221)) ([`f590ae5`](https://github.com/juspay/connector-service/commit/f590ae5889b8f53472379cd485eea7ec53cd5680))
+
+### Bug Fixes
+
+- **adyen:** Thread test_mode through SetupRecurring, VoidPC, IncrementalAuthorization ([#2239](https://github.com/juspay/connector-service/pull/2239)) ([`2c988f9`](https://github.com/juspay/connector-service/commit/2c988f92a7784394fd18d0ac7a505ea9ae4bcd2a))
+
+**Full Changelog:** [`2026.09.04.1...2026.09.04.2`](https://github.com/juspay/connector-service/compare/2026.09.04.1...2026.09.04.2)
+
+- - -
+
+## 2026.09.04.1
+
+### Features
+
+- **connector:** [WORLDPAYXML] add account funding transaction (AFT) support ([#2209](https://github.com/juspay/connector-service/pull/2209)) ([`595dc31`](https://github.com/juspay/connector-service/commit/595dc31bb63c271c4dfcf8541e527ffb98c23004))
+- **ucs:** Carry customer date of birth on the Authorize path ([#2211](https://github.com/juspay/connector-service/pull/2211)) ([`79f31ba`](https://github.com/juspay/connector-service/commit/79f31bac4ffbd99b1be8ce2e8fba4bb7088adc27))
+
+### Bug Fixes
+
+- **TAMARA:** Sending refundId in tamara webhooks response ([#2232](https://github.com/juspay/connector-service/pull/2232)) ([`a38ced4`](https://github.com/juspay/connector-service/commit/a38ced490c9f9ec6eee6f4f21721e6aa8b139a63))
+- Single sanctioned source for every entropy and clock read in connector code ([#2224](https://github.com/juspay/connector-service/pull/2224)) ([`22e2fb6`](https://github.com/juspay/connector-service/commit/22e2fb6c431069c2d59d3c66e9219232169f9549))
+
+**Full Changelog:** [`2026.09.04.0...2026.09.04.1`](https://github.com/juspay/connector-service/compare/2026.09.04.0...2026.09.04.1)
+
+- - -
+
+## 2026.09.04.0
+
+### Bug Fixes
+
+- **GRABPAY:** Adding rawConnectorStatus in sync responses ([#2225](https://github.com/juspay/connector-service/pull/2225)) ([`4bee369`](https://github.com/juspay/connector-service/commit/4bee369c77cf9b46fed9c26dd4c9152c574521e2))
+- **connector:** Align authorizedotnet, cybersource and adyen response parsing with hyperswitch ([#2227](https://github.com/juspay/connector-service/pull/2227)) ([`049a15c`](https://github.com/juspay/connector-service/commit/049a15c3d5e2718b617567afbf7092a7b349f62a))
+
+**Full Changelog:** [`2026.09.03.1...2026.09.04.0`](https://github.com/juspay/connector-service/compare/2026.09.03.1...2026.09.04.0)
+
+- - -
+
+## 2026.09.03.1
+
+### Features
+
+- **Feature:** [Generic] Implementing Webhooks support for Payouts ([#2153](https://github.com/juspay/connector-service/pull/2153)) ([`acc9060`](https://github.com/juspay/connector-service/commit/acc906015bc2305bea01d1f149e688016f21b05a))
+- **connector:**
+  - [JPMORGAN ORBITAL] add JP Morgan Orbital connector with Card Authorize (3DS + non-3DS) ([#2187](https://github.com/juspay/connector-service/pull/2187)) ([`59684fe`](https://github.com/juspay/connector-service/commit/59684fe20abe268b7843bc22e76cb336a88dcf7e))
+  - [GRABPAY] fall back to HMAC one-time-charge status api ([#2208](https://github.com/juspay/connector-service/pull/2208)) ([`fbc8b29`](https://github.com/juspay/connector-service/commit/fbc8b2947d360d8f0cfe9038e62a9ee5578f52c6))
+  - [QWIKCILVER] map raw connector status on Authorize a… ([#2222](https://github.com/juspay/connector-service/pull/2222)) ([`ed7e54a`](https://github.com/juspay/connector-service/commit/ed7e54a3bdbc1a8a1c75c7a2ae1e31234ca0cd6d))
+  - Add New Connector TRAVELHUB ([#2175](https://github.com/juspay/connector-service/pull/2175)) ([`bcc5fc7`](https://github.com/juspay/connector-service/commit/bcc5fc76c4480b6884a18ab15dba1abee32eb0d4))
+
+**Full Changelog:** [`2026.09.03.0...2026.09.03.1`](https://github.com/juspay/connector-service/compare/2026.09.03.0...2026.09.03.1)
+
+- - -
+
 ## 2026.09.03.0
 
 ### Features

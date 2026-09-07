@@ -510,6 +510,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Datatrans. Datatrans Authorize supports Google Pay and Apple Pay only"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card, Google Pay and Apple Pay payments are supported for Datatrans. Datatrans Authorize supports raw card, Secure Fields token, Google Pay and Apple Pay payment methods only"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Datatrans. Datatrans Authorize supports Google Pay and Apple Pay only"

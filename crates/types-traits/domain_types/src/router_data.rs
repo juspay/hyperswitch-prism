@@ -442,6 +442,7 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        account_name: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Hipay {
@@ -1035,6 +1036,21 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    /// PayNearMe API v3.0 (JSON).
+    /// `api_key` = API Secret Key — the HMAC-SHA256 signing key. Never transmitted.
+    /// `key1`    = Site Identifier (a.k.a. Site/Key Identifier), sent as the
+    ///             `site_identifier` body field on every request.
+    Paynearme {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Global Payments — Heartland (Portico PosGateway).
     /// `api_key` = Portico SecretAPIKey; it travels in the SOAP body at
     /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
@@ -1448,8 +1464,14 @@ impl ConnectorSpecificConfig {
             Travelhub {
                 username,
                 password,
-                merchant_id,
+                merchant_id
             },
+            D24 {
+                api_key,
+                key1,
+                api_secret
+            },
+            Paynearme { api_key, key1 },
             GlobalpaymentsHeartland { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1954,8 +1976,14 @@ impl ConnectorSpecificConfig {
                 Travelhub {
                     username,
                     password,
-                    merchant_id,
+                    merchant_id
                 },
+                D24 {
+                    api_key,
+                    key1,
+                    api_secret
+                },
+                Paynearme { api_key, key1 },
                 GlobalpaymentsHeartland { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2145,6 +2173,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Globalpay(globalpay) => Ok(Self::Globalpay {
                 app_id: globalpay.app_id.ok_or_else(err)?,
                 app_key: globalpay.app_key.ok_or_else(err)?,
+                account_name: globalpay.account_name,
                 base_url: globalpay.base_url,
             }),
             AuthType::Hipay(hipay) => Ok(Self::Hipay {
@@ -2636,6 +2665,17 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: travelhub.merchant_id.ok_or_else(err)?,
                 base_url: travelhub.base_url,
             }),
+            AuthType::Paynearme(paynearme) => Ok(Self::Paynearme {
+                api_key: paynearme.api_key.ok_or_else(err)?,
+                key1: paynearme.key1.ok_or_else(err)?,
+                base_url: paynearme.base_url,
+            }),
+            AuthType::D24(d24) => Ok(Self::D24 {
+                api_key: d24.api_key.ok_or_else(err)?,
+                key1: d24.key1.ok_or_else(err)?,
+                api_secret: d24.api_secret.ok_or_else(err)?,
+                base_url: d24.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
@@ -2976,6 +3016,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
                         app_id: key1.clone(),
                         app_key: api_key.clone(),
+                        account_name: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3700,6 +3741,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Paynearme => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Volt => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,
@@ -3951,6 +4000,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         username: api_key.clone(),
                         password: key1.clone(),
                         merchant_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::D24 => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::D24 {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
