@@ -419,10 +419,18 @@ mod tests {
     #[test]
     fn instance_discriminator_is_stable_and_two_base36_chars() {
         let a = instance_discriminator("connector-service-7d9f8b6c4-x2vlq");
-        assert_eq!(a, instance_discriminator("connector-service-7d9f8b6c4-x2vlq"));
+        assert_eq!(
+            a,
+            instance_discriminator("connector-service-7d9f8b6c4-x2vlq")
+        );
         assert_eq!(a.len(), 2);
-        assert!(a.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
-        assert_ne!(a, instance_discriminator("connector-service-7d9f8b6c4-9k3mp"));
+        assert!(a
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+        assert_ne!(
+            a,
+            instance_discriminator("connector-service-7d9f8b6c4-9k3mp")
+        );
     }
 
     /// Non-alphanumerics are filtered, casing is normalized, and git's own
@@ -440,7 +448,11 @@ mod tests {
     fn fallback_run_id_has_the_hyperswitch_shape() {
         let id = fallback_run_id(&DejaConfig::default(), Some("pod-a"));
         let parts: Vec<&str> = id.splitn(4, '-').collect();
-        assert_eq!(parts.len(), 4, "expected rec-<sha>-<stamp>-<inst>, got {id}");
+        assert_eq!(
+            parts.len(),
+            4,
+            "expected rec-<sha>-<stamp>-<inst>, got {id}"
+        );
         assert_eq!(parts[0], "rec");
         assert_ne!(parts[1], "unknown");
         assert!(
