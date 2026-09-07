@@ -21,6 +21,7 @@ _default_config = sdk_config_pb2.ConnectorConfig(
         globalpay=payment_pb2.GlobalpayConfig(
             app_id=payment_methods_pb2.SecretString(value="YOUR_APP_ID"),
             app_key=payment_methods_pb2.SecretString(value="YOUR_APP_KEY"),
+            account_name=payment_methods_pb2.SecretString(value="YOUR_ACCOUNT_NAME"),
             base_url="YOUR_BASE_URL",
         ),
     ),

@@ -321,3 +321,8 @@ pub use self::saferpay::Saferpay;
 
 pub mod travelhub;
 pub use self::travelhub::Travelhub;
+pub mod paynearme;
+pub use self::paynearme::Paynearme;
+
+pub mod d24;
+pub use self::d24::D24;

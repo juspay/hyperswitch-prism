@@ -25,6 +25,9 @@
     "celero": {},
     "checkout": {},
     "cryptopay": {},
+    "d24": {
+      "reason": "No Directa24 sandbox credentials are configured in CI, so certification cannot run; WebPay Authorize, PSync, Refund and RSync were validated end to end against a local mock Directa24 server instead (HMAC signature, X-Login write/read-only key split, all 8 deposit statuses and all 6 refund statuses). Remove this entry once credentials are added so CI starts certifying it."
+    },
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
@@ -73,6 +76,9 @@
     "payconex": {},
     "payload": {},
     "payme": {},
+    "paynearme": {
+      "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
+    },
     "paypal": {},
     "paysafe": {},
     "paytm": {},

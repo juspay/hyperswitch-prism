@@ -474,6 +474,10 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"

@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Invalid connector configuration: merchant_private_key"
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Invalid connector configuration: merchant_private_key"
+      },
       "Wero": {
         "status": "error",
         "error": "Invalid connector configuration: merchant_private_key"

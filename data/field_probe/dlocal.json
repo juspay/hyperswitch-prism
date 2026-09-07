@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
       "Wero": {
         "status": "error",
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"

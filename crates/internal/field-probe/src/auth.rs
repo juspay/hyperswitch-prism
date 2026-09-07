@@ -170,6 +170,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Globalpay => ConnectorSpecificConfig::Globalpay {
             app_id: id(),
             app_key: k(),
+            account_name: Some(Secret::new("probe_account_name".to_string())),
             base_url: None,
         },
         ConnectorEnum::Hipay => ConnectorSpecificConfig::Hipay {
@@ -807,6 +808,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key1: k(),
             base_url: None,
         },
+        ConnectorEnum::Paynearme => ConnectorSpecificConfig::Paynearme {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
         ConnectorEnum::Ilixium => ConnectorSpecificConfig::Ilixium {
             api_key: k(),
             key1: k(),
@@ -840,6 +846,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             username: k(),
             password: k(),
             merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::D24 => ConnectorSpecificConfig::D24 {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
             base_url: None,
         },
     }

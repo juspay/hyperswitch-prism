@@ -80,6 +80,15 @@ _PROTO_OPTIONAL_FIELDS: dict[str, set[str]] = {}
 # Used to determine which pb2 module to use in generated Python code.
 _PROTO_FILE_MAP: dict[str, str] = {}
 
+# Maps a *nested* enum name (declared inside a `message { ... }` block) to the
+# name of the message that encloses it, e.g. "CardRedirectType" -> "CardRedirect".
+# Top-level enums are absent from this map.  Every language surface nests these
+# enums under their parent (TS: types.CardRedirect.CardRedirectType, Kotlin:
+# types.PaymentMethods.CardRedirect.CardRedirectType, Python:
+# payment_methods_pb2.CardRedirect.CardRedirectType, prost: card_redirect::CardRedirectType),
+# so generated references must be qualified accordingly.
+_PROTO_ENUM_PARENT: dict[str, str] = {}
+
 
 # ── Rust type mappings for value wrapper types ─────────────────────────────────
 #
@@ -336,12 +345,14 @@ def load_proto_type_map(proto_dir: Path) -> None:
     """Parse all *.proto files in proto_dir to build _PROTO_FIELD_TYPES and _PROTO_WRAPPER_TYPES."""
     global _PROTO_FIELD_TYPES, _PROTO_WRAPPER_TYPES, _PROTO_REPEATED_FIELDS
     global _PROTO_OPTIONAL_FIELDS, _PROTO_FILE_MAP, _PROTO_ONEOF_FIELDS, _PROTO_MAP_FIELDS
+    global _PROTO_ENUM_PARENT
 
     type_map: dict[str, dict[str, str]] = {}
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
     file_map: dict[str, str] = {}
+    enum_parent_map: dict[str, str] = {}
     _FIELD_RE = re.compile(
         r"^\s*(repeated\s+)?(optional\s+)?([\w<>,\s]+?)\s+(\w+)\s*=\s*\d+"
     )
@@ -381,6 +392,11 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     depth -= 1
                 i += 1
             body = text[body_start : i - 1]
+
+            # Enums declared inside this message are nested — record their parent so
+            # generated code can qualify them (bare names do not resolve in any SDK).
+            for enum_m in re.finditer(r"\benum\s+(\w+)\s*\{", body):
+                enum_parent_map[enum_m.group(1)] = msg_name
 
             # Normalize multi-line field definitions (e.g. "optional FutureUsage f =\n    19;")
             # by joining the field number onto the same line as the type/name.
@@ -442,6 +458,8 @@ def load_proto_type_map(proto_dir: Path) -> None:
     _PROTO_MAP_FIELDS.update(map_map)
     _PROTO_FILE_MAP.clear()
     _PROTO_FILE_MAP.update(file_map)
+    _PROTO_ENUM_PARENT.clear()
+    _PROTO_ENUM_PARENT.update(enum_parent_map)
     # Wrapper types: messages whose only field is named "value"
     _PROTO_WRAPPER_TYPES.clear()
     _PROTO_WRAPPER_TYPES.update(
@@ -456,6 +474,30 @@ def _py_module_for_type(type_name: str) -> str:
     return f"{stem}_pb2"
 
 
+def _enum_parent(type_name: str) -> str:
+    """Return the enclosing message name for a nested proto enum, else ""."""
+    return _PROTO_ENUM_PARENT.get(type_name, "")
+
+
+def _java_outer_class(type_name: str) -> str:
+    """Return the protoc-derived Java outer class for a proto type (payment_methods -> PaymentMethods)."""
+    stem = _PROTO_FILE_MAP.get(type_name, "payment")
+    return "".join(part.capitalize() for part in stem.split("_"))
+
+
+def _py_enum_path(type_name: str) -> str:
+    """Fully-qualified Python path for a proto enum, honouring message nesting."""
+    parent = _enum_parent(type_name)
+    prefix = f"{_py_module_for_type(type_name)}."
+    return f"{prefix}{parent}.{type_name}" if parent else f"{prefix}{type_name}"
+
+
+def _rust_enum_path(type_name: str) -> str:
+    """Prost path for a proto enum — nested enums live in a snake_case parent module."""
+    parent = _enum_parent(type_name)
+    return f"{_to_snake(parent)}::{type_name}" if parent else type_name
+
+
 # ── Scenario groups ─────────────────────────────────────────────────────────────
 
 # Fallback scenario groups used when manifest.json doesn't provide them
@@ -468,7 +510,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
         ]
     },
     {
@@ -489,7 +531,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "refund"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "refund", "pm_key": None}
         ]
     },
@@ -500,7 +542,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "void"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "void", "pm_key": None}
         ]
     },
@@ -511,7 +553,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "get"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "get", "pm_key": None}
         ]
     },
@@ -1604,8 +1646,7 @@ def _py_direct_lines(
 
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
-                em = _py_module_for_type(child_msg)
-                lines.append(f"{pad}{key}={em}.{child_msg}.Value({key}),{cmt_part}")
+                lines.append(f"{pad}{key}={_py_enum_path(child_msg)}.Value({key}),{cmt_part}")
             elif child_msg and db.is_wrapper(child_msg):
                 wm = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={wm}.{child_msg}(value={key}),{cmt_part}")
@@ -1668,8 +1709,7 @@ def _py_direct_lines(
                 # so encode the probe string rather than passing a raw str.
                 lines.append(f"{pad}{key}={json.dumps(val)}.encode(),{cmt_part}")
             elif child_msg and _is_proto_enum(child_msg):
-                em = _py_module_for_type(child_msg)
-                lines.append(f"{pad}{key}={em}.{child_msg}.Value({json.dumps(val)}),{cmt_part}")
+                lines.append(f"{pad}{key}={_py_enum_path(child_msg)}.Value({json.dumps(val)}),{cmt_part}")
             elif child_msg and child_msg in _PYTHON_WRAPPER_TYPES:
                 # Special wrapper types like CardNumberType need value= wrapping
                 wm = _py_module_for_type(child_msg)
@@ -2190,11 +2230,25 @@ def render_consolidated_javascript(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         ts_enum_types.update(_collect_ts_enum_types(proto_req, grpc_req, db))
     
-    # Build enum imports string (only enums and values that exist at runtime)
-    enum_imports = ", ".join(sorted(ts_enum_types)) if ts_enum_types else ""
+    # Build enum imports string (only enums and values that exist at runtime).
+    # protobufjs mirrors proto nesting, so an enum declared inside a message is
+    # reached through its parent (types.CardRedirect.CardRedirectType) and cannot be
+    # destructured off `types` directly — give those their own destructuring line.
+    top_level_enums = sorted(t for t in ts_enum_types if not _enum_parent(t))
+    nested_enums: dict[str, list[str]] = {}
+    for t in sorted(ts_enum_types):
+        parent = _enum_parent(t)
+        if parent:
+            nested_enums.setdefault(parent, []).append(t)
+
+    enum_imports = ", ".join(top_level_enums)
     types_imports = "Environment"
     if enum_imports:
         types_imports += f", {enum_imports}"
+    nested_enum_imports = "".join(
+        f"\nconst {{ {', '.join(names)} }} = types.{parent};"
+        for parent, names in sorted(nested_enums.items())
+    )
 
     # Build one function block per scenario
     func_blocks:   list[str] = []
@@ -2439,7 +2493,7 @@ def render_consolidated_javascript(
 // Run a scenario:  npx tsx {connector_name}.ts {first_scenario}
 
 import {{ {client_imports}, types }} from 'hyperswitch-prism';
-const {{ {types_imports} }} = types;
+const {{ {types_imports} }} = types;{nested_enum_imports}
 export const SUPPORTED_FLOWS = {supported_flows_js};
 
 const _defaultConfig: types.IConnectorConfig = {{
@@ -2824,7 +2878,7 @@ def _rust_struct_lines(
         # Variable field (function parameter) — emit type-aware expression
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
-                expr = f"{child_msg}::from_str_name({key}).unwrap_or_default().into()"
+                expr = f"{_rust_enum_path(child_msg)}::from_str_name({key}).unwrap_or_default().into()"
             elif child_msg and child_msg in _RUST_WRAPPER_CONSTRUCTORS:
                 # Special Rust wrapper type with custom constructor (e.g., CardNumberType)
                 template, _, _ = _RUST_WRAPPER_CONSTRUCTORS[child_msg]
@@ -2943,7 +2997,7 @@ def _rust_struct_lines(
                 _screaming = re.sub(r"(?<!^)(?=[A-Z])", "_", child_msg).upper()
                 _val = val[len(_screaming) + 1:] if val.upper().startswith(_screaming + "_") else val
                 variant = "".join(word.capitalize() for word in _val.lower().split("_"))
-                expr = f"{child_msg}::{variant}.into()"
+                expr = f"{_rust_enum_path(child_msg)}::{variant}.into()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
             elif child_msg and child_msg in _RUST_WRAPPER_CONSTRUCTORS:
@@ -3201,7 +3255,13 @@ def render_consolidated_kotlin(
     # Use wildcard imports (matching the SDK's own GeneratedFlows.kt pattern) so all
     # proto-generated classes resolve regardless of whether they have a payments typealias.
     client_imports = "\n".join(f"import payments.{t}" for t in all_client_cls)
-    enum_imports   = "\n".join(f"import payments.{t}" for t in sorted(enum_types))
+    # Top-level enums are re-exported as `payments.*` typealiases; enums nested in a
+    # message have no typealias and must be imported through their parent class.
+    enum_imports   = "\n".join(
+        (f"import types.{_java_outer_class(t)}.{_enum_parent(t)}.{t}"
+         if _enum_parent(t) else f"import payments.{t}")
+        for t in sorted(enum_types)
+    )
     imports_parts  = [p for p in [client_imports, enum_imports] if p]
     imports        = "\n".join(imports_parts)
 
