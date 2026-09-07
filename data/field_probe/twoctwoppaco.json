@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."
+      },
       "Wero": {
         "status": "error",
         "error": "Invalid data format: paco_kid. paco_kid must be exactly 32 hexadecimal characters."

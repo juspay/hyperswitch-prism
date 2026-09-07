@@ -444,6 +444,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"

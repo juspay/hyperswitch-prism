@@ -1901,6 +1901,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Default::default(),
             )
             .into()),
+            CardRedirectData::Webpay {} => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
