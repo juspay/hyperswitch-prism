@@ -386,7 +386,7 @@ fn get_settlement_info<
     amount: MinorUnit,
 ) -> Option<AutoSettlement> {
     match router_data.request.capture_method.unwrap_or_default() {
-        _ if amount == MinorUnit::zero() => None,
+        _ if amount == MinorUnit::default() => None,
         enums::CaptureMethod::Automatic | enums::CaptureMethod::SequentialAutomatic => {
             Some(AutoSettlement { auto: true })
         }
@@ -1035,7 +1035,7 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = if amount == MinorUnit::zero() && worldpay_status == PaymentOutcome::Authorized
+        let status = if amount == MinorUnit::default() && worldpay_status == PaymentOutcome::Authorized
         {
             enums::AttemptStatus::Charged
         } else {

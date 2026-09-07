@@ -5544,18 +5544,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .original_payment_authorized_amount
                             .clone()
                     })
-                    .map(|original_amount| (original_amount.amount, original_amount.currency));
-
-                let original_authorized_amount = match original_authorized_amount {
-                    Some((original_amount, original_currency)) => {
-                        Some(domain_types::utils::get_amount_as_string(
-                            &common_enums::CurrencyUnit::Base,
-                            original_amount,
-                            original_currency,
-                        )?)
-                    }
-                    None => None,
-                };
+                    .map(|original_amount| {
+                        original_amount
+                            .convert(&common_utils::types::StringMajorUnitForConnector)
+                            .map(|s| s.get_amount_as_string())
+                            .change_context(IntegrationError::AmountConversionFailed {
+                                context: Default::default(),
+                            })
+                    })
+                    .transpose()?;
                 (
                     None,
                     None,

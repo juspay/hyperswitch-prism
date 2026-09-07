@@ -1365,7 +1365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // Add actionType logic for zero-amount payments
-        let action_type = if item.request.amount == common_utils::types::MinorUnit::zero() {
+        let action_type = if item.request.amount == common_utils::types::MinorUnit::default() {
             Some(NexixpayPaymentRequestActionType::Verify)
         } else {
             None
@@ -2013,7 +2013,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order = NexixpayPreAuthOrder {
             order_id: get_nexi_order_id(&item.resource_common_data.connector_request_reference_id)?,
             amount: StringMinorUnitForConnector
-                .convert(common_utils::types::MinorUnit::zero(), currency)
+                .convert(common_utils::types::MinorUnit::default(), currency)
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
                 })?,

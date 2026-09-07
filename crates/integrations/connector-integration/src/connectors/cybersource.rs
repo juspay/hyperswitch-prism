@@ -6,7 +6,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::BytesExt,
-    types::StringMajorUnit,
     Method,
 };
 use domain_types::{

@@ -24,6 +24,7 @@ use domain_types::{
 
 use common_utils::consts;
 
+
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -251,12 +252,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
-            (Some(minor_amount), common_enums::AttemptStatus::Charged) => {
-                let amount_captured = Some(minor_amount.get_amount_as_i64());
+            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
-                        amount_captured,
+                        amount_captured: None,
                         minor_amount_captured: amount_captured_in_minor_units,
                         ..router_data.resource_common_data
                     },
@@ -401,12 +401,11 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
-            (Some(minor_amount), common_enums::AttemptStatus::Charged) => {
-                let amount_captured = Some(minor_amount.get_amount_as_i64());
+            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
-                        amount_captured,
+                        amount_captured: None,
                         minor_amount_captured: amount_captured_in_minor_units,
                         ..router_data.resource_common_data
                     },
@@ -476,11 +475,10 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     _ => None,
                 };
             match (amount_captured_in_minor_units, status) {
-                (Some(minor_amount), common_enums::AttemptStatus::Charged) => {
-                    let amount_captured = Some(minor_amount.get_amount_as_i64());
+                (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
                     Ok(Self {
                         connector_returned_payment_method_details: None,
-                        amount_captured,
+                        amount_captured: None,
                         minor_amount_captured: amount_captured_in_minor_units,
                         status,
                         resource_id: Some(ResponseId::ConnectorTransactionId(

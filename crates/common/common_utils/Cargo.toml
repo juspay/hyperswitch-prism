@@ -55,6 +55,9 @@ kafka = ["dep:rdkafka", "dep:tracing-kafka"]
 async_ext = ["dep:async-trait", "dep:futures"]
 superposition = ["dep:superposition_core", "dep:superposition_types"]
 log-transformations = ["logging"]
+## Exposes MinorUnit constructors, extractors, and serde impls.
+## Only enable in crates that sit at the proto/domain boundary (domain_types, grpc-server).
+## Connector-integration must NOT enable this feature.
 
 [dependencies.async-trait]
 version = "0.1.74"

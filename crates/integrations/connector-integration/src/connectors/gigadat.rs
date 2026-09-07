@@ -7,7 +7,7 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, FloatMajorUnit};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{

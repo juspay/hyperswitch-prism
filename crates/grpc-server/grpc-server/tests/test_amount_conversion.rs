@@ -3,6 +3,7 @@
 mod tests {
     use common_enums::Currency;
     use common_utils::{
+        proto_boundary::MinorUnitProtoAccess,
         types::{MinorUnit, StringMajorUnitForConnector},
         AmountConvertor,
     };

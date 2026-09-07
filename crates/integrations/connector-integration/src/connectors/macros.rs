@@ -1168,6 +1168,15 @@ macro_rules! expand_connector_input_data {
 }
 pub(crate) use expand_connector_input_data;
 
+/// Maps the user-facing amount-unit token to the actual `AmountConvertor::Output` type.
+/// `MinorUnit` → `ConnectorMinorUnit` (because `MinorUnitForConnector::Output` changed);
+/// everything else passes through unchanged.
+macro_rules! resolve_amount_output {
+    (MinorUnit) => { common_utils::types::ConnectorMinorUnit };
+    ($other:ident) => { common_utils::types::$other };
+}
+pub(crate) use resolve_amount_output;
+
 macro_rules! create_all_prerequisites {
     (
         connector_name: $connector: ident,
@@ -1184,7 +1193,7 @@ macro_rules! create_all_prerequisites {
             ),*
         ],
         amount_converters: [
-            $($converter_name:ident : $amount_unit:ty),*
+            $($converter_name:ident : $amount_unit:ident),*
         ],
         member_functions: {
             $($function_def: tt)*
@@ -1205,7 +1214,7 @@ macro_rules! create_all_prerequisites {
         paste::paste! {
             pub struct $connector<$generic_type: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + serde::Serialize> {
                 $(
-                    pub $converter_name: &'static (dyn common_utils::types::AmountConvertor<Output = $amount_unit> + Sync),
+                    pub $converter_name: &'static (dyn common_utils::types::AmountConvertor<Output = crate::connectors::macros::resolve_amount_output!($amount_unit)> + Sync),
                 )*
                 $(
                     [<$flow_name:snake>]: &'static dyn BridgeRequestResponse<
@@ -1375,6 +1384,53 @@ macro_rules! expand_imports {
 pub(crate) use expand_imports;
 
 macro_rules! create_amount_converter_wrapper {
+    // Specialized arm: when amount_type is MinorUnit, the convertor
+    // (MinorUnitForConnector) outputs ConnectorMinorUnit.
+    (connector_name: $connector_name:ident, amount_type: MinorUnit) => {
+        paste::paste! {
+            #[derive(Default, Debug, Clone, Copy, PartialEq)]
+            pub struct [<$connector_name AmountConvertor>];
+
+            impl [<$connector_name AmountConvertor>] {
+                pub fn convert(
+                    amount: common_utils::types::MinorUnit,
+                    currency: common_enums::Currency,
+                ) -> Result<
+                    common_utils::types::ConnectorMinorUnit,
+                    error_stack::Report<domain_types::errors::IntegrationError>,
+                > {
+                    {
+                        use error_stack::ResultExt;
+                        domain_types::utils::convert_amount(
+                            &common_utils::types::MinorUnitForConnector,
+                            amount,
+                            currency,
+                        ).change_context(domain_types::errors::IntegrationError::InvalidDataFormat {
+                            field_name: "amount",
+                            context: Default::default()
+                        })
+                    }
+                }
+
+                /// Convert connector amount back to MinorUnit.
+                pub fn convert_back(
+                    amount: common_utils::types::ConnectorMinorUnit,
+                    currency: common_enums::Currency,
+                ) -> Result<
+                    common_utils::types::MinorUnit,
+                    error_stack::Report<common_utils::errors::ParsingError>,
+                > {
+                    domain_types::utils::convert_back_amount_to_minor_units(
+                        &common_utils::types::MinorUnitForConnector,
+                        amount,
+                        currency,
+                    )
+                }
+            }
+        }
+    };
+    // General arm for all other amount types (StringMajorUnit, FloatMajorUnit,
+    // StringMinorUnit, etc.)
     (connector_name: $connector_name:ident, amount_type: $amount_type:ty) => {
         paste::paste! {
             #[derive(Default, Debug, Clone, Copy, PartialEq)]

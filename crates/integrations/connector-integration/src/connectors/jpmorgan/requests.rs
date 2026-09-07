@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct JpmorganTokenRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganPaymentsRequest<T: PaymentMethodDataTypes> {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganPaymentMethodType<T>,
@@ -119,7 +119,7 @@ pub enum CapMethod {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganCaptureRequest {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -144,7 +144,7 @@ pub struct JpmorganVoidPcRequest {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRefundRequest {
     pub merchant: JpmorganMerchantRefund,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 
@@ -242,7 +242,7 @@ pub struct JpmorganRepeatPaymentMethodType<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganSetupMandatePaymentMethodType<T>,
@@ -257,7 +257,7 @@ pub struct JpmorganSetupMandateRequest<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganRepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub capture_method: CapMethod,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub merchant: JpmorganMerchant,
     pub payment_method_type: JpmorganRepeatPaymentMethodType<T>,

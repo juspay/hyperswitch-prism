@@ -809,7 +809,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: MinorUnit::new(item.router_data.request.amount_to_capture),
+            capture_amount: item.router_data.request.minor_amount_to_capture,
             idempotency_id: None,
         })
     }
@@ -2317,9 +2317,7 @@ pub(super) fn build_finix_payment_webhook_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        amount_captured: resource
-            .captured_amount
-            .map(|amount| amount.get_amount_as_i64()),
+        amount_captured: None,
         minor_amount_captured: resource.captured_amount,
         network_txn_id: None,
         payment_method_update: None,

@@ -10,6 +10,7 @@ pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
+pub mod proto_boundary;
 pub mod id_type;
 pub mod lineage;
 pub mod macros;
@@ -39,9 +40,9 @@ pub use superposition_config::{
     get_optional_nonempty_string, get_string, SuperpositionConfig, SuperpositionConfigError,
 };
 pub use types::{
-    AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
-    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
-    StringTwoDecimalUnitForConnector,
+    AmountConvertor, ConnectorMinorUnit, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit,
+    MinorUnitForConnector, StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+    StringTwoDecimalUnit, StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;
 pub mod events;

@@ -474,9 +474,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1168,8 +1168,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let item = &data.router_data;
+        // Noon requires a non-zero amount for setup mandate.
+        // The actual mandate amount comes from setup_mandate_details below.
+        // This nominal amount satisfies the API requirement.
         let amount = data.connector.amount_converter.convert(
-            common_utils::types::MinorUnit::new(1),
+            data.router_data.request.minor_amount.unwrap_or_default(),
             data.router_data.request.currency,
         );
         let mandate_amount = &data.router_data.request.setup_mandate_details;
@@ -1381,9 +1384,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         MandateDataType::MultiUse(amount_data_opt) => amount_data_opt.as_ref(),
                     };
                     mandate_amount_data.map(|amount_data| {
-                        data.connector
-                            .amount_converter
-                            .convert(amount_data.amount.amount, amount_data.amount.currency)
+                        amount_data
+                            .amount
+                            .convert(data.connector.amount_converter)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),

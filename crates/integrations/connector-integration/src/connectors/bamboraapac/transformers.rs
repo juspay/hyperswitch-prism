@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::types::ConnectorMinorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, RepeatPayment},
     connector_types::{
@@ -28,7 +28,7 @@ struct TransactionXml {
     #[serde(rename = "CustRef")]
     cust_ref: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "TrnType")]
     trn_type: i32,
     #[serde(rename = "AccountNumber")]
@@ -70,7 +70,7 @@ struct CaptureXml {
     #[serde(rename = "Receipt")]
     receipt: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "Security")]
     security: SecurityXml,
 }
@@ -84,7 +84,7 @@ struct RefundXml {
     #[serde(rename = "Receipt")]
     receipt: String,
     #[serde(rename = "Amount")]
-    amount: i64,
+    amount: ConnectorMinorUnit,
     #[serde(rename = "Security")]
     security: SecurityXml,
 }
@@ -175,7 +175,7 @@ pub struct BamboraapacPaymentRequest<
     pub account_number: Secret<String>,
     pub cust_number: Option<String>,
     pub cust_ref: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub trn_type: BamboraapacTrnType,
     pub card_number: Secret<String>,
     pub exp_month: Secret<String>,
@@ -195,7 +195,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Build the inner Transaction XML using quick-xml
         let transaction_xml = TransactionXml {
             cust_ref: self.cust_ref.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             trn_type: i32::from(self.trn_type),
             account_number: self.account_number.peek().to_string(),
             credit_card: CreditCardXml {
@@ -285,7 +285,7 @@ impl Default for BamboraapacErrorResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct BamboraapacCaptureRequest {
     pub receipt: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub username: Secret<String>,
     pub password: Secret<String>,
 }
@@ -330,7 +330,7 @@ pub struct CaptureResponse {
 pub struct BamboraapacRefundRequest {
     pub cust_ref: String,
     pub receipt: String, // Original transaction receipt/ID to refund
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub username: Secret<String>,
     pub password: Secret<String>,
 }
@@ -474,7 +474,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: super::BamboraapacAmountConvertor::convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )?,
             trn_type,
             card_number: Secret::new(card_number_str),
             exp_month: card_data.card_exp_month.clone(),
@@ -626,7 +629,10 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 
         Ok(Self {
             receipt,
-            amount: router_data.request.minor_amount_to_capture,
+            amount: super::BamboraapacAmountConvertor::convert(
+                router_data.request.minor_amount_to_capture,
+                router_data.request.currency,
+            )?,
             username: auth.username,
             password: auth.password,
         })
@@ -923,7 +929,10 @@ impl
                 .connector_request_reference_id
                 .clone(),
             receipt,
-            amount: router_data.request.minor_refund_amount,
+            amount: super::BamboraapacAmountConvertor::convert(
+                router_data.request.minor_refund_amount,
+                router_data.request.currency,
+            )?,
             username: auth.username,
             password: auth.password,
         })
@@ -1413,7 +1422,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct BamboraapacRepeatPaymentRequest {
     pub account_number: Secret<String>,
     pub cust_ref: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub trn_type: BamboraapacTrnType,
     pub card_token: String, // The customer_id/token from SetupMandate
     pub username: Secret<String>,
@@ -1474,7 +1483,10 @@ impl<
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: super::BamboraapacAmountConvertor::convert(
+                router_data.request.minor_amount,
+                router_data.request.currency,
+            )?,
             trn_type,
             card_token: token,
             username: auth.username,
@@ -1614,7 +1626,7 @@ impl GetSoapXml for BamboraapacCaptureRequest {
         // Build the inner Capture XML using quick-xml
         let capture_xml = CaptureXml {
             receipt: self.receipt.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             security: SecurityXml {
                 username: self.username.peek().to_string(),
                 password: self.password.peek().to_string(),
@@ -1644,7 +1656,7 @@ impl GetSoapXml for BamboraapacRefundRequest {
         let refund_xml = RefundXml {
             cust_ref: self.cust_ref.clone(),
             receipt: self.receipt.clone(),
-            amount: self.amount.get_amount_as_i64(),
+            amount: self.amount,
             security: SecurityXml {
                 username: self.username.peek().to_string(),
                 password: self.password.peek().to_string(),
@@ -1777,7 +1789,7 @@ impl GetSoapXml for BamboraapacRepeatPaymentRequest {
             </soapenv:Envelope>
         "#,
             self.cust_ref,
-            self.amount.get_amount_as_i64(),
+            self.amount,
             i32::from(self.trn_type),
             self.account_number.peek(),
             self.card_token,
