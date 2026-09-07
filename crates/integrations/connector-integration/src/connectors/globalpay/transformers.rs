@@ -97,7 +97,6 @@ pub enum GlobalpayWebhookStatus {
     Rejected,
     Pending,
     Initiated,
-    #[serde(rename = "FOR_REVIEW")]
     ForReview,
     Funded,
     Reversed,
@@ -264,27 +263,21 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayConfirmRespo
                 raw_connector_request: None,
                 typed_connector_request: None,
             }),
-            // Return Err (not Ok) so the HS should_continue gate evaluates to false,
-            // preventing CompleteAuthorize from being re-fired after confirmation.
-            // The old Direct-gateway connector achieves the same effect via a no-op
-            // PostAuthenticate (connector_request = None → default Err response).
-            // attempt_status carries the real terminal state so the attempt is persisted
-            // as Pending (→ Processing intent) or Charged (→ Succeeded intent) without
-            // triggering another connector call.
-            _ => Err(ErrorResponse {
+            // Terminal success: return Ok so HS can read the real transaction ID and
+            // reference. The Hyperswitch should_continue gate is extended to treat
+            // Charged/Authorized as non-continuing so CompleteAuthorize is not re-fired.
+            _ => Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: item.response.reference.clone(),
+                incremental_authorization_allowed: None,
                 status_code: item.http_code,
-                code: NO_ERROR_CODE.to_string(),
-                message: NO_ERROR_MESSAGE.to_string(),
-                reason: None,
-                attempt_status: Some(FlowStatus::Payment(status)),
-                connector_transaction_id: Some(item.response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
-                typed_connector_response: None,
-                raw_connector_response: None,
-                raw_connector_request: None,
-                typed_connector_request: None,
+                splits: None,
+                payment_account_reference: None,
             }),
         };
 
@@ -544,9 +537,9 @@ impl<F, T> TryFrom<ResponseRouterData<GlobalpayAccessTokenResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct GlobalpayNotifications {
-    pub cancel_url: String,
-    pub return_url: String,
-    pub status_url: String,
+    pub cancel_url: Option<String>,
+    pub return_url: Option<String>,
+    pub status_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -984,21 +977,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => item.request.router_return_url.as_deref(),
         };
 
-        let notifications = if let (Some(return_url), Some(webhook_url)) =
-            (redirect_return_url, item.request.webhook_url.as_ref())
-        {
-            Some(GlobalpayNotifications {
-                cancel_url: item
-                    .request
-                    .router_return_url
-                    .clone()
-                    .unwrap_or_else(|| return_url.to_string()),
-                return_url: return_url.to_string(),
-                status_url: webhook_url.clone(),
-            })
-        } else {
-            None
-        };
+        let notifications = redirect_return_url.map(|return_url| GlobalpayNotifications {
+            cancel_url: item.request.router_return_url.clone(),
+            return_url: Some(return_url.to_string()),
+            status_url: item.request.webhook_url.clone(),
+        });
 
         let auth = GlobalpayAuthType::try_from(&item.connector_config)?;
         let account_name = auth
@@ -2210,15 +2193,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let country = item.resource_common_data.get_billing_country()?;
 
         let notifications = if let Some(webhook_url) = item.request.webhook_url.as_ref() {
-            let return_url = item
-                .request
-                .router_return_url
-                .clone()
-                .unwrap_or_else(|| webhook_url.clone());
+            let return_url = item.request.router_return_url.clone();
             Some(GlobalpayNotifications {
                 cancel_url: return_url.clone(),
                 return_url,
-                status_url: webhook_url.clone(),
+                status_url: Some(webhook_url.clone()),
             })
         } else {
             None
