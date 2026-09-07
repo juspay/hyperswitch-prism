@@ -16,7 +16,9 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -24,7 +26,7 @@ use domain_types::{
 };
 use error_stack;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
@@ -42,9 +44,10 @@ use super::RapydRouterData;
 ///
 /// Card variants are built via `TryFrom<CardIssuer>` so the wrong identifier
 /// can never be assembled ad-hoc — Rapyd rejects requests whose `type` does
-/// not match the card BIN. The wallet variant (`ByVisaCard`) is reserved for
-/// the existing Authorize digital-wallet path, which still hardcodes its
-/// payment-method type per the same `[#369]` TODO.
+/// not match the card BIN. Digital-wallet payments derive their type from the
+/// wallet's card network and funding (credit/debit) via
+/// `try_from_wallet_network`, since Rapyd's India Visa/Mastercard methods are
+/// funding-specific (`in_credit_visa_card` / `in_debit_visa_card`).
 ///
 /// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -57,7 +60,10 @@ pub enum RapydPaymentMethodType {
     InDinersclubCard,
     InJcbCard,
     InMaestroCard,
-    ByVisaCard,
+    InCreditVisaCard,
+    InDebitVisaCard,
+    InCreditMastercardCard,
+    InDebitMastercardCard,
 }
 
 impl TryFrom<CardIssuer> for RapydPaymentMethodType {
@@ -78,6 +84,35 @@ impl TryFrom<CardIssuer> for RapydPaymentMethodType {
                     Default::default(),
                 ))?
             }
+        }
+    }
+}
+
+impl RapydPaymentMethodType {
+    /// Resolve the Rapyd `payment_method.type` for a digital-wallet card from
+    /// its card network. Wallets carry only the network (the card details live
+    /// in the decrypted payload), so the type is derived from it. India-prefixed
+    /// variants match the Authorize card path, pending the multi-country
+    /// resolution tracked in `[#369]`.
+    fn try_from_wallet_network(
+        network: &str,
+        card_type: Option<&str>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let is_debit = matches!(
+            card_type.map(str::to_lowercase).as_deref(),
+            Some("debit")
+        );
+        match network.to_lowercase().as_str() {
+            "visa" if is_debit => Ok(Self::InDebitVisaCard),
+            "visa" => Ok(Self::InCreditVisaCard),
+            "mastercard" | "master" if is_debit => Ok(Self::InDebitMastercardCard),
+            "mastercard" | "master" => Ok(Self::InCreditMastercardCard),
+            "amex" | "americanexpress" | "american express" => Ok(Self::InAmexCard),
+            other => Err(IntegrationError::NotSupported {
+                message: format!("rapyd wallet card network: {other}"),
+                connector: "rapyd",
+                context: Default::default(),
+            })?,
         }
     }
 }
@@ -327,12 +362,91 @@ pub struct Address {
     phone_number: Option<Secret<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RapydWallet {
     #[serde(rename = "type")]
     payment_type: String,
-    #[serde(rename = "details")]
-    token: Option<Secret<String>>,
+    details: RapydWalletDetails,
+}
+
+/// Rapyd's `digital_wallet.details` is either the raw encrypted token (Rapyd
+/// decrypts server-side) or a decrypted payload the merchant already decrypted
+/// with its own keys. Hyperswitch decrypts Apple Pay / Google Pay upstream, so
+/// the decrypted variants are what UCS receives and forwards.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum RapydWalletDetails {
+    ApplePayDecrypted(Box<RapydApplePayDecryptedDetails>),
+    GooglePayDecrypted(Box<RapydGooglePayDecryptedDetails>),
+    Token(Secret<String>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RapydApplePayDecryptedDetails {
+    decrypted_data: RapydApplePayDecryptedData,
+    brand_data: RapydApplePayBrandData,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydApplePayDecryptedData {
+    application_primary_account_number: cards::CardNumber,
+    application_expiration_date: Secret<String>,
+    currency_code: String,
+    transaction_amount: i64,
+    payment_data_type: String,
+    payment_data: RapydApplePayCryptogram,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydApplePayCryptogram {
+    online_payment_cryptogram: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydApplePayBrandData {
+    display_name: String,
+    network: String,
+    #[serde(rename = "type")]
+    card_type: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RapydGooglePayDecryptedDetails {
+    decrypted_data: RapydGooglePayDecryptedData,
+    brand_data: RapydGooglePayBrandData,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydGooglePayDecryptedData {
+    gateway_merchant_id: Secret<String>,
+    payment_method: String,
+    payment_method_details: RapydGooglePayMethodDetails,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydGooglePayMethodDetails {
+    expiration_year: Secret<String>,
+    expiration_month: Secret<String>,
+    pan: cards::CardNumber,
+    auth_method: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    eci_indicator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cryptogram: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RapydGooglePayBrandData {
+    card_details: String,
+    card_network: String,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -417,40 +531,176 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )))
             }
             PaymentMethodData::Wallet(ref wallet_data) => {
-                let digital_wallet = match wallet_data {
-                    WalletData::GooglePay(data) => Some(RapydWallet {
-                        payment_type: "google_pay".to_string(),
-                        token: Some(Secret::new(
-                            data.tokenization_data
-                                .get_encrypted_google_pay_token()
-                                .change_context(IntegrationError::MissingRequiredField {
-                                    field_name: "gpay wallet_token",
-                                    context: Default::default(),
-                                })?
-                                .to_owned(),
-                        )),
-                    }),
-                    WalletData::ApplePay(data) => {
-                        let apple_pay_encrypted_data = data
-                            .payment_data
-                            .get_encrypted_apple_pay_payment_data_mandatory()
-                            .change_context(IntegrationError::MissingRequiredField {
-                                field_name: "Apple pay encrypted data",
-                                context: Default::default(),
-                            })?;
-                        Some(RapydWallet {
-                            payment_type: "apple_pay".to_string(),
-                            token: Some(Secret::new(apple_pay_encrypted_data.to_string())),
-                        })
+                let (rapyd_wallet, pm_type) = match wallet_data {
+                    WalletData::GooglePay(data) => {
+                        let details = match &data.tokenization_data {
+                            GpayTokenizationData::Decrypted(decrypt_data) => {
+                                // Hyperswitch decrypted the Google Pay payload; forward the
+                                // decrypted card + cryptogram as Rapyd's `decrypted_data`.
+                                let auth =
+                                    RapydAuthType::try_from(&item.router_data.connector_config)?;
+                                let auth_method = if decrypt_data.cryptogram.is_some() {
+                                    "CRYPTOGRAM_3DS"
+                                } else {
+                                    "PAN_ONLY"
+                                };
+                                RapydWalletDetails::GooglePayDecrypted(Box::new(
+                                    RapydGooglePayDecryptedDetails {
+                                        decrypted_data: RapydGooglePayDecryptedData {
+                                            gateway_merchant_id: auth.access_key,
+                                            payment_method: "CARD".to_string(),
+                                            payment_method_details: RapydGooglePayMethodDetails {
+                                                expiration_year: decrypt_data
+                                                    .get_four_digit_expiry_year()
+                                                    .change_context(
+                                                        IntegrationError::MissingRequiredField {
+                                                            field_name: "gpay expiration_year",
+                                                            context: Default::default(),
+                                                        },
+                                                    )?,
+                                                expiration_month: decrypt_data
+                                                    .get_expiry_month()
+                                                    .change_context(
+                                                        IntegrationError::MissingRequiredField {
+                                                            field_name: "gpay expiration_month",
+                                                            context: Default::default(),
+                                                        },
+                                                    )?,
+                                                pan: decrypt_data
+                                                    .application_primary_account_number
+                                                    .clone(),
+                                                auth_method: auth_method.to_string(),
+                                                eci_indicator: decrypt_data.eci_indicator.clone(),
+                                                cryptogram: decrypt_data.cryptogram.clone(),
+                                            },
+                                        },
+                                        brand_data: RapydGooglePayBrandData {
+                                            card_details: decrypt_data
+                                                .application_primary_account_number
+                                                .get_last4(),
+                                            card_network: data.info.card_network.clone(),
+                                        },
+                                    },
+                                ))
+                            }
+                            GpayTokenizationData::Encrypted(_) => {
+                                RapydWalletDetails::Token(Secret::new(
+                                    data.tokenization_data
+                                        .get_encrypted_google_pay_token()
+                                        .change_context(IntegrationError::MissingRequiredField {
+                                            field_name: "gpay wallet_token",
+                                            context: Default::default(),
+                                        })?
+                                        .to_owned(),
+                                ))
+                            }
+                        };
+                        let pm_type = RapydPaymentMethodType::try_from_wallet_network(
+                            &data.info.card_network,
+                            None,
+                        )?;
+                        (
+                            RapydWallet {
+                                payment_type: "google_pay".to_string(),
+                                details,
+                            },
+                            pm_type,
+                        )
                     }
-                    _ => None,
+                    WalletData::ApplePay(data) => {
+                        let details = match data
+                            .payment_data
+                            .get_decrypted_apple_pay_payment_data_optional()
+                        {
+                            Some(decrypt_data) => {
+                                // Hyperswitch decrypted the Apple Pay payload; forward the
+                                // decrypted card + cryptogram as Rapyd's `decrypted_data`.
+                                let expiry_year = decrypt_data
+                                    .get_two_digit_expiry_year()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "apple expiration_year",
+                                        context: Default::default(),
+                                    })?;
+                                let application_expiration_date = Secret::new(format!(
+                                    "{}{}31",
+                                    expiry_year.peek(),
+                                    decrypt_data.get_expiry_month().peek(),
+                                ));
+                                RapydWalletDetails::ApplePayDecrypted(Box::new(
+                                    RapydApplePayDecryptedDetails {
+                                        decrypted_data: RapydApplePayDecryptedData {
+                                            application_primary_account_number: decrypt_data
+                                                .application_primary_account_number
+                                                .clone(),
+                                            application_expiration_date,
+                                            currency_code: item
+                                                .router_data
+                                                .request
+                                                .currency
+                                                .iso_4217()
+                                                .to_string(),
+                                            transaction_amount: item
+                                                .router_data
+                                                .request
+                                                .minor_amount
+                                                .get_amount_as_i64(),
+                                            payment_data_type: "3DSecure".to_string(),
+                                            payment_data: RapydApplePayCryptogram {
+                                                online_payment_cryptogram: decrypt_data
+                                                    .payment_data
+                                                    .online_payment_cryptogram
+                                                    .clone(),
+                                                eci_indicator: decrypt_data
+                                                    .payment_data
+                                                    .eci_indicator
+                                                    .clone(),
+                                            },
+                                        },
+                                        brand_data: RapydApplePayBrandData {
+                                            display_name: data.payment_method.display_name.clone(),
+                                            network: data.payment_method.network.clone(),
+                                            card_type: data.payment_method.pm_type.clone(),
+                                        },
+                                    },
+                                ))
+                            }
+                            None => {
+                                let apple_pay_encrypted_data = data
+                                    .payment_data
+                                    .get_encrypted_apple_pay_payment_data_mandatory()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "Apple pay encrypted data",
+                                        context: Default::default(),
+                                    })?;
+                                RapydWalletDetails::Token(Secret::new(
+                                    apple_pay_encrypted_data.to_string(),
+                                ))
+                            }
+                        };
+                        let pm_type = RapydPaymentMethodType::try_from_wallet_network(
+                            &data.payment_method.network,
+                            Some(data.payment_method.pm_type.as_str()),
+                        )?;
+                        (
+                            RapydWallet {
+                                payment_type: "apple_pay".to_string(),
+                                details,
+                            },
+                            pm_type,
+                        )
+                    }
+                    _ => Err(IntegrationError::NotSupported {
+                        message: "Selected wallet is not supported by rapyd".to_string(),
+                        connector: "rapyd",
+                        context: Default::default(),
+                    })?,
                 };
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        pm_type: RapydPaymentMethodType::ByVisaCard, //[#369]
+                        pm_type,
                         fields: None,
                         address: None,
-                        digital_wallet,
+                        digital_wallet: Some(rapyd_wallet),
                     },
                 )))
             }
