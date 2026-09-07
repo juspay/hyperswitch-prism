@@ -1018,6 +1018,13 @@ pub enum ConnectorSpecificConfig {
         key2: Secret<String>,
         base_url: Option<String>,
     },
+    Payhere {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1390,6 +1397,7 @@ impl ConnectorSpecificConfig {
                 api_secret,
                 key2
             },
+            Payhere { api_key, key1, api_secret, key2, base_url },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1885,7 +1893,8 @@ impl ConnectorSpecificConfig {
                     api_secret,
                     key2
                 },
-                Imerchantsolutions { api_key },
+                Payhere { api_key, key1, api_secret, key2, base_url },
+            Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
@@ -2544,6 +2553,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: saferpay.api_secret.ok_or_else(err)?,
                 key2: saferpay.key2.ok_or_else(err)?,
                 base_url: saferpay.base_url,
+            }),
+            AuthType::Payhere(payhere) => Ok(Self::Payhere {
+                api_key: payhere.api_key.ok_or_else(err)?,
+                key1: payhere.key1.ok_or_else(err)?,
+                api_secret: payhere.api_secret.ok_or_else(err)?,
+                key2: payhere.key2.ok_or_else(err)?,
+                base_url: payhere.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3824,7 +3840,17 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
-                ConnectorEnum::PinelabsOnline => match auth {
+                ConnectorEnum::Payhere => match auth {
+                ConnectorAuthType::MultiAuthKey { api_key, key1, api_secret, key2 } => Ok(Self::Payhere {
+                    api_key: api_key.clone(),
+                    key1: key1.clone(),
+                    api_secret: api_secret.clone(),
+                    key2: key2.clone(),
+                    base_url: None,
+                }),
+                _ => Err(err().into()),
+            },
+            ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),

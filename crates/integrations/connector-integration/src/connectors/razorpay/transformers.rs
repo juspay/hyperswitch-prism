@@ -344,7 +344,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
             | WalletData::Wero(_)
-            | WalletData::PaymayaRedirect(_)
+            | WalletData::PaymayaRedirect(_) | WalletData::PayhereRedirect {}
             | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),

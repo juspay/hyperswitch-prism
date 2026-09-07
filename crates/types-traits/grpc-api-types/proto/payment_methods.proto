@@ -106,6 +106,7 @@ message PaymentMethod {
 
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
+    PayhereRedirectWallet payhere_redirect = 188;          // PayHere redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -224,6 +225,7 @@ message PaymentMethod {
 }
 
 message GrabpayRedirectWallet {}
+message PayhereRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES
