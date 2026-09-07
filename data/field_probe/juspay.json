@@ -282,8 +282,8 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Reward; supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -294,8 +294,8 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant BankTransfer(DanamonVaBankTransfer); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -357,8 +357,8 @@
         "error": "This feature is not implemented: Juspay does not support bank redirect variant: Giropay { bank_account_bic: None, bank_account_iban: None, country: None }"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "supported",
@@ -638,8 +638,8 @@
         "error": "This feature is not implemented: Juspay Authorize does not support payment method variant Voucher(MiniStop(JCSVoucherData)); supported categories are Card, Upi, Wallet, BankRedirect::Netbanking, RealTimePayment and PayLater (CONSUMER_FINANCE). See grace/rulesbook/codegen/references/juspay/technical_specification.md"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "supported",
@@ -738,8 +738,8 @@
         "error": "This feature is not implemented: Juspay does not support bank redirect variant: OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None }"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -832,12 +832,12 @@
         }
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
