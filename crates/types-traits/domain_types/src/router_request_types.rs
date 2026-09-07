@@ -154,6 +154,25 @@ pub struct AuthenticationData {
     pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
 }
 
+impl AuthenticationData {
+    /// Single-digit CAVV algorithm code (`"0".."4"`, `"A"`) from the Cartes Bancaires
+    /// network params, as expected by connectors like Travelhub. Returns `None` when
+    /// no CAVV algorithm is present.
+    pub fn get_cavv_algorithm(&self) -> Option<&'static str> {
+        self.network_params
+            .as_ref()
+            .and_then(|params| params.cartes_bancaires.as_ref())
+            .map(|cb| match cb.cavv_algorithm {
+                common_enums::CavvAlgorithm::Zero => "0",
+                common_enums::CavvAlgorithm::One => "1",
+                common_enums::CavvAlgorithm::Two => "2",
+                common_enums::CavvAlgorithm::Three => "3",
+                common_enums::CavvAlgorithm::Four => "4",
+                common_enums::CavvAlgorithm::A => "A",
+            })
+    }
+}
+
 impl TryFrom<payments::AuthenticationData> for AuthenticationData {
     type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(value: payments::AuthenticationData) -> Result<Self, Self::Error> {

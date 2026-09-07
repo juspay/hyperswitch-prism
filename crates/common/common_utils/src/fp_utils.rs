@@ -74,9 +74,11 @@ pub fn generate_uuid_v7() -> String {
     uuid::Uuid::now_v7().to_string()
 }
 
-/// Generate a random (v4) UUID string. Connector transformers that need a random
-/// idempotency key / client-request-id should call this seamed helper rather than
-/// `uuid::Uuid::new_v4()` directly, so the value is captured and replayed deterministically.
+/// Generate a random (v4) UUID string. Connector code that needs a random
+/// idempotency key / client-request-id should call this helper rather than
+/// `uuid::Uuid::new_v4()` directly — every entropy source in the codebase is a
+/// single, auditable function, and under déjà the value is captured on tape
+/// and replayed deterministically.
 #[inline]
 #[cfg_attr(feature = "deja", track_caller)]
 #[cfg_attr(

@@ -478,6 +478,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"

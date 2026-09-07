@@ -473,6 +473,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."

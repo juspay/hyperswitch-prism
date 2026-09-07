@@ -522,6 +522,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet not supported"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Jpmorgan"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Wallet not supported"

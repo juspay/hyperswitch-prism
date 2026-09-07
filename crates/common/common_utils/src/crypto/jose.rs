@@ -278,7 +278,11 @@ fn enforce_claim_validation(
     payload: &serde_json::Value,
     v: &JoseClaimValidation,
 ) -> Result<(), JoseError> {
-    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+    // Through the shared clock helper, like every other wall-clock read: claim
+    // validation is time-dependent behavior, and time-dependent behavior must have
+    // exactly one clock source so it can be reasoned about (and, under a
+    // record/replay harness, substituted) in one place.
+    let now = crate::date_time::now_unix_timestamp();
     let obj = payload
         .as_object()
         .ok_or(JoseError::ClaimValidationFailed {

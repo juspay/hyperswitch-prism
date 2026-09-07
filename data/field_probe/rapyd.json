@@ -1420,6 +1420,10 @@
           "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
+      },
       "Wero": {
         "status": "supported",
         "proto_request": {

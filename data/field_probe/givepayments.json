@@ -484,6 +484,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Givepayments. The requested payment method is not currently supported by the Givepayments connector implementation."

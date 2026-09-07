@@ -588,6 +588,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through checkout. Checkout Authorize supports cards, Google Pay / Apple Pay, Checkout tokens and ACH bank debit"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through checkout. Checkout only accepts Google Pay and Apple Pay wallets as a decrypted network token"

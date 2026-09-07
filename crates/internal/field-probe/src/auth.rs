@@ -170,6 +170,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Globalpay => ConnectorSpecificConfig::Globalpay {
             app_id: id(),
             app_key: k(),
+            account_name: Some(Secret::new("probe_account_name".to_string())),
             base_url: None,
         },
         ConnectorEnum::Hipay => ConnectorSpecificConfig::Hipay {
@@ -807,6 +808,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             key1: k(),
             base_url: None,
         },
+        ConnectorEnum::Paynearme => ConnectorSpecificConfig::Paynearme {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
         ConnectorEnum::Ilixium => ConnectorSpecificConfig::Ilixium {
             api_key: k(),
             key1: k(),
@@ -818,11 +824,34 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             merchant_id: k(),
             base_url: None,
         },
+        ConnectorEnum::JpmorganOrbital => ConnectorSpecificConfig::JpmorganOrbital {
+            username: k(),
+            password: k(),
+            merchant_id: k(),
+            // Stratus + terminal 001 is the combination every Orbital example uses;
+            // both are mandatory in a real request, so the probe must supply them.
+            bin: Some("000001".to_string()),
+            terminal_id: Some("001".to_string()),
+            base_url: None,
+            merchant_config_currency: None,
+        },
         ConnectorEnum::Saferpay => ConnectorSpecificConfig::Saferpay {
             api_key: k(),
             key1: k(),
             api_secret: k(),
             key2: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Travelhub => ConnectorSpecificConfig::Travelhub {
+            username: k(),
+            password: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::D24 => ConnectorSpecificConfig::D24 {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
             base_url: None,
         },
     }

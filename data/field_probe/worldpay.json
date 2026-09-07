@@ -554,6 +554,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through worldpay"
