@@ -191,7 +191,7 @@ pub struct NsureTransactionDetails {
     pub cart: Vec<NsureCartItem>,
 }
 
-/// Fields required by every nSure cart-item variant (`brand`, `quantity`,
+/// Fields required by every nSure cart-item variant (`quantity`,
 /// `itemFulfillment`, `sellingPrice`), plus the optional discriminator and the
 /// vertical-specific extras that some variants demand.
 #[derive(Debug, Clone, Serialize)]
@@ -199,7 +199,10 @@ pub struct NsureTransactionDetails {
 pub struct NsureCartItem {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub item_class: Option<String>,
-    pub brand: String,
+    // No `brand`: the sandbox rejects it outright with
+    // `"transactionDetails.cart[0].brand" is not allowed` (HTTP 400), with and
+    // without `itemClass` set, so it is not a permitted cart property on
+    // apiVersion 2.0.0.
     pub quantity: u16,
     pub item_fulfillment: NsureItemFulfillment,
     pub selling_price: NsureAmount,
@@ -310,7 +313,7 @@ pub struct NsureAddress {
 /// `sessionInfo.deviceId` is minted by the nSure browser/mobile SDK and
 /// `paymentMethod.paymentProcessor` names the downstream PSP — neither is
 /// present on `PreRiskCheckRequest`, so both are read from the request's
-/// `connector_feature_data` JSON. Absent or unparseable data degrades to
+/// `connector_feature_data` JSON. Absent or unparsable data degrades to
 /// `None` rather than failing the risk check: nSure treats both as optional.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -341,9 +344,6 @@ pub struct NsureFeatureData {
     /// needs `productType`). Passed straight through onto every cart item.
     #[serde(default)]
     pub product_type: Option<String>,
-    /// Fallback `brand` when order_details carries none — `brand` is required.
-    #[serde(default)]
-    pub default_brand: Option<String>,
 }
 
 /// nSure `metadata.accountType`.
@@ -374,6 +374,22 @@ impl NsureFeatureData {
 // ──────────────────────────────────────────────────────────────────────────
 // Request construction
 // ──────────────────────────────────────────────────────────────────────────
+
+/// Reduce a browser locale to the ISO 639-1 code nSure accepts.
+///
+/// `sessionInfo.language` is validated against the bare two-letter list, so the
+/// `en-US` / `pt_BR` forms browsers actually send are rejected with a 400.
+/// Takes the primary subtag and lowercases it; anything that is not two ASCII
+/// letters is dropped rather than sent and rejected — the field is optional.
+fn nsure_language(raw: &str) -> Option<String> {
+    let primary = raw
+        .split(['-', '_'])
+        .next()
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+    (primary.len() == 2 && primary.chars().all(|c| c.is_ascii_alphabetic())).then_some(primary)
+}
 
 fn nsure_phone_info(
     number: Option<&Secret<String>>,
@@ -587,7 +603,7 @@ fn nsure_payment_method(
 
 /// Build nSure's `cart`. The array is required and must be non-empty
 /// (`minItems: 1`), so an order with no line items still sends one item
-/// representing the whole purchase. `brand`, `quantity`, `itemFulfillment` and
+/// representing the whole purchase. `quantity`, `itemFulfillment` and
 /// `sellingPrice` are required on every variant; `itemClass`/`productType` come
 /// from `connector_feature_data` because prism has no notion of nSure's
 /// vertical taxonomy.
@@ -602,11 +618,6 @@ fn nsure_cart(
             .map(|detail| {
                 Ok::<_, Error>(NsureCartItem {
                     item_class: feature_data.item_class.clone(),
-                    // `brand` is required; fall back to the product name.
-                    brand: detail
-                        .brand
-                        .clone()
-                        .unwrap_or_else(|| detail.product_name.clone()),
                     quantity: detail.quantity,
                     // Unknown shipping requirement is treated as physical:
                     // claiming `digital` for a shipped good would overstate risk.
@@ -633,10 +644,6 @@ fn nsure_cart(
         // required non-empty cart is satisfied without fabricating detail.
         None => vec![NsureCartItem {
             item_class: feature_data.item_class.clone(),
-            brand: feature_data
-                .default_brand
-                .clone()
-                .unwrap_or_else(|| "unspecified".to_string()),
             quantity: 1,
             item_fulfillment: NsureItemFulfillment::Physical,
             selling_price: total.clone(),
@@ -711,7 +718,9 @@ impl<
                 device_id: feature_data.device_id.clone(),
                 user_agent,
                 end_user_ip,
-                language: browser.and_then(|info| info.language.clone()),
+                language: browser
+                    .and_then(|info| info.language.as_deref())
+                    .and_then(nsure_language),
                 country: req
                     .address
                     .as_ref()
@@ -747,7 +756,7 @@ impl<
         Ok(Self {
             metadata: NsureMetadata {
                 unique_request_id,
-                timestamp: common_utils::date_time::now_unix_timestamp() as i128 * 1000,
+                timestamp: i128::from(common_utils::date_time::now_unix_millis()),
                 account_type: feature_data.account_type,
             },
             session_info,

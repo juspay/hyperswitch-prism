@@ -85,8 +85,8 @@ fn nsure_transaction_id(
         })
 }
 
-/// nSure amounts are JSON numbers in the major currency unit
-/// (`{"valueInCurrency": 90, "currency": "USD"}` = 90 USD, not 90 cents).
+// nSure amounts are JSON numbers in the major currency unit
+// (`{"valueInCurrency": 90, "currency": "USD"}` = 90 USD, not 90 cents).
 macros::create_amount_converter_wrapper!(connector_name: Nsure, amount_type: FloatMajorUnit);
 
 macros::create_all_prerequisites!(
@@ -261,8 +261,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // =============================================================================
 // FRM SERVICE TRAIT
 // =============================================================================
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::FrmServiceTrait for Nsure<T>
+// Not generic over `T`: FrmServiceTrait requires
+// `PaymentPreAuthenticateV2<DefaultPCIHolder>` (fixed — FRM requests never carry
+// payment-method data), which `Nsure<T>` only provides for the matching `T`.
+// Restricted to `Nsure<DefaultPCIHolder>` to match, which is also the only
+// monomorphization `FrmConnectorData::convert_connector` ever constructs. Same
+// treatment as Kount.
+impl connector_types::FrmServiceTrait
+    for Nsure<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 
@@ -295,11 +301,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 // endpoint. The stub macro below emits both the `ServerAuthentication` marker
 // and the not-implemented flow, so the requirement is satisfied without
 // implying a capability the connector does not have.
+// `FrmServiceTrait` also requires `PaymentPreAuthenticateV2`, which exists for
+// device-data-collection providers like Kount. nSure has no browser-side DDC
+// step — its device signal is the SDK `deviceId` carried in
+// `connector_feature_data` — so PreAuthenticate is stubbed here too.
 macros::macro_connector_flow_status_impls!(
     connector: Nsure,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    not_implemented: [ServerAuthenticationToken],
+    not_implemented: [ServerAuthenticationToken, PreAuthenticate],
 );
 
 // =============================================================================
