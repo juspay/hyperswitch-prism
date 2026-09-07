@@ -593,6 +593,7 @@ fn get_preauthenticate_response(
             three_ds_method_url,
             continue_redirection_url,
             semantic_version,
+            authentication_data,
             http_status,
         ),
         None => build_threeds_exempt_response(response_data, authentication_data),
@@ -605,6 +606,7 @@ fn build_threeds_invoke_response(
     three_ds_method_url: &str,
     continue_redirection_url: Option<&url::Url>,
     protocol_version: common_utils::types::SemanticVersion,
+    authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
     http_status: u16,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
     let notification_url = continue_redirection_url
@@ -657,7 +659,7 @@ fn build_threeds_invoke_response(
         redirection_data: redirect_form,
         connector_meta_data: None,
         response_ref_id: Some(response_data.ds_order.clone()),
-        authentication_data: None,
+        authentication_data,
     })
 }
 
