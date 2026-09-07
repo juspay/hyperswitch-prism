@@ -600,8 +600,10 @@ pub enum PaydotcomAuthorizeLeg {
 /// Decides the leg from the **request alone**, never from a previous response, so
 /// `get_url` and `get_request_body` can never disagree about which call is being made.
 ///
-/// An external-MPI Authorize also carries `authentication_data`, but with `eci`/`cavv`
-/// and no `transaction_id` — so it falls through to `Create`, as it must.
+/// An external-MPI Authorize also carries `authentication_data`, and may populate
+/// `transaction_id` with its own 3DS id — the `chrg_`/`hld_` filter in
+/// `pending_resource_id_from_authentication_data` is what makes it fall through to
+/// `Create`, as it must.
 pub fn authorize_leg<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> PaydotcomAuthorizeLeg {
