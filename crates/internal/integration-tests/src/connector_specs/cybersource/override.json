@@ -204,5 +204,22 @@
         }
       }
     }
+  },
+  "MerchantAuthenticationService/CreateClientAuthenticationToken": {
+    "create_sdk_session_apple_pay": {
+      "grpc_req": {
+        "return_url": "https://google.com"
+      }
+    },
+    "create_sdk_session_google_pay": {
+      "grpc_req": {
+        "return_url": "https://google.com"
+      }
+    },
+    "create_sdk_session_with_taxes": {
+      "grpc_req": {
+        "return_url": "https://google.com"
+      }
+    }
   }
 }

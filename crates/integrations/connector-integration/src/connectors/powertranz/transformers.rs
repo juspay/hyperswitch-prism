@@ -26,7 +26,7 @@ use crate::{connectors::powertranz::PowertranzRouterData, types::ResponseRouterD
 fn powertranz_transaction_identifier(reference_id: &str) -> String {
     match uuid::Uuid::parse_str(reference_id) {
         Ok(u) => u.to_string(),
-        Err(_) => uuid::Uuid::new_v4().to_string(),
+        Err(_) => common_utils::fp_utils::generate_uuid_v4(),
     }
 }
 
@@ -373,7 +373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?;
 
                 Ok(Self {
-                    transaction_identifier: uuid::Uuid::new_v4().to_string(),
+                    transaction_identifier: common_utils::fp_utils::generate_uuid_v4(),
                     total_amount: amount,
                     currency_code,
                     three_d_secure: Some(false),

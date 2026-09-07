@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose, Engine};
@@ -22,7 +21,6 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 // ===== AUTHENTICATION STRUCTURE =====
 
@@ -62,16 +60,12 @@ impl AuthipayAuthType {
 
     /// Generate unique Client-Request-Id using UUID v4
     pub fn generate_client_request_id() -> String {
-        Uuid::new_v4().to_string()
+        common_utils::fp_utils::generate_uuid_v4()
     }
 
     /// Generate timestamp in milliseconds since Unix epoch
     pub fn generate_timestamp() -> String {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-            .to_string()
+        common_utils::date_time::now_unix_millis().to_string()
     }
 }
 

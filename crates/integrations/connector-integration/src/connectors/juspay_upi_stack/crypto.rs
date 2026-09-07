@@ -529,10 +529,5 @@ pub fn preprocess_jwe_response(
 
 /// Get the current Unix timestamp in milliseconds as a string.
 pub fn get_current_timestamp_ms() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis().to_string())
-        .unwrap_or_else(|_| "0".to_string())
+    common_utils::date_time::now_unix_millis().to_string()
 }

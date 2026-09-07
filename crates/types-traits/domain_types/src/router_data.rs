@@ -452,6 +452,7 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        account_name: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Hipay {
@@ -1016,6 +1017,50 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    JpmorganOrbital {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        bin: Option<String>,
+        terminal_id: Option<String>,
+        base_url: Option<String>,
+        /// ISO-4217 alphabetic code the MID is provisioned for. Optional; when
+        /// absent no currency validation is performed.
+        merchant_config_currency: Option<String>,
+    },
+    /// Saferpay (SIX Payment Services) Transaction interface.
+    /// `api_key`    = API username (HTTP Basic username)
+    /// `key1`       = API password (HTTP Basic password)
+    /// `api_secret` = CustomerId   (`RequestHeader.CustomerId`)
+    /// `key2`       = TerminalId   (request body `TerminalId`)
+    Saferpay {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        key2: Secret<String>,
+        base_url: Option<String>,
+    },
+    Travelhub {
+        username: Secret<String>,
+        password: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// PayNearMe API v3.0 (JSON).
+    /// `api_key` = API Secret Key — the HMAC-SHA256 signing key. Never transmitted.
+    /// `key1`    = Site Identifier (a.k.a. Site/Key Identifier), sent as the
+    ///             `site_identifier` body field on every request.
+    Paynearme {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1382,6 +1427,28 @@ impl ConnectorSpecificConfig {
                 license,
                 merchant_id
             },
+            JpmorganOrbital {
+                username,
+                password,
+                merchant_id
+            },
+            Saferpay {
+                api_key,
+                key1,
+                api_secret,
+                key2
+            },
+            Travelhub {
+                username,
+                password,
+                merchant_id
+            },
+            D24 {
+                api_key,
+                key1,
+                api_secret
+            },
+            Paynearme { api_key, key1 },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1871,6 +1938,28 @@ impl ConnectorSpecificConfig {
                     license,
                     merchant_id
                 },
+                JpmorganOrbital {
+                    username,
+                    password,
+                    merchant_id
+                },
+                Saferpay {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2
+                },
+                Travelhub {
+                    username,
+                    password,
+                    merchant_id
+                },
+                D24 {
+                    api_key,
+                    key1,
+                    api_secret
+                },
+                Paynearme { api_key, key1 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2059,6 +2148,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Globalpay(globalpay) => Ok(Self::Globalpay {
                 app_id: globalpay.app_id.ok_or_else(err)?,
                 app_key: globalpay.app_key.ok_or_else(err)?,
+                account_name: globalpay.account_name,
                 base_url: globalpay.base_url,
             }),
             AuthType::Hipay(hipay) => Ok(Self::Hipay {
@@ -2524,6 +2614,39 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
             }),
+            AuthType::JpmorganOrbital(jpmorgan_orbital) => Ok(Self::JpmorganOrbital {
+                username: jpmorgan_orbital.username.ok_or_else(err)?,
+                password: jpmorgan_orbital.password.ok_or_else(err)?,
+                merchant_id: jpmorgan_orbital.merchant_id.ok_or_else(err)?,
+                bin: jpmorgan_orbital.bin,
+                terminal_id: jpmorgan_orbital.terminal_id,
+                base_url: jpmorgan_orbital.base_url,
+                merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
+            }),
+            AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
+                api_key: saferpay.api_key.ok_or_else(err)?,
+                key1: saferpay.key1.ok_or_else(err)?,
+                api_secret: saferpay.api_secret.ok_or_else(err)?,
+                key2: saferpay.key2.ok_or_else(err)?,
+                base_url: saferpay.base_url,
+            }),
+            AuthType::Travelhub(travelhub) => Ok(Self::Travelhub {
+                username: travelhub.username.ok_or_else(err)?,
+                password: travelhub.password.ok_or_else(err)?,
+                merchant_id: travelhub.merchant_id.ok_or_else(err)?,
+                base_url: travelhub.base_url,
+            }),
+            AuthType::Paynearme(paynearme) => Ok(Self::Paynearme {
+                api_key: paynearme.api_key.ok_or_else(err)?,
+                key1: paynearme.key1.ok_or_else(err)?,
+                base_url: paynearme.base_url,
+            }),
+            AuthType::D24(d24) => Ok(Self::D24 {
+                api_key: d24.api_key.ok_or_else(err)?,
+                key1: d24.key1.ok_or_else(err)?,
+                api_secret: d24.api_secret.ok_or_else(err)?,
+                base_url: d24.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
@@ -2864,6 +2987,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
                         app_id: key1.clone(),
                         app_key: api_key.clone(),
+                        account_name: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3573,6 +3697,29 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Saferpay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Saferpay {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        key2: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paynearme => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paynearme {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Volt => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,
@@ -3784,6 +3931,52 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Legacy path only. `bin` / `terminal_id` have no slot in
+                // `ConnectorAuthType`, so a merchant configured this way will be
+                // rejected with `InvalidConnectorConfig` when the request is built;
+                // use the typed `x-connector-config` payload instead.
+                ConnectorEnum::JpmorganOrbital => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::JpmorganOrbital {
+                        username: api_key.clone(),
+                        password: api_secret.clone(),
+                        merchant_id: key1.clone(),
+                        bin: None,
+                        terminal_id: None,
+                        base_url: None,
+                        merchant_config_currency: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Travelhub => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Travelhub {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        merchant_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::D24 => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::D24 {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

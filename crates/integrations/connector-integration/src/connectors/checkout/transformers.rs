@@ -10,8 +10,8 @@ use domain_types::{
         MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        RecipientAccount, RecipientBankAccount, RecipientDetails, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
@@ -302,12 +302,169 @@ pub struct CheckoutPhoneDetails {
 #[skip_serializing_none]
 #[derive(Debug, Default, Serialize)]
 pub struct CheckoutProcessing {
+    /// Marks the payment as an Account Funding Transaction.
+    pub aft: Option<bool>,
     pub order_id: Option<String>,
     pub tax_amount: Option<MinorUnit>,
     pub discount_amount: Option<MinorUnit>,
     pub duty_amount: Option<MinorUnit>,
     pub shipping_amount: Option<MinorUnit>,
     pub shipping_tax_amount: Option<MinorUnit>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckoutSenderType {
+    Individual,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutSender {
+    #[serde(rename = "type")]
+    pub sender_type: CheckoutSenderType,
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub address: CheckoutAddress,
+    pub date_of_birth: Secret<time::Date>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutInstruction {
+    pub purpose: String,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct CheckoutRecipient {
+    pub first_name: Secret<String>,
+    pub last_name: Secret<String>,
+    pub account_number: Secret<String>,
+    pub address: CheckoutAddress,
+}
+
+fn get_checkout_recipient_account_number(
+    account: RecipientAccount,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    let unsupported = |identifier: &str| {
+        error_stack::report!(IntegrationError::NotSupported {
+            message: format!("{identifier} as a recipient account identifier"),
+            connector: "checkout",
+            context: IntegrationErrorContext::default(),
+        })
+    };
+
+    match account {
+        RecipientAccount::BankAccount(bank_account) => {
+            match bank_account {
+                RecipientBankAccount::Iban { iban } => Ok(iban.clone()),
+                RecipientBankAccount::RoutingNumber { .. } => {
+                    Err(unsupported("a bank account number with a routing number"))
+                }
+                RecipientBankAccount::Bic { .. } => {
+                    Err(unsupported("a bank account number with a BIC"))
+                }
+                RecipientBankAccount::AccountNumber { .. } => {
+                    Err(unsupported("a bare bank account number"))
+                }
+                // Checkout documents the first six and last four digits of the PAN as one of the
+                // accepted account number forms.
+                RecipientBankAccount::TruncatedPan { card_isin, last4 } => Ok(Secret::new(
+                    format!("{}{}", card_isin.expose(), last4.expose()),
+                )),
+            }
+        }
+        RecipientAccount::Card { card_number } => Ok(Secret::new(card_number.get_card_no())),
+        RecipientAccount::Phone { phone_number } => Ok(phone_number.clone()),
+        RecipientAccount::Wallet { .. } => Err(unsupported("wallet_id")),
+        RecipientAccount::Email { .. } => Err(unsupported("email")),
+        RecipientAccount::SocialNetwork { .. } => Err(unsupported("social_network_id")),
+    }
+}
+
+fn build_checkout_recipient(
+    recipient_details: Option<&RecipientDetails>,
+) -> Result<CheckoutRecipient, error_stack::Report<IntegrationError>> {
+    let recipient_details =
+        recipient_details.ok_or_else(utils::missing_field_err("recipient_details"))?;
+
+    let address = recipient_details
+        .address
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("recipient_details.address"))?;
+
+    let account_number = recipient_details
+        .account
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("recipient_details.account"))
+        .and_then(|account| get_checkout_recipient_account_number(account.clone()))?;
+
+    Ok(CheckoutRecipient {
+        first_name: address
+            .first_name
+            .clone()
+            .ok_or_else(utils::missing_field_err(
+                "recipient_details.address.first_name",
+            ))?,
+        last_name: address
+            .last_name
+            .clone()
+            .ok_or_else(utils::missing_field_err(
+                "recipient_details.address.last_name",
+            ))?,
+        account_number,
+        address: CheckoutAddress {
+            address_line1: Some(
+                address
+                    .line1
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("recipient_details.address.line1"))?,
+            ),
+            address_line2: address.line2.clone(),
+            city: Some(
+                address
+                    .city
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("recipient_details.address.city"))?,
+            ),
+            state: Some(
+                address
+                    .state
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("recipient_details.address.state"))?,
+            ),
+            zip: Some(
+                address
+                    .zip
+                    .clone()
+                    .ok_or_else(utils::missing_field_err("recipient_details.address.zip"))?,
+            ),
+            country: Some(address.country.ok_or_else(utils::missing_field_err(
+                "recipient_details.address.country",
+            ))?),
+        },
+    })
+}
+
+fn build_checkout_sender(
+    resource_common_data: &PaymentFlowData,
+    date_of_birth: Secret<time::Date>,
+) -> Result<CheckoutSender, error_stack::Report<IntegrationError>> {
+    Ok(CheckoutSender {
+        sender_type: CheckoutSenderType::Individual,
+        first_name: resource_common_data.get_billing_first_name()?,
+        last_name: resource_common_data.get_billing_last_name()?,
+        date_of_birth,
+        address: CheckoutAddress {
+            address_line1: Some(resource_common_data.get_billing_line1()?),
+            address_line2: resource_common_data.get_optional_billing_line2(),
+            city: Some(resource_common_data.get_billing_city()?),
+            state: Some(resource_common_data.get_billing_state()?),
+            zip: Some(resource_common_data.get_billing_zip()?),
+            country: Some(resource_common_data.get_billing_country()?),
+        },
+    })
 }
 
 #[skip_serializing_none]
@@ -369,6 +526,9 @@ pub struct PaymentsRequest<
     pub items: Option<Vec<CheckoutLineItem>>,
     pub partial_authorization: Option<CheckoutPartialAuthorization>,
     pub payment_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
+    pub recipient: Option<CheckoutRecipient>,
+    pub sender: Option<CheckoutSender>,
+    pub instruction: Option<CheckoutInstruction>,
 }
 
 #[skip_serializing_none]
@@ -1032,7 +1192,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
         {
             (
@@ -1052,6 +1212,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     duty_amount: l2l3_data.get_duty_amount(),
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    aft: None,
                 }),
                 Some(CheckoutShipping {
                     address: Some(CheckoutAddress {
@@ -1084,6 +1245,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         } else {
             (None, None, None, None)
+        };
+
+        let is_account_funding_transaction = item
+            .router_data
+            .request
+            .is_account_funding_transaction
+            .unwrap_or(false);
+
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
+            processing
+                .get_or_insert_with(CheckoutProcessing::default)
+                .aft = Some(true);
+
+            let purpose = item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                .ok_or_else(utils::missing_field_err(
+                    "additional_connector_details.checkout.purpose_of_payment",
+                ))?;
+
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+
+            (
+                Some(build_checkout_recipient(
+                    item.router_data.request.recipient_details.as_ref(),
+                )?),
+                Some(build_checkout_sender(
+                    &item.router_data.resource_common_data,
+                    sender_date_of_birth,
+                )?),
+                Some(CheckoutInstruction { purpose }),
+            )
+        } else {
+            (None, None, None)
         };
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
@@ -1130,6 +1335,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items,
             payment_ip,
             billing_descriptor,
+            recipient,
+            sender,
+            instruction,
         };
 
         Ok(request)
@@ -1372,7 +1580,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
         {
             (
@@ -1392,6 +1600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     duty_amount: l2l3_data.get_duty_amount(),
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    aft: None,
                 }),
                 Some(CheckoutShipping {
                     address: Some(CheckoutAddress {
@@ -1424,6 +1633,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         } else {
             (None, None, None, None)
+        };
+
+        let is_account_funding_transaction = item
+            .router_data
+            .request
+            .is_account_funding_transaction
+            .unwrap_or(false);
+
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
+            processing
+                .get_or_insert_with(CheckoutProcessing::default)
+                .aft = Some(true);
+
+            let purpose = item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                .ok_or_else(utils::missing_field_err(
+                    "additional_connector_details.checkout.purpose_of_payment",
+                ))?;
+
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+
+            (
+                Some(build_checkout_recipient(
+                    item.router_data.request.recipient_details.as_ref(),
+                )?),
+                Some(build_checkout_sender(
+                    &item.router_data.resource_common_data,
+                    sender_date_of_birth,
+                )?),
+                Some(CheckoutInstruction { purpose }),
+            )
+        } else {
+            (None, None, None)
         };
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
@@ -1470,6 +1723,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items,
             payment_ip,
             billing_descriptor,
+            recipient,
+            sender,
+            instruction,
         };
 
         Ok(request)
@@ -1688,7 +1944,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref(),
         );
 
-        let (customer, processing, shipping, items) = if let Some(l2l3_data) =
+        let (customer, mut processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
         {
             (
@@ -1708,6 +1964,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     duty_amount: l2l3_data.get_duty_amount(),
                     shipping_amount: l2l3_data.get_shipping_cost(),
                     shipping_tax_amount: l2l3_data.get_shipping_amount_tax(),
+                    aft: None,
                 }),
                 Some(CheckoutShipping {
                     address: Some(CheckoutAddress {
@@ -1740,6 +1997,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         } else {
             (None, None, None, None)
+        };
+
+        let is_account_funding_transaction = item
+            .router_data
+            .request
+            .is_account_funding_transaction
+            .unwrap_or(false);
+
+        let (recipient, sender, instruction) = if is_account_funding_transaction {
+            processing
+                .get_or_insert_with(CheckoutProcessing::default)
+                .aft = Some(true);
+
+            let purpose = item
+                .router_data
+                .request
+                .additional_connector_details
+                .as_ref()
+                .and_then(|details| details.checkout.as_ref())
+                .and_then(|checkout| checkout.purpose_of_payment.clone())
+                .ok_or_else(utils::missing_field_err(
+                    "additional_connector_details.checkout.purpose_of_payment",
+                ))?;
+
+            let sender_date_of_birth = item
+                .router_data
+                .request
+                .customer
+                .as_ref()
+                .and_then(|customer| customer.date_of_birth.clone())
+                .ok_or_else(utils::missing_field_err("customer.date_of_birth"))?;
+
+            (
+                Some(build_checkout_recipient(
+                    item.router_data.request.recipient_details.as_ref(),
+                )?),
+                Some(build_checkout_sender(
+                    &item.router_data.resource_common_data,
+                    sender_date_of_birth,
+                )?),
+                Some(CheckoutInstruction { purpose }),
+            )
+        } else {
+            (None, None, None)
         };
 
         let partial_authorization = item.router_data.request.enable_partial_authorization.map(
@@ -1786,6 +2087,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             items,
             payment_ip,
             billing_descriptor,
+            recipient,
+            sender,
+            instruction,
         };
 
         Ok(request)

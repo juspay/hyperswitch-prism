@@ -30,8 +30,6 @@ regex = "1"
 hmac = "0.12"
 sha2 = "0.10"
 base64 = "0.22"
-
-[dev-dependencies]
 serde_ignored = "0.1"
 
 [lints]

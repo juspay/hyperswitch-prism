@@ -259,7 +259,7 @@ fn build_gpay_decrypted_tokenization_data(
     // message_id (losing Paysafe's replay-detection guarantee) and a far-future
     // placeholder for message_expiration.
     let decrypted_token = PaysafeGooglePayDecryptedToken {
-        message_id: uuid::Uuid::new_v4().to_string(),
+        message_id: common_utils::fp_utils::generate_uuid_v4(),
         message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS.to_string(),
         payment_method_details,
     };

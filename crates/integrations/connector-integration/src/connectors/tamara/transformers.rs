@@ -798,12 +798,18 @@ pub enum TamaraWebhookEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TamaraWebhookData {
+    pub capture_id: Option<String>,
+    pub refund_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TamaraWebhookEventType {
     pub order_id: String,
     pub order_reference_id: Option<String>,
     pub order_number: Option<String>,
     pub event_type: TamaraWebhookEvent,
-    pub data: Option<serde_json::Value>,
+    pub data: Option<TamaraWebhookData>,
 }
 
 impl From<TamaraWebhookEvent> for interfaces::webhooks::IncomingWebhookEvent {
