@@ -118,6 +118,25 @@ default = '{}'
 [connector_overrides."capture,void,get,refund,reverse,refund_get".helcim]
 "connector_transaction_id" = "12345"
 
+# Directa24 is the same case: its `deposit_id` is an integer, so PSync and Refund
+# parse `connector_transaction_id` with `parse::<i64>()` and reject the default
+# "probe_connector_txn_001" as InvalidDataFormat. Only `get` and `refund` are
+# implemented for this connector.
+[connector_overrides."get,refund".d24]
+"connector_transaction_id" = "12345"
+
+# Directa24 sells a single hosted-redirect method, WebPay: it is Chile-only and
+# accepts only a Chilean RUT as the payer document. Both are rejected as
+# *unsupported values*, not reported as missing fields, so the patcher — which
+# only reacts to missing-field errors — can never reach them. They have to be
+# pre-set. 46 = CountryAlpha2::CL, 4 = DocumentKind::OTHER (the only spelling a
+# RUT has, as DocumentKind carries no Rut variant). "12345678-5" carries the
+# correct mod-11 check digit for body 12345678.
+[connector_overrides.authorize.d24]
+"address.billing_address.country_alpha2_code" = 46
+"customer.customer_document_details.document_type" = 4
+"customer.customer_document_details.document_number" = "12345678-5"
+
 # Braintree's refund_get (RSync) reads `currency` and `merchant_account_id` from
 # `refund_metadata` (a Secret<String> JSON blob) rather than top-level fields.
 # Pre-populate it so the probe never gets stuck on "Missing required field: currency".

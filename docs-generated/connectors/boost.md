@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -135,7 +135,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L74) · [Kotlin](../../examples/boost/boost.kt#L54) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L74) · [Kotlin](../../examples/boost/boost.kt#L55) · [Rust](../../examples/boost/boost.rs)
 
 ### Refunds
 
@@ -148,4 +148,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L101) · [Kotlin](../../examples/boost/boost.kt#L93) · [Rust](../../examples/boost/boost.rs)
+**Examples:** [Python](../../examples/boost/boost.py) · [TypeScript](../../examples/boost/boost.ts#L101) · [Kotlin](../../examples/boost/boost.kt#L94) · [Rust](../../examples/boost/boost.rs)

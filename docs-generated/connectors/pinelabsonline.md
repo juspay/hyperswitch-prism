@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -128,4 +128,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L34) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L37) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)
+**Examples:** [Python](../../examples/pinelabsonline/pinelabsonline.py) · [TypeScript](../../examples/pinelabsonline/pinelabsonline.ts#L34) · [Kotlin](../../examples/pinelabsonline/pinelabsonline.kt#L38) · [Rust](../../examples/pinelabsonline/pinelabsonline.rs)
