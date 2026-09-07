@@ -468,9 +468,19 @@ impl EventServiceImpl {
         let request_data =
             SurchargePaymentSucceededRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
+
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
-            config.connectors.clone(),
+            connectors,
             &masked_metadata,
         ))
         .to_grpc_error()?;
@@ -581,9 +591,19 @@ impl EventServiceImpl {
         let request_data =
             SurchargeRefundSucceededRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
+
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
-            config.connectors.clone(),
+            connectors,
             &masked_metadata,
         ))
         .to_grpc_error()?;
@@ -694,9 +714,19 @@ impl EventServiceImpl {
         let request_data =
             FrmPaymentOutcomeRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
+
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
-            config.connectors.clone(),
+            connectors,
             &masked_metadata,
         ))
         .to_grpc_error()?;
@@ -804,9 +834,19 @@ impl EventServiceImpl {
         let request_data =
             FrmRefundProcessedRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
+
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
-            config.connectors.clone(),
+            connectors,
             &masked_metadata,
         ))
         .to_grpc_error()?;
@@ -914,9 +954,19 @@ impl EventServiceImpl {
         let request_data =
             FrmChargebackReceivedRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
+            &config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
+        )
+        .to_grpc_error()?;
+
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
-            config.connectors.clone(),
+            connectors,
             &masked_metadata,
         ))
         .to_grpc_error()?;
@@ -991,8 +1041,18 @@ async fn verify_webhook_source_external(
     metadata_payload: &utils::MetadataPayload,
     service_name: &str,
 ) -> Result<bool, error_stack::Report<ucs_env::error::GrpcError>> {
+    // Resolve effective connector URLs — applies superposition (x-environment) first,
+    // then any caller-supplied base_url override from x-connector-config on top.
+    let connectors = utils::apply_url_overrides(
+        config,
+        &metadata_payload.connector,
+        connector_config,
+        metadata_payload.environment.as_deref(),
+    )
+    .to_grpc_error()?;
+
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {
-        connectors: config.connectors.clone().into(),
+        connectors: connectors.into(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),
         raw_connector_response: None,
         raw_connector_request: None,
