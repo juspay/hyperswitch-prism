@@ -477,6 +477,10 @@
         "status": "not_implemented",
         "error": "Payment method Wallet(WeChatPayQr(WeChatPayQr)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "Payment method CardRedirect(Webpay) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "Payment method Wallet(Wero(WeroData)) is not supported by elavon_pg. Elavon Payment Gateway is integrated for raw Card payments only (payment_method_data.card). Wallets, bank transfers, BNPL and stored credentials are not implemented for this connector."
