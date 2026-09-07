@@ -231,7 +231,8 @@ fail_closed = true
 pod_name_env = "POD_NAME"       # env var read at boot for the instance name
 git_sha_env = "VERGEN_GIT_SHA"  # env var read at boot for the code sha
 instance_id = ""                # literal override; empty => pod name env,
-                                # then pi-{pid}-{boot_nanos}
+                                # then the pod hostname (k8s sets it to the
+                                # pod name), then pi-{pid}-{boot_nanos}
 code_sha = ""                   # literal override; empty => git sha env,
                                 # then the sha baked into the binary
 

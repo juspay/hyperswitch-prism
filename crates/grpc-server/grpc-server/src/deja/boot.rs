@@ -53,11 +53,22 @@ fn env_value_named(name: &str) -> Option<String> {
 }
 
 /// config → deployment pod name (Downward API via runtime_metadata) → pod-name env var →
-/// `pi-{pid}-{now_ns}`.
+/// hostname → `pi-{pid}-{now_ns}`.
+///
+/// The hostname step is what makes identity work with ZERO infra injection:
+/// Kubernetes sets a pod's hostname to its pod name, and the deployment naming
+/// convention already packs application, release tag, replicaset hash, and pod
+/// suffix into it (e.g. `connector-service-grpc-2026o07o17o0ohotfix1-544b64f4cd-lr966`)
+/// — self-identifying as ONE opaque string, deliberately never parsed into
+/// parts (the segments are a naming convention, not an API).
 fn resolved_instance_id(config: &DejaConfig, pod_name: Option<&str>) -> String {
     configured_value(config.identity.instance_id.as_deref())
         .or_else(|| configured_value(pod_name))
         .or_else(|| env_value_named(&config.identity.pod_name_env))
+        .or_else(|| {
+            let hostname = gethostname::gethostname();
+            configured_value(hostname.to_str())
+        })
         .unwrap_or_else(|| format!("pi-{}-{}", std::process::id(), now_ns()))
 }
 
