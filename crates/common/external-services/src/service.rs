@@ -1272,9 +1272,7 @@ where
                         }
                     ))
                 })
-                .map(|()| {
-                    data
-                })
+                .map(|()| data)
         }
         Err(err) => Err(err),
     };
