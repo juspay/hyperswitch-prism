@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L250) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L118) · [Rust](../../examples/checkout/checkout.rs#L316)
+**Examples:** [Python](../../examples/checkout/checkout.py#L250) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L118) · [Rust](../../examples/checkout/checkout.rs#L314)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L269) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L134) · [Rust](../../examples/checkout/checkout.rs#L332)
+**Examples:** [Python](../../examples/checkout/checkout.py#L269) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L134) · [Rust](../../examples/checkout/checkout.rs#L330)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L294) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L156) · [Rust](../../examples/checkout/checkout.rs#L355)
+**Examples:** [Python](../../examples/checkout/checkout.py#L294) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L156) · [Rust](../../examples/checkout/checkout.rs#L353)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L319) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L178) · [Rust](../../examples/checkout/checkout.rs#L378)
+**Examples:** [Python](../../examples/checkout/checkout.py#L319) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L178) · [Rust](../../examples/checkout/checkout.rs#L376)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/checkout/checkout.py#L341) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L197) · [Rust](../../examples/checkout/checkout.rs#L397)
+**Examples:** [Python](../../examples/checkout/checkout.py#L341) · [JavaScript](../../examples/checkout/checkout.js) · [Kotlin](../../examples/checkout/checkout.kt#L197) · [Rust](../../examples/checkout/checkout.rs#L395)
 
 ## API Reference
 
