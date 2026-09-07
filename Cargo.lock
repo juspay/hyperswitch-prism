@@ -1738,7 +1738,7 @@ dependencies = [
 [[package]]
 name = "deja"
 version = "0.1.0"
-source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
 dependencies = [
  "deja-context",
  "deja-core",
@@ -1751,7 +1751,7 @@ dependencies = [
 [[package]]
 name = "deja-context"
 version = "0.1.0"
-source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
 dependencies = [
  "pin-project-lite",
 ]
@@ -1759,7 +1759,7 @@ dependencies = [
 [[package]]
 name = "deja-core"
 version = "0.1.0"
-source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
 dependencies = [
  "serde",
  "serde_json",
@@ -1769,7 +1769,7 @@ dependencies = [
 [[package]]
 name = "deja-derive"
 version = "0.1.0"
-source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1779,7 +1779,7 @@ dependencies = [
 [[package]]
 name = "deja-runtime"
 version = "0.1.0"
-source = "git+https://github.com/iemyashasvi/deja?rev=55fb014ed57f4a1d2d827b8990e4235cc10da0b7#55fb014ed57f4a1d2d827b8990e4235cc10da0b7"
+source = "git+https://github.com/juspay/deja?rev=389ad83f3c5bd9cd4b123c8afc8630177bdd4151#389ad83f3c5bd9cd4b123c8afc8630177bdd4151"
 dependencies = [
  "async-trait",
  "deja-context",
