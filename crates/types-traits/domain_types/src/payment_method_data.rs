@@ -1547,6 +1547,7 @@ pub enum CardRedirectData {
     Benefit {},
     MomoAtm {},
     CardRedirect {},
+    Webpay {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]

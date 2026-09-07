@@ -91,7 +91,7 @@ impl TruelayerPayouts {
             }
         })?;
         let metadata = truelayer::TruelayerPayoutMetadata::try_from(&req.connector_config)?;
-        let idempotency_key = uuid::Uuid::new_v4().to_string();
+        let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
         let request_body = self
             .get_request_body(req)?
             .map(|body| body.content.get_inner_value().expose().clone());
