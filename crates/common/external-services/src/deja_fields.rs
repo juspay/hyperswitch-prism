@@ -226,6 +226,7 @@ impl ConnectorCallSpan {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::unwrap_used)] // fixture literals; a bad fixture should fail loudly
     use super::*;
 
     /// The whole point: identical content must digest identically no matter
