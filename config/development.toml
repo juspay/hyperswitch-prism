@@ -259,31 +259,41 @@ enabled = false
 # --- Déjà record/replay ---------------------------------------------------------
 # Only has any effect when built with the `deja` feature; ignored otherwise.
 # mode: "disabled" (default, byte-identical to today) | "record" | "replay".
+# Déjà record/replay harness. Inert here (`mode = "disabled"`); the full knob
+# surface is declared so `CS__DEJA__*` environment overrides bind to visible
+# keys. "record" streams boundary events + the execution graph to Kafka;
+# "replay" is a sealed-pod mode the déjà orchestrator drives — the replay job
+# boots this same image with CS__DEJA__MODE=replay plus a rendered lookup
+# table and re-drives the recorded requests while every side effect is
+# substituted from the tape (locally: scripts/deja-local/replay-dev.sh).
 [deja]
 mode = "disabled"     # "disabled" | "record" | "replay"
+run_id = ""           # recording/replay identity; empty => derived at boot
 
 [deja.recording.kafka]
 topic = "ucs-deja-recording-events"
 brokers = []          # empty => inherit the [events] brokers at boot
 
+[deja.replay]
+source = ""           # rendered LookupTable JSONL, or a raw-tape artifact dir
+lookup_dir = ""       # with no `source`: uses <lookup_dir>/<run_id>.jsonl
+observed_sink = ""    # optional: where replay records what the candidate DID
+
 [deja.sampler]
 record_key = "deja_record"
 fail_closed = true
 
-# Replay is a sealed-pod mode driven by the déjà orchestrator, not something a
-# serving deployment turns on: the replay job boots the SAME image with
-# `mode = "replay"` (env: CS__DEJA__MODE=replay) plus a rendered lookup table,
-# then re-drives the recorded requests against it while every side effect is
-# substituted from the tape. Locally, `scripts/deja-local/replay-dev.sh` sets
-# this up end to end. The knobs, for reference:
-#
-# [deja]
-# mode = "replay"
-# run_id = "<run id>"                # or env CS__DEJA__RUN_ID
-#
-# [deja.replay]
-# source = "/path/to/lookup.jsonl"   # rendered LookupTable JSONL (a directory
-#                                    # of raw tape artifacts also works);
-#                                    # relative paths resolve under lookup_dir
-# lookup_dir = "/path/to/tables"     # with no `source`, uses <dir>/<run_id>.jsonl
-# observed_sink = "/tmp/observed.jsonl"  # optional: what the candidate DID
+[deja.identity]
+pod_name_env = "POD_NAME"       # env var read at boot for the instance name
+git_sha_env = "VERGEN_GIT_SHA"  # env var read at boot for the code sha
+instance_id = ""                # literal override; empty => pod name env,
+                                # then pi-{pid}-{boot_nanos}
+code_sha = ""                   # literal override; empty => git sha env,
+                                # then the sha baked into the binary
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000
