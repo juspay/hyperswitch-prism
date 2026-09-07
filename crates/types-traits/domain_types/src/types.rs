@@ -7123,6 +7123,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(_)),
+            } => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_)),
             } => Ok(Self::NetworkToken),
             grpc_api_types::payments::PaymentMethod {
@@ -7583,6 +7587,24 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PaySafeCard(_)),
             } => Ok(Self::GiftCard),
+            // A present-but-unmapped variant is a real, known payment method this classifier
+            // simply hasn't been taught yet -- that's a NotImplemented gap, not bad input.
+            grpc_api_types::payments::PaymentMethod {
+                payment_method: Some(_),
+            } => Err(report!(IntegrationError::NotImplemented(
+                "payment_method".to_owned(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
+                            .to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "The provided payment method variant is not yet supported by this flow"
+                            .to_owned(),
+                    ),
+                },
+            ))),
             _ => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
@@ -7592,7 +7614,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                     ),
                     doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is empty or not supported by this flow"
+                        "The provided payment method variant is empty"
                             .to_owned(),
                     ),
                 },
