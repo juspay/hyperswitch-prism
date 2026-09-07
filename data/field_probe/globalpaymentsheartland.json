@@ -475,6 +475,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"

@@ -258,11 +258,17 @@ fn to_pos_request_envelope<TXN: Serialize>(
     // deliberately malformed: `validate_xml_structure` rejects it and the request is never
     // sent, and the failure is logged rather than swallowed.
     let header_xml = quick_xml::se::to_string(header).unwrap_or_else(|error| {
-        tracing::error!(?error, "globalpayments_heartland: failed to serialize request header");
+        tracing::error!(
+            ?error,
+            "globalpayments_heartland: failed to serialize request header"
+        );
         String::from("<SerializationFailed")
     });
     let transaction_xml = quick_xml::se::to_string(transaction).unwrap_or_else(|error| {
-        tracing::error!(?error, "globalpayments_heartland: failed to serialize transaction");
+        tracing::error!(
+            ?error,
+            "globalpayments_heartland: failed to serialize transaction"
+        );
         String::from("<SerializationFailed")
     });
 
