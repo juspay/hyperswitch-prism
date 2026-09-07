@@ -1032,20 +1032,22 @@ enum PaymentMethodType {
   SKRILL = 114;
   PAYMAYA = 115;
   GRAB_PAY = 116;
-  // KLARNA_PM (not KLARNA): the value name KLARNA is already taken by the Connector
-  // enum in this same proto package, and protobuf requires enum value names to be
-  // unique per-package (C++ scoping). Klarna is legitimately both a connector and a
-  // payment method; only this newer value carries the disambiguating suffix.
-  KLARNA_PM = 117;
+  // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
+  // taken by the Connector enum in this same proto package, and protobuf requires
+  // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
+  // both a connector and a payment method; this value carries the enum-name prefix
+  // that the protobuf style guide recommends for exactly this reason.
+  PAYMENT_METHOD_TYPE_KLARNA = 117;
   BHN_CARD_NETWORK = 118;
   BLUECODE = 119;
   BREADPAY = 120;
   EFT_DEBIT_ORDER = 121;
   FLEXITI = 122;
   INDONESIAN_BANK_TRANSFER = 123;
-  // MIFINITY_PM (not MIFINITY): the value name MIFINITY is already taken by the
-  // Connector enum in this same proto package; see the KLARNA_PM note above.
-  MIFINITY_PM = 124;
+  // PAYMENT_METHOD_TYPE_MIFINITY (not bare MIFINITY): the value name MIFINITY is
+  // already taken by the Connector enum in this same proto package; see the
+  // PAYMENT_METHOD_TYPE_KLARNA note above.
+  PAYMENT_METHOD_TYPE_MIFINITY = 124;
   PAYJUSTNOW = 125;
   PAYSERA = 126;
   PAYSHAP = 127;

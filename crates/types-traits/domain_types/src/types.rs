@@ -2993,14 +2993,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::DirectCarrierBilling => {
                 Ok(PaymentMethodType::DirectCarrierBilling)
             }
-            grpc_api_types::payments::PaymentMethodType::KlarnaPm => Ok(PaymentMethodType::Klarna),
+            grpc_api_types::payments::PaymentMethodType::Klarna => Ok(PaymentMethodType::Klarna),
             grpc_api_types::payments::PaymentMethodType::Bluecode => {
                 Ok(PaymentMethodType::Bluecode)
             }
             grpc_api_types::payments::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(PaymentMethodType::IndonesianBankTransfer)
             }
-            grpc_api_types::payments::PaymentMethodType::MifinityPm => {
+            grpc_api_types::payments::PaymentMethodType::Mifinity => {
                 Ok(PaymentMethodType::Mifinity)
             }
             grpc_api_types::payments::PaymentMethodType::Paysera => Ok(PaymentMethodType::Paysera),
