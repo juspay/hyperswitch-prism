@@ -265,8 +265,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// ===== AUTHENTICATION FLOW TRAIT IMPLEMENTATIONS =====
-// ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Globalpay<T>
@@ -398,8 +396,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-// Payment Void Post Capture
 
 // Payment Capture flow implementation using macro
 macros::macro_connector_implementation!(
@@ -570,10 +566,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-// Order Create
-
-// Session Token
 
 // ClientAuthenticationToken flow implementation using macro
 macros::macro_connector_implementation!(

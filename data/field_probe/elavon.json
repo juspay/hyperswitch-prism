@@ -474,6 +474,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported for Elavon"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported for Elavon"

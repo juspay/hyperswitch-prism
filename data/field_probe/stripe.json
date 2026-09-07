@@ -1240,6 +1240,10 @@
           "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=wechat_pay&payment_method_options%5Bwechat_pay%5D%5Bclient%5D=web&capture_method=automatic&payment_method_types%5B0%5D=wechat_pay&expand%5B0%5D=latest_charge"
         }
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"

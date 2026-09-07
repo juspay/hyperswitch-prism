@@ -482,6 +482,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by paynearme"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by paynearme"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by paynearme"
