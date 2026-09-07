@@ -637,6 +637,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through nexinets"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through nexinets"

@@ -1,4 +1,5 @@
 use common_enums::{AttemptStatus, RefundStatus};
+use common_utils::pii::Email;
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund, ServerAuthenticationToken},
     connector_types::{
@@ -110,7 +111,7 @@ pub struct PurchaseDetails {
 #[derive(Debug, Serialize)]
 pub struct CustomerInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email_id: Option<String>,
+    pub email_id: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

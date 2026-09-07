@@ -521,6 +521,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"

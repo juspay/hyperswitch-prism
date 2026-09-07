@@ -444,6 +444,10 @@
         "status": "not_supported",
         "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
+      },
       "Wero": {
         "status": "not_supported",
         "error": "Selected payment method through CryptoPay is not supported by Cryptopay"

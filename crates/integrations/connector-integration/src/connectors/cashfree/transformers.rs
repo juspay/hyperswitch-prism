@@ -1,5 +1,5 @@
 use common_enums;
-use common_utils::types::AmountConvertor;
+use common_utils::{pii::EmailStrategy, types::AmountConvertor};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
@@ -106,7 +106,7 @@ pub struct CashfreeOrderSplitsType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CashfreeCustomerDetails {
     pub customer_id: String,
-    pub customer_email: Option<String>,
+    pub customer_email: Option<Secret<String, EmailStrategy>>,
     pub customer_phone: Secret<String>,
     pub customer_name: Option<String>,
 }
@@ -534,7 +534,7 @@ impl
                 .unwrap_or_else(|| "guest".to_string()),
             customer_email: billing
                 .as_ref()
-                .and_then(|b| b.email.as_ref().map(|e| e.peek().to_string())),
+                .and_then(|b| b.email.clone().map(|email| email.expose())),
             customer_phone: Secret::new(
                 billing
                     .as_ref()

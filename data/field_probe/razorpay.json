@@ -444,6 +444,10 @@
         "status": "error",
         "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
+      "Webpay": {
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
+      },
       "Wero": {
         "status": "error",
         "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
