@@ -36,11 +36,103 @@ fn now_ns() -> u128 {
         .as_nanos()
 }
 
-fn configured_run_id(config: &DejaConfig) -> String {
+fn configured_run_id(config: &DejaConfig, pod_name: Option<&str>) -> String {
     config
         .effective_run_id()
         .map(str::to_owned)
-        .unwrap_or_else(|| format!("run-{}", now_ns()))
+        .unwrap_or_else(|| fallback_run_id(config, pod_name))
+}
+
+/// The id a recording is known by when nothing configured one, in the shape
+/// hyperswitch mints: `rec-<short sha>-<MMDDhhmm>-<instance>`, e.g.
+/// `rec-11d5b8d-09011234-a3` — revision, when, which instance. Without a
+/// usable revision it falls back to the bare-timestamp form (with a
+/// pre-logger stderr note) rather than claiming a provenance it does not
+/// have: `rec-unknown-…` would be worse than an opaque id.
+#[allow(clippy::print_stderr)] // The logger is not initialized yet at install time.
+fn fallback_run_id(config: &DejaConfig, pod_name: Option<&str>) -> String {
+    let now_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(std::time::Duration::ZERO)
+        .as_secs();
+    match resolved_code_sha(config) {
+        Some(sha) => format!(
+            "rec-{}-{}-{}",
+            short_revision(&sha),
+            recording_stamp(now_secs),
+            instance_discriminator(&resolved_instance_id(config, pod_name)),
+        ),
+        None => {
+            eprintln!(
+                "deja: recording without a code revision — its id will carry no provenance. \
+                 Set deja.identity.code_sha, or build with VERGEN_GIT_SHA."
+            );
+            format!("run-{}", now_ns())
+        }
+    }
+}
+
+/// A git sha shortened to the length git itself uses for a short sha.
+fn short_revision(sha: &str) -> String {
+    sha.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .take(7)
+        .collect::<String>()
+        .to_ascii_lowercase()
+}
+
+/// `MMDDhhmm` UTC; the instance discriminator separates recorders that start
+/// in the same minute.
+fn recording_stamp(unix_secs: u64) -> String {
+    let (month, day) = civil_month_day(unix_secs / 86_400);
+    let today = unix_secs % 86_400;
+    format!(
+        "{month:02}{day:02}{:02}{:02}",
+        today / 3600,
+        (today % 3600) / 60
+    )
+}
+
+/// Two characters standing for the instance, so two pods that start in the
+/// same minute do not share a recording id.
+fn instance_discriminator(instance_id: &str) -> String {
+    // FNV-1a, so the same pod is always the same two characters.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in instance_id.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100_0000_01b3);
+    }
+    const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    // `n % 36` always indexes the 36-byte alphabet; spelled out instead of
+    // asserted because a boot-time naming helper must not panic.
+    let pick = |n: u64| {
+        usize::try_from(n % 36)
+            .ok()
+            .and_then(|i| ALPHABET.get(i))
+            .map_or('0', |byte| char::from(*byte))
+    };
+    let a = pick(hash);
+    let b = pick(hash / 36);
+    format!("{a}{b}")
+}
+
+/// Days since the epoch to (month, day), civil-from-days.
+fn civil_month_day(days_since_epoch: u64) -> (i64, i64) {
+    // An impossible clock degrades to a valid date instead of panicking.
+    let Some(z) = i64::try_from(days_since_epoch)
+        .ok()
+        .and_then(|days| days.checked_add(719_468))
+    else {
+        return (1, 1);
+    };
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (m, d)
 }
 
 fn configured_value(value: Option<&str>) -> Option<String> {
@@ -76,7 +168,7 @@ fn resolved_code_sha(config: &DejaConfig) -> Option<String> {
     configured_value(config.identity.code_sha.as_deref())
         .or_else(|| env_value_named(&config.identity.git_sha_env))
         .or_else(|| option_env!("VERGEN_GIT_SHA").map(str::to_owned))
-        .or_else(|| Some("unknown".to_owned()))
+    // No "unknown" placeholder: absence is a fact worth being able to observe.
 }
 
 fn writer_config(config: &DejaConfig) -> deja::WriterConfig {
@@ -163,7 +255,7 @@ fn install_record(
         ));
     }
 
-    let run_id = configured_run_id(config);
+    let run_id = configured_run_id(config, pod_name);
     let sink = match UcsKafkaRecordSink::new(UcsKafkaRecordSinkConfig {
         brokers,
         topic,
@@ -303,5 +395,60 @@ pub fn install(
         DejaMode::Disabled => Ok(install_disabled(None)),
         DejaMode::Record => Ok(install_record(config, inherited_brokers, pod_name)),
         DejaMode::Replay => install_replay(config),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The stamp is `MMDDhhmm` UTC — checked at the epoch, at a current-era
+    /// date, and on a leap day (the civil-from-days math has to earn that one).
+    #[test]
+    fn recording_stamp_is_month_day_hour_minute_utc() {
+        assert_eq!(recording_stamp(0), "01010000"); // 1970-01-01 00:00
+        assert_eq!(recording_stamp(1_788_266_040), "09011234"); // 2026-09-01 12:34
+        assert_eq!(recording_stamp(1_709_251_140), "02292359"); // 2024-02-29 23:59
+    }
+
+    /// Same instance → same two characters, always from the base-36 alphabet;
+    /// distinct pods that boot in the same minute must not share an id.
+    #[test]
+    fn instance_discriminator_is_stable_and_two_base36_chars() {
+        let a = instance_discriminator("connector-service-7d9f8b6c4-x2vlq");
+        assert_eq!(a, instance_discriminator("connector-service-7d9f8b6c4-x2vlq"));
+        assert_eq!(a.len(), 2);
+        assert!(a.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit()));
+        assert_ne!(a, instance_discriminator("connector-service-7d9f8b6c4-9k3mp"));
+    }
+
+    /// Non-alphanumerics are filtered, casing is normalized, and git's own
+    /// short-sha length is what survives.
+    #[test]
+    fn short_revision_takes_seven_lowercase_alphanumerics() {
+        assert_eq!(short_revision("11d5b8dbd"), "11d5b8d");
+        assert_eq!(short_revision("G1-1D5B8dbd"), "g11d5b8");
+    }
+
+    /// This build carries VERGEN_GIT_SHA (the same baked source the envelopes'
+    /// `code.sha` uses), so a default config must mint the full hyperswitch
+    /// shape — never the bare-timestamp fallback and never `rec-unknown-…`.
+    #[test]
+    fn fallback_run_id_has_the_hyperswitch_shape() {
+        let id = fallback_run_id(&DejaConfig::default(), Some("pod-a"));
+        let parts: Vec<&str> = id.splitn(4, '-').collect();
+        assert_eq!(parts.len(), 4, "expected rec-<sha>-<stamp>-<inst>, got {id}");
+        assert_eq!(parts[0], "rec");
+        assert_ne!(parts[1], "unknown");
+        assert!(
+            (1..=7).contains(&parts[1].len())
+                && parts[1].chars().all(|c| c.is_ascii_alphanumeric()),
+            "revision part malformed in {id}"
+        );
+        assert!(
+            parts[2].len() == 8 && parts[2].chars().all(|c| c.is_ascii_digit()),
+            "stamp part malformed in {id}"
+        );
+        assert_eq!(parts[3].len(), 2, "instance part malformed in {id}");
     }
 }
