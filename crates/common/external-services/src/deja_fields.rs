@@ -54,9 +54,7 @@ fn canonical_json_bytes(value: &serde_json::Value) -> Vec<u8> {
                     if i > 0 {
                         out.push(b',');
                     }
-                    out.extend_from_slice(
-                        serde_json::to_string(k).unwrap_or_default().as_bytes(),
-                    );
+                    out.extend_from_slice(serde_json::to_string(k).unwrap_or_default().as_bytes());
                     out.push(b':');
                     canonicalize(v, out);
                 }
@@ -91,7 +89,11 @@ pub fn split_url(raw: &str) -> (String, String, String) {
             let mut keys: Vec<String> = url.query_pairs().map(|(k, _)| k.into_owned()).collect();
             keys.sort();
             keys.dedup();
-            (url.origin().ascii_serialization(), url.path().to_owned(), keys.join(","))
+            (
+                url.origin().ascii_serialization(),
+                url.path().to_owned(),
+                keys.join(","),
+            )
         }
         Err(_) => (raw.to_owned(), String::new(), String::new()),
     }
@@ -258,8 +260,14 @@ mod tests {
         use hyperswitch_masking::Secret;
         let mk = |v: &str| -> common_utils::request::Headers {
             [
-                ("Authorization".to_owned(), Maskable::Masked(Secret::new(v.to_owned()))),
-                ("Content-Type".to_owned(), Maskable::Normal("application/json".to_owned())),
+                (
+                    "Authorization".to_owned(),
+                    Maskable::Masked(Secret::new(v.to_owned())),
+                ),
+                (
+                    "Content-Type".to_owned(),
+                    Maskable::Normal("application/json".to_owned()),
+                ),
             ]
             .into_iter()
             .collect()

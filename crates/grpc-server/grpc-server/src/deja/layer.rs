@@ -94,7 +94,10 @@ where
             let rpc = parts.uri.path().to_owned();
             // `http::request::Parts` is not Clone (it holds Extensions), so capture what the
             // event needs before `from_parts` consumes it.
-            let authority = parts.uri.authority().map(|authority| authority.as_str().to_owned());
+            let authority = parts
+                .uri
+                .authority()
+                .map(|authority| authority.as_str().to_owned());
             let headers = parts.headers.clone();
             let request_id = headers
                 .get(common_utils::consts::X_REQUEST_ID)
@@ -181,7 +184,8 @@ where
 
             // 4. Run the handler inside the ingress span (stamps ambient correlation for any
             //    boundary the handler fires). The handler ALWAYS runs.
-            let span = tracing::info_span!("deja::grpc_incoming", request_id = %request_id, rpc = %rpc);
+            let span =
+                tracing::info_span!("deja::grpc_incoming", request_id = %request_id, rpc = %rpc);
             let result = inner.call(rebuilt).instrument(span).await;
 
             // 5. Build the finalizer from the OUTCOME, then wrap the response so the

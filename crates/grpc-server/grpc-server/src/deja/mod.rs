@@ -23,7 +23,8 @@ static HOOK: OnceLock<Option<Arc<deja::RuntimeHook>>> = OnceLock::new();
 
 /// The installed runtime hook, if any.
 pub fn hook() -> Option<&'static Arc<deja::RuntimeHook>> {
-    HOOK.get_or_init(deja::global_runtime_hook_from_env).as_ref()
+    HOOK.get_or_init(deja::global_runtime_hook_from_env)
+        .as_ref()
 }
 
 /// Whether the process is recording or replaying.

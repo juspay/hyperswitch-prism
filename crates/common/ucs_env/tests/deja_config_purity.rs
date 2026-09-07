@@ -12,8 +12,7 @@ fn dev_config_toml() -> String {
     let path = ucs_env::configs::workspace_path()
         .join("config")
         .join("development.toml");
-    std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
 }
 
 /// Remove every `[deja]` / `[deja.*]` table from a TOML config string.
