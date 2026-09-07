@@ -138,7 +138,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"737\",\"cvv_indicator\":\"PRESENT\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"737\",\"cvv_indicator\":\"PRESENT\"}}}"
         }
       },
       "CashappQr": {
@@ -225,7 +225,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"eps\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"eps\"}}}"
         }
       },
       "FamilyMart": {
@@ -272,7 +272,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"giropay\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"giropay\"}}}"
         }
       },
       "Givex": {
@@ -332,7 +332,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"payment_token\":{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"payment_token\":{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}}}}"
         }
       },
       "GooglePayDecrypted": {
@@ -387,7 +387,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"token\":\"4111111111111111\",\"token_format\":\"CARD_TOKEN\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cryptogram\":\"AAAAAA==\",\"eci\":\"05\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"token\":\"4111111111111111\",\"token_format\":\"CARD_TOKEN\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cryptogram\":\"AAAAAA==\",\"eci\":\"05\"}}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -430,7 +430,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"ideal\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"ideal\"}}}"
         }
       },
       "Indomaret": {
@@ -607,7 +607,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"paypal\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"paypal\"}}}"
         }
       },
       "PaypalSdk": {
@@ -1032,7 +1032,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
         }
       }
     },
@@ -1296,7 +1296,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_tokenized_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"id\":\"pm_1AbcXyzStripeTestToken\"}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_tokenized_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"id\":\"pm_1AbcXyzStripeTestToken\"}}"
         }
       }
     },
