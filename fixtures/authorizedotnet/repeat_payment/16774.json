@@ -1,0 +1,19 @@
+{
+  "_issue": "juspay/hyperswitch-cloud#16774 (child #16706)",
+  "_desc": "MIT/repeat ConnectorMandateId path: UCS must NOT emit transactionRequest.customer (Direct omits it on stored-profile repeat). token contains '-' to hit the CustomerProfileDetails branch.",
+  "amount": 2199,
+  "currency": "USD",
+  "confirm": true,
+  "off_session": true,
+  "capture_method": "automatic",
+  "customer_id": "innago_cust_16774",
+  "email": "shadow16774@example.com",
+  "payment_type": "recurring_mandate",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "recurring_details": {
+    "type": "processor_payment_token",
+    "data": {"processor_payment_token": "1234567890-9876543210", "merchant_connector_id": "<mca>"}
+  },
+  "routing": {"type": "single", "data": {"connector": "authorizedotnet", "merchant_connector_id": "<mca>"}}
+}
