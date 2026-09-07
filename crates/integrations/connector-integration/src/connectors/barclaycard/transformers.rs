@@ -422,9 +422,7 @@ where
         .request
         .recurring_mandate_payment_data
         .as_ref()
-        .and_then(|data| {
-            data.original_payment_authorized_amount.as_ref()
-        })
+        .and_then(|data| data.original_payment_authorized_amount.as_ref())
         .map(|oa| {
             oa.convert(&common_utils::types::StringMajorUnitForConnector)
                 .map(|s| s.get_amount_as_string())

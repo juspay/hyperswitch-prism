@@ -8,8 +8,8 @@ use crate::{
 };
 use common_enums;
 use common_utils::{
-    events::FlowName, lineage, metadata::MaskedMetadata,
-    proto_boundary::MinorUnitProtoAccess, SecretSerdeValue,
+    events::FlowName, lineage, metadata::MaskedMetadata, proto_boundary::MinorUnitProtoAccess,
+    SecretSerdeValue,
 };
 use connector_integration::types::{
     AuthenticatorConnectorData, ConnectorData, ConnectorDataProvider, FrmConnectorData,

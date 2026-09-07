@@ -1512,24 +1512,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                         context: Default::default(),
                     },
                 )?;
-                let connector_amount = AmountConvertor::convert(
-                    &MinorUnitForConnector,
-                    amount_data,
-                    currency_data,
-                )
-                .map_err(|_| {
+                let connector_amount =
+                    AmountConvertor::convert(&MinorUnitForConnector, amount_data, currency_data)
+                        .map_err(|_| {
+                            error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                                context: Default::default(),
+                            })
+                        })?;
+                let minor_amount_i64: i64 = connector_amount.to_string().parse().map_err(|_| {
                     error_stack::report!(ConnectorError::ResponseHandlingFailed {
                         context: Default::default(),
                     })
                 })?;
-                let minor_amount_i64: i64 = connector_amount
-                    .to_string()
-                    .parse()
-                    .map_err(|_| {
-                        error_stack::report!(ConnectorError::ResponseHandlingFailed {
-                            context: Default::default(),
-                        })
-                    })?;
                 let customer_vault_id = response.customer_vault_id.clone().ok_or_else(|| {
                     error_stack::report!(ConnectorError::UnexpectedResponseError {
                         context: Default::default(),

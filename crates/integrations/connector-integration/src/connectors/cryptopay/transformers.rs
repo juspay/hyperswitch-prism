@@ -24,7 +24,6 @@ use domain_types::{
 
 use common_utils::consts;
 
-
 use error_stack::ResultExt;
 use serde::{Deserialize, Serialize};
 
@@ -252,18 +251,16 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
-            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        amount_captured: None,
-                        minor_amount_captured: amount_captured_in_minor_units,
-                        ..router_data.resource_common_data
-                    },
-                    response,
-                    ..router_data
-                })
-            }
+            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    amount_captured: None,
+                    minor_amount_captured: amount_captured_in_minor_units,
+                    ..router_data.resource_common_data
+                },
+                response,
+                ..router_data
+            }),
             _ => Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
@@ -401,18 +398,16 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
             None => None,
         };
         match (amount_captured_in_minor_units, status) {
-            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        amount_captured: None,
-                        minor_amount_captured: amount_captured_in_minor_units,
-                        ..router_data.resource_common_data
-                    },
-                    response,
-                    ..router_data
-                })
-            }
+            (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status,
+                    amount_captured: None,
+                    minor_amount_captured: amount_captured_in_minor_units,
+                    ..router_data.resource_common_data
+                },
+                response,
+                ..router_data
+            }),
             _ => Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
@@ -475,36 +470,29 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     _ => None,
                 };
             match (amount_captured_in_minor_units, status) {
-                (Some(_minor_amount), common_enums::AttemptStatus::Charged) => {
-                    Ok(Self {
-                        connector_returned_payment_method_details: None,
-                        amount_captured: None,
-                        minor_amount_captured: amount_captured_in_minor_units,
-                        status,
-                        resource_id: Some(ResponseId::ConnectorTransactionId(
-                            notif.data.id.clone(),
-                        )),
-                        error_reason: None,
-                        mandate_reference: None,
-                        status_code: 200,
-                        connector_response_reference_id: notif
-                            .data
-                            .custom_id
-                            .clone()
-                            .or_else(|| Some(notif.data.id.clone())),
-                        connector_request_reference_id: notif
-                            .data
-                            .custom_id
-                            .or(Some(notif.data.id)),
-                        error_code: None,
-                        error_message: None,
-                        raw_connector_response: None,
-                        response_headers: None,
-                        network_txn_id: None,
-                        payment_method_update: None,
-                        sender_payment_instrument_id: None,
-                    })
-                }
+                (Some(_minor_amount), common_enums::AttemptStatus::Charged) => Ok(Self {
+                    connector_returned_payment_method_details: None,
+                    amount_captured: None,
+                    minor_amount_captured: amount_captured_in_minor_units,
+                    status,
+                    resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),
+                    error_reason: None,
+                    mandate_reference: None,
+                    status_code: 200,
+                    connector_response_reference_id: notif
+                        .data
+                        .custom_id
+                        .clone()
+                        .or_else(|| Some(notif.data.id.clone())),
+                    connector_request_reference_id: notif.data.custom_id.or(Some(notif.data.id)),
+                    error_code: None,
+                    error_message: None,
+                    raw_connector_response: None,
+                    response_headers: None,
+                    network_txn_id: None,
+                    payment_method_update: None,
+                    sender_payment_instrument_id: None,
+                }),
                 _ => Ok(Self {
                     connector_returned_payment_method_details: None,
                     status,

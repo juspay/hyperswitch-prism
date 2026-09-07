@@ -5,7 +5,6 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt, ValueExt},
-
     request::Method,
     types::{MinorUnit, SemanticVersion},
     SecretSerdeValue,

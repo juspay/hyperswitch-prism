@@ -2351,13 +2351,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
                                 .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
                                 .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
                                 .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
                                 .transpose()?,
                             destination_account_id: Some(Secret::new(
@@ -3103,14 +3105,26 @@ where
                     .response
                     .amount_received
                     .map(|amount| amount.to_string().parse::<i64>().unwrap_or(0)),
-                minor_amount_captured: item.response.amount_received
-                    .map(|a| StripeAmountConvertor::convert_back(a, item.response.currency.parse().unwrap_or_default()))
+                minor_amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|a| {
+                        StripeAmountConvertor::convert_back(
+                            a,
+                            item.response.currency.parse().unwrap_or_default(),
+                        )
+                    })
                     .transpose()
                     .ok()
                     .flatten(),
                 connector_response: connector_response_data,
                 minor_amount_capturable: minor_amount_capturable
-                    .map(|a| StripeAmountConvertor::convert_back(a, item.response.currency.parse().unwrap_or_default()))
+                    .map(|a| {
+                        StripeAmountConvertor::convert_back(
+                            a,
+                            item.response.currency.parse().unwrap_or_default(),
+                        )
+                    })
                     .transpose()
                     .ok()
                     .flatten(),
@@ -3173,9 +3187,14 @@ pub fn get_connector_metadata(
                                 // ConnectorMinorUnit does not implement Sub; compute
                                 // the received amount through serialized i64 values.
                                 let total = amount.to_string().parse::<i64>().unwrap_or(0);
-                                let remaining = response.amount_remaining.to_string().parse::<i64>().unwrap_or(0);
+                                let remaining = response
+                                    .amount_remaining
+                                    .to_string()
+                                    .parse::<i64>()
+                                    .unwrap_or(0);
                                 let received_str = (total - remaining).to_string();
-                                let received: ConnectorMinorUnit = serde_json::from_str(&received_str).unwrap_or_default();
+                                let received: ConnectorMinorUnit =
+                                    serde_json::from_str(&received_str).unwrap_or_default();
                                 SepaAndBacsReceiver {
                                     amount_received: received,
                                     amount_remaining: response.amount_remaining,
@@ -3426,8 +3445,15 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                     .response
                     .amount_received
                     .map(|amount| amount.to_string().parse::<i64>().unwrap_or(0)),
-                minor_amount_captured: item.response.amount_received
-                    .map(|a| StripeAmountConvertor::convert_back(a, item.response.currency.parse().unwrap_or_default()))
+                minor_amount_captured: item
+                    .response
+                    .amount_received
+                    .map(|a| {
+                        StripeAmountConvertor::convert_back(
+                            a,
+                            item.response.currency.parse().unwrap_or_default(),
+                        )
+                    })
                     .transpose()
                     .ok()
                     .flatten(),
@@ -4777,7 +4803,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let split_payment_request = match item.request.split_payments.as_ref() {
             Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
-                let fees = stripe_split_payment.application_fees
+                let fees = stripe_split_payment
+                    .application_fees
                     .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
                     .transpose()?;
                 Self {
@@ -6004,13 +6031,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match &stripe_split_payment.charge_type {
                     common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
                         common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
                                 .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
                                 .transpose()?,
                             destination_account_id: None,
                         }),
                         common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees
+                            application_fee_amount: stripe_split_payment
+                                .application_fees
                                 .map(|a| StripeAmountConvertor::convert(a, item.request.currency))
                                 .transpose()?,
                             destination_account_id: Some(Secret::new(

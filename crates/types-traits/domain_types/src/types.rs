@@ -12992,12 +12992,8 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                 amount_data.initial_billing_amount
             {
                 Some(common_utils::types::Money::new(
-                    common_utils::types::MinorUnit::new(
-                        initial_billing_amount.minor_amount,
-                    ),
-                    common_enums::Currency::foreign_try_from(
-                        initial_billing_amount.currency(),
-                    )?,
+                    common_utils::types::MinorUnit::new(initial_billing_amount.minor_amount),
+                    common_enums::Currency::foreign_try_from(initial_billing_amount.currency())?,
                 ))
             } else {
                 None
@@ -14899,12 +14895,14 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: value.amount.map(|amt| common_utils::types::Money::new(
-                common_utils::types::MinorUnit::new(amt.minor_amount),
-                common_enums::Currency::foreign_try_from(amt.currency())
-                    .ok()
-                    .unwrap_or_default(),
-            )),
+            amount: value.amount.map(|amt| {
+                common_utils::types::Money::new(
+                    common_utils::types::MinorUnit::new(amt.minor_amount),
+                    common_enums::Currency::foreign_try_from(amt.currency())
+                        .ok()
+                        .unwrap_or_default(),
+                )
+            }),
             access_token,
             session_token: None,
             reference_id: None,
@@ -19399,8 +19397,10 @@ impl ForeignTryFrom<(bool, RedirectDetailsResponse)>
             response_amount: match redirect_details_response.response_amount {
                 Some(money) => Some(grpc_api_types::payments::Money {
                     minor_amount: money.amount().get_amount_as_i64(),
-                    currency: grpc_api_types::payments::Currency::foreign_try_from(money.currency())?
-                        .into(),
+                    currency: grpc_api_types::payments::Currency::foreign_try_from(
+                        money.currency(),
+                    )?
+                    .into(),
                 }),
                 None => None,
             },

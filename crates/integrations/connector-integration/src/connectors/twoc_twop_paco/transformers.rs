@@ -673,9 +673,8 @@ impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
                 context: Default::default(),
             })?;
         let amount_text = format!("{:0>12}", minor_unit);
-        let amount = money
-            .convert(&FloatMajorUnitForConnector)
-            .map_err(|err| errors::IntegrationError::InvalidDataFormat {
+        let amount = money.convert(&FloatMajorUnitForConnector).map_err(|err| {
+            errors::IntegrationError::InvalidDataFormat {
                 field_name: "amount",
                 context: errors::IntegrationErrorContext {
                     suggested_action: Some(
@@ -687,7 +686,8 @@ impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
                         "Failed to convert minor amount to FloatMajorUnit: {err}"
                     )),
                 },
-            })?;
+            }
+        })?;
         Ok(PacoTransactionAmount {
             amount_text,
             currency_code: currency,

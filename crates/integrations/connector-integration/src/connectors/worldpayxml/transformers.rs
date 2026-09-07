@@ -1402,10 +1402,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             get_worldpayxml_info_3d_secure(router_data.request.authentication_data.as_ref())?;
 
         let converted_amount = super::WorldpayxmlAmountConvertor::convert(
-            router_data
-                .request
-                .minor_amount
-                .unwrap_or_default(),
+            router_data.request.minor_amount.unwrap_or_default(),
             router_data.request.currency,
         )?;
 

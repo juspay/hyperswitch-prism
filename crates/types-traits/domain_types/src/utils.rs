@@ -368,10 +368,7 @@ pub fn convert_back_amount_to_minor_units<T>(
 ///
 /// This keeps arithmetic on [`MinorUnit`] in the domain layer so that
 /// connector code never needs subtraction.
-pub fn compute_capturable_amount(
-    total: MinorUnit,
-    captured: MinorUnit,
-) -> MinorUnit {
+pub fn compute_capturable_amount(total: MinorUnit, captured: MinorUnit) -> MinorUnit {
     MinorUnit::new(total.get_amount_as_i64() - captured.get_amount_as_i64())
 }
 

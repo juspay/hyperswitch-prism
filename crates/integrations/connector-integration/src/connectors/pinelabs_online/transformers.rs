@@ -750,11 +750,10 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let amount = domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
-                item.router_data.request.minor_amount,
-                item.router_data.request.currency,
-            )
-?;
+            &common_utils::types::MinorUnitForConnector,
+            item.router_data.request.minor_amount,
+            item.router_data.request.currency,
+        )?;
         let currency = item.router_data.request.currency.to_string();
 
         let payment_method_data = &item.router_data.request.payment_method_data;
@@ -804,11 +803,10 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let amount = domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
-                item.router_data.request.minor_amount_to_capture,
-                item.router_data.request.currency,
-            )
-?;
+            &common_utils::types::MinorUnitForConnector,
+            item.router_data.request.minor_amount_to_capture,
+            item.router_data.request.currency,
+        )?;
         let currency = item.router_data.request.currency.to_string();
 
         Ok(Self {
@@ -844,11 +842,10 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let amount = domain_types::utils::convert_amount(
-                &common_utils::types::MinorUnitForConnector,
-                item.router_data.request.minor_refund_amount,
-                item.router_data.request.currency,
-            )
-?;
+            &common_utils::types::MinorUnitForConnector,
+            item.router_data.request.minor_refund_amount,
+            item.router_data.request.currency,
+        )?;
         let currency = item.router_data.request.currency.to_string();
 
         Ok(Self {

@@ -290,8 +290,7 @@ where
                     format!(
                         "Failed to convert Redeem amount {:?} {} to FloatMajorUnit. \
                          Qwikcilver expects major-unit decimals (e.g. 0.20 AED).",
-                        item.router_data.request.minor_amount,
-                        item.router_data.request.currency,
+                        item.router_data.request.minor_amount, item.router_data.request.currency,
                     ),
                     "Verify `amount.minor_amount` is a non-negative integer and \
                      `amount.currency` is a 3-letter ISO 4217 code that Pine Labs supports \
@@ -602,8 +601,7 @@ where
                 context: qc_err_ctx(
                     format!(
                         "Failed to convert Recharge amount {:?} {} to FloatMajorUnit.",
-                        req.amount,
-                        req.currency,
+                        req.amount, req.currency,
                     ),
                     "Verify `amount.minor_amount` is a non-negative integer and \
                      `amount.currency` is supported by your Pine Labs program (e.g. AED for \

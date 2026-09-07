@@ -1226,10 +1226,11 @@ impl TryFrom<ResponseRouterData<SaferpayCaptureResponse, Self>> for CaptureRoute
             .amount
             .as_ref()
             .and_then(|money| {
-                money
-                    .convert(&MinorUnitForConnector)
-                    .ok()
-                    .and_then(|cmu| MinorUnitForConnector.convert_back(cmu, request.currency).ok())
+                money.convert(&MinorUnitForConnector).ok().and_then(|cmu| {
+                    MinorUnitForConnector
+                        .convert_back(cmu, request.currency)
+                        .ok()
+                })
             })
             .or_else(|| authorized_amount_from_metadata(request));
         let is_partial = authorized_amount

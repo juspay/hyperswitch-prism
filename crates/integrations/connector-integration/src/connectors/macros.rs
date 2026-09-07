@@ -1172,8 +1172,12 @@ pub(crate) use expand_connector_input_data;
 /// `MinorUnit` → `ConnectorMinorUnit` (because `MinorUnitForConnector::Output` changed);
 /// everything else passes through unchanged.
 macro_rules! resolve_amount_output {
-    (MinorUnit) => { common_utils::types::ConnectorMinorUnit };
-    ($other:ident) => { common_utils::types::$other };
+    (MinorUnit) => {
+        common_utils::types::ConnectorMinorUnit
+    };
+    ($other:ident) => {
+        common_utils::types::$other
+    };
 }
 pub(crate) use resolve_amount_output;
 

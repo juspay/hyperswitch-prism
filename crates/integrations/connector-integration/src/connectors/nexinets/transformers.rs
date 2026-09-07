@@ -1176,16 +1176,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Nexinets requires a positive initialAmount. Error upfront when
         // the caller omits amount instead of silently defaulting.
-        let initial_amount = request
-            .minor_amount
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "amount",
-                context: Default::default(),
-            })?;
-        let initial_amount = super::NexinetsAmountConvertor::convert(
-            initial_amount,
-            request.currency,
-        )?;
+        let initial_amount =
+            request
+                .minor_amount
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "amount",
+                    context: Default::default(),
+                })?;
+        let initial_amount =
+            super::NexinetsAmountConvertor::convert(initial_amount, request.currency)?;
 
         let merchant_order_id = Some(
             router_data

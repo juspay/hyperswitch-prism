@@ -8,7 +8,9 @@ mod tests {
         use std::marker::PhantomData;
 
         use common_enums::CountryAlpha2;
-        use common_utils::{id_type::CustomerId, proto_boundary::MinorUnitProtoAccess, request::RequestContent};
+        use common_utils::{
+            id_type::CustomerId, proto_boundary::MinorUnitProtoAccess, request::RequestContent,
+        };
         use domain_types::{
             connector_flow::ClientAuthenticationToken,
             connector_types::{

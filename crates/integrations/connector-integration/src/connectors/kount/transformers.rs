@@ -1,5 +1,4 @@
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
-use error_stack::ResultExt;
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
@@ -24,6 +23,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::{RedirectForm, Response},
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -1612,7 +1612,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
         });
 
-        let amount = req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+        let amount = req
+            .amount
+            .convert(&common_utils::types::StringMinorUnitForConnector)
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -1969,7 +1971,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_status: req
                 .payment_status
                 .and_then(KountPaymentStatus::from_attempt_status),
-            order_total: req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+            order_total: req
+                .amount
+                .convert(&common_utils::types::StringMinorUnitForConnector)
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,
@@ -2107,7 +2111,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .or_else(|| req.merchant_refund_id.clone()),
             refund_reason: req.refund_reason.clone(),
-            refund_amount: req.amount.convert(&common_utils::types::StringMinorUnitForConnector)
+            refund_amount: req
+                .amount
+                .convert(&common_utils::types::StringMinorUnitForConnector)
                 .change_context(errors::IntegrationError::AmountConversionFailed {
                     context: Default::default(),
                 })?,

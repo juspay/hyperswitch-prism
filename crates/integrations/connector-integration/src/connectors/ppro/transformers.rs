@@ -836,7 +836,10 @@ where
             });
 
         let response_amount = resolved_minor_amount.map(|minor| {
-            common_utils::types::Money::from_minor_unit(minor, resolved_currency.unwrap_or_default())
+            common_utils::types::Money::from_minor_unit(
+                minor,
+                resolved_currency.unwrap_or_default(),
+            )
         });
 
         let connector_response_reference_id = item
@@ -1176,10 +1179,7 @@ where
 
         let amount = Amount {
             currency: router_data.request.currency.to_string(),
-            value: router_data
-                    .request
-                    .minor_amount
-                    .unwrap_or_default(),
+            value: router_data.request.minor_amount.unwrap_or_default(),
         };
 
         let authentication_settings =

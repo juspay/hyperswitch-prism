@@ -1036,12 +1036,12 @@ impl<F, T>
             PaymentOutcome::FraudHighRisk => Some("Transaction marked as high risk".to_string()),
             _ => None,
         };
-        let status = if amount == MinorUnit::default() && worldpay_status == PaymentOutcome::Authorized
-        {
-            enums::AttemptStatus::Charged
-        } else {
-            enums::AttemptStatus::from(worldpay_status.clone())
-        };
+        let status =
+            if amount == MinorUnit::default() && worldpay_status == PaymentOutcome::Authorized {
+                enums::AttemptStatus::Charged
+            } else {
+                enums::AttemptStatus::from(worldpay_status.clone())
+            };
 
         // Extract linkData for 3DS flows and store in metadata with stage indicator
         let connector_metadata = match &router_data.response.other_fields {

@@ -34,9 +34,9 @@ use transformers::{
     BamboraapacSetupMandateResponse,
 };
 
-use error_stack::ResultExt;
 use super::macros;
 use super::macros::GetSoapXml;
+use error_stack::ResultExt;
 macros::create_amount_converter_wrapper!(connector_name: Bamboraapac, amount_type: MinorUnit);
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;

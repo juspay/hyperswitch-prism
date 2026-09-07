@@ -10,13 +10,13 @@ pub mod custom_serde;
 pub mod errors;
 pub mod ext_traits;
 pub mod fp_utils;
-pub mod proto_boundary;
 pub mod id_type;
 pub mod lineage;
 pub mod macros;
 pub mod metadata;
 pub mod new_types;
 pub mod pii;
+pub mod proto_boundary;
 pub mod request;
 pub mod request_metrics;
 #[cfg(feature = "superposition")]

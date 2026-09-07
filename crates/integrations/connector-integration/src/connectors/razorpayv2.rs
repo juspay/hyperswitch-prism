@@ -2,10 +2,7 @@ pub mod test;
 pub mod transformers;
 use common_enums::AttemptStatus;
 use common_utils::{
-    errors::CustomResult,
-    events,
-    ext_traits::BytesExt,
-    request::RequestContent,
+    errors::CustomResult, events, ext_traits::BytesExt, request::RequestContent,
     types::AmountConvertor,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
@@ -49,7 +46,8 @@ pub(crate) mod headers {
 #[derive(Clone)]
 pub struct RazorpayV2<T> {
     #[allow(dead_code)]
-    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = common_utils::ConnectorMinorUnit> + Sync),
+    pub(crate) amount_converter:
+        &'static (dyn AmountConvertor<Output = common_utils::ConnectorMinorUnit> + Sync),
     #[allow(dead_code)]
     _phantom: std::marker::PhantomData<T>,
 }

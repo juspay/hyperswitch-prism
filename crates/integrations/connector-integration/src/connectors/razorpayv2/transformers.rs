@@ -92,12 +92,18 @@ pub struct RazorpayV2RouterData<
 }
 
 impl<T, U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(ConnectorMinorUnit, T, Option<String>, Option<Address>)> for RazorpayV2RouterData<T, U>
+    TryFrom<(ConnectorMinorUnit, T, Option<String>, Option<Address>)>
+    for RazorpayV2RouterData<T, U>
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        (amount, item, order_id, billing_address): (ConnectorMinorUnit, T, Option<String>, Option<Address>),
+        (amount, item, order_id, billing_address): (
+            ConnectorMinorUnit,
+            T,
+            Option<String>,
+            Option<Address>,
+        ),
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount,

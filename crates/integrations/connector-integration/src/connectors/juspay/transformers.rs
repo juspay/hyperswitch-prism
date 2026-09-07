@@ -1046,19 +1046,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = wrapper.router_data;
 
         let amount_to_capture = router_data.request.minor_amount_to_capture;
-        let converted_capture = JuspayAmountConvertor::convert(
-            amount_to_capture,
-            router_data.request.currency,
-        )?;
-        let original_converted = router_data
-            .resource_common_data
-            .amount
-            .as_ref()
-            .and_then(|money| {
-                money
-                    .convert(&common_utils::types::StringMajorUnitForConnector)
-                    .ok()
-            });
+        let converted_capture =
+            JuspayAmountConvertor::convert(amount_to_capture, router_data.request.currency)?;
+        let original_converted =
+            router_data
+                .resource_common_data
+                .amount
+                .as_ref()
+                .and_then(|money| {
+                    money
+                        .convert(&common_utils::types::StringMajorUnitForConnector)
+                        .ok()
+                });
 
         let amount = match original_converted {
             Some(ref total) if *total == converted_capture => None,

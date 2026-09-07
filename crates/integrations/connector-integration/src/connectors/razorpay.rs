@@ -66,7 +66,8 @@ pub(crate) mod headers {
 #[derive(Clone)]
 pub struct Razorpay<T> {
     #[allow(dead_code)]
-    pub(crate) amount_converter: &'static (dyn AmountConvertor<Output = common_utils::ConnectorMinorUnit> + Sync),
+    pub(crate) amount_converter:
+        &'static (dyn AmountConvertor<Output = common_utils::ConnectorMinorUnit> + Sync),
     #[allow(dead_code)]
     _phantom: std::marker::PhantomData<T>,
 }

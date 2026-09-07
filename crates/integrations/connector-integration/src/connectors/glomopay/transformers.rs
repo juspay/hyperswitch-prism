@@ -984,7 +984,10 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                         .unwrap_or_default();
                     (
                         Some(Money::from_minor_unit(minor, currency)),
-                        Some(PaymentSynIntegrityObject { amount: minor, currency }),
+                        Some(PaymentSynIntegrityObject {
+                            amount: minor,
+                            currency,
+                        }),
                     )
                 }
                 _ => (None, None),

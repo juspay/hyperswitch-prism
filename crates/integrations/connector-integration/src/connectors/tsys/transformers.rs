@@ -1111,10 +1111,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 // TSYS requires a non-zero amount even for authorization; default
                 // to 1 minor unit if the request does not carry one.
-                let minor_amount = item
-                    .request
-                    .minor_amount
-                    .unwrap_or_default();
+                let minor_amount = item.request.minor_amount.unwrap_or_default();
                 let transaction_amount = item_data
                     .connector
                     .amount_converter
