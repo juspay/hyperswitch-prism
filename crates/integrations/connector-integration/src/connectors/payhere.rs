@@ -7,7 +7,7 @@ use common_utils::{
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_flow::{Authorize, PSync, Refund, ServerAuthenticationToken},
+    connector_flow::{PSync, Refund, ServerAuthenticationToken},
     connector_types::*,
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -64,20 +64,7 @@ macros::create_all_prerequisites!(
     amount_converters: [
         amount_converter: StringMajorUnit
     ],
-    member_functions: {
-        fn build_headers<F, FCD, Req, Res>(
-            &self,
-            _req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            // Authentication for payment flows comes from the per-request access
-            // token (`get_access_token`), not from the static connector config, so
-            // the shared header builder must not emit an Authorization header.
-            Ok(vec![(
-                headers::CONTENT_TYPE.to_string(),
-                "application/json".to_string().into(),
-            )])
-        }
-    }
+    member_functions: {}
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -293,7 +280,7 @@ macros::macro_connector_local_flow_implementation!(
     resource_common_data: PaymentFlowData,
     flow_request: PaymentsAuthorizeData<T>,
     flow_response: PaymentsResponseData,
-    handle_response: crate::connectors::payhere::transformers::handle_authorize_response,
+    handle_response: handle_authorize_response,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
 );

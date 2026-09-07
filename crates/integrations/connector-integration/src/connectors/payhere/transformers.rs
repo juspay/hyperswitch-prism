@@ -8,7 +8,10 @@ use domain_types::{
         RefundFlowData, RefundsData, RefundsResponseData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
@@ -19,7 +22,7 @@ use std::collections::HashMap;
 
 use common_utils::crypto::GenerateDigest;
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
@@ -48,7 +51,7 @@ impl TryFrom<&ConnectorSpecificConfig> for PayhereAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: domain_types::errors::IntegrationErrorContext {
+                    context: IntegrationErrorContext {
                         suggested_action: None,
                         doc_url: None,
                         additional_context: None,
@@ -165,9 +168,8 @@ pub(crate) fn handle_authorize_response<
         PaymentsAuthorizeData<T>,
         PaymentsResponseData,
     >,
-    domain_types::errors::ConnectorError,
+    ConnectorError,
 > {
-    use error_stack::ResultExt;
     use hyperswitch_masking::ExposeInterface;
 
     let mut router_data = data.clone();
@@ -180,8 +182,8 @@ pub(crate) fn handle_authorize_response<
         ) => {}
         _ => {
             return Err(error_stack::report!(
-                domain_types::errors::ConnectorError::ResponseHandlingFailed {
-                    context: domain_types::errors::ResponseTransformationErrorContext {
+                ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
                         http_status_code: None,
                         additional_context: Some(
                             "payhere: only the payhere_redirect wallet is supported".to_string()
@@ -193,8 +195,8 @@ pub(crate) fn handle_authorize_response<
     }
 
     let auth = PayhereAuthType::try_from(&item.connector_config).change_context(
-        domain_types::errors::ConnectorError::ResponseHandlingFailed {
-            context: domain_types::errors::ResponseTransformationErrorContext {
+        ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
                 http_status_code: None,
                 additional_context: None,
             },
@@ -206,27 +208,23 @@ pub(crate) fn handle_authorize_response<
         item.request.minor_amount,
         item.request.currency,
     )
-    .change_context(
-        domain_types::errors::ConnectorError::ResponseHandlingFailed {
-            context: domain_types::errors::ResponseTransformationErrorContext {
-                http_status_code: None,
-                additional_context: None,
-            },
+    .change_context(ConnectorError::ResponseHandlingFailed {
+        context: ResponseTransformationErrorContext {
+            http_status_code: None,
+            additional_context: None,
         },
-    )?
+    })?
     .get_amount_as_string();
 
     let merchant_secret = auth.merchant_secret.expose();
     let hash_secret = common_utils::crypto::Md5
         .generate_digest(merchant_secret.as_bytes())
-        .change_context(
-            domain_types::errors::ConnectorError::ResponseHandlingFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: None,
-                },
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: None,
             },
-        )?;
+        })?;
     let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
 
     let message = format!(
@@ -239,27 +237,22 @@ pub(crate) fn handle_authorize_response<
     );
     let final_hash = common_utils::crypto::Md5
         .generate_digest(message.as_bytes())
-        .change_context(
-            domain_types::errors::ConnectorError::ResponseHandlingFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: None,
-                },
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: None,
             },
-        )?;
+        })?;
     let hash = hex::encode(final_hash).to_uppercase();
 
     // The PayHere hosted checkout requires real customer billing details — fail
     // closed when they are missing instead of posting fabricated data.
-    let missing_billing =
-        |field: &'static str| domain_types::errors::ConnectorError::ResponseHandlingFailed {
-            context: domain_types::errors::ResponseTransformationErrorContext {
-                http_status_code: None,
-                additional_context: Some(format!(
-                    "payhere: billing {field} is required for checkout"
-                )),
-            },
-        };
+    let missing_billing = |field: &'static str| ConnectorError::ResponseHandlingFailed {
+        context: ResponseTransformationErrorContext {
+            http_status_code: None,
+            additional_context: Some(format!("payhere: billing {field} is required for checkout")),
+        },
+    };
     let first_name = item
         .resource_common_data
         .get_billing_first_name()
@@ -329,8 +322,8 @@ pub(crate) fn handle_authorize_response<
         .trim_end_matches('/');
     if base.is_empty() {
         return Err(error_stack::report!(
-            domain_types::errors::ConnectorError::ResponseHandlingFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
+            ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
                     http_status_code: None,
                     additional_context: Some(
                         "payhere: connector base_url is not configured".to_string()
@@ -360,7 +353,7 @@ pub(crate) fn handle_authorize_response<
         incremental_authorization_allowed: None,
         status_code: 200, // HTTP OK since it's local
     });
-    router_data.resource_common_data.status = common_enums::AttemptStatus::AuthenticationPending;
+    router_data.resource_common_data.status = AttemptStatus::AuthenticationPending;
     Ok(router_data)
 }
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -487,15 +480,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.minor_refund_amount,
             item.router_data.request.currency,
         )
-        .change_context(
-            domain_types::errors::IntegrationError::RequestEncodingFailed {
-                context: domain_types::errors::IntegrationErrorContext {
-                    suggested_action: None,
-                    doc_url: None,
-                    additional_context: None,
-                },
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: None,
             },
-        )?
+        })?
         .get_amount_as_string();
         let router_data = item.router_data;
         Ok(Self {
