@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.07.2
+
+### Bug Fixes
+
+- **grpc-server:** Add missing apply_url_overrides on outgoing connector calls ([#2254](https://github.com/juspay/connector-service/pull/2254)) ([`bff7fb2`](https://github.com/juspay/connector-service/commit/bff7fb264421a17e7f3d1622504e27cac3596403))
+
+**Full Changelog:** [`2026.09.07.1...2026.09.07.2`](https://github.com/juspay/connector-service/compare/2026.09.07.1...2026.09.07.2)
+
+- - -
+
 ## 2026.09.07.1
 
 ### Features
