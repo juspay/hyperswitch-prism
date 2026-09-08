@@ -440,15 +440,22 @@ macros::macro_connector_implementation!(
             // (MIT is served by the separate RepeatPayment flow -> `/v1/transactions/authorize`.)
             let native_three_ds =
                 req.resource_common_data.is_three_ds() && req.request.authentication_data.is_none();
-            // A Google Pay / Apple Pay alias charge (produced by the PaymentMethodToken
-            // flow) is card-like: native 3DS on the alias needs the redirect-capable
-            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge.
-            let is_alias_charge = matches!(
+            // A Google Pay alias charge (produced by the PaymentMethodToken flow) is
+            // card-like: native 3DS on the alias needs the redirect-capable
+            // `/v1/transactions` endpoint, exactly like a raw-card 3DS charge. An Apple Pay
+            // alias never carries a `3D` object (it is authenticated on-device — see
+            // `is_apple_pay_alias`), so it authorizes server-to-server with no redirect
+            // even when the attempt asks for 3DS.
+            let is_three_ds_alias_charge = matches!(
                 req.request.payment_method_data,
                 PaymentMethodData::PaymentMethodToken(_)
-            );
+            ) && native_three_ds
+                && !datatrans::is_apple_pay_alias(
+                    &req.request.payment_method_data,
+                    req.resource_common_data.payment_method_type,
+                );
             if (req.request.is_card() && (native_three_ds || req.request.is_mandate_payment()))
-                || (is_alias_charge && native_three_ds)
+                || is_three_ds_alias_charge
             {
                 Ok(format!("{base_url}/v1/transactions"))
             } else {
@@ -688,9 +695,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
             // Zero-auth CIT alias creation uses the redirect-capable `/v1/transactions`
             // endpoint (createAlias + native 3DS), never the split authorize endpoint.
-            Ok(format!("{}/v1/transactions", self.connector_base_url_payments(req)))
+            // An Apple Pay alias registration is the exception: the alias is already
+            // authenticated on-device, so no `3D` object and no redirect URLs are sent
+            // (see `is_apple_pay_alias`) and the registration runs server-to-server on
+            // `/v1/transactions/authorize` — mirroring the Authorize alias charge.
+            Ok(format!("{base_url}/v1/transactions"))
         }
     }
 );
