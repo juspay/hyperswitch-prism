@@ -371,7 +371,7 @@ pub enum RapydCustomerRef {
 /// Reference: https://docs.rapyd.net/en/create-customer.html
 #[derive(Debug, Serialize)]
 pub struct RapydInlineCustomer {
-    pub name: String,
+    pub name: Secret<String>,
     pub email: Email,
 }
 
@@ -806,7 +806,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )?;
                 (
                     Some(RapydCustomerRef::Inline(RapydInlineCustomer {
-                        name: customer_name,
+                        name: Secret::new(customer_name),
                         email: customer_email,
                     })),
                     Some(true),
@@ -1570,7 +1570,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     context: Default::default(),
                 })?;
         let inline_customer = RapydInlineCustomer {
-            name: customer_name,
+            name: Secret::new(customer_name),
             email: customer_email,
         };
 
