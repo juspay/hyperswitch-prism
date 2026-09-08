@@ -180,7 +180,7 @@ pub struct EtisalatAuthorizePayload<
     #[serde(rename = "OrderID")]
     order_id: String,
     order_name: String,
-    transaction_hint: &'static str,
+    transaction_hint: String,
     card_number: RawCardNumber<T>,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
@@ -255,9 +255,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })?;
 
         let transaction_hint = if request.is_auto_capture() {
-            hint::AUTO_CAPTURE
+            hint::AUTO_CAPTURE.to_string()
         } else {
-            hint::MANUAL_CAPTURE
+            hint::MANUAL_CAPTURE.to_string()
         };
 
         let reference_id = router_data
@@ -319,7 +319,7 @@ pub struct EtisalatCapturePayload {
     transaction_id: String,
     amount: StringMajorUnit,
     currency: Currency,
-    transaction_hint: &'static str,
+    transaction_hint: String,
     user_name: Secret<String>,
     password: Secret<String>,
 }
@@ -367,9 +367,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None => false,
         };
         let transaction_hint = if is_partial {
-            hint::CAPTURE_KEEP_BALANCE
+            hint::CAPTURE_KEEP_BALANCE.to_string()
         } else {
-            hint::CAPTURE_AUTO_REVERSE
+            hint::CAPTURE_AUTO_REVERSE.to_string()
         };
 
         Ok(Self {
@@ -531,7 +531,7 @@ pub struct EtisalatRepeatPaymentPayload {
     #[serde(rename = "OrderID")]
     order_id: String,
     order_name: String,
-    transaction_hint: &'static str,
+    transaction_hint: String,
     #[serde(rename = "TransactionID")]
     transaction_id: String,
     user_name: Secret<String>,
@@ -618,7 +618,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 amount,
                 order_id,
                 order_name,
-                transaction_hint: hint::AUTO_CAPTURE,
+                transaction_hint: hint::AUTO_CAPTURE.to_string(),
                 transaction_id: mandate_id,
                 user_name: auth.user_name,
                 password: auth.password,
