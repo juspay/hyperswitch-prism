@@ -9,8 +9,8 @@ use crate::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
         CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
         GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PayoutConnectorEnum, PerPmEligibility, RechargeRequestData,
-        RechargeResponseData, SurchargeConnectorEnum,
+        PaymentMethodEligibilityResponse, PayoutConnectorEnum, PerPmEligibility,
+        RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
     router_request_types::AuthoriseIntegrityObject,
@@ -6667,17 +6667,19 @@ fn eligibility_result_to_proto(
         eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
             result.eligibility,
         )),
-        error_info: result.error_info.map(|e| grpc_api_types::payments::ErrorInfo {
-            unified_details: None,
-            connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                code: Some(e.code),
-                reason: e.reason,
-                connector_transaction_id: None,
-                message: Some(e.message),
-                status: None,
+        error_info: result
+            .error_info
+            .map(|e| grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    reason: e.reason,
+                    connector_transaction_id: None,
+                    message: Some(e.message),
+                    status: None,
+                }),
+                issuer_details: None,
             }),
-            issuer_details: None,
-        }),
         payment_method_details: result
             .payment_method_details
             .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
@@ -6710,9 +6712,9 @@ pub fn generate_payment_method_eligibility_response(
         .resource_common_data
         .get_typed_connector_request()
         .map(Secret::new);
-    let unknown_eligibility = i32::from(
-        grpc_api_types::payments::EligibilityStatus::foreign_from(EligibilityStatus::Unknown),
-    );
+    let unknown_eligibility = i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+        EligibilityStatus::Unknown,
+    ));
     // Captured before `response` is moved; used to fan an error across requested PMs.
     let requested_payment_method_types = router_data_v2.request.payment_method_types.clone();
     match router_data_v2.response {
@@ -6761,12 +6763,14 @@ pub fn generate_payment_method_eligibility_response(
             let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> =
                 requested_payment_method_types
                     .into_iter()
-                    .map(|pm| grpc_api_types::payments::PaymentMethodEligibilityResult {
-                        payment_method_type: i32::from(pm),
-                        eligibility: unknown_eligibility,
-                        error_info: Some(error_info.clone()),
-                        payment_method_details: None,
-                    })
+                    .map(
+                        |pm| grpc_api_types::payments::PaymentMethodEligibilityResult {
+                            payment_method_type: i32::from(pm),
+                            eligibility: unknown_eligibility,
+                            error_info: Some(error_info.clone()),
+                            payment_method_details: None,
+                        },
+                    )
                     .collect();
             Ok(PaymentMethodServiceEligibilityResponse {
                 eligibility: unknown_eligibility,

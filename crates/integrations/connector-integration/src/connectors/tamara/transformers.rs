@@ -13,9 +13,9 @@ use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PerPmEligibility,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, PerPmEligibility, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
