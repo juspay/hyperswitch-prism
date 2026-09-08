@@ -1,5 +1,10 @@
 use common_enums::{self, AttemptStatus, CaptureMethod, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{consts, errors::ParsingError, pii, types::MinorUnit};
+use common_utils::{
+    consts,
+    errors::ParsingError,
+    pii,
+    types::{ConnectorMinorUnit, MinorUnit, MinorUnitForConnector},
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, RSync, Refund, RepeatPayment, Void},
     connector_types::{
@@ -15,7 +20,10 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
-    utils::is_payment_failure,
+    utils::{
+        compute_capturable_amount, convert_amount, convert_back_amount_to_minor_units,
+        is_payment_failure,
+    },
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
@@ -93,7 +101,7 @@ impl TryFrom<&ConnectorSpecificConfig> for ImerchantsolutionsAuthType {
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsPaymentsRequestData<T: PaymentMethodDataTypes> {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -387,6 +395,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             None
         };
 
+        let connector_amount = convert_amount(
+            &MinorUnitForConnector,
+            item.router_data.request.amount,
+            item.router_data.request.currency,
+        )?;
+
         match &item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref card_data) => {
                 let card = Some(CardDetails {
@@ -397,7 +411,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     holder: card_data.get_optional_cardholder_name(),
                 });
                 Ok(Self {
-                    amount: item.router_data.request.amount,
+                    amount: connector_amount,
                     currency: item.router_data.request.currency,
                     reference: item
                         .router_data
@@ -481,7 +495,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount,
+                        amount: connector_amount,
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -535,7 +549,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }
                     }?;
                     Ok(Self {
-                        amount: item.router_data.request.amount,
+                        amount: connector_amount,
                         currency: item.router_data.request.currency,
                         reference: item
                             .router_data
@@ -667,7 +681,7 @@ pub struct ImerchantsolutionsPaymentsResponseData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 struct AmountDetails {
-    value: MinorUnit,
+    value: ConnectorMinorUnit,
     currency: Currency,
 }
 
@@ -782,10 +796,22 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_mandate_request_reference_id: None,
                     mandate_metadata: None,
                 });
+            let currency = item.response.amount.currency;
+            let minor_amount_capturable = Some(
+                convert_back_amount_to_minor_units(
+                    &MinorUnitForConnector,
+                    item.response.amount.value,
+                    currency,
+                )
+                .change_context(utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    IMERCHANTSOLUTIONS,
+                ))?,
+            );
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    minor_amount_capturable: Some(item.response.amount.value),
+                    minor_amount_capturable,
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -834,8 +860,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let amount = item.router_data.request.minor_amount;
         let currency = item.router_data.request.currency;
+        let amount = convert_amount(
+            &MinorUnitForConnector,
+            item.router_data.request.minor_amount,
+            currency,
+        )?;
         let reference = item
             .router_data
             .resource_common_data
@@ -995,10 +1025,22 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 ..item.router_data
             })
         } else {
+            let currency = item.response.amount.currency;
+            let minor_amount_capturable = Some(
+                convert_back_amount_to_minor_units(
+                    &MinorUnitForConnector,
+                    item.response.amount.value,
+                    currency,
+                )
+                .change_context(utils::response_handling_fail_for_connector(
+                    item.http_code,
+                    IMERCHANTSOLUTIONS,
+                ))?,
+            );
             Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status,
-                    minor_amount_capturable: Some(item.response.amount.value),
+                    minor_amount_capturable,
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1035,9 +1077,9 @@ pub struct ImerchantsolutionsPSyncResponseData {
     payment_id: String,
     psp_reference: String,
     merchant_reference: Option<String>,
-    authorized_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
-    remaining_amount: Option<MinorUnit>,
+    authorized_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
+    remaining_amount: Option<ConnectorMinorUnit>,
     capture_closed: Option<bool>,
     captures: Vec<Captures>,
     currency: Currency,
@@ -1050,7 +1092,7 @@ pub struct ImerchantsolutionsPSyncResponseData {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct Captures {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     psp_reference: String,
     captured_at: Option<String>,
@@ -1093,7 +1135,12 @@ impl<'a> utils::MultipleCaptureSyncResponse for CaptureWithStatus<'a> {
     }
 
     fn get_amount_captured(&self) -> Result<Option<MinorUnit>, error_stack::Report<ParsingError>> {
-        Ok(Some(self.capture.amount))
+        let minor = convert_back_amount_to_minor_units(
+            &MinorUnitForConnector,
+            self.capture.amount,
+            self.capture.currency,
+        )?;
+        Ok(Some(minor))
     }
 }
 
@@ -1110,12 +1157,12 @@ pub struct ImerchantsolutionsWebhookData {
     pub status: ImerchantsolutionsWebhookStatus,
     pub reason: Option<String>,
     pub error: Option<String>,
-    pub amount: Option<MinorUnit>,
-    pub captured_amount: Option<MinorUnit>,
-    pub total_captured: Option<MinorUnit>,
-    refunded_amount: Option<MinorUnit>,
-    total_refunded: Option<MinorUnit>,
-    currency: Currency,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub captured_amount: Option<ConnectorMinorUnit>,
+    pub total_captured: Option<ConnectorMinorUnit>,
+    refunded_amount: Option<ConnectorMinorUnit>,
+    total_refunded: Option<ConnectorMinorUnit>,
+    pub currency: Currency,
     processor: Option<String>,
     card_last4: Option<String>,
     card_brand: Option<String>,
@@ -1171,9 +1218,7 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
             ImerchantsolutionsPaymentSyncResponse::ImerchantsolutionsPSyncResponse(response) => {
                 let status = response.status.clone().into();
 
-                let amount_captured = response
-                    .total_captured
-                    .map(|minor_amount| minor_amount.get_amount_as_i64());
+                let amount_captured = None;
 
                 if is_payment_failure(status) {
                     let error_response = ErrorResponse {
@@ -1218,12 +1263,34 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                                 IMERCHANTSOLUTIONS,
                             ))?;
 
+                    let currency = response.currency;
+                    let minor_amount_captured = response
+                        .total_captured
+                        .map(|a| {
+                            convert_back_amount_to_minor_units(&MinorUnitForConnector, a, currency)
+                        })
+                        .transpose()
+                        .change_context(utils::response_handling_fail_for_connector(
+                            http_code,
+                            IMERCHANTSOLUTIONS,
+                        ))?;
+                    let minor_amount_capturable = response
+                        .remaining_amount
+                        .map(|a| {
+                            convert_back_amount_to_minor_units(&MinorUnitForConnector, a, currency)
+                        })
+                        .transpose()
+                        .change_context(utils::response_handling_fail_for_connector(
+                            http_code,
+                            IMERCHANTSOLUTIONS,
+                        ))?;
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status: response.status.clone().into(),
                             amount_captured,
-                            minor_amount_captured: response.total_captured,
-                            minor_amount_capturable: response.remaining_amount,
+                            minor_amount_captured,
+                            minor_amount_capturable,
                             ..router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::MultipleCaptureResponse {
@@ -1233,12 +1300,34 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         ..router_data
                     })
                 } else {
+                    let currency = response.currency;
+                    let minor_amount_captured = response
+                        .total_captured
+                        .map(|a| {
+                            convert_back_amount_to_minor_units(&MinorUnitForConnector, a, currency)
+                        })
+                        .transpose()
+                        .change_context(utils::response_handling_fail_for_connector(
+                            http_code,
+                            IMERCHANTSOLUTIONS,
+                        ))?;
+                    let minor_amount_capturable = response
+                        .remaining_amount
+                        .map(|a| {
+                            convert_back_amount_to_minor_units(&MinorUnitForConnector, a, currency)
+                        })
+                        .transpose()
+                        .change_context(utils::response_handling_fail_for_connector(
+                            http_code,
+                            IMERCHANTSOLUTIONS,
+                        ))?;
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
                             amount_captured,
-                            minor_amount_captured: response.total_captured,
-                            minor_amount_capturable: response.remaining_amount,
+                            minor_amount_captured,
+                            minor_amount_capturable,
                             ..router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
@@ -1291,16 +1380,85 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                         ..router_data
                     })
                 } else {
+                    let currency = response.currency;
                     let (minor_amount_captured, minor_amount_capturable) = match status {
-                        AttemptStatus::Authorized => (None, response.amount),
-                        AttemptStatus::Charged => (response.amount, None),
+                        AttemptStatus::Authorized => {
+                            let capturable = response
+                                .amount
+                                .map(|a| {
+                                    convert_back_amount_to_minor_units(
+                                        &MinorUnitForConnector,
+                                        a,
+                                        currency,
+                                    )
+                                })
+                                .transpose()
+                                .change_context(utils::response_handling_fail_for_connector(
+                                    http_code,
+                                    IMERCHANTSOLUTIONS,
+                                ))?;
+                            (None, capturable)
+                        }
+                        AttemptStatus::Charged => {
+                            let captured = response
+                                .amount
+                                .map(|a| {
+                                    convert_back_amount_to_minor_units(
+                                        &MinorUnitForConnector,
+                                        a,
+                                        currency,
+                                    )
+                                })
+                                .transpose()
+                                .change_context(utils::response_handling_fail_for_connector(
+                                    http_code,
+                                    IMERCHANTSOLUTIONS,
+                                ))?;
+                            (captured, None)
+                        }
                         AttemptStatus::PartialCharged => {
-                            let captured = response.total_captured;
+                            let captured = response
+                                .total_captured
+                                .map(|a| {
+                                    convert_back_amount_to_minor_units(
+                                        &MinorUnitForConnector,
+                                        a,
+                                        currency,
+                                    )
+                                })
+                                .transpose()
+                                .change_context(utils::response_handling_fail_for_connector(
+                                    http_code,
+                                    IMERCHANTSOLUTIONS,
+                                ))?;
 
                             let capturable = response
                                 .amount
-                                .zip(captured)
-                                .map(|(total, captured)| total - captured);
+                                .zip(response.total_captured)
+                                .map(|(total, cap)| {
+                                    let total_minor = convert_back_amount_to_minor_units(
+                                        &MinorUnitForConnector,
+                                        total,
+                                        currency,
+                                    )
+                                    .change_context(utils::response_handling_fail_for_connector(
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    ))?;
+                                    let captured_minor = convert_back_amount_to_minor_units(
+                                        &MinorUnitForConnector,
+                                        cap,
+                                        currency,
+                                    )
+                                    .change_context(utils::response_handling_fail_for_connector(
+                                        http_code,
+                                        IMERCHANTSOLUTIONS,
+                                    ))?;
+                                    Ok::<_, error_stack::Report<errors::ConnectorError>>(
+                                        compute_capturable_amount(total_minor, captured_minor),
+                                    )
+                                })
+                                .transpose()?;
 
                             (captured, capturable)
                         }
@@ -1310,8 +1468,7 @@ impl<F> TryFrom<ResponseRouterData<ImerchantsolutionsPaymentSyncResponse, Self>>
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
-                            amount_captured: minor_amount_captured
-                                .map(|minor_amount| minor_amount.get_amount_as_i64()),
+                            amount_captured: None,
                             minor_amount_captured,
                             minor_amount_capturable,
                             ..router_data.resource_common_data
@@ -1428,7 +1585,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsVoidResponseData, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsCaptureRequestData {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     #[serde(rename = "final")]
     final_capture: bool,
@@ -1473,9 +1630,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CaptureMethod::Manual
         );
 
+        let amount = convert_amount(
+            &MinorUnitForConnector,
+            item.router_data.request.minor_amount_to_capture,
+            item.router_data.request.currency,
+        )?;
+
         Ok(Self {
             psp_reference,
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount,
             currency: item.router_data.request.currency,
             final_capture,
         })
@@ -1488,8 +1651,8 @@ pub struct ImerchantsolutionsCaptureResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    captured_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
+    captured_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
     currency: Currency,
     status: ImerchantsolutionsCaptureStatus,
     capture_closed: Option<bool>,
@@ -1553,7 +1716,7 @@ impl TryFrom<ResponseRouterData<ImerchantsolutionsCaptureResponseData, Self>>
 #[serde(rename_all = "camelCase")]
 pub struct ImerchantsolutionsRefundRequestData {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reference: Option<String>,
     reason: Option<String>,
@@ -1575,9 +1738,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let amount = convert_amount(
+            &MinorUnitForConnector,
+            item.router_data.request.minor_refund_amount,
+            item.router_data.request.currency,
+        )?;
         Ok(Self {
             psp_reference: item.router_data.request.connector_transaction_id.clone(),
-            amount: item.router_data.request.minor_refund_amount,
+            amount,
             currency: item.router_data.request.currency,
             reference: Some(item.router_data.request.refund_id.clone()),
             reason: item.router_data.request.reason,
@@ -1591,8 +1759,8 @@ pub struct ImerchantsolutionsRefundResponseData {
     success: bool,
     psp_reference: String,
     original_reference: String,
-    refunded_amount: MinorUnit,
-    total_refunded: MinorUnit,
+    refunded_amount: ConnectorMinorUnit,
+    total_refunded: ConnectorMinorUnit,
     currency: Currency,
     status: ImerchantsolutionsRefundStatus,
     message: Option<String>,
@@ -1641,10 +1809,10 @@ pub struct ImerchantsolutionsRsyncResponseData {
     payment_id: String,
     psp_reference: String,
     merchant_reference: Option<String>,
-    payment_amount: Option<MinorUnit>,
-    total_captured: Option<MinorUnit>,
-    total_refunded: Option<MinorUnit>,
-    remaining_amount: Option<MinorUnit>,
+    payment_amount: Option<ConnectorMinorUnit>,
+    total_captured: Option<ConnectorMinorUnit>,
+    total_refunded: Option<ConnectorMinorUnit>,
+    remaining_amount: Option<ConnectorMinorUnit>,
     currency: Currency,
     status: ImerchantsolutionsRefundStatus,
     can_refund: bool,
@@ -1655,7 +1823,7 @@ pub struct ImerchantsolutionsRsyncResponseData {
 #[serde(rename_all = "camelCase")]
 struct Refunds {
     psp_reference: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     currency: Currency,
     reason: Option<String>,
     created_at: Option<String>,

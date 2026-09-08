@@ -3,9 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use bytes::Bytes;
-use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
-};
+use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment},
     connector_types::{

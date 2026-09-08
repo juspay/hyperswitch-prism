@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Money Framework — Why We Can't Ban i64</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e1e4e8;
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2rem;
+            color: #58a6ff;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            color: #8b949e;
+            font-size: 1rem;
+            margin-bottom: 48px;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 24px;
+        }
+        h2 {
+            font-size: 1.4rem;
+            color: #c9d1d9;
+            margin-top: 48px;
+            margin-bottom: 16px;
+        }
+        h3 {
+            font-size: 1.1rem;
+            color: #8b949e;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+        p {
+            color: #c9d1d9;
+            margin-bottom: 16px;
+        }
+        .problem-box {
+            background: #1c1e26;
+            border-left: 4px solid #f85149;
+            padding: 20px 24px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .problem-box .label {
+            color: #f85149;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .solution-box {
+            background: #1c1e26;
+            border-left: 4px solid #3fb950;
+            padding: 20px 24px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .solution-box .label {
+            color: #3fb950;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .insight-box {
+            background: #1c1e26;
+            border-left: 4px solid #d29922;
+            padding: 20px 24px;
+            margin: 24px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .insight-box .label {
+            color: #d29922;
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        pre {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 16px 0;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.88rem;
+        }
+        .inline-code {
+            background: #1c2028;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #79c0ff;
+        }
+        .keyword { color: #ff7b72; }
+        .type { color: #79c0ff; }
+        .string { color: #a5d6ff; }
+        .comment { color: #8b949e; }
+        .field { color: #d2a8ff; }
+        .fn-name { color: #d2a8ff; }
+        .number { color: #79c0ff; }
+        .flow-diagram {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 32px;
+            margin: 24px 0;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 2.2;
+        }
+        .flow-diagram .arrow { color: #8b949e; }
+        .flow-diagram .safe { color: #3fb950; }
+        .flow-diagram .unsafe { color: #f85149; }
+        .flow-diagram .neutral { color: #79c0ff; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th {
+            background: #161b22;
+            color: #58a6ff;
+            text-align: left;
+            padding: 12px 16px;
+            border: 1px solid #30363d;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        td {
+            padding: 10px 16px;
+            border: 1px solid #21262d;
+            color: #c9d1d9;
+        }
+        tr:nth-child(even) { background: #161b22; }
+        .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .tag-blocked { background: #3fb95020; color: #3fb950; border: 1px solid #3fb95040; }
+        .tag-open { background: #f8514920; color: #f85149; border: 1px solid #f8514940; }
+        .tag-limited { background: #d2992220; color: #d29922; border: 1px solid #d2992240; }
+        .section-divider {
+            border: 0;
+            border-top: 1px solid #21262d;
+            margin: 48px 0;
+        }
+        .conclusion {
+            background: linear-gradient(135deg, #161b22, #1c2333);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 32px;
+            margin: 40px 0;
+        }
+        .conclusion h2 {
+            margin-top: 0;
+            color: #58a6ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Money Framework Design</h1>
+        <p class="subtitle">Why we can't ban <span class="inline-code">i64</span> — and why we don't need to</p>
+
+        <!-- ============================================================ -->
+        <h2>The Goal</h2>
+        <p>
+            Prevent connector code from constructing, tampering with, or incorrectly formatting
+            payment amounts. Every amount that reaches a connector's wire format must pass through
+            <span class="inline-code">AmountConvertor</span>, which handles currency-specific
+            decimal conversions (e.g., JPY has 0 decimals, KWD has 3).
+        </p>
+
+        <!-- ============================================================ -->
+        <h2>Why Banning <span class="inline-code">i64</span> Is Impossible</h2>
+
+        <div class="problem-box">
+            <div class="label">The Problem</div>
+            <p>
+                <span class="inline-code">i64</span> is a primitive type used everywhere in connector
+                structs — for amounts, yes, but also for timestamps, retry counts, expiry values,
+                status codes, and dozens of other fields. There is no way to distinguish an "amount i64"
+                from a "non-amount i64" at compile time or via a lint.
+            </p>
+        </div>
+
+<pre><code><span class="keyword">struct</span> <span class="type">ConnectorRequest</span> {
+    <span class="field">amount</span>: <span class="type">i64</span>,          <span class="comment">// this is an amount — dangerous</span>
+    <span class="field">retry_count</span>: <span class="type">i64</span>,     <span class="comment">// this is NOT an amount — perfectly fine</span>
+    <span class="field">timestamp</span>: <span class="type">i64</span>,        <span class="comment">// this is NOT an amount — perfectly fine</span>
+    <span class="field">expiry_month</span>: <span class="type">i64</span>,     <span class="comment">// this is NOT an amount — perfectly fine</span>
+}</code></pre>
+
+        <p>
+            A grep or lint rule cannot know which <span class="inline-code">i64</span> fields represent
+            money. Banning <span class="inline-code">i64</span> entirely would break every connector
+            in the system. There is no semantic marker on a primitive type.
+        </p>
+
+        <hr class="section-divider">
+
+        <!-- ============================================================ -->
+        <h2>The Actual Solution: Make <span class="inline-code">MinorUnit</span> Opaque</h2>
+
+        <p>
+            Instead of banning the output type (<span class="inline-code">i64</span>), we control
+            the input type (<span class="inline-code">MinorUnit</span>). If connectors cannot
+            extract a raw number from <span class="inline-code">MinorUnit</span>, they cannot
+            assign it to an <span class="inline-code">i64</span> field — and they are forced to
+            use <span class="inline-code">ConnectorMinorUnit</span> (which comes from
+            <span class="inline-code">AmountConvertor</span>).
+        </p>
+
+        <h3>The Safe Path</h3>
+
+        <div class="flow-diagram">
+            <span class="neutral">MinorUnit</span> <span class="comment">(domain, opaque)</span><br>
+            <span class="arrow">&darr;</span> <span class="comment">AmountConvertor::convert()</span><br>
+            <span class="safe">ConnectorMinorUnit</span> <span class="comment">(connector, has Serialize + Display)</span><br>
+            <span class="arrow">&darr;</span> <span class="comment">serde / Display</span><br>
+            <span class="safe">JSON / XML / String</span> <span class="comment">(wire format)</span>
+        </div>
+
+        <div class="solution-box">
+            <div class="label">Why This Works</div>
+            <p>
+                <span class="inline-code">ConnectorMinorUnit</span> has <strong>no public constructor</strong>.
+                The only way to obtain one is through <span class="inline-code">AmountConvertor::convert()</span>,
+                which performs the correct currency-aware conversion. Once a connector has a
+                <span class="inline-code">ConnectorMinorUnit</span>, it serializes correctly via
+                <span class="inline-code">Serialize</span> or <span class="inline-code">Display</span> —
+                no raw <span class="inline-code">i64</span> is ever exposed.
+            </p>
+        </div>
+
+        <h3>The Blocked Path</h3>
+
+        <div class="flow-diagram">
+            <span class="neutral">MinorUnit</span> <span class="comment">(domain, opaque)</span><br>
+            <span class="unsafe">&darr; .get_amount_as_i64()? &cross; BLOCKED — requires trait import</span><br>
+            <span class="unsafe">&darr; .to_string()? &cross; BLOCKED — Display removed</span><br>
+            <span class="unsafe">&darr; .0? &cross; BLOCKED — field is private</span><br>
+            <span class="unsafe">&darr; MinorUnit::new(i64)? &cross; BLOCKED — requires trait import</span><br>
+            <span class="unsafe">i64</span> <span class="comment">&larr; connector cannot reach this</span>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- ============================================================ -->
+        <h2>What Is Blocked vs. What Is Open</h2>
+
+        <table>
+            <tr>
+                <th>Operation</th>
+                <th>Status</th>
+                <th>How</th>
+            </tr>
+            <tr>
+                <td><span class="inline-code">MinorUnit(value)</span> — direct construction</td>
+                <td><span class="tag tag-blocked">Blocked</span></td>
+                <td>Inner field is private</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">MinorUnit::new(i64)</span> — constructor</td>
+                <td><span class="tag tag-blocked">Blocked</span></td>
+                <td>Behind <span class="inline-code">MinorUnitProtoAccess</span> trait; CI lint bans import in connector code</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">.get_amount_as_i64()</span> — extractor</td>
+                <td><span class="tag tag-blocked">Blocked</span></td>
+                <td>Behind <span class="inline-code">MinorUnitProtoAccess</span> trait; CI lint bans import in connector code</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">Display</span> / <span class="inline-code">.to_string()</span></td>
+                <td><span class="tag tag-blocked">Blocked</span></td>
+                <td>Display trait removed from MinorUnit</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">Add</span>, <span class="inline-code">Sub</span>, <span class="inline-code">Mul</span></td>
+                <td><span class="tag tag-blocked">Blocked</span></td>
+                <td>Trait impls removed; methods are <span class="inline-code">pub(crate)</span></td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">Serialize</span> / <span class="inline-code">Deserialize</span></td>
+                <td><span class="tag tag-limited">Limited Leak</span></td>
+                <td>Available due to Cargo feature unification; but deserialized MinorUnit is opaque — value cannot be extracted</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">Debug</span> / <span class="inline-code">{:?}</span></td>
+                <td><span class="tag tag-limited">Limited Leak</span></td>
+                <td>Prints <span class="inline-code">MinorUnit(5000)</span> — not cleanly parseable; needed for error messages and logging</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">PartialEq</span>, <span class="inline-code">PartialOrd</span></td>
+                <td><span class="tag tag-open">Open</span></td>
+                <td>Comparison only — returns bool, does not leak the value</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">Default</span></td>
+                <td><span class="tag tag-open">Open</span></td>
+                <td>Only produces <span class="inline-code">MinorUnit(0)</span> — a known-safe value</td>
+            </tr>
+            <tr>
+                <td><span class="inline-code">ConnectorMinorUnit</span> — Serialize, Display</td>
+                <td><span class="tag tag-open">Open</span></td>
+                <td>Intended for connector wire formats; value came through AmountConvertor</td>
+            </tr>
+        </table>
+
+        <hr class="section-divider">
+
+        <!-- ============================================================ -->
+        <h2>Two Layers of Enforcement</h2>
+
+        <h3>Layer 1 — Compiler (Trait Gating)</h3>
+        <p>
+            <span class="inline-code">MinorUnit::new()</span> and
+            <span class="inline-code">.get_amount_as_i64()</span> are methods on the
+            <span class="inline-code">MinorUnitProtoAccess</span> trait. Without importing the
+            trait, the compiler rejects the call:
+        </p>
+
+<pre><code><span class="comment">// Connector code — no trait import</span>
+<span class="keyword">let</span> raw = minor_unit.<span class="fn-name">get_amount_as_i64</span>();
+<span class="comment">//        ^^^^^^^^^^^^^^^^^ ERROR: method not found</span>
+<span class="comment">//        help: trait `MinorUnitProtoAccess` provides `get_amount_as_i64`</span>
+<span class="comment">//              consider importing it</span></code></pre>
+
+        <p>
+            The compiler tells the developer exactly which trait to import. If they follow the
+            suggestion, the code compiles locally — but then Layer 2 catches it.
+        </p>
+
+        <h3>Layer 2 — CI Lint (Import Ban)</h3>
+
+<pre><code><span class="comment"># CI pipeline check</span>
+grep -rn <span class="string">"proto_boundary"</span> crates/integrations/ --include=<span class="string">"*.rs"</span> \
+  | grep -v <span class="string">"test.rs"</span> \
+  && echo <span class="string">"FAIL: connector code must not import proto_boundary"</span> \
+  && exit <span class="number">1</span></code></pre>
+
+        <p>
+            If a developer adds the trait import to make it compile, the CI check fails and the
+            PR cannot merge. The developer must find the correct approach: use
+            <span class="inline-code">AmountConvertor</span> to get
+            <span class="inline-code">ConnectorMinorUnit</span>.
+        </p>
+
+        <hr class="section-divider">
+
+        <!-- ============================================================ -->
+        <h2>Why Not Ban <span class="inline-code">MinorUnit</span> Entirely from Connector Code?</h2>
+
+        <p>
+            Connectors receive domain request structs that contain
+            <span class="inline-code">MinorUnit</span> fields:
+        </p>
+
+<pre><code><span class="comment">// domain_types — connectors receive this struct</span>
+<span class="keyword">pub struct</span> <span class="type">PaymentsAuthorizeData</span> {
+    <span class="keyword">pub</span> <span class="field">minor_amount</span>: <span class="type">MinorUnit</span>,
+    <span class="keyword">pub</span> <span class="field">currency</span>: <span class="type">Currency</span>,
+    <span class="comment">// ...</span>
+}</code></pre>
+
+        <p>
+            The connector sees <span class="inline-code">MinorUnit</span> as a type in these
+            structs. It cannot avoid referencing the type. But it <strong>cannot do anything
+            dangerous with it</strong> — it can only pass the value through
+            <span class="inline-code">AmountConvertor::convert()</span> to get a
+            <span class="inline-code">ConnectorMinorUnit</span>.
+        </p>
+
+        <hr class="section-divider">
+
+        <!-- ============================================================ -->
+        <div class="conclusion">
+            <h2>Summary</h2>
+            <p>
+                We cannot ban <span class="inline-code">i64</span> because it's a primitive type
+                used for non-amount fields throughout connector code. No lint can distinguish
+                "amount i64" from "timestamp i64."
+            </p>
+            <p>
+                Instead, we make <span class="inline-code">MinorUnit</span> opaque so connectors
+                cannot extract a raw <span class="inline-code">i64</span> from it. This forces
+                them to use <span class="inline-code">ConnectorMinorUnit</span> (obtained via
+                <span class="inline-code">AmountConvertor</span>) in their wire structs, which
+                serializes correctly with currency-aware formatting.
+            </p>
+            <p>
+                The protection is: <strong>control the input, not the output</strong>.
+                We can't stop connectors from writing <span class="inline-code">i64</span> fields.
+                We stop them from getting a raw number to put there.
+            </p>
+
+            <div class="insight-box" style="margin-top: 24px; margin-bottom: 0;">
+                <div class="label">Design Principle</div>
+                <p style="margin-bottom: 0;">
+                    Make the right thing easy (<span class="inline-code">ConnectorMinorUnit</span>
+                    serializes correctly out of the box) and the wrong thing obvious
+                    (extracting raw i64 requires importing a banned trait, which CI rejects).
+                </p>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>

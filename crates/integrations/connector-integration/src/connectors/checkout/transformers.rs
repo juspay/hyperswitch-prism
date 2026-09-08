@@ -2064,7 +2064,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let request = Self {
             source: source_var,
-            amount: MinorUnit::new(0),
+            amount: MinorUnit::default(),
             currency: item.router_data.request.currency.to_string(),
             processing_channel_id,
             three_ds,
@@ -2382,11 +2382,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .and_then(|source| source.payment_account_reference.clone()),
         };
 
-        let (amount_captured, minor_amount_capturable) =
+        let (minor_amount_captured, minor_amount_capturable) =
             match item.router_data.request.capture_method {
                 Some(common_enums::CaptureMethod::Manual)
                 | Some(common_enums::CaptureMethod::ManualMultiple) => (None, item.response.amount),
-                _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+                _ => (item.response.amount, None),
             };
 
         let minor_amount_authorized = item
@@ -2401,7 +2401,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 status,
                 connector_response: additional_information,
                 minor_amount_authorized,
-                amount_captured,
+                minor_amount_captured,
                 minor_amount_capturable,
                 ..item.router_data.resource_common_data
             },
@@ -2507,13 +2507,13 @@ impl<
                         .and_then(|source| source.payment_account_reference.clone()),
                 };
 
-                let (amount_captured, minor_amount_capturable) =
+                let (minor_amount_captured, minor_amount_capturable) =
                     match item.router_data.request.capture_method {
                         Some(common_enums::CaptureMethod::Manual)
                         | Some(common_enums::CaptureMethod::ManualMultiple) => {
                             (None, item.response.amount)
                         }
-                        _ => (item.response.amount.map(MinorUnit::get_amount_as_i64), None),
+                        _ => (item.response.amount, None),
                     };
 
                 let minor_amount_authorized = item
@@ -2528,7 +2528,7 @@ impl<
                         status,
                         connector_response: additional_information,
                         minor_amount_authorized,
-                        amount_captured,
+                        minor_amount_captured,
                         minor_amount_capturable,
                         ..item.router_data.resource_common_data
                     },

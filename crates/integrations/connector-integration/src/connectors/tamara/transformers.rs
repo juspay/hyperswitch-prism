@@ -242,7 +242,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )?;
         let shipping_amount = converter
             .convert(
-                router_data.request.shipping_cost.unwrap_or(MinorUnit(0)),
+                router_data
+                    .request
+                    .shipping_cost
+                    .unwrap_or(MinorUnit::default()),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -255,7 +258,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let tax_amount = converter
             .convert(
-                router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)),
+                router_data
+                    .request
+                    .order_tax_amount
+                    .unwrap_or(MinorUnit::default()),
                 currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -930,9 +936,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))?;
         let email = customer.get_email()?;
         let phone_number = customer.get_phone_number()?;
-        let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(data.amount.amount, data.amount.currency)
+        let amount = data
+            .amount
+            .convert(&FloatMajorUnitForConnector)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -945,7 +951,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order: TamaraEligibilityOrder {
                 amount,
-                currency: data.amount.currency,
+                currency: data.amount.currency(),
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,

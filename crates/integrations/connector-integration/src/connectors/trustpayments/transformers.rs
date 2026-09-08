@@ -1221,7 +1221,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         // Check if this is a partial refund
         // For partial refunds, include baseamount; for full refunds, omit it
-        let base_amount = if router_data.request.minor_refund_amount.get_amount_as_i64() > 0 {
+        let base_amount = if router_data.request.minor_refund_amount.is_positive() {
             // Partial refund - include the amount
             let amount = item
                 .connector
@@ -1761,7 +1761,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let minor_amount = router_data
             .request
             .minor_amount
-            .unwrap_or(common_utils::types::MinorUnit::zero());
+            .unwrap_or(common_utils::types::MinorUnit::default());
         let amount = item
             .connector
             .amount_converter

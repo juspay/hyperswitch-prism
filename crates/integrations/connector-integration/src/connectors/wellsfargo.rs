@@ -8,7 +8,6 @@ use common_utils::{
     events,
     ext_traits::ByteSliceExt,
     request::Method,
-    types::StringMajorUnit,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{

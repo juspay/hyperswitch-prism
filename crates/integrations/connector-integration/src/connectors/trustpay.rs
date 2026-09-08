@@ -5,7 +5,7 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    types::{FloatMajorUnitForConnector, StringMajorUnit, StringMinorUnitForConnector},
+    types::{FloatMajorUnitForConnector, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{

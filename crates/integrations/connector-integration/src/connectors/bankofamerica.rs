@@ -6,7 +6,6 @@ use common_utils::{
     events,
     ext_traits::BytesExt,
     request::Method,
-    types::StringMajorUnit,
 };
 use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;

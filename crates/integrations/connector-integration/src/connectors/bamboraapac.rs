@@ -36,6 +36,7 @@ use transformers::{
 
 use super::macros;
 use super::macros::GetSoapXml;
+macros::create_amount_converter_wrapper!(connector_name: Bamboraapac, amount_type: MinorUnit);
 use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
@@ -171,7 +172,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: MinorUnit],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
             &self,

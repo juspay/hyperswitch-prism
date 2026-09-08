@@ -5,7 +5,6 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::BASE64_ENGINE_URL_SAFE_NO_PAD, errors::CustomResult, events, ext_traits::ByteSliceExt,
-    types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
