@@ -1,5 +1,6 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, FloatMajorUnit, StringMajorUnit,
+    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, FloatMajorUnit,
+    StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -36,23 +37,36 @@ use crate::types::ResponseRouterData;
 
 use super::RapydRouterData;
 
-/// Key under which Rapyd's connector customer (`cus_*`) is stored in the
-/// mandate metadata, so it round-trips from CIT/SetupMandate to MIT (Rapyd's
-/// recurring charge needs both the saved `card_*` token and its `cus_*`).
-const RAPYD_MANDATE_CUSTOMER_KEY: &str = "rapyd_customer";
+/// Rapyd digital-wallet `payment_type` values.
+const WALLET_TYPE_GOOGLE_PAY: &str = "google_pay";
+const WALLET_TYPE_APPLE_PAY: &str = "apple_pay";
+/// Google Pay decrypted `payment_method` discriminator (Rapyd expects `CARD`).
+const GOOGLE_PAY_PAYMENT_METHOD_CARD: &str = "CARD";
+/// Google Pay decrypted `auth_method`: cryptogram present vs PAN-only.
+const GOOGLE_PAY_AUTH_CRYPTOGRAM_3DS: &str = "CRYPTOGRAM_3DS";
+const GOOGLE_PAY_AUTH_PAN_ONLY: &str = "PAN_ONLY";
+/// Apple Pay decrypted `applicationExpirationDate` is `YYMMDD`. Cards carry only
+/// month + year, so the day is padded to month-end per Apple's convention.
+const APPLE_PAY_EXPIRY_DAY: &str = "31";
 
-/// Rapyd `payment_method.type` identifier (`<country>_<network>_card`).
-///
-/// The `in_` prefix (India) is kept as a placeholder to match the existing
-/// Authorize flow until multi-country payment-method resolution lands (see
-/// the `[#369]` TODO elsewhere in this file).
-///
-/// Card variants are built via `TryFrom<CardIssuer>` so the wrong identifier
-/// can never be assembled ad-hoc — Rapyd rejects requests whose `type` does
-/// not match the card BIN. Digital-wallet payments derive their type from the
-/// wallet's card network and funding (credit/debit) via
-/// `try_from_wallet_network`, since Rapyd's India Visa/Mastercard methods are
-/// funding-specific (`in_credit_visa_card` / `in_debit_visa_card`).
+/// Apple Pay `paymentDataType` — Apple's PKPaymentToken spec defines exactly
+/// `3DSecure` and `EMV`. The decrypted network-token path is always `3DSecure`.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum RapydApplePayPaymentDataType {
+    #[serde(rename = "3DSecure")]
+    ThreeDSecure,
+    #[serde(rename = "EMV")]
+    Emv,
+}
+
+/// Rapyd `payment_method.type` identifier. Rapyd's types are country-prefixed
+/// (`<country>_<network>_card`) and enumerated per-country by the List Payment
+/// Methods endpoint; this covers the India (`in_`) set the connector supports
+/// today. Card variants come from `TryFrom<CardIssuer>` and wallet variants
+/// from `try_from_wallet_network`, so an identifier that does not match the
+/// card can never be assembled ad-hoc (Rapyd rejects a mismatched `type`).
+/// India Visa/Mastercard methods are funding-specific
+/// (`in_credit_visa_card` / `in_debit_visa_card`).
 ///
 /// Reference: https://docs.rapyd.net/en/list-payment-methods-by-country.html
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -95,10 +109,9 @@ impl TryFrom<CardIssuer> for RapydPaymentMethodType {
 
 impl RapydPaymentMethodType {
     /// Resolve the Rapyd `payment_method.type` for a digital-wallet card from
-    /// its card network. Wallets carry only the network (the card details live
-    /// in the decrypted payload), so the type is derived from it. India-prefixed
-    /// variants match the Authorize card path, pending the multi-country
-    /// resolution tracked in `[#369]`.
+    /// its network and funding. Wallets carry only the network and credit/debit
+    /// funding (the PAN lives in the decrypted payload), so the type is derived
+    /// from those.
     fn try_from_wallet_network(
         network: &str,
         card_type: Option<&str>,
@@ -136,11 +149,6 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<RapydPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response_customer_token = item
-            .response
-            .data
-            .as_ref()
-            .and_then(|d| d.customer_token.clone());
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
@@ -185,28 +193,18 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                         let redirection_data =
                             redirection_url.map(|url| RedirectForm::from((url, Method::Get)));
 
-                        // Capture the saved-card token (`card_*`) as the connector
-                        // mandate when the payment was created with save_payment_method
-                        // (CIT with setup_future_usage), so later MIT calls can spend it.
-                        let mandate_reference = data
-                            .payment_method
-                            .as_deref()
-                            .filter(|pm| pm.starts_with("card_"))
-                            .map(|card| {
-                                Box::new(MandateReference {
-                                    connector_mandate_id: Some(card.to_owned()),
-                                    payment_method_id: None,
-                                    connector_mandate_request_reference_id: None,
-                                    // Rapyd needs the customer (`cus_*`) alongside the saved
-                                    // card on MIT. `connector_customer` is transient request
-                                    // state, so bind it to the mandate here to survive to MIT.
-                                    mandate_metadata: response_customer_token.as_ref().map(|cus| {
-                                        Secret::new(
-                                            serde_json::json!({ RAPYD_MANDATE_CUSTOMER_KEY: cus }),
-                                        )
-                                    }),
-                                })
-                            });
+                        // The saved-card token Rapyd returns on a CIT save is the
+                        // mandate reference for later MIT replays. Rapyd charges
+                        // the saved card without a customer id, so nothing else
+                        // needs to round-trip.
+                        let mandate_reference = data.payment_method.as_ref().map(|card| {
+                            Box::new(MandateReference {
+                                connector_mandate_id: Some(card.clone()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
+                            })
+                        });
                         let network_txn_id = data
                             .payment_method_data
                             .as_ref()
@@ -253,18 +251,9 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
             ),
         };
 
-        // Thread the Rapyd customer (`cus_*`) captured on a CIT save so it is
-        // available as the connector customer for later MIT charges.
-        let resolved_customer = response_customer_token.or_else(|| {
-            item.router_data
-                .resource_common_data
-                .connector_customer
-                .clone()
-        });
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                connector_customer: resolved_customer,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -303,35 +292,13 @@ impl TryFrom<&ConnectorSpecificConfig> for RapydAuthType {
     }
 }
 
-/// Amount encoding for Rapyd's `amount` field.
-///
-/// Rapyd rejects the string `"0.00"` for a zero-amount card verification with
-/// `ERROR_PAYMENT_INVALID_AMOUNT`, and its HMAC signature check rejects numbers
-/// that carry trailing decimals (for example `10.0`). So a normal charge is
-/// sent as a major-unit string (`"10.00"`), and a zero-amount verification is
-/// sent as the bare JSON number `0`.
-#[derive(Debug, Clone)]
-pub enum RapydAmount {
-    /// Zero-amount card verification. Serializes as the JSON number `0`.
-    Verification,
-    /// Normal charge. Serializes as a major-unit string, for example `"10.00"`.
-    Charge(StringMajorUnit),
-}
-
-impl Serialize for RapydAmount {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Verification => serializer.serialize_u8(0),
-            Self::Charge(amount) => amount.serialize(serializer),
-        }
-    }
-}
-
 #[derive(Debug, Serialize)]
 pub struct RapydPaymentsRequest<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
-    pub amount: RapydAmount,
+    // Major-unit string amount. A zero-amount card verification is sent as
+    // `"0"` (via `StringMajorUnit::zero`); Rapyd rejects `"0.00"`.
+    pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub payment_method: RapydPaymentMethodData<T>,
     pub payment_method_options: Option<PaymentMethodOptions>,
@@ -459,9 +426,10 @@ pub struct RapydApplePayDecryptedDetails {
 pub struct RapydApplePayDecryptedData {
     application_primary_account_number: cards::CardNumber,
     application_expiration_date: Secret<String>,
+    /// ISO-4217 numeric currency code (e.g. "978" for EUR), per Apple/Rapyd.
     currency_code: String,
-    transaction_amount: i64,
-    payment_data_type: String,
+    transaction_amount: MinorUnit,
+    payment_data_type: RapydApplePayPaymentDataType,
     payment_data: RapydApplePayCryptogram,
 }
 
@@ -542,23 +510,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.request.get_router_return_url()?;
-        // A zero-amount request is a card verification / mandate setup. Rapyd
-        // rejects the string "0.00" there, so send the bare number 0 instead;
-        // any other amount goes as a major-unit string.
+        // A zero-amount request is a card verification / mandate setup; Rapyd
+        // wants "0" there, not the converter's "0.00".
         let amount = if item.router_data.request.minor_amount.get_amount_as_i64() == 0 {
-            RapydAmount::Verification
+            StringMajorUnit::zero()
         } else {
-            RapydAmount::Charge(
-                item.connector
-                    .amount_converter
-                    .convert(
-                        item.router_data.request.minor_amount,
-                        item.router_data.request.currency,
-                    )
-                    .change_context(IntegrationError::AmountConversionFailed {
-                        context: Default::default(),
-                    })?,
-            )
+            item.connector
+                .amount_converter
+                .convert(
+                    item.router_data.request.minor_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: crate::utils::amount_conversion_ctx(
+                        "rapyd authorize",
+                        &item.router_data.request.minor_amount,
+                        &item.router_data.request.currency,
+                    ),
+                })?
         };
 
         let (capture, payment_method_options) =
@@ -588,7 +557,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
                     PaymentMethod {
-                        pm_type: RapydPaymentMethodType::InAmexCard, //[#369] Map payment method type based on country
+                        // Placeholder India type. Rapyd's valid `payment_method.type`
+                        // is country- and merchant-specific (this sandbox enables
+                        // `in_amex_card`, not plain `in_visa_card`), so the correct
+                        // per-network/funding mapping is deferred; sandbox is lenient
+                        // about the card BIN.
+                        pm_type: RapydPaymentMethodType::InAmexCard,
                         fields: Some(PaymentFields {
                             number: ccard.card_number.to_owned(),
                             expiration_month: ccard.card_exp_month.to_owned(),
@@ -616,22 +590,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 let auth =
                                     RapydAuthType::try_from(&item.router_data.connector_config)?;
                                 let auth_method = if decrypt_data.cryptogram.is_some() {
-                                    "CRYPTOGRAM_3DS"
+                                    GOOGLE_PAY_AUTH_CRYPTOGRAM_3DS
                                 } else {
-                                    "PAN_ONLY"
+                                    GOOGLE_PAY_AUTH_PAN_ONLY
                                 };
                                 RapydWalletDetails::GooglePayDecrypted(Box::new(
                                     RapydGooglePayDecryptedDetails {
                                         decrypted_data: RapydGooglePayDecryptedData {
                                             gateway_merchant_id: auth.access_key,
-                                            payment_method: "CARD".to_string(),
+                                            payment_method: GOOGLE_PAY_PAYMENT_METHOD_CARD
+                                                .to_string(),
                                             payment_method_details: RapydGooglePayMethodDetails {
                                                 expiration_year: decrypt_data
                                                     .get_four_digit_expiry_year()
                                                     .change_context(
                                                         IntegrationError::MissingRequiredField {
                                                             field_name: "gpay expiration_year",
-                                                            context: Default::default(),
+                                                            context: crate::utils::integration_ctx(
+                                                                "Google Pay decrypted token has no 4-digit expiry year",
+                                                                "Ensure the Google Pay payload was decrypted with the card expiry.",
+                                                            ),
                                                         },
                                                     )?,
                                                 expiration_month: decrypt_data
@@ -639,7 +617,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                     .change_context(
                                                     IntegrationError::MissingRequiredField {
                                                         field_name: "gpay expiration_month",
-                                                        context: Default::default(),
+                                                        context: crate::utils::integration_ctx(
+                                                            "Google Pay decrypted token has no expiry month",
+                                                            "Ensure the Google Pay payload was decrypted with the card expiry.",
+                                                        ),
                                                     },
                                                 )?,
                                                 pan: decrypt_data
@@ -665,7 +646,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         .get_encrypted_google_pay_token()
                                         .change_context(IntegrationError::MissingRequiredField {
                                             field_name: "gpay wallet_token",
-                                            context: Default::default(),
+                                            context: crate::utils::integration_ctx(
+                                                "Encrypted Google Pay payload has no wallet token",
+                                                "Ensure the Google Pay tokenization data includes the token.",
+                                            ),
                                         })?
                                         .to_owned(),
                                 ))
@@ -677,7 +661,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         )?;
                         (
                             RapydWallet {
-                                payment_type: "google_pay".to_string(),
+                                payment_type: WALLET_TYPE_GOOGLE_PAY.to_string(),
                                 details,
                             },
                             pm_type,
@@ -695,10 +679,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     .get_two_digit_expiry_year()
                                     .change_context(IntegrationError::MissingRequiredField {
                                         field_name: "apple expiration_year",
-                                        context: Default::default(),
+                                        context: crate::utils::integration_ctx(
+                                            "Apple Pay decrypted token has no 2-digit expiry year",
+                                            "Ensure the Apple Pay payload was decrypted with the card expiry.",
+                                        ),
                                     })?;
                                 let application_expiration_date = Secret::new(format!(
-                                    "{}{}31",
+                                    "{}{}{APPLE_PAY_EXPIRY_DAY}",
                                     expiry_year.peek(),
                                     decrypt_data.get_expiry_month().peek(),
                                 ));
@@ -718,9 +705,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             transaction_amount: item
                                                 .router_data
                                                 .request
-                                                .minor_amount
-                                                .get_amount_as_i64(),
-                                            payment_data_type: "3DSecure".to_string(),
+                                                .minor_amount,
+                                            payment_data_type:
+                                                RapydApplePayPaymentDataType::ThreeDSecure,
                                             payment_data: RapydApplePayCryptogram {
                                                 online_payment_cryptogram: decrypt_data
                                                     .payment_data
@@ -746,7 +733,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     .get_encrypted_apple_pay_payment_data_mandatory()
                                     .change_context(IntegrationError::MissingRequiredField {
                                         field_name: "Apple pay encrypted data",
-                                        context: Default::default(),
+                                        context: crate::utils::integration_ctx(
+                                            "Apple Pay payload is neither decrypted nor a usable encrypted token",
+                                            "Provide a decryptable Apple Pay token, or configure connector-side decryption.",
+                                        ),
                                     })?;
                                 RapydWalletDetails::Token(Secret::new(
                                     apple_pay_encrypted_data.to_string(),
@@ -759,7 +749,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         )?;
                         (
                             RapydWallet {
-                                payment_type: "apple_pay".to_string(),
+                                payment_type: WALLET_TYPE_APPLE_PAY.to_string(),
                                 details,
                             },
                             pm_type,
@@ -793,30 +783,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // When the merchant requests future off-session use, ask Rapyd to save
         // the card and create an inline customer, so the response carries the
         // reusable `card_*` / `cus_*` tokens (the mandate) for later MIT calls.
-        let (customer, save_payment_method) =
-            if item.router_data.request.setup_future_usage.is_some() {
-                let customer_name = item.router_data.request.customer_name.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "customer.name",
-                        context: Default::default(),
-                    },
-                )?;
-                let customer_email = item.router_data.request.email.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "customer.email",
-                        context: Default::default(),
-                    },
-                )?;
-                (
-                    Some(RapydCustomerRef::Inline(RapydInlineCustomer {
-                        name: Secret::new(customer_name),
-                        email: customer_email,
-                    })),
-                    Some(true),
-                )
-            } else {
-                (None, None)
-            };
+        let (customer, save_payment_method) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .is_some()
+        {
+            let customer_name = item
+                .router_data
+                .request
+                .customer_name
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer.name",
+                context: crate::utils::integration_ctx(
+                    "Rapyd creates an inline customer to save the card, which requires a name",
+                    "Send the customer name on the payment request when using setup_future_usage.",
+                ),
+            })?;
+            let customer_email = item
+                .router_data
+                .request
+                .email
+                .clone()
+                .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer.email",
+                context: crate::utils::integration_ctx(
+                    "Rapyd's inline customer requires an email",
+                    "Send the customer email on the payment request when using setup_future_usage.",
+                ),
+            })?;
+            (
+                Some(RapydCustomerRef::Inline(RapydInlineCustomer {
+                    name: Secret::new(customer_name),
+                    email: customer_email,
+                })),
+                Some(true),
+            )
+        } else {
+            (None, None)
+        };
         Ok(Self {
             amount,
             currency: item.router_data.request.currency,
@@ -1484,19 +1490,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 field_name: "minor_amount",
                 context: Default::default(),
             })?;
-        // Zero-amount verification must go as the bare number 0 (Rapyd rejects
-        // the string "0.00"); any real amount goes as a major-unit string.
+        // Zero-amount verification goes as "0"; Rapyd rejects "0.00".
         let amount = if minor_amount.get_amount_as_i64() == 0 {
-            RapydAmount::Verification
+            StringMajorUnit::zero()
         } else {
-            RapydAmount::Charge(
-                item.connector
-                    .amount_converter
-                    .convert(minor_amount, request.currency)
-                    .change_context(IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
-                    })?,
-            )
+            item.connector
+                .amount_converter
+                .convert(minor_amount, request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: crate::utils::amount_conversion_ctx(
+                        "rapyd setup mandate",
+                        &minor_amount,
+                        &request.currency,
+                    ),
+                })?
         };
 
         let payment_method = match &request.payment_method_data {
@@ -1562,7 +1569,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "customer.name",
-                    context: Default::default(),
+                    context: crate::utils::integration_ctx(
+                        "Rapyd creates an inline customer to save the card, which requires a name",
+                        "Send the customer name on the setup-mandate request.",
+                    ),
                 })?;
         let customer_email =
             request
@@ -1570,7 +1580,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "customer.email",
-                    context: Default::default(),
+                    context: crate::utils::integration_ctx(
+                        "Rapyd's inline customer requires an email",
+                        "Send the customer email on the setup-mandate request.",
+                    ),
                 })?;
         let inline_customer = RapydInlineCustomer {
             name: Secret::new(customer_name),
@@ -1622,11 +1635,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn try_from(
         item: ResponseRouterData<RapydSetupMandateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Emitted only on the success path; threaded back through PaymentFlowData
-        // so the gRPC layer exposes it via `state.connector_customer_id` and the
-        // next RepeatPayment can forward it as `connector_customer_id`.
-        let mut connector_customer: Option<String> = None;
-
         let (status, response) = match &item.response.data {
             Some(data) => {
                 let attempt_status =
@@ -1656,83 +1664,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                     ),
                     _ => {
-                        // `customer_token` is the Rapyd connector-customer id; it
-                        // belongs in `PaymentFlowData.connector_customer` (surfaced
-                        // to the caller via `state.connector_customer_id`), not
-                        // `mandate_reference`. The card token (`card_*`) is the
-                        // actual mandate reference used on MIT replays.
-                        match (data.customer_token.as_deref(), data.payment_method.as_deref()) {
-                            (Some(cus), Some(card))
-                                if cus.starts_with("cus_") && card.starts_with("card_") =>
-                            {
-                                connector_customer = Some(cus.to_owned());
-                                let mandate_reference = Some(Box::new(MandateReference {
-                                    connector_mandate_id: Some(card.to_owned()),
-                                    payment_method_id: None,
-                                    connector_mandate_request_reference_id: None,
-                                    // Bind `cus_*` to the mandate so it round-trips to MIT.
-                                    mandate_metadata: Some(Secret::new(
-                                        serde_json::json!({ RAPYD_MANDATE_CUSTOMER_KEY: cus }),
-                                    )),
-                                }));
-                                // Promote Authorized → Charged so zero/low-amount
-                                // verification attempts reach a terminal state.
-                                let terminal_status = match attempt_status {
-                                    common_enums::AttemptStatus::Authorized => {
-                                        common_enums::AttemptStatus::Charged
-                                    }
-                                    other => other,
-                                };
-                                (
-                                    terminal_status,
-                                    Ok(PaymentsResponseData::TransactionResponse {
-                                        resource_id: ResponseId::ConnectorTransactionId(
-                                            data.id.clone(),
-                                        ),
-                                        redirection_data: None,
-                                        mandate_reference,
-                                        connector_metadata: None,
-                                        network_txn_id: None,
-                                        network_txn_link_id: None,
-                                        connector_response_reference_id: data
-                                            .merchant_reference_id
-                                            .clone(),
-                                        incremental_authorization_allowed: None,
-                                        status_code: item.http_code,
-                                        splits: None,
-                                        payment_account_reference: None,
-                                    }),
-                                )
+                        // The saved card token is the mandate reference used on
+                        // MIT replays; Rapyd charges it without a customer id.
+                        let mandate_reference = data.payment_method.as_ref().map(|card| {
+                            Box::new(MandateReference {
+                                connector_mandate_id: Some(card.clone()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
+                            })
+                        });
+                        // Promote Authorized → Charged so a zero-amount
+                        // verification reaches a terminal state.
+                        let terminal_status = match attempt_status {
+                            common_enums::AttemptStatus::Authorized => {
+                                common_enums::AttemptStatus::Charged
                             }
-                            _ => (
-                                common_enums::AttemptStatus::Failure,
-                                Err(ErrorResponse {
-                                    code: item.response.status.error_code.clone(),
-                                    status_code: item.http_code,
-                                    message: item
-                                        .response
-                                        .status
-                                        .status
-                                        .clone()
-                                        .unwrap_or_else(|| {
-                                            common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                                        }),
-                                    reason: Some(format!(
-                                        "rapyd payment succeeded but did not return a reusable card_* token (customer_token={:?}, payment_method={:?})",
-                                        data.customer_token, data.payment_method
-                                    )),
-                                    attempt_status: None,
-                                    connector_transaction_id: Some(data.id.clone()),
-                                    network_advice_code: None,
-                                    network_decline_code: None,
-                                    network_error_message: None,
-                                    typed_connector_response: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_request: None,
-                                }),
-                            ),
-                        }
+                            other => other,
+                        };
+                        (
+                            terminal_status,
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
+                                redirection_data: None,
+                                mandate_reference,
+                                connector_metadata: None,
+                                network_txn_id: None,
+                                network_txn_link_id: None,
+                                connector_response_reference_id: data.merchant_reference_id.clone(),
+                                incremental_authorization_allowed: None,
+                                status_code: item.http_code,
+                                splits: None,
+                                payment_account_reference: None,
+                            }),
+                        )
                     }
                 }
             }
@@ -1764,8 +1729,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
-                connector_customer: connector_customer
-                    .or(item.router_data.resource_common_data.connector_customer),
                 ..item.router_data.resource_common_data
             },
             response,
@@ -1820,24 +1783,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
 
         let amount = if request.minor_amount.get_amount_as_i64() == 0 {
-            RapydAmount::Verification
+            StringMajorUnit::zero()
         } else {
-            RapydAmount::Charge(
-                item.connector
-                    .amount_converter
-                    .convert(request.minor_amount, request.currency)
-                    .change_context(IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
-                    })?,
-            )
+            item.connector
+                .amount_converter
+                .convert(request.minor_amount, request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: crate::utils::amount_conversion_ctx(
+                        "rapyd repeat payment",
+                        &request.minor_amount,
+                        &request.currency,
+                    ),
+                })?
         };
 
-        // SetupMandate stored the `card_*` token in `connector_mandate_id`.
-        // The `cus_*` it returned was routed to `PaymentFlowData.connector_customer`
-        // and arrives back on this Charge via `RecurringPaymentServiceChargeRequest
-        // .connector_customer_id` (proto field 14).
-        let cmr = match &request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(cmr) => cmr,
+        // The saved card token stored at CIT/SetupMandate time is the mandate
+        // reference. Rapyd charges it directly — no customer id needed.
+        let connector_mandate = match &request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate) => connector_mandate,
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "non-connector mandate for rapyd RepeatPayment".to_owned(),
@@ -1845,28 +1808,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ))?;
             }
         };
-        let card_id =
-            cmr.get_connector_mandate_id()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "mandate_reference.connector_mandate_id",
-                    context: Default::default(),
-                })?;
-        // Rapyd's recurring charge needs the customer (`cus_*`) that owns the
-        // saved card. It was bound to the mandate at CIT/SetupMandate time;
-        // read it back, falling back to the transient connector_customer.
-        let customer_id = cmr
-            .get_mandate_metadata()
-            .and_then(|meta| {
-                meta.peek()
-                    .get(RAPYD_MANDATE_CUSTOMER_KEY)
-                    .and_then(|v| v.as_str())
-                    .map(str::to_owned)
-            })
-            .or_else(|| router_data.resource_common_data.connector_customer.clone())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_customer_id",
+        let card_id = connector_mandate.get_connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "mandate_reference.connector_mandate_id",
                 context: Default::default(),
-            })?;
+            },
+        )?;
 
         let three_ds_enabled = matches!(
             router_data.resource_common_data.auth_type,
@@ -1904,7 +1851,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             description: None,
             error_payment_url: Some(return_url.clone()),
             complete_payment_url: Some(return_url),
-            customer: Some(RapydCustomerRef::Id(customer_id)),
+            customer: None,
             save_payment_method: None,
             initiation_type: Some(RapydInitiationType::Recurring),
         })
