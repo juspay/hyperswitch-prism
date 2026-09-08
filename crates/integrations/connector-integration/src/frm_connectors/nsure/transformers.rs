@@ -639,6 +639,16 @@ fn nsure_cart(
                     } else {
                         NsureItemFulfillment::Physical
                     },
+                    // `OrderDetailsWithAmount::amount` is documented as "the
+                    // amount per quantity of product", i.e. per unit, and is sent
+                    // as-is next to `quantity`.
+                    //
+                    // UNCONFIRMED: whether nSure reads `sellingPrice` as the unit
+                    // price or the line total. If it is the line total, a line of
+                    // 2 x 50 sends `sellingPrice: 50, quantity: 2` against a
+                    // `paidAmount` of 100 and the cart will not reconcile.
+                    // Pending confirmation from nSure; quantity is 1 in every
+                    // request exercised so far, where both readings agree.
                     selling_price: NsureAmount {
                         value_in_currency: super::NsureAmountConvertor::convert(
                             detail.amount,
@@ -735,12 +745,14 @@ impl<
                     .and_then(|info| info.language.as_deref())
                     .and_then(nsure_language)
                     .map(Secret::new),
-                country: req
-                    .address
-                    .as_ref()
-                    .and_then(|address| address.get_payment_billing())
-                    .and_then(|billing| billing.address.as_ref())
-                    .and_then(|details| details.country.map(|c| Secret::new(c.to_string()))),
+                // Left unset on purpose. `sessionInfo.country` means *where the
+                // session is*, which only a session-derived source (IP
+                // geolocation, SDK) can answer, and prism has neither. Filling
+                // it from the billing address would make it agree with
+                // `billingInfo.address.country` by construction and destroy the
+                // billing-vs-session mismatch signal — the same collapse avoided
+                // for cardholder vs buyer name in `nsure_end_user_info`.
+                country: None,
             }),
             _ => None,
         };
@@ -882,7 +894,20 @@ impl TryFrom<ResponseRouterData<NsurePreRiskCheckResponse, Self>>
 
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
-                frm_decision: parsed.decision.as_ref().map(FrmDecision::from),
+                // A *missing* `decision` is fail-safed here, not just an
+                // unrecognised one. `NsureOrderDecision.decision` is
+                // `#[serde(default)]` under a transparent wrapper, so an empty
+                // body — or one whose decision sits under a key we don't model —
+                // deserializes happily to `None`. Left as `None` that would
+                // reach the router as `FRM_DECISION_UNSPECIFIED` on a 2xx with
+                // no error, so map it to `Review` alongside the unrecognised
+                // string case in `From<&NsureDecision>`.
+                frm_decision: Some(
+                    parsed
+                        .decision
+                        .as_ref()
+                        .map_or(FrmDecision::Review, FrmDecision::from),
+                ),
                 // nSure's pre-auth decision response carries no numeric score.
                 risk_score: None,
                 // No reason field either; the segment that produced the decision
@@ -963,7 +988,16 @@ impl NsureTransactionStatus {
             Some(AttemptStatus::AuthorizationFailed) => Some(Self::ProcessorAuthorizationFailure),
             Some(AttemptStatus::CaptureFailed) => Some(Self::FundsCaptureFailure),
             Some(AttemptStatus::Failure) => Some(Self::ProcessorAuthorizationFailure),
-            Some(AttemptStatus::Voided | AttemptStatus::VoidedPostCapture) => Some(Self::Rejected),
+            // A void only means `rejected` when it was nSure's `Reject` the
+            // merchant acted on. Voids happen for plenty of reasons that have
+            // nothing to do with risk — buyer cancelled, stock-out, authorization
+            // expired — and reporting one of those as `rejected` would tell nSure
+            // their decline was honoured, feeding a false positive into their
+            // model and the liability record. nSure has no "cancelled" status, so
+            // the honest move is to report nothing.
+            Some(AttemptStatus::Voided | AttemptStatus::VoidedPostCapture) => {
+                matches!(frm_decision, Some(FrmDecision::Reject)).then_some(Self::Rejected)
+            }
             Some(AttemptStatus::AutoRefunded) => Some(Self::Refunded),
             // No payment outcome to report: fall back to the FRM decision, so a
             // transaction the merchant declined on nSure's advice is still
@@ -1235,5 +1269,144 @@ impl TryFrom<ResponseRouterData<NsureChargebackResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The verdict mapping decides whether a payment proceeds, so every variant
+    /// is pinned — in particular that nothing outside `Approved`/`SoftApproved`
+    /// can yield an approval.
+    #[test]
+    fn decision_maps_fail_safe() {
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Approved),
+            FrmDecision::Approve
+        );
+        // nSure accepts liability on a soft approval, so it is a real approval.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::SoftApproved),
+            FrmDecision::Approve
+        );
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Rejected),
+            FrmDecision::Reject
+        );
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Review),
+            FrmDecision::Review
+        );
+        // "Not Reviewed" means nSure gave no opinion — hold, never approve.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::NotReviewed),
+            FrmDecision::Review
+        );
+        // Any value nSure adds later must not approve by accident.
+        assert_eq!(
+            FrmDecision::from(&NsureDecision::Unknown),
+            FrmDecision::Review
+        );
+    }
+
+    /// A body that parses but carries no `decision` must not reach the router as
+    /// an absent verdict; it is fail-safed to `Review` at the response boundary.
+    #[test]
+    fn absent_decision_is_deserialized_as_none() {
+        let parsed = serde_json::from_str::<NsureOrderDecision>("{}");
+        assert!(
+            parsed.is_ok(),
+            "an empty object is a valid decision body, which is why the \
+             missing-decision case has to be handled rather than relying on a \
+             deserialization error"
+        );
+        let decision = parsed.ok().and_then(|body| body.decision);
+        assert!(decision.is_none());
+        assert_eq!(
+            decision
+                .as_ref()
+                .map_or(FrmDecision::Review, FrmDecision::from),
+            FrmDecision::Review
+        );
+    }
+
+    /// The status callback drives nSure's liability handshake, so the capture and
+    /// failure transitions are pinned.
+    #[test]
+    fn capture_and_failure_statuses_map() {
+        use NsureTransactionStatus as S;
+        for status in [
+            AttemptStatus::Charged,
+            AttemptStatus::PartialCharged,
+            AttemptStatus::PartialChargedAndChargeable,
+        ] {
+            assert_eq!(
+                S::from_attempt_status(Some(status), None),
+                Some(S::FundsCaptured),
+                "{status:?} shifts liability and must report fundsCaptured"
+            );
+        }
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::AuthorizationFailed), None),
+            Some(S::ProcessorAuthorizationFailure)
+        );
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::CaptureFailed), None),
+            Some(S::FundsCaptureFailure)
+        );
+        assert_eq!(
+            S::from_attempt_status(Some(AttemptStatus::AutoRefunded), None),
+            Some(S::Refunded)
+        );
+    }
+
+    /// A void is only nSure's rejection being honoured when nSure actually said
+    /// `Reject`. Voids for stock-outs, buyer cancellations or expiry must report
+    /// nothing rather than tell nSure a decline they never issued was upheld.
+    #[test]
+    fn void_reports_rejected_only_when_nsure_rejected() {
+        use NsureTransactionStatus as S;
+        for status in [AttemptStatus::Voided, AttemptStatus::VoidedPostCapture] {
+            assert_eq!(
+                S::from_attempt_status(Some(status), Some(FrmDecision::Reject)),
+                Some(S::Rejected)
+            );
+            assert_eq!(
+                S::from_attempt_status(Some(status), Some(FrmDecision::Approve)),
+                None,
+                "{status:?} after an approval is not a rejection nSure issued"
+            );
+            assert_eq!(S::from_attempt_status(Some(status), None), None);
+        }
+    }
+
+    /// With no payment outcome yet, a transaction the merchant declined on
+    /// nSure's advice is still closed out; anything else reports nothing.
+    #[test]
+    fn missing_status_falls_back_to_the_frm_decision() {
+        use NsureTransactionStatus as S;
+        assert_eq!(
+            S::from_attempt_status(None, Some(FrmDecision::Reject)),
+            Some(S::Rejected)
+        );
+        assert_eq!(
+            S::from_attempt_status(None, Some(FrmDecision::Approve)),
+            None
+        );
+        assert_eq!(S::from_attempt_status(None, None), None);
+    }
+
+    /// Browsers send region-qualified locales; nSure validates against bare
+    /// ISO 639-1 and 400s on anything else.
+    #[test]
+    fn language_is_reduced_to_iso_639_1() {
+        assert_eq!(nsure_language("en-US").as_deref(), Some("en"));
+        assert_eq!(nsure_language("pt_BR").as_deref(), Some("pt"));
+        assert_eq!(nsure_language("EN").as_deref(), Some("en"));
+        assert_eq!(nsure_language("en").as_deref(), Some("en"));
+        // Not two ASCII letters: dropped rather than sent and rejected.
+        assert_eq!(nsure_language("english"), None);
+        assert_eq!(nsure_language(""), None);
     }
 }

@@ -54,17 +54,20 @@ const NSURE_TRANSACTIONS_PATH: &str = "/transactions";
 
 /// Resolve the `{transactionId}` path segment for the lifecycle callbacks.
 ///
-/// It must be the same id used on the original `POST /transactions/{id}`, which
-/// was the merchant transaction id. Falls back to the ids nSure/the PSP echoed
-/// back so a late notification can still be addressed.
+/// It must be the id sent on the original `POST /transactions/{id}` — the
+/// merchant transaction id — or the `frm_transaction_id` echoed back from it,
+/// which is the same value.
+///
+/// The PSP's `connector_transaction_id` is deliberately *not* a fallback: it was
+/// never sent to nSure, so addressing a callback with it hits a transaction they
+/// have no record of and 404s, burying the real problem (no merchant transaction
+/// id was supplied) under a connector error. Failing here instead surfaces it.
 fn nsure_transaction_id(
     merchant_transaction_id: Option<&str>,
     frm_transaction_id: Option<&str>,
-    connector_transaction_id: Option<&str>,
 ) -> CustomResult<String, IntegrationError> {
     merchant_transaction_id
         .or(frm_transaction_id)
-        .or(connector_transaction_id)
         .map(|id| id.to_string())
         .ok_or_else(|| {
             IntegrationError::MissingRequiredField {
@@ -122,18 +125,14 @@ macros::create_all_prerequisites!(
         amount_converter: FloatMajorUnit
     ],
     member_functions: {
-        /// Headers common to every nSure call. Unlike Kount there is no token
-        /// exchange: the authorization key is sent verbatim, with no scheme
+        /// Headers common to every nSure call: the content negotiation pair plus
+        /// everything `get_auth_header` supplies. Unlike Kount there is no token
+        /// exchange — the authorization key is sent verbatim, with no scheme
         /// prefix, exactly as the nSure integration guide specifies.
         fn nsure_headers(
             &self,
             connector_config: &ConnectorSpecificConfig,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let auth = nsure::NsureAuthType::try_from(connector_config)?;
-            let api_version = auth
-                .api_version
-                .clone()
-                .unwrap_or_else(|| nsure::NSURE_DEFAULT_API_VERSION.to_string());
             let mut headers = vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
@@ -143,18 +142,8 @@ macros::create_all_prerequisites!(
                     headers::ACCEPT.to_string(),
                     "application/json".to_string().into(),
                 ),
-                (
-                    headers::X_NSURE_API_VERSION.to_string(),
-                    api_version.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    auth.api_key.expose().into_masked(),
-                ),
             ];
-            if let Some(app_id) = auth.app_id {
-                headers.push((headers::X_NSURE_APP_ID.to_string(), app_id.into()));
-            }
+            headers.extend(ConnectorCommon::get_auth_header(self, connector_config)?);
             Ok(headers)
         }
     }
@@ -183,15 +172,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &connectors.nsure.base_url
     }
 
+    /// Every header nSure needs to accept a request, not just `Authorization`.
+    ///
+    /// `x-nsure-api-version` is mandatory and `x-nsure-app-id` identifies the
+    /// merchant application. Returning all three keeps this consistent with
+    /// `nsure_headers`, which is built on top of it: a new flow written in the
+    /// usual `self.get_auth_header(…)` style gets a request nSure accepts
+    /// instead of one missing the version header.
     fn get_auth_header(
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = nsure::NsureAuthType::try_from(auth_type)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        let api_version = auth
+            .api_version
+            .clone()
+            .unwrap_or_else(|| nsure::NSURE_DEFAULT_API_VERSION.to_string());
+        let mut headers = vec![
+            (headers::X_NSURE_API_VERSION.to_string(), api_version.into()),
+            (
+                headers::AUTHORIZATION.to_string(),
+                auth.api_key.expose().into_masked(),
+            ),
+        ];
+        if let Some(app_id) = auth.app_id {
+            headers.push((headers::X_NSURE_APP_ID.to_string(), app_id.into()));
+        }
+        Ok(headers)
     }
 
     fn build_error_response(
@@ -414,7 +421,6 @@ macros::macro_connector_implementation!(
                 nsure_transaction_id(
                     req.request.merchant_transaction_id.as_deref(),
                     req.request.frm_transaction_id.as_deref(),
-                    req.request.connector_transaction_id.as_deref(),
                 )?
             ))
         }
@@ -455,7 +461,6 @@ macros::macro_connector_implementation!(
                 nsure_transaction_id(
                     None,
                     req.request.frm_transaction_id.as_deref(),
-                    req.request.connector_transaction_id.as_deref(),
                 )?
             ))
         }
@@ -496,7 +501,6 @@ macros::macro_connector_implementation!(
                 nsure_transaction_id(
                     None,
                     req.request.frm_transaction_id.as_deref(),
-                    req.request.connector_transaction_id.as_deref(),
                 )?
             ))
         }
