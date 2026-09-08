@@ -848,7 +848,6 @@ where
                         .record("request.method", tracing::field::display(method));
 
                     let masked_headers = request.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
@@ -858,7 +857,6 @@ where
                         .typed_connector_request_value
                         .clone()
                         .unwrap_or_else(|| mask_connector_request(&request.body));
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
@@ -1085,14 +1083,12 @@ where
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
 
                     let masked_headers = record.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
                     )]);
 
                     let masked_request = mask_connector_request(&record.payload);
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = publish_to_kafka(record)

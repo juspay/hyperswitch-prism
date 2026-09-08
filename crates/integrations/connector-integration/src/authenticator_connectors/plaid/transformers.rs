@@ -249,7 +249,7 @@ impl TryFrom<ResponseRouterData<PlaidLinkTokenResponse, Self>>
                 })
                 .ok()
                 .and_then(|expiry_time| {
-                    let secs = (expiry_time - time::OffsetDateTime::now_utc()).whole_seconds();
+                    let secs = (expiry_time - common_utils::date_time::now().assume_utc()).whole_seconds();
                     if secs > 0 { Some(secs) } else { None }
                 })
         });

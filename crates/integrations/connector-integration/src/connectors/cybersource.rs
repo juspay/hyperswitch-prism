@@ -301,7 +301,7 @@ macros::create_all_prerequisites!(
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
             FCD: HasConnectors,
         {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let cybersource_req = self.get_request_body(req)?;
         let auth = cybersource::CybersourceAuthType::try_from(&req.connector_config)?;
         let merchant_account = auth.merchant_account.clone();

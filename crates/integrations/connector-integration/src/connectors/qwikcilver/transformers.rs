@@ -1418,13 +1418,14 @@ pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
         }
     }
     if reference_id.is_empty() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        return SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .ok()
-            .and_then(|d| u64::try_from(d.as_nanos()).ok())
-            .map(|nanos| nanos & 0x7FFF_FFFF_FFFF_FFFF)
-            .unwrap_or(1);
+        return u64::try_from(
+            common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos(),
+        )
+        .ok()
+        .map(|nanos| nanos & 0x7FFF_FFFF_FFFF_FFFF)
+        .unwrap_or(1);
     }
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(reference_id.as_bytes());
@@ -1435,7 +1436,7 @@ pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
 }
 
 pub(crate) fn current_datetime_qwikcilver() -> String {
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     let (h, m, s) = (now.hour(), now.minute(), now.second());
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",

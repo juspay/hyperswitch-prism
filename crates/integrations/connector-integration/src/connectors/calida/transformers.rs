@@ -77,7 +77,7 @@ pub struct CalidaWebhookResponse {
     pub payment_method_type: Option<String>,
     pub shop_name: Option<String>,
     pub sender_name: Option<String>,
-    pub sender_email: Option<String>,
+    pub sender_email: Option<Secret<String, pii::EmailStrategy>>,
     pub description: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,

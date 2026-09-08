@@ -497,7 +497,11 @@ pub struct PayuSyncRequest {
 pub struct PayuSyncResponse {
     pub status: Option<i32>, // 0 = error, non-zero = success
     pub msg: Option<String>, // Status message
-    pub transaction_details: Option<std::collections::HashMap<String, PayuTransactionDetail>>, // Map of txnId -> details
+    // BTreeMap, not HashMap: sync responses can carry several transactions for one
+    // txnid, and downstream code picks the FIRST — with a HashMap that pick is
+    // per-process random, so the reported transaction id and status change from
+    // run to run over identical response bytes.
+    pub transaction_details: Option<std::collections::BTreeMap<String, PayuTransactionDetail>>, // Map of txnId -> details
     pub result: Option<serde_json::Value>, // Optional result field
     #[serde(alias = "field3")]
     pub field3: Option<String>, // Additional field

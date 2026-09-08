@@ -125,7 +125,7 @@ impl CybersourcePayouts {
         http_method: Method,
         body: Option<&RequestContent>,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let date = OffsetDateTime::now_utc();
+        let date = common_utils::date_time::now().assume_utc();
         let auth = CybersourceAuthType::try_from(connector_config)?;
         let base_url = self.base_url(connectors);
         let cybersource_host =

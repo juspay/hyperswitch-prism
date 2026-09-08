@@ -39,6 +39,9 @@ fn build_client() -> ConnectorClient {
                 GlobalpayConfig {
                     app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())), // Authentication credential
                     app_key: Some(hyperswitch_masking::Secret::new("YOUR_APP_KEY".to_string())), // Authentication credential
+                    account_name: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_ACCOUNT_NAME".to_string(),
+                    )), // Authentication credential
                     base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                     ..Default::default()
                 },

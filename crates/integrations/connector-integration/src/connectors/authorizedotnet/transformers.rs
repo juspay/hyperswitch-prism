@@ -30,7 +30,6 @@ use std::str::FromStr;
 
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
-use rand::distributions::{Alphanumeric, DistString};
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 
@@ -144,7 +143,7 @@ fn get_refund_credit_card_payment(
 }
 
 fn get_random_string() -> String {
-    Alphanumeric.sample_string(&mut rand::thread_rng(), MAX_ID_LENGTH)
+    common_utils::crypto::generate_cryptographically_secure_random_string(MAX_ID_LENGTH)
 }
 
 /// Returns invoice number if length <= MAX_ID_LENGTH, otherwise random string
@@ -1910,7 +1909,7 @@ struct ShipToList {
 struct Profile<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize> {
     merchant_customer_id: Option<String>,
     description: Option<String>,
-    email: Option<String>,
+    email: Option<Email>,
     payment_profiles: Option<Vec<PaymentProfiles<T>>>,
     ship_to_list: Option<Vec<ShipToList>>,
 }
@@ -2737,6 +2736,10 @@ pub fn convert_to_payments_response_data_or_error(
 ) -> PaymentConversionResult {
     let status = get_hs_status(response, http_status_code, operation, capture_method);
 
+    // `Unresolved` (authorize.net responseCode "4" - held for review) is an accepted,
+    // non-terminal state: authorize.net returns no `transaction_response.errors` for it, so
+    // hyperswitch's direct path yields `response = Ok(TransactionResponse)`. Match that here
+    // instead of wrapping it as an `ErrorResponse`.
     let is_successful_status = matches!(
         status,
         AttemptStatus::Authorized
@@ -2745,6 +2748,7 @@ pub fn convert_to_payments_response_data_or_error(
             | AttemptStatus::Charged
             | AttemptStatus::Voided
             | AttemptStatus::VoidedPostCapture
+            | AttemptStatus::Unresolved
     );
 
     // Extract connector response data from transaction response if available
@@ -3618,7 +3622,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .request
                         .email
                         .as_ref()
-                        .map(|e| e.peek().clone().expose().expose()),
+                        .map(|e| e.peek().clone()),
                     payment_profiles: None,
                     ship_to_list,
                 },

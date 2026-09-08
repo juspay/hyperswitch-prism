@@ -232,11 +232,11 @@ pub struct CitigatePaymentsRequest<T: PaymentMethodDataTypes> {
     pub email: Email,
     #[serde(rename = "Telephone", skip_serializing_if = "Option::is_none")]
     pub telephone: Option<Secret<String>>,
-    /// `R` — and "Mandatory for Country = "US"" per the field table. Always `None`:
-    /// UCS carries no billing/customer date of birth on the card Authorize path
-    /// (`date_of_birth` exists only on `MifinityData` and the airline passenger
-    /// model), so there is nothing to source it from. Declared rather than omitted
-    /// so the gap is visible here instead of silently missing from the wire format.
+    /// `R` — and "Mandatory for Country = "US"" per the field table. Still always `None`:
+    /// UCS now carries `PaymentsAuthorizeData::customer_date_of_birth` (from
+    /// `Customer.date_of_birth` on the request), but wiring Citigate to it needs the
+    /// processor's expected date shape confirmed first, so the field stays declared and
+    /// unset rather than sent in a guessed format.
     #[serde(rename = "DateOfBirth", skip_serializing_if = "Option::is_none")]
     pub date_of_birth: Option<Secret<String>>,
     #[serde(rename = "UserIP")]
@@ -388,7 +388,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             country,
             email,
             telephone,
-            // No domain source on the card path — see the field's doc comment.
+            // Sourceable from `request.customer_date_of_birth` — see the field's doc comment
+            // for why it is not wired up yet.
             date_of_birth: None,
             user_ip: Secret::new(user_ip.peek().to_string()),
             success_url: return_url.clone(),
