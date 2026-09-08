@@ -511,4 +511,77 @@ deja_record = true
             "first consult lands the resolved policy in the memo"
         );
     }
+
+    /// The COMMITTED policy file, resolved end to end — the sandbox
+    /// verification posture this branch deploys, pinned so a drive-by edit to
+    /// superposition.toml cannot silently change what the pod does. One
+    /// assertion per decision path: the percent gate both ways, rpc_method
+    /// boolean beating percent, class percent-0 beating the environment
+    /// percent, production dark, development wholesale.
+    #[test]
+    fn committed_policy_resolves_the_sandbox_verification_posture() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../config/superposition.toml"
+        );
+        let snapshot =
+            Arc::new(SuperpositionConfig::from_file(path).expect("committed policy file parses"));
+        let with_id = |rpc: &str, id: &str| RequestRecordingFacts {
+            request_id: id.to_string(),
+            rpc: rpc.to_string(),
+        };
+        // Derive ids from the SAME bucket function the sampler uses, so the
+        // test pins semantics, not magic strings.
+        let low = (0..)
+            .map(|i| format!("verify-id-{i}"))
+            .find(|id| request_bucket(id) < 50)
+            .expect("some id lands below bucket 50");
+        let high = (0..)
+            .map(|i| format!("verify-id-{i}"))
+            .find(|id| request_bucket(id) >= 50)
+            .expect("some id lands at or above bucket 50");
+
+        let sandbox = SuperpositionRecordingSampler::assemble(
+            Some(snapshot.clone()),
+            "sandbox",
+            &sampler_cfg(true),
+        );
+        const AUTH: &str = "/types.PaymentService/Authorize";
+        assert!(
+            sandbox.decide(&with_id(AUTH, &low)),
+            "sandbox percent 50: low-bucket id records"
+        );
+        assert!(
+            !sandbox.decide(&with_id(AUTH, &high)),
+            "sandbox percent 50: high-bucket id skips"
+        );
+        assert!(
+            sandbox.decide(&with_id("/types.PaymentService/Get", &high)),
+            "PSync boolean sample-in beats the percent gate"
+        );
+        assert!(
+            !sandbox.decide(&with_id("/types.RefundService/Refund", &low)),
+            "refund class percent 0 overrides the environment percent"
+        );
+
+        let production = SuperpositionRecordingSampler::assemble(
+            Some(snapshot.clone()),
+            "production",
+            &sampler_cfg(true),
+        );
+        assert!(
+            !production.decide(&with_id(AUTH, &low)),
+            "production inherits the dark default"
+        );
+
+        let development = SuperpositionRecordingSampler::assemble(
+            Some(snapshot),
+            "development",
+            &sampler_cfg(true),
+        );
+        assert!(
+            development.decide(&with_id(AUTH, &high)),
+            "development keeps recording wholesale"
+        );
+    }
 }

@@ -1018,3 +1018,32 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
+
+# ============================================================================
+# Sandbox sampler-verification posture — one deployment, four decision paths
+# ============================================================================
+# Every rule below is decided by the in-process Superposition eval over this
+# file (context match, dimension-weight precedence, merge), so one deployed
+# build verifies the whole policy engine:
+#
+#   1. percent gate — 50% of sandbox traffic records, deterministic per
+#      request id (FNV-1a bucket < 50; same id, same answer, every pod).
+#   2. rpc_method targeting — PaymentService/Get (PSync) ALWAYS records:
+#      the wholesale boolean beats the percent gate.
+#   3. rpc_service targeting — the refund class NEVER records: the more
+#      specific context (env x class, weight 2^1+2^4) overrides the
+#      environment-wide percent (weight 2^1) on the same key.
+#   4. defaults — production stays dark (no override; sample-in there is a
+#      deliberate act), development keeps recording wholesale (its override
+#      above), health/reflection never reach the sampler (structural gate).
+[[overrides]]
+_context_ = { environment = "sandbox" }
+deja_record_percent = 50
+
+[[overrides]]
+_context_ = { environment = "sandbox", rpc_method = "/types.PaymentService/Get" }
+deja_record = true
+
+[[overrides]]
+_context_ = { environment = "sandbox", rpc_service = "refund" }
+deja_record_percent = 0
