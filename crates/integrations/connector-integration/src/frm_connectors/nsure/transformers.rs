@@ -164,7 +164,7 @@ pub struct NsureEndUserInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<Secret<String>>,
+    pub email: Option<common_utils::pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -427,6 +427,21 @@ fn nsure_phone_info(
     })
 }
 
+/// Build `endUserInfo` — the *buyer*, i.e. whoever holds the account placing the
+/// order.
+///
+/// Deliberately sourced from `customer_info`, never from
+/// `paymentMethod.cardHolderName`. The two describe different people: the buyer
+/// versus whoever the card belongs to. A mismatch between them is one of the
+/// strongest signals a risk engine has ("this account is paying with someone
+/// else's card"), so populating both from one source would collapse the
+/// comparison and hide it. nSure receives both independently and decides.
+///
+/// It also keeps buyer history coherent: nSure keys `userFirstSeenTimestamp` and
+/// friends off `endUserInfo`, so one buyer paying with two different cards must
+/// stay one buyer, and a fraudster cycling stolen cards must not get a fresh
+/// identity per transaction. Cardholder name is unavailable for wallets and
+/// bank transfers anyway, which would leave this block empty for those methods.
 fn nsure_end_user_info(
     customer: Option<&CustomerInfo>,
     feature_data: &NsureFeatureData,
@@ -463,10 +478,7 @@ fn nsure_end_user_info(
             .customer_id
             .as_ref()
             .map(|id| id.get_string_repr().to_string()),
-        email: customer
-            .customer_email
-            .as_ref()
-            .map(|email| Secret::new(email.peek().to_string())),
+        email: customer.customer_email.clone(),
         first_name,
         last_name,
         phone_info: nsure_phone_info(
@@ -482,26 +494,17 @@ fn nsure_billing_info(address: Option<&Address>) -> Option<NsureBillingInfo> {
     let details = address.address.as_ref();
     let nsure_address = details.map(|details| NsureAddress {
         country: details.get_optional_country(),
-        // No `get_optional_state` exists; `get_state` returns a `Result` and this
-        // field is optional to nSure, so the field is read directly.
-        state: details.state.clone(),
+        state: details.get_optional_state(),
         city: details.get_optional_city(),
-        // nSure models the street as one line; join line1/line2 when both exist.
-        // `AddressDetails::get_combined_address_line` is deliberately not used:
-        // it joins with `,` rather than a space and errors unless *both* lines
-        // are present, whereas most addresses carry only line1.
-        street: match (details.get_optional_line1(), details.get_optional_line2()) {
-            (Some(line1), Some(line2)) => {
-                Some(Secret::new(format!("{} {}", line1.peek(), line2.peek())))
-            }
-            (Some(line), None) | (None, Some(line)) => Some(line),
-            (None, None) => None,
-        },
+        // nSure models the street as one line. `get_combined_address_line` is
+        // not usable here: it joins with `,` and errors unless *both* lines are
+        // present, whereas most addresses carry only line1.
+        street: details.get_optional_combined_address_line(),
         postal_code: details.get_optional_zip(),
     });
     let info = NsureBillingInfo {
-        first_name: details.and_then(|details| details.get_optional_first_name()),
-        last_name: details.and_then(|details| details.get_optional_last_name()),
+        first_name: address.get_optional_first_name(),
+        last_name: address.get_optional_last_name(),
         address: nsure_address,
         phone_info: address
             .phone
@@ -546,6 +549,9 @@ fn nsure_payment_method(
                 last4: Some(Secret::new(card.card_number.0.get_last4())),
                 expiration_month: Some(card.card_exp_month.clone()),
                 expiration_year: Some(card.get_expiry_year_4_digit()),
+                // Instrument identity, kept separate from the buyer identity in
+                // `endUserInfo` so nSure can compare the two. See
+                // `nsure_end_user_info`.
                 card_holder_name: card.card_holder_name.clone(),
                 ..base
             }
