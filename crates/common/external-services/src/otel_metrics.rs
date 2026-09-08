@@ -96,10 +96,7 @@ static AUTO_RETRY_CONNECTION_CLOSED: LazyLock<Counter<u64>> = LazyLock::new(|| {
 
 /// Record one automatic retry due to "connection closed before message completed".
 pub fn record_auto_retry_connection_closed(connector: &str) {
-    AUTO_RETRY_CONNECTION_CLOSED.add(
-        1,
-        &[KeyValue::new("connector", connector.to_string())],
-    );
+    AUTO_RETRY_CONNECTION_CLOSED.add(1, &[KeyValue::new("connector", connector.to_string())]);
 }
 
 /// Record one outbound connector API call (count). `mode` is "primary"/"shadow".

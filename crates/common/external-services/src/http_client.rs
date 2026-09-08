@@ -31,8 +31,7 @@ pub async fn send_request_with_retry(
 
     match response {
         Err(ref error)
-            if error.current_context()
-                == &ApiClientError::ConnectionClosedIncompleteMessage =>
+            if error.current_context() == &ApiClientError::ConnectionClosedIncompleteMessage =>
         {
             match cloned_request {
                 Some(cloned) => {
