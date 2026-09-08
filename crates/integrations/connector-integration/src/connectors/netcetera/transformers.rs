@@ -16,7 +16,7 @@
 //   * Auth (mTLS certificate) is handled by `ConnectorCommon`/the framework, not
 //     here.
 
-use common_utils::types::SemanticVersion;
+use common_utils::{types::SemanticVersion, AmountConvertor};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PostAuthenticate, PreAuthenticate},
     connector_types::{
@@ -429,7 +429,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .ok();
             netcetera_types::Purchase {
-                purchase_amount: Some(request.amount),
+                purchase_amount: Some(
+                    common_utils::types::MinorUnitForConnector
+                        .convert(request.amount, currency)
+                        .unwrap_or_default(),
+                ),
                 purchase_currency: currency.iso_4217().to_string(),
                 purchase_exponent,
                 purchase_date,

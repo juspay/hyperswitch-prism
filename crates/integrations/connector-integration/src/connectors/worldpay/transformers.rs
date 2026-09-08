@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums as enums;
-use common_utils::{ext_traits::OptionExt, fp_utils::when, pii, types::MinorUnit, CustomResult};
+use common_utils::{ext_traits::OptionExt, fp_utils::when, pii, types::{ConnectorMinorUnit, MinorUnit}, AmountConvertor, CustomResult};
 use domain_types::{
     connector_flow::{Authorize, Capture, IncrementalAuthorization, Void},
     connector_types::{
@@ -582,7 +582,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: common_utils::MinorUnitForConnector
+                        .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+                        .unwrap_or_default(),
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -736,7 +738,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     line1: merchant_name.expose(),
                 },
                 value: PaymentValue {
-                    amount: item.router_data.request.minor_amount,
+                    amount: common_utils::MinorUnitForConnector
+                        .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+                        .unwrap_or_default(),
                     currency: item.router_data.request.currency,
                 },
                 debt_repayment: None,
@@ -1175,7 +1179,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
                 .replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount: common_utils::MinorUnitForConnector
+                    .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
+                    .unwrap_or_default(),
                 currency: item.router_data.request.currency,
             },
         })
@@ -1222,14 +1228,14 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
 impl<F>
     TryFrom<(
         &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-        MinorUnit,
+        ConnectorMinorUnit,
     )> for WorldpayPartialRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         req: (
             &RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>,
-            MinorUnit,
+            ConnectorMinorUnit,
         ),
     ) -> Result<Self, Self::Error> {
         let (item, amount) = req;
@@ -1308,7 +1314,9 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         Ok(Self {
             reference: item.router_data.request.refund_id.replace('_', "-"),
             value: PaymentValue {
-                amount: item.router_data.request.minor_refund_amount,
+                amount: common_utils::MinorUnitForConnector
+                    .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
+                    .unwrap_or_default(),
                 currency: item.router_data.request.currency,
             },
         })
@@ -1785,7 +1793,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             value: PaymentValue {
-                amount: item.router_data.request.minor_amount,
+                amount: common_utils::MinorUnitForConnector
+                    .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+                    .unwrap_or_default(),
                 currency: item.router_data.request.currency,
             },
         })
