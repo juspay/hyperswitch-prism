@@ -1311,6 +1311,7 @@ pub async fn call_connector_api(
     header_proxy_name: Option<&str>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
+    let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
     let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
 
@@ -1457,21 +1458,23 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let send_request = async {
-        request.send().await.map_err(|error| {
-            let api_error = match error {
-                error if error.is_timeout() => ApiClientError::RequestTimeoutReceived,
-                _ => ApiClientError::RequestNotSent(error.to_string()),
-            };
-            info_log(
-                "REQUEST_FAILURE",
-                &json!("Unable to send request to connector."),
-            );
-            report!(api_error)
-        })
-    };
+    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
 
-    let response = send_request.await;
+    if retried {
+        #[cfg(feature = "otel")]
+        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
+        tracing::info!(
+            connector = %connector_host,
+            "Auto-retried request due to connection closed before message completed"
+        );
+    }
+
+    if response.is_err() {
+        info_log(
+            "REQUEST_FAILURE",
+            &json!("Unable to send request to connector."),
+        );
+    }
 
     handle_response(response).await
 }

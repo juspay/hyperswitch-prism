@@ -84,6 +84,24 @@ static EXTERNAL_SERVICE_API_CALLS_ERRORS: LazyLock<Counter<u64>> = LazyLock::new
         .build()
 });
 
+/// Automatic retries triggered by "connection closed before message completed".
+static AUTO_RETRY_CONNECTION_CLOSED: LazyLock<Counter<u64>> = LazyLock::new(|| {
+    METER
+        .u64_counter(format!("{METRIC_PREFIX}auto_retry_connection_closed"))
+        .with_description(
+            "Number of automatic retries due to connection closed before message completed",
+        )
+        .build()
+});
+
+/// Record one automatic retry due to "connection closed before message completed".
+pub fn record_auto_retry_connection_closed(connector: &str) {
+    AUTO_RETRY_CONNECTION_CLOSED.add(
+        1,
+        &[KeyValue::new("connector", connector.to_string())],
+    );
+}
+
 /// Record one outbound connector API call (count). `mode` is "primary"/"shadow".
 pub fn record_external_call(method: &str, service: &str, connector: &str, mode: &str) {
     EXTERNAL_SERVICE_TOTAL_API_CALLS.add(
