@@ -6,6 +6,10 @@
 # Deja per-request recording decision - default SKIP. Production records
 # nothing until a deliberate override samples something in.
 deja_record = { value = false, schema = { type = "boolean" } }
+# Percentage gate over the remainder (0-100): the request id hashes to a stable
+# bucket, so e.g. deja_record_percent = 8 under a rpc_service context records a
+# deterministic 8% of that class. 0 = boolean-only.
+deja_record_percent = { value = 0, schema = { type = "integer" } }
 
 # Common configuration
 common_environment = { value = "sandbox", schema = { type = "string", enum = ["sandbox", "development", "production"] } }
