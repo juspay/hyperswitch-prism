@@ -506,10 +506,10 @@ fn nsure_billing_info(address: Option<&Address>) -> Option<NsureBillingInfo> {
         first_name: address.get_optional_first_name(),
         last_name: address.get_optional_last_name(),
         address: nsure_address,
-        phone_info: address
-            .phone
-            .as_ref()
-            .and_then(|phone| nsure_phone_info(phone.number.as_ref(), phone.country_code.as_ref())),
+        phone_info: nsure_phone_info(
+            address.get_optional_phone_number().as_ref(),
+            address.get_optional_phone_country_code().as_ref(),
+        ),
     };
     // Don't send an object where every field is empty.
     let is_empty = info.first_name.is_none()

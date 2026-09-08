@@ -130,6 +130,25 @@ impl Address {
             .ok_or_else(missing_field_err("phone"))
     }
 
+    /// The phone number on its own, without the country code.
+    ///
+    /// Unlike [`Self::get_phone_with_country_code`], which returns the two
+    /// joined into one string and errors when absent, this leaves them separate
+    /// for connectors that model them as distinct fields.
+    pub fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.number.clone())
+    }
+
+    /// The dialling code on its own. Pairs with
+    /// [`Self::get_optional_phone_number`].
+    pub fn get_optional_phone_country_code(&self) -> Option<String> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.country_code.clone())
+    }
+
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.address
             .as_ref()
