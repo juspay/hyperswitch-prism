@@ -368,6 +368,19 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    /// Netcetera 3DS Server. Transport auth is mTLS; the certificate pair is optional
+    /// because an external vault (e.g. VGS) may terminate TLS on the outbound route.
+    /// `endpoint_prefix` is substituted into the `{{merchant_endpoint_prefix}}` template of
+    /// the configured base_url (same mechanism as Adyen).
+    Netcetera {
+        certificate: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        base_url: Option<String>,
+        endpoint_prefix: Option<String>,
+        merchant_configuration_id: Option<String>,
+        three_ds_requestor_id: Option<String>,
+        three_ds_requestor_name: Option<String>,
+    },
     Imerchantsolutions {
         api_key: Secret<String>,
         merchant_id: Option<Secret<String>>,
@@ -1458,6 +1471,7 @@ impl ConnectorSpecificConfig {
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
+            Netcetera { endpoint_prefix },
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -1970,6 +1984,7 @@ impl ConnectorSpecificConfig {
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
+                Netcetera { endpoint_prefix },
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2634,6 +2649,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Paydotcom(paydotcom) => Ok(Self::Paydotcom {
                 api_key: paydotcom.api_key.ok_or_else(err)?,
                 base_url: paydotcom.base_url,
+            }),
+            AuthType::Netcetera(netcetera) => Ok(Self::Netcetera {
+                certificate: netcetera.certificate,
+                private_key: netcetera.private_key,
+                base_url: netcetera.base_url,
+                endpoint_prefix: netcetera.endpoint_prefix,
+                merchant_configuration_id: netcetera.merchant_configuration_id,
+                three_ds_requestor_id: netcetera.three_ds_requestor_id,
+                three_ds_requestor_name: netcetera.three_ds_requestor_name,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,

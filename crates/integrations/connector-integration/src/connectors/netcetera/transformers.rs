@@ -398,14 +398,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 None => None,
             };
 
+        // Account-level identity from the typed connector config, falling back to the
+        // deprecated `NetceteraMeta` blob.
+        let (cfg_merchant_configuration_id, cfg_three_ds_requestor_id, cfg_three_ds_requestor_name) =
+            match &item.router_data.connector_config {
+                domain_types::router_data::ConnectorSpecificConfig::Netcetera {
+                    merchant_configuration_id,
+                    three_ds_requestor_id,
+                    three_ds_requestor_name,
+                    ..
+                } => (
+                    merchant_configuration_id.clone(),
+                    three_ds_requestor_id.clone(),
+                    three_ds_requestor_name.clone(),
+                ),
+                _ => (None, None, None),
+            };
+
+        // Requestor challenge preference: typed field first; deprecated fallback maps the
+        // legacy `force_3ds_challenge = true` to EMVCo 04 (challenge mandated).
+        let challenge_indicator = request
+            .three_ds_requestor_challenge_indicator
+            .map(netcetera_types::ThreeDSRequestorChallengeIndicator::from)
+            .or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.force_3ds_challenge)
+                    .filter(|force| *force)
+                    .map(|_| netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate)
+            });
+        let authentication_indicator = request
+            .three_ds_requestor_authentication_indicator
+            .map(netcetera_types::ThreeDSRequestorAuthenticationIndicator::from)
+            .unwrap_or(netcetera_types::ThreeDSRequestorAuthenticationIndicator::Payment);
+
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
-            // 3DS Requestor challenge preference, sourced from the merchant's Netcetera MCA
-            // metadata (`force_3ds_challenge`). When absent, no preference (DS/ACS decides).
-            netcetera_meta
-                .as_ref()
-                .and_then(|m| m.force_3ds_challenge)
-                .unwrap_or(false),
+            challenge_indicator,
+            authentication_indicator,
             message_version
                 .as_ref()
                 .unwrap_or(&SemanticVersion::new(2, 1, 0)),
@@ -484,39 +514,115 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             context: Default::default(),
         })?;
 
-        let acquirer = netcetera_meta
+        // Acquirer object: typed `acquirer_details` first, deprecated blob fallback.
+        let acquirer = request
+            .acquirer_details
             .as_ref()
-            .map(netcetera_types::NetceteraMeta::to_acquirer_data);
-        let merchant = netcetera_meta.as_ref().map(|meta| {
-            meta.to_merchant_data(
-                common_data
-                    .return_url
+            .map(netcetera_types::AcquirerData::from)
+            .or_else(|| {
+                netcetera_meta
                     .as_ref()
-                    .and_then(|u| url::Url::parse(u).ok()),
-            )
-        });
+                    .map(netcetera_types::NetceteraMeta::to_acquirer_data)
+            });
+
+        // Browser CRes return URL (EMVCo notificationURL): the request's return_url is the
+        // single source of truth; the deprecated blob `notification_url` is the fallback.
+        let return_url = common_data
+            .return_url
+            .as_ref()
+            .and_then(|u| url::Url::parse(u).ok())
+            .or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.notification_url.clone())
+            });
+        // RReq push target (resultsResponseNotificationUrl): the request's webhook_url, with the
+        // deprecated blob value as fallback.
+        let results_response_notification_url = request
+            .webhook_url
+            .as_ref()
+            .and_then(|u| url::Url::parse(u).ok())
+            .or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.results_response_notification_url.clone())
+            });
+
+        // Merchant object: typed `merchant_details` + connector config first, blob fallback.
+        let merchant_details = request.merchant_details.as_ref();
+        let merchant_data = netcetera_types::MerchantData {
+            merchant_configuration_id: cfg_merchant_configuration_id.or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.merchant_configuration_id.clone())
+            }),
+            mcc: merchant_details
+                .and_then(|m| m.merchant_category_code)
+                .map(|mcc| format!("{mcc:04}"))
+                .or_else(|| netcetera_meta.as_ref().and_then(|m| m.mcc.clone())),
+            // EMVCo merchantCountryCode is ISO 3166-1 numeric.
+            merchant_country_code: merchant_details
+                .and_then(|m| m.merchant_country_code)
+                .map(|country| format!("{:03}", common_enums::CountryAlpha2::to_numeric(country)))
+                .or_else(|| {
+                    netcetera_meta
+                        .as_ref()
+                        .and_then(|m| m.merchant_country_code.clone())
+                }),
+            merchant_name: merchant_details
+                .and_then(|m| m.merchant_name.clone())
+                .or_else(|| {
+                    netcetera_meta
+                        .as_ref()
+                        .and_then(|m| m.merchant_name.clone())
+                }),
+            notification_url: return_url.clone(),
+            three_ds_requestor_id: cfg_three_ds_requestor_id.or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.three_ds_requestor_id.clone())
+            }),
+            three_ds_requestor_name: cfg_three_ds_requestor_name.or_else(|| {
+                netcetera_meta
+                    .as_ref()
+                    .and_then(|m| m.three_ds_requestor_name.clone())
+            }),
+            results_response_notification_url,
+        };
+        // Omit the object entirely when nothing is set so the 3DS Server falls back to its
+        // stored merchant configuration, as before.
+        let merchant = (merchant_data.merchant_configuration_id.is_some()
+            || merchant_data.mcc.is_some()
+            || merchant_data.merchant_country_code.is_some()
+            || merchant_data.merchant_name.is_some()
+            || merchant_data.notification_url.is_some()
+            || merchant_data.three_ds_requestor_id.is_some()
+            || merchant_data.three_ds_requestor_name.is_some()
+            || merchant_data.results_response_notification_url.is_some())
+        .then_some(merchant_data);
 
         Ok(Self {
             preferred_protocol_version: message_version,
             enforce_preferred_protocol_version: Some(is_app),
-            device_channel: if is_app {
-                netcetera_types::NetceteraDeviceChannel::AppBased
-            } else {
-                netcetera_types::NetceteraDeviceChannel::Browser
-            },
-            message_category: netcetera_types::NetceteraMessageCategory::PaymentAuthentication,
-            three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::U),
+            device_channel: request
+                .device_channel
+                .map(netcetera_types::NetceteraDeviceChannel::from)
+                .unwrap_or(netcetera_types::NetceteraDeviceChannel::Browser),
+            message_category: request
+                .message_category
+                .map(netcetera_types::NetceteraMessageCategory::from)
+                .unwrap_or(netcetera_types::NetceteraMessageCategory::PaymentAuthentication),
+            // threeDSCompInd from the typed field; "U" (3DS Method not available) when the
+            // caller does not report a DDC outcome.
+            three_ds_comp_ind: Some(
+                request
+                    .threeds_completion_indicator
+                    .map(netcetera_types::ThreeDSMethodCompletionIndicator::from)
+                    .unwrap_or(netcetera_types::ThreeDSMethodCompletionIndicator::U),
+            ),
             three_ds_requestor: Some(three_ds_requestor),
             three_ds_server_trans_id,
-            three_ds_requestor_url: netcetera_meta
-                .as_ref()
-                .and_then(|m| m.notification_url.clone())
-                .or_else(|| {
-                    common_data
-                        .return_url
-                        .as_ref()
-                        .and_then(|u| url::Url::parse(u).ok())
-                }),
+            three_ds_requestor_url: return_url,
             cardholder_account,
             cardholder: Some(cardholder),
             purchase,

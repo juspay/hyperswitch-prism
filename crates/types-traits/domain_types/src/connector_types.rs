@@ -2365,6 +2365,75 @@ pub enum DeviceChannel {
     App,
     #[serde(rename = "BRW")]
     Browser,
+    /// 3DS Requestor Initiated (EMVCo deviceChannel "03").
+    #[serde(rename = "3RI")]
+    ThreeRi,
+}
+
+/// EMVCo `threeDSRequestorChallengeInd` (3DS 2.2 codes 01-09).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsRequestorChallengeIndicator {
+    #[serde(rename = "01")]
+    NoPreference,
+    #[serde(rename = "02")]
+    NoChallengeRequested,
+    #[serde(rename = "03")]
+    ChallengeRequested,
+    #[serde(rename = "04")]
+    ChallengeMandated,
+    #[serde(rename = "05")]
+    NoChallengeTransactionalRiskAnalysis,
+    #[serde(rename = "06")]
+    NoChallengeDataShareOnly,
+    #[serde(rename = "07")]
+    NoChallengeScaAlreadyPerformed,
+    #[serde(rename = "08")]
+    NoChallengeWhitelistExemption,
+    #[serde(rename = "09")]
+    ChallengeWhitelistPrompt,
+}
+
+/// EMVCo `threeDSRequestorAuthenticationInd` (codes 01-06).
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsRequestorAuthenticationIndicator {
+    #[serde(rename = "01")]
+    Payment,
+    #[serde(rename = "02")]
+    Recurring,
+    #[serde(rename = "03")]
+    Installment,
+    #[serde(rename = "04")]
+    AddCard,
+    #[serde(rename = "05")]
+    MaintainCard,
+    #[serde(rename = "06")]
+    CardholderVerification,
+}
+
+/// EMVCo `messageCategory`.
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum ThreeDsMessageCategory {
+    #[serde(rename = "01")]
+    PaymentAuthentication,
+    #[serde(rename = "02")]
+    NonPaymentAuthentication,
+}
+
+/// EMVCo AReq `acquirer` object.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AcquirerDetails {
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub acquirer_country_code: Option<common_enums::CountryAlpha2>,
+}
+
+/// Merchant details shared by FRM and 3DS (EMVCo AReq `merchant` object).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MerchantDetails {
+    pub merchant_id: Option<String>,
+    pub merchant_category_code: Option<u32>,
+    pub merchant_name: Option<String>,
+    pub merchant_country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Clone)]
@@ -2386,6 +2455,19 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
+    /// EMVCo AReq `merchant` object (name, MCC, country).
+    pub merchant_details: Option<MerchantDetails>,
+    /// EMVCo AReq `acquirer` object.
+    pub acquirer_details: Option<AcquirerDetails>,
+    /// EMVCo `threeDSRequestorChallengeInd`.
+    pub three_ds_requestor_challenge_indicator: Option<ThreeDsRequestorChallengeIndicator>,
+    /// EMVCo `threeDSRequestorAuthenticationInd`.
+    pub three_ds_requestor_authentication_indicator:
+        Option<ThreeDsRequestorAuthenticationIndicator>,
+    /// EMVCo `messageCategory`.
+    pub message_category: Option<ThreeDsMessageCategory>,
+    /// EMVCo `threeDSCompInd`: outcome of the 3DS Method (DDC) step.
+    pub threeds_completion_indicator: Option<ThreeDsCompletionIndicator>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
