@@ -4,7 +4,8 @@ pub type RefundsResponseRouterData<F, T> =
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     pii::Email,
-    types::MinorUnit,
+    types::{ConnectorMinorUnit, MinorUnit},
+    AmountConvertor,
 };
 
 use crate::{connectors::billwerk::BillwerkRouterData, types::ResponseRouterData, utils};
@@ -83,7 +84,7 @@ pub struct BillwerkTokenResponse {
 #[derive(Debug, Serialize)]
 pub struct BillwerkPaymentsRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -96,7 +97,7 @@ pub struct BillwerkPaymentsRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkRepeatPaymentRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -107,7 +108,7 @@ pub struct BillwerkRepeatPaymentRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkSetupMandateRequest {
     handle: String,
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     source: Secret<String>,
     currency: common_enums::Currency,
     customer: BillwerkCustomerObject,
@@ -142,7 +143,7 @@ pub struct BillwerkCustomerObject {
 
 #[derive(Debug, Serialize)]
 pub struct BillwerkCaptureRequest {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -173,7 +174,7 @@ pub struct RefundResponse {
 #[derive(Debug, Serialize)]
 pub struct BillwerkRefundRequest {
     pub invoice: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub text: Option<String>,
 }
 
@@ -278,6 +279,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         if item.router_data.resource_common_data.is_three_ds() {
             return Err(IntegrationError::NotImplemented(
                 "Three_ds payments through Billwerk".to_string(),
@@ -311,7 +313,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: item.router_data.request.amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.router_data.request.amount, item.router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             source,
             currency: item.router_data.request.currency,
             customer: BillwerkCustomerObject {
@@ -490,8 +496,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
         })
     }
 }
@@ -508,8 +522,16 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             invoice: item.router_data.request.connector_transaction_id.clone(),
             text: item.router_data.request.reason.clone(),
         })
@@ -588,6 +610,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let source = match &item.router_data.request.payment_method_data {
             PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
             _ => {
@@ -603,11 +626,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .into())
             }
         };
-        let amount = item
-            .router_data
-            .request
-            .minor_amount
-            .unwrap_or(MinorUnit::default());
+        let amount = common_utils::types::MinorUnitForConnector
+            .convert(
+                item.router_data
+                    .request
+                    .minor_amount
+                    .unwrap_or(MinorUnit::default()),
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             handle: item
                 .router_data
@@ -678,6 +707,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let router_data = &item.router_data;
 
         // Extract the stored card reference (ca_...) from mandate
@@ -706,7 +736,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(router_data.request.minor_amount, router_data.request.currency)
+                .change_context(IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             source,
             currency: router_data.request.currency,
             customer_handle: router_data
@@ -735,7 +769,7 @@ pub struct BillwerkClientAuthRequest {
 #[derive(Debug, Serialize)]
 pub struct BillwerkSessionOrder {
     pub handle: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
     pub customer: BillwerkSessionCustomer,
 }
@@ -774,6 +808,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let router_data = item.router_data;
 
         let handle = router_data
@@ -826,7 +861,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order: BillwerkSessionOrder {
                 handle,
-                amount: router_data.request.amount,
+                amount: common_utils::types::MinorUnitForConnector
+                    .convert(router_data.request.amount, router_data.request.currency)
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
                 currency: router_data.request.currency,
                 customer,
             },

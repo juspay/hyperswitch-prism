@@ -125,7 +125,7 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
-    amount_converters: [],
+    amount_converters: [amount_converter: MinorUnit],
     member_functions: {
         pub fn build_json_headers(
             &self,

@@ -1,5 +1,5 @@
 use common_enums::{self, AttemptStatus, CountryAlpha2, RefundStatus};
-use common_utils::{consts, pii, types::MinorUnit};
+use common_utils::{consts, pii, types::{AmountConvertor, ConnectorMinorUnit}};
 use domain_types::{
     connector_flow::{Authorize, RSync, Refund, RepeatPayment},
     connector_types::{
@@ -182,7 +182,7 @@ impl TryFrom<&ConnectorSpecificConfig> for GivepaymentsAuthType {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct GivepaymentsPaymentsRequestData<T: PaymentMethodDataTypes> {
-    amount: MinorUnit,
+    amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     paymethod: GivepaymentsPaymentDetails<T>,
@@ -394,6 +394,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         if !item.router_data.request.is_auto_capture() {
             Err(errors::IntegrationError::CaptureMethodNotSupported {
                 context: errors::IntegrationErrorContext {
@@ -462,7 +463,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer = get_customer_details(&item.router_data)?;
 
         Ok(Self {
-            amount: item.router_data.request.amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.router_data.request.amount, item.router_data.request.currency)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             description: item.router_data.resource_common_data.description,
             paymethod,
             customer,
@@ -485,9 +490,9 @@ pub struct GivepaymentsResponseData<S, P> {
     pub id: String,
     pub status: S,
     pub processing_state: P,
-    total_amount: MinorUnit,
-    net_amount: MinorUnit,
-    fee_amount: MinorUnit,
+    total_amount: ConnectorMinorUnit,
+    net_amount: ConnectorMinorUnit,
+    fee_amount: ConnectorMinorUnit,
     fees_paid_by: Option<ServiceFeePayer>,
     reversal_status: Option<GivepaymentsReversalStatus>,
     billing_descriptor: Option<String>,
@@ -655,6 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         let card_token_data = item
             .router_data
             .request
@@ -682,7 +688,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let customer = get_customer_details(&item.router_data)?;
 
         Ok(Self {
-            amount: item.router_data.request.minor_amount,
+            amount: common_utils::types::MinorUnitForConnector
+                .convert(item.router_data.request.minor_amount, item.router_data.request.currency)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             description: item.router_data.resource_common_data.description,
             paymethod,
             customer,
@@ -823,7 +833,7 @@ impl<F> TryFrom<ResponseRouterData<GivepaymentsPaymentResponseData, Self>>
 pub struct GivepaymentsRefundRequestData {
     payment: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    amount: Option<MinorUnit>,
+    amount: Option<ConnectorMinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -852,9 +862,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        use error_stack::ResultExt;
         Ok(Self {
             payment: item.router_data.request.connector_transaction_id.clone(),
-            amount: Some(item.router_data.request.minor_refund_amount),
+            amount: Some(
+                common_utils::types::MinorUnitForConnector
+                    .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
+                    .change_context(errors::IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?,
+            ),
             reason: item.router_data.request.reason.clone(),
             description: item.router_data.request.reason,
             external_reference: Some(item.router_data.request.refund_id.clone()),

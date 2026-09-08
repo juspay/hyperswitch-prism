@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{request::Method, types::MinorUnit, Email};
+use common_utils::{request::Method, types::ConnectorMinorUnit, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -235,7 +235,7 @@ pub struct AffirmCheckoutRequest {
     pub billing: Party,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<Party>,
-    pub total: MinorUnit,
+    pub total: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
 }
@@ -249,7 +249,7 @@ pub struct AffirmTransactionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<Currency>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub total: Option<MinorUnit>,
+    pub total: Option<ConnectorMinorUnit>,
 }
 
 /// Authorize request body — either the checkout-create (initiate) leg or the
@@ -362,7 +362,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 transaction_id,
                 order_id,
                 currency: Some(router_data.request.currency),
-                total: Some(router_data.request.minor_amount),
+                total: Some(
+                    item.connector
+                        .amount_converter
+                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .change_context(errors::IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
+                ),
             })),
             // INITIATE leg: create the checkout and mint the redirect URL.
             None => {
@@ -404,7 +411,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     merchant,
                     billing: build_billing_party(router_data)?,
                     shipping: build_shipping_party(router_data),
-                    total: router_data.request.minor_amount,
+                    total: item
+                        .connector
+                        .amount_converter
+                        .convert(router_data.request.minor_amount, router_data.request.currency)
+                        .change_context(errors::IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?,
                     order_id,
                 })))
             }
@@ -417,7 +430,7 @@ pub struct AffirmEvent {
     pub id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
     pub created: Option<String>,
 }
@@ -434,8 +447,8 @@ pub struct AffirmCheckoutResponse {
 pub struct AffirmTransactionResponse {
     pub id: String,
     pub status: AffirmTransactionStatus,
-    pub amount: Option<MinorUnit>,
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     pub currency: Option<String>,
     pub order_id: Option<String>,
     pub checkout_id: Option<String>,
@@ -536,7 +549,7 @@ pub struct AffirmSyncResponse {
     pub id: String,
     pub status: AffirmTransactionStatus,
     pub order_id: Option<String>,
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     pub events: Option<Vec<AffirmEvent>>,
 }
 
@@ -581,7 +594,7 @@ impl TryFrom<ResponseRouterData<AffirmSyncResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct AffirmCaptureRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
 }
@@ -615,7 +628,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ref_id => Some(ref_id),
         };
         Ok(Self {
-            amount: item.router_data.request.minor_amount_to_capture,
+            amount: item
+                .connector
+                .amount_converter
+                .convert(
+                    item.router_data.request.minor_amount_to_capture,
+                    item.router_data.request.currency,
+                )
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             order_id,
         })
     }
@@ -626,7 +648,7 @@ pub struct AffirmCaptureResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     pub order_id: Option<String>,
 }
 
@@ -713,7 +735,7 @@ pub struct AffirmVoidResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 impl TryFrom<ResponseRouterData<AffirmVoidResponse, Self>>
@@ -752,7 +774,7 @@ impl TryFrom<ResponseRouterData<AffirmVoidResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct AffirmRefundRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_id: Option<String>,
 }
@@ -771,7 +793,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.router_data.request.minor_refund_amount,
+            amount: item
+                .connector
+                .amount_converter
+                .convert(
+                    item.router_data.request.minor_refund_amount,
+                    item.router_data.request.currency,
+                )
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: Default::default(),
+                })?,
             reference_id: Some(item.router_data.request.refund_id.clone()),
         })
     }
@@ -782,7 +813,7 @@ pub struct AffirmRefundResponse {
     pub id: String,
     #[serde(rename = "type")]
     pub event_type: String,
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
 }
 
 impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
@@ -820,7 +851,7 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
 pub struct AffirmRSyncResponse {
     pub id: String,
     pub status: AffirmTransactionStatus,
-    pub amount_refunded: Option<MinorUnit>,
+    pub amount_refunded: Option<ConnectorMinorUnit>,
     pub events: Option<Vec<AffirmEvent>>,
 }
 
