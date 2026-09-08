@@ -459,6 +459,22 @@ deja_record = true
         );
     }
 
+    /// "50 means 50": over a large population of realistic ids, the FNV
+    /// bucket splits evenly — the percentage is a rate, not just a gate.
+    #[test]
+    fn buckets_distribute_uniformly() {
+        let n = 10_000u32;
+        let below_50 = (0..n)
+            .filter(|i| request_bucket(&format!("req-{i:06x}-{}", i * 7919)) < 50)
+            .count();
+        let below_50 = u32::try_from(below_50).unwrap();
+        let fraction = f64::from(below_50) / f64::from(n);
+        assert!(
+            (0.47..=0.53).contains(&fraction),
+            "expected ~50% of ids below bucket 50, got {fraction}"
+        );
+    }
+
     /// Decisions memoize per rpc — sound because the snapshot is boot-frozen.
     #[test]
     fn memoizes_per_rpc() {
