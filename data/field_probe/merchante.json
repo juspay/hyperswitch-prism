@@ -1,0 +1,875 @@
+{
+  "connector": "merchante",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by merchante connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=D&transaction_amount=10.00&currency_code=840&card_number=4111111111111111&card_exp_date=0330&cvv2=737&moto_ecommerce_ind=7&account_data_source=%40&client_reference_number=probe_txn_001&retry_id=probe_txn_001&invoice_number=probe_txn_001"
+        }
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Crypto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "DuitNow": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Givex": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "MobilePayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "OpenBankingPis": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Paysera": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "Paze": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Webpay": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=S&transaction_amount=10.00&transaction_id=probe_connector_txn_001&invoice_number=probe_capture_001&retry_id=probe_capture_00"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by merchante connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by merchante connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by merchante connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by merchante connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by merchante connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by merchante connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by merchante connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by merchante connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by merchante connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by merchante connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=I&retry_id=probe_merchant_t"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by merchante connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by merchante connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by merchante connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=D&transaction_amount=10.00&currency_code=840&card_number=%7B%7B%24card_number%7D%7D&card_exp_date=0330&cvv2=%7B%7B%24card_cvc%7D%7D&moto_ecommerce_ind=7&account_data_source=%40&client_reference_number=probe_proxy_txn_001&retry_id=probe_proxy_txn_&invoice_number=probe_proxy_txn_001"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=A&transaction_amount=0&currency_code=840&card_number=%7B%7B%24card_number%7D%7D&card_exp_date=0330&cvv2=%7B%7B%24card_cvc%7D%7D&moto_ecommerce_ind=7&account_data_source=%40&store_card=Y&client_reference_number=probe_proxy_mandate_001&retry_id=probe_proxy_mand"
+        }
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=D&transaction_amount=10.00&currency_code=840&card_id=probe-mandate-123&moto_ecommerce_ind=2&account_data_source=Y&card_on_file=Y&merchant_initiated=Y&cit_mit_indicator=M101&client_reference_number=&retry_id=&invoice_number="
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for merchante"
+      }
+    },
+    "refresh": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=U&transaction_id=probe_connector_txn_001&retry_id=probe_refund_001"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=I&retry_id=probe_refund_001"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for merchante"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=A&transaction_amount=0&currency_code=840&card_number=4111111111111111&card_exp_date=0330&cvv2=737&moto_ecommerce_ind=7&account_data_source=%40&store_card=Y&client_reference_number=probe_mandate_001&retry_id=probe_mandate_00"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante Authorize: received PaymentMethodData variant other than Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, and BNPL are not wired for this connector."
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only raw card payments are supported by Merchante is not supported by merchante. Merchante SetupMandate (transaction_type=A with store_card=Y): received PaymentMethodData variant other than Card. Merchante tokenises raw cards only."
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://cert.merchante-solutions.com/mes-api/tridentApi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "profile_id=probe_id&profile_key=probe_key&transaction_type=V&transaction_id=probe_connector_txn_001&retry_id=probe_void_001"
+        }
+      }
+    }
+  }
+}
