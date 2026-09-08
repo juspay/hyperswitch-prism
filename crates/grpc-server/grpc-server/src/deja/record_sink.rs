@@ -122,6 +122,10 @@ pub struct UcsKafkaRecordSink {
     recording_run_id: String,
     instance_id: String,
     code_sha: Option<String>,
+    /// Records dropped because they breached the sink's contract (an Observed
+    /// record in record mode). Every such drop is named: logged, counted here,
+    /// and stamped onto the tape as a `dropped` marker — in every build profile.
+    contract_breach_drops: u64,
 }
 
 impl UcsKafkaRecordSink {
@@ -170,6 +174,7 @@ impl UcsKafkaRecordSink {
             recording_run_id: config.recording_run_id.to_owned(),
             instance_id: config.instance_id,
             code_sha: config.code_sha,
+            contract_breach_drops: 0,
         })
     }
 
@@ -281,18 +286,46 @@ impl UcsKafkaRecordSink {
 
 impl deja::RecordSink<deja::DejaRecord> for UcsKafkaRecordSink {
     fn write_batch(&mut self, records: &[deja::DejaRecord]) -> io::Result<()> {
+        // Attempt EVERY record: one enqueue failure must not strand the rest of
+        // the batch. The writer still books the whole batch as dropped on Err —
+        // the binary Result is the library contract — so the loss ledger
+        // over-counts (the safe direction) while the topic carries everything
+        // that could land; returning early would make both worse.
+        let mut first_error: Option<io::Error> = None;
         for record in records {
-            match record {
-                deja::DejaRecord::BoundaryEvent(event) => self.write_boundary_event(event)?,
-                deja::DejaRecord::GraphNode(node) => self.write_graph_node(node)?,
-                // Record mode never produces observations; skip instead of failing the
-                // writer if the library contract is breached.
+            let outcome = match record {
+                deja::DejaRecord::BoundaryEvent(event) => self.write_boundary_event(event),
+                deja::DejaRecord::GraphNode(node) => self.write_graph_node(node),
+                // Record mode never produces observations. A breach of that
+                // library contract is a NAMED drop in every profile — logged,
+                // counted, and stamped onto the tape — never a silent release
+                // skip, and never a writer-thread panic.
                 deja::DejaRecord::Observed(_) => {
-                    debug_assert!(false, "observed record reached the record-mode Kafka sink");
+                    self.contract_breach_drops += 1;
+                    tracing::warn!(
+                        contract_breach_drops = self.contract_breach_drops,
+                        "observed record reached the record-mode Kafka sink; dropped and marked"
+                    );
+                    let payload = serde_json::json!({
+                        "reason": "observed_record_in_record_mode",
+                        "contract_breach_drops": self.contract_breach_drops,
+                    });
+                    // Best-effort: the marker documents the drop; its own failure
+                    // must not fail the batch on top of it.
+                    if let Err(error) = self.write_marker(deja::MarkerKind::Dropped, &payload) {
+                        tracing::warn!(%error, "failed to emit the dropped marker for a contract-breach drop");
+                    }
+                    Ok(())
                 }
+            };
+            if let Err(error) = outcome {
+                first_error.get_or_insert(error);
             }
         }
-        Ok(())
+        match first_error {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 
     fn flush(&mut self) -> io::Result<()> {
