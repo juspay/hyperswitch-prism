@@ -40,6 +40,46 @@ const SUCCESS_RESPONSE_CODE: &str = "0";
 /// Anything else non-zero is a terminal failure for the current attempt.
 const PENDING_RESPONSE_CODES: &[&str] = &["58", "62", "118", "199", "210", "999"];
 
+/// Etisalat rejects `OrderName` longer than 25 characters with error code 6517
+/// ("OrderName length limit is 25 digits"). PDF §14.2 also disallows leading /
+/// trailing whitespace on the field.
+const ORDER_NAME_MAX_CHARS: usize = 25;
+
+/// Etisalat rejects `OrderID` with error 6515 ("length limit is 16 digits or it
+/// contains special characters"). Only ASCII alphanumerics are accepted, up to
+/// 16 chars.
+const ORDER_ID_MAX_CHARS: usize = 16;
+
+/// Build an `OrderName` value that satisfies EPG's 25-char cap. Prefers a
+/// merchant-supplied source when present and non-empty, otherwise falls back
+/// to the connector reference id. Truncation is by Unicode codepoints so a
+/// non-ASCII merchant order id cannot panic the slice.
+fn build_order_name(preferred: Option<&str>, fallback: &str) -> String {
+    let raw = preferred
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(fallback.trim());
+    raw.chars().take(ORDER_NAME_MAX_CHARS).collect()
+}
+
+/// Derive a valid `OrderID` from prism's `connector_request_reference_id`.
+///
+/// Prism is stateless, so we cannot mint and store a fresh id — the value must
+/// be a pure function of the reference so PSync/reconciliation always produce
+/// the same OrderID. Hyperswitch reference ids look like
+/// `pay_<20-char-random>_<attempt-index>`; both the underscores and the length
+/// violate EPG's constraints. We keep only ASCII alphanumerics (bytes and
+/// codepoints coincide → safe slicing) and take the trailing 16 chars so the
+/// attempt-index suffix that distinguishes retries is preserved.
+fn build_order_id(reference: &str) -> String {
+    let alnum: String = reference
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    let start = alnum.len().saturating_sub(ORDER_ID_MAX_CHARS);
+    alnum[start..].to_string()
+}
+
 /// `TransactionHint` primitives used by the flows this connector implements.
 mod hint {
     /// Authorization is captured immediately (Authorize + Capture in one call).
@@ -220,20 +260,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             hint::MANUAL_CAPTURE
         };
 
-        let order_id = router_data
+        let reference_id = router_data
             .resource_common_data
             .connector_request_reference_id
-            .clone();
+            .as_str();
+        let order_id = build_order_id(reference_id);
+        let order_name = build_order_name(request.merchant_order_id.as_deref(), reference_id);
 
-        // Etisalat caps OrderName at 25 printable chars. Use the merchant order
-        // id if provided and short enough, otherwise reuse the connector
-        // reference id (which is always present and length-bounded).
-        let order_name = request
-            .merchant_order_id
-            .as_deref()
-            .filter(|s| !s.is_empty() && s.chars().count() <= 25)
-            .map(str::to_string)
-            .unwrap_or_else(|| order_id.clone());
+        // NOTE: mandate setup is intentionally not attempted on this path even
+        // if `setup_future_usage=OffSession` is present on the CIT — EPG's
+        // MOTO endpoint rejects `Recurrence: {Type: M}` with 6801 unless the
+        // merchant has an explicit enablement flag set by Etisalat, and the
+        // documented path for recurrence registration is the 3DS Registration
+        // flow (PDF §9.1) which this integration does not implement.
+        //
+        // The RepeatPayment MIT still works when the caller supplies a
+        // RecurrenceID sourced out of band from a 3DS Registration.
 
         let payload = EtisalatAuthorizePayload {
             customer: auth.customer,
@@ -394,6 +436,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 // ----------------------------------------------------------------------------
 // Refund
+//
+// ⚠ EPG's Refund flow charges the merchant account and credits the payer's
+// card, so it only accepts amounts that have already **settled to the merchant
+// account** (PDF §8). Auto-captured payments (`CPT:Y`) are captured at the API
+// layer immediately but settle in a nightly batch — until then EPG rejects
+// refunds with error code `6888 "Not enough captured amount"`.
+//
+// For same-day cancellation of an auto-captured or authorized-only payment,
+// use the Void flow (EPG's Reversal endpoint) instead. Refund is the right
+// call once the transaction has settled (typically T+1).
 // ----------------------------------------------------------------------------
 
 #[derive(Debug, Serialize)]
@@ -551,10 +603,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
             })?;
 
-        let order_id = router_data
+        let reference_id = router_data
             .resource_common_data
             .connector_request_reference_id
-            .clone();
+            .as_str();
+        let order_id = build_order_id(reference_id);
+        let order_name = build_order_name(None, reference_id);
 
         Ok(Self {
             authorization: EtisalatRepeatPaymentPayload {
@@ -562,8 +616,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 channel: EtisalatChannel::Recurring,
                 currency: request.currency,
                 amount,
-                order_id: order_id.clone(),
-                order_name: order_id,
+                order_id,
+                order_name,
                 transaction_hint: hint::AUTO_CAPTURE,
                 transaction_id: mandate_id,
                 user_name: auth.user_name,
@@ -795,7 +849,38 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
         let status = map_attempt_status(&body, success_status);
 
         let response = if body.is_success() {
-            Ok(success_payments_response(&body, item.http_code, None)?)
+            // Capture responses do not include a fresh TransactionID (PDF §6.3
+            // — the successful sample only carries ResponseCode, Balance,
+            // UniqueID). Reuse the txn id we just captured against so the
+            // resource stays addressable downstream.
+            let txn_id = item
+                .router_data
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Etisalat Capture response omitted TransactionID and the request's \
+                             connector_transaction_id was not a ConnectorTransactionId variant."
+                                .to_string(),
+                        ),
+                    },
+                })?;
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(txn_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: body.approval_code.clone(),
+                network_txn_link_id: None,
+                connector_response_reference_id: body.unique_id.clone().or(Some(txn_id)),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            })
         } else {
             Err(build_error_response(&body, item.http_code, Some(status)))
         };
