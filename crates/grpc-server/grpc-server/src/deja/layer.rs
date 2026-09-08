@@ -126,13 +126,26 @@ where
                 false
             };
 
+            // Sampled-out (and replay-mode) requests skip capture entirely — no
+            // buffering, streaming untouched. The span stays: the correlation layer
+            // reads its request_id, and replay matching depends on that.
+            if !should_record {
+                let req = Request::from_parts(parts, body);
+                let span = tracing::info_span!(
+                    "deja::grpc_incoming", request_id = %request_id, rpc = %rpc
+                );
+                return inner.call(req).instrument(span).await;
+            }
+
             // 2. Buffer the unary request body (needed to decode args and to rebuild the
-            //    body `inner` reads). Capture failures never fail the request.
-            let request_bytes = body
-                .collect()
-                .await
-                .map_err(|error| tonic::Status::internal(error.to_string()))?
-                .to_bytes();
+            //    body `inner` reads). A capture failure degrades to an uncaptured
+            //    request with nothing left to stream — tonic's codec then produces its
+            //    own error exactly as it would without deja; we record nothing and
+            //    never substitute a Status of our own.
+            let (request_bytes, body_capture_failed) = match body.collect().await {
+                Ok(collected) => (collected.to_bytes(), false),
+                Err(_) => (bytes::Bytes::new(), true),
+            };
             let rebuilt = Request::from_parts(
                 parts,
                 Body::new(http_body_util::Full::new(request_bytes.clone())),
@@ -145,7 +158,9 @@ where
             //    waits for the response so the recorded partial can carry the rpc
             //    OUTCOME (`grpc_status`) — a tape that records failures as successes
             //    gives every replay driver a false 200 baseline.
-            let opened = if should_record {
+            let opened = if body_capture_failed {
+                None // lossy: the body could not be captured faithfully; skip the event.
+            } else {
                 super::hook().map(|hook| {
                     let decoded = super::descriptors::decode_unary_request(&rpc, &request_bytes);
                     let args = super::grpc_incoming_args(
@@ -178,8 +193,6 @@ where
                     let hook_dyn: Arc<dyn deja::DejaHook> = hook.clone();
                     (hook_dyn, builder)
                 })
-            } else {
-                None
             };
 
             // 4. Run the handler inside the ingress span (stamps ambient correlation for any
