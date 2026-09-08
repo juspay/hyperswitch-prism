@@ -337,6 +337,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CitigateConfig: ["apiKey", "key1"],
   PaynearmeConfig: ["apiKey", "key1"],
   IlixiumConfig: ["apiKey", "key1", "apiSecret"],
+  GlobalpaymentsHeartlandConfig: ["apiKey"],
   MonerisConfig: ["clientSecret", "merchantId", "clientId"],
   WorldpayraftConfig: ["license", "merchantId"],
   JpmorganOrbitalConfig: ["username", "password", "merchantId"],
