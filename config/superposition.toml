@@ -1018,13 +1018,3 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
-
-# ============================================================================
-# Sandbox Environment Overrides
-# ============================================================================
-# Deja: the sandbox custom pod keeps recording exactly as before the sampler
-# landed. Production inherits the dark default; sample-in there is always a
-# deliberate, targeted act (environment x rpc_method override).
-[[overrides]]
-_context_ = { environment = "sandbox" }
-deja_record = true
