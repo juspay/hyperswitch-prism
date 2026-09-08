@@ -172,6 +172,7 @@ pub enum ConnectorEnum {
     Travelhub,
     Paynearme,
     D24,
+    Paydotcom,
     ElavonPg,
 }
 
@@ -548,6 +549,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Travelhub => Ok(Self::Travelhub),
             grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
             grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
+            grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
             grpc_api_types::payments::Connector::ElavonPg => Ok(Self::ElavonPg),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -4256,6 +4258,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                     Self::QwikcilverWalletDirect
                 }
                 payment_method_data::WalletData::Skrill(_) => Self::Skrill,
+                payment_method_data::WalletData::Neteller(_) => Self::Neteller,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -5904,6 +5907,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Travelhub(_) => Ok(Self::Payment(ConnectorEnum::Travelhub)),
             AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
             AuthType::D24(_) => Ok(Self::Payment(ConnectorEnum::D24)),
+            AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
             AuthType::ElavonPg(_) => Ok(Self::Payment(ConnectorEnum::ElavonPg)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

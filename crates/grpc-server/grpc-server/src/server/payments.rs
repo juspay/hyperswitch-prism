@@ -2657,9 +2657,13 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
         .to_grpc_error()?;
 

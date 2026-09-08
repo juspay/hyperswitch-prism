@@ -865,6 +865,8 @@ pub enum WalletData {
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
     Skrill(SkrillData),
+    /// Neteller redirect wallet — consumer email is sourced from billing details.
+    Neteller(NetellerData),
 }
 
 impl WalletData {
@@ -916,6 +918,9 @@ impl WalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetellerData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
