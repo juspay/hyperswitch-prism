@@ -101,15 +101,19 @@ const SECURE_3D_DEFAULT_VERSION: &str = "2";
 /// truncated: silently reshaping an unrecognised ECI would assert an authentication outcome
 /// the 3DS server never reported.
 fn normalize_eci(eci: &str) -> Result<String, Report<IntegrationError>> {
-    let trimmed = eci.trim();
-    let normalized = match trimmed.len() {
-        1 => trimmed,
-        2 if trimmed.starts_with('0') => &trimmed[1..],
-        _ => "",
+    // Match on the characters, not on byte length with an empty-string sentinel. A single
+    // ASCII digit passes through; a zero-padded pair drops the leading zero. Everything else --
+    // including multi-byte input and two-digit values that are not zero-padded -- falls to the
+    // error below rather than being reshaped.
+    let mut chars = eci.trim().chars();
+    let normalized = match (chars.next(), chars.next(), chars.next()) {
+        (Some(d), None, _) if d.is_ascii_digit() => Some(d),
+        (Some('0'), Some(d), None) if d.is_ascii_digit() => Some(d),
+        _ => None,
     };
 
-    if normalized.len() == 1 && normalized.chars().all(|c| c.is_ascii_digit()) {
-        return Ok(normalized.to_string());
+    if let Some(digit) = normalized {
+        return Ok(digit.to_string());
     }
 
     Err(error_stack::report!(IntegrationError::InvalidDataFormat {
