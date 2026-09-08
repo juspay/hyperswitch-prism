@@ -128,7 +128,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"Authorization\":{\"Customer\":\"probe_merchant\",\"Channel\":\"W\",\"Currency\":\"USD\",\"Amount\":\"10.00\",\"OrderID\":\"probe_txn_001\",\"OrderName\":\"probe_txn_001\",\"TransactionHint\":\"CPT:Y;\",\"CardNumber\":\"4111111111111111\",\"ExpiryMonth\":\"03\",\"ExpiryYear\":\"2030\",\"VerifyCode\":\"737\",\"UserName\":\"probe_user\",\"Password\":\"probe_pass\"}}"
+          "body": "{\"Authorization\":{\"Customer\":\"probe_merchant\",\"Channel\":\"W\",\"Currency\":\"USD\",\"Amount\":\"10.00\",\"OrderID\":\"probetxn001\",\"OrderName\":\"probe_txn_001\",\"TransactionHint\":\"CPT:Y;\",\"CardNumber\":\"4111111111111111\",\"ExpiryMonth\":\"03\",\"ExpiryYear\":\"2030\",\"VerifyCode\":\"737\",\"UserName\":\"probe_user\",\"Password\":\"probe_pass\"}}"
         }
       },
       "CashappQr": {
@@ -643,7 +643,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"Authorization\":{\"Customer\":\"probe_merchant\",\"Channel\":\"W\",\"Currency\":\"USD\",\"Amount\":\"10.00\",\"OrderID\":\"probe_proxy_txn_001\",\"OrderName\":\"probe_proxy_txn_001\",\"TransactionHint\":\"CPT:Y;\",\"CardNumber\":\"{{$card_number}}\",\"ExpiryMonth\":\"03\",\"ExpiryYear\":\"2030\",\"VerifyCode\":\"{{$card_cvc}}\",\"UserName\":\"probe_user\",\"Password\":\"probe_pass\"}}"
+          "body": "{\"Authorization\":{\"Customer\":\"probe_merchant\",\"Channel\":\"W\",\"Currency\":\"USD\",\"Amount\":\"10.00\",\"OrderID\":\"probeproxytxn001\",\"OrderName\":\"probe_proxy_txn_001\",\"TransactionHint\":\"CPT:Y;\",\"CardNumber\":\"{{$card_number}}\",\"ExpiryMonth\":\"03\",\"ExpiryYear\":\"2030\",\"VerifyCode\":\"{{$card_cvc}}\",\"UserName\":\"probe_user\",\"Password\":\"probe_pass\"}}"
         }
       }
     },
