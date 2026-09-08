@@ -783,13 +783,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // When the merchant requests future off-session use, ask Rapyd to save
         // the card and create an inline customer, so the response carries the
         // reusable `card_*` / `cus_*` tokens (the mandate) for later MIT calls.
-        let (customer, save_payment_method) = if item
-            .router_data
-            .request
-            .setup_future_usage
-            .is_some()
-        {
-            let customer_name = item
+        let (customer, save_payment_method) =
+            if item.router_data.request.setup_future_usage.is_some() {
+                let customer_name = item
                 .router_data
                 .request
                 .customer_name
@@ -801,7 +797,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "Send the customer name on the payment request when using setup_future_usage.",
                 ),
             })?;
-            let customer_email = item
+                let customer_email = item
                 .router_data
                 .request
                 .email
@@ -813,16 +809,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "Send the customer email on the payment request when using setup_future_usage.",
                 ),
             })?;
-            (
-                Some(RapydCustomerRef::Inline(RapydInlineCustomer {
-                    name: Secret::new(customer_name),
-                    email: customer_email,
-                })),
-                Some(true),
-            )
-        } else {
-            (None, None)
-        };
+                (
+                    Some(RapydCustomerRef::Inline(RapydInlineCustomer {
+                        name: Secret::new(customer_name),
+                        email: customer_email,
+                    })),
+                    Some(true),
+                )
+            } else {
+                (None, None)
+            };
         Ok(Self {
             amount,
             currency: item.router_data.request.currency,
