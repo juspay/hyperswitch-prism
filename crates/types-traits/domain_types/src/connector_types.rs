@@ -6096,6 +6096,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Nsure(_) => Ok(Self::Frm(FrmConnectorEnum::Nsure)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
+            AuthType::Netcetera(_) => Ok(Self::Payment(ConnectorEnum::Netcetera)),
         }
     }
 }
