@@ -1,46 +1,38 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py cybersource
+// Regenerate: python3 scripts/generate-connector-docs.py paydotcom
 //
-// Cybersource — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="cybersource processCheckoutCard"
+// Paydotcom — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="paydotcom processCheckoutCard"
 
-package examples.cybersource
+package examples.paydotcom
 
 import types.Payment.*
 import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.PaymentMethodAuthenticationClient
-import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.AcceptanceType
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
-import payments.FutureUsage
-import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
 import payments.ConnectorSpecificConfig
-import types.Payment.CybersourceConfig
+import types.Payment.PaydotcomConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "capture", "get", "incremental_authorization", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "recurring_revoke", "refund", "refund_get", "reverse", "setup_recurring", "token_authorize", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
-            .setCybersource(CybersourceConfig.newBuilder()
+            .setPaydotcom(PaydotcomConfig.newBuilder()
                 .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setMerchantAccount(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT").build())
-                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
                 .setBaseUrl("YOUR_BASE_URL")
-                .setDisableAvs(false)
-                .setDisableCvn(false)
                 .build())
             .build()
     )
@@ -65,9 +57,6 @@ private fun buildAuthorizeRequest(captureMethodStr: String): PaymentServiceAutho
             }
         }
         captureMethod = CaptureMethod.valueOf(captureMethodStr)  // Method for capturing the payment.
-        customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
         addressBuilder.apply {  // Address Information.
             billingAddressBuilder.apply {
             }
@@ -112,22 +101,10 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
-private fun buildReverseRequest(connectorTransactionIdStr: String): PaymentServiceReverseRequest {
-    return PaymentServiceReverseRequest.newBuilder().apply {
-        merchantReverseId = "probe_reverse_001"  // Identification.
-        connectorTransactionId = connectorTransactionIdStr
-    }.build()
-}
-
 private fun buildVoidRequest(connectorTransactionIdStr: String): PaymentServiceVoidRequest {
     return PaymentServiceVoidRequest.newBuilder().apply {
         merchantVoidId = "probe_void_001"  // Identification.
         connectorTransactionId = connectorTransactionIdStr
-        cancellationReason = "requested_by_customer"  // Void Details.
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
     }.build()
 }
 
@@ -229,41 +206,6 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
 }
 
-// Flow: PaymentMethodAuthenticationService.Authenticate
-fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        customerBuilder.apply {  // Customer Information.
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
-        continueRedirectionUrl = "https://example.com/3ds-continue"
-        redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
-            params = "probe_redirect_params"
-            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
-        }
-    }.build()
-    val response = client.authenticate(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -279,7 +221,7 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
 // Flow: PaymentService.Capture
 fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildCaptureRequest("probe_connector_txn_001")
+    val request = buildCaptureRequest("hld_146231656762572800")
     val response = client.capture(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
@@ -289,54 +231,8 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildGetRequest("probe_connector_txn_001")
+    val request = buildGetRequest("chrg_146231656762572800")
     val response = client.get(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.IncrementalAuthorization
-fun incrementalAuthorization(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceIncrementalAuthorizationRequest.newBuilder().apply {
-        merchantAuthorizationId = "probe_auth_001"  // Identification.
-        connectorTransactionId = "probe_connector_txn_001"
-        amountBuilder.apply {  // new amount to be authorized (in minor currency units).
-            minorAmount = 1100L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        reason = "incremental_auth_probe"  // Optional Fields.
-    }.build()
-    val response = client.incremental_authorization(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodAuthenticationService.PostAuthenticate
-fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodAuthenticationClient(config)
-    val request = PaymentMethodAuthenticationServicePostAuthenticateRequest.newBuilder().apply {
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Payment Method.
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        redirectionResponseBuilder.apply {  // Redirection Information after DDC step.
-            params = "probe_redirect_params"
-            putAllPayload(mapOf("transaction_id" to "probe_txn_123"))
-        }
-    }.build()
-    val response = client.post_authenticate(request)
     println("Status: ${response.status.name}")
 }
 
@@ -363,6 +259,19 @@ fun preAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
         }
         enrolledFor3Ds = false  // Authentication Details.
         returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        browserInfoBuilder.apply {  // Contextual Information.
+            colorDepth = 24  // Display Information.
+            screenHeight = 900
+            screenWidth = 1440
+            javaEnabled = false  // Browser Settings.
+            javaScriptEnabled = true
+            language = "en-US"
+            timeZoneOffsetMinutes = -480
+            acceptHeader = "application/json"  // Browser Headers.
+            userAgent = "Mozilla/5.0 (probe-bot)"
+            acceptLanguage = "en-US,en;q=0.9"
+            ipAddress = "1.2.3.4"  // Device Information.
+        }
     }.build()
     val response = client.pre_authenticate(request)
     println("Status: ${response.status.name}")
@@ -385,9 +294,6 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
             cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
             cardNetwork = CardNetwork.VISA
         }
-        customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
         addressBuilder.apply {
             billingAddressBuilder.apply {
             }
@@ -400,88 +306,10 @@ fun proxyAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentService.ProxySetupRecurring
-fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceProxySetupRecurringRequest.newBuilder().apply {
-        merchantRecurringPaymentId = "probe_proxy_mandate_001"
-        amountBuilder.apply {
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        cardProxyBuilder.apply {  // Card proxy for vault-aliased payments.
-            cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-            cardExpMonthBuilder.value = "03"
-            cardExpYearBuilder.value = "2030"
-            cardCvcBuilder.value = "123"
-            cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            cardNetwork = CardNetwork.VISA
-        }
-        customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
-        addressBuilder.apply {
-            billingAddressBuilder.apply {
-            }
-        }
-        customerAcceptanceBuilder.apply {
-            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
-            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        }
-        authType = AuthenticationType.NO_THREE_DS
-        setupFutureUsage = FutureUsage.OFF_SESSION
-    }.build()
-    val response = client.proxy_setup_recurring(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RecurringPaymentClient(config)
-    val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
-        connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
-            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
-                connectorMandateIdBuilder.apply {
-                    connectorMandateId = "probe-mandate-123"
-                }
-            }
-        }
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
-            tokenBuilder.apply {  // Payment tokens.
-                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
-            }
-        }
-        returnUrl = "https://example.com/recurring-return"
-        connectorCustomerId = "cust_probe_123"
-        paymentMethodType = PaymentMethodType.PAY_PAL
-        offSession = true  // Behavioral Flags and Preferences.
-    }.build()
-    val response = client.charge(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
-// Flow: RecurringPaymentService.Revoke
-fun recurringRevoke(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RecurringPaymentClient(config)
-    val request = RecurringPaymentServiceRevokeRequest.newBuilder().apply {
-        merchantRevokeId = "probe_revoke_001"  // Identification.
-        mandateId = "probe_mandate_001"  // Mandate Details.
-        connectorMandateId = "probe_connector_mandate_001"
-    }.build()
-    val response = client.recurring_revoke(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildRefundRequest("probe_connector_txn_001")
+    val request = buildRefundRequest("chrg_146231656762572800")
     val response = client.refund(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Refund failed: ${response.error.unifiedDetails.message}")
@@ -500,84 +328,10 @@ fun refundGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
-// Flow: PaymentService.Reverse
-fun reverse(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = buildReverseRequest("probe_connector_txn_001")
-    val response = client.reverse(request)
-    println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentService.SetupRecurring
-fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceSetupRecurringRequest.newBuilder().apply {
-        merchantRecurringPaymentId = "probe_mandate_001"  // Identification.
-        amountBuilder.apply {  // Mandate Details.
-            minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-        authType = AuthenticationType.NO_THREE_DS  // Type of authentication to be used.
-        enrolledFor3Ds = false  // Indicates if the customer is enrolled for 3D Secure.
-        returnUrl = "https://example.com/mandate-return"  // URL to redirect after setup.
-        setupFutureUsage = FutureUsage.OFF_SESSION  // Indicates future usage intention.
-        requestIncrementalAuthorization = false  // Indicates if incremental authorization is requested.
-        customerAcceptanceBuilder.apply {  // Details of customer acceptance.
-            acceptanceType = AcceptanceType.OFFLINE  // Type of acceptance (e.g., online, offline).
-            acceptedAt = 0L  // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        }
-    }.build()
-    val response = client.setup_recurring(request)
-    when (response.status.name) {
-        "FAILED" -> throw RuntimeException("Setup failed: ${response.error.unifiedDetails.message}")
-        else     -> println("Mandate stored: ${response.connectorRecurringPaymentId}")
-    }
-}
-
-// Flow: PaymentService.TokenAuthorize
-fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
-        merchantTransactionId = "probe_tokenized_txn_001"
-        amountBuilder.apply {
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
-        customerBuilder.apply {
-            emailBuilder.value = "test@example.com"  // Customer's email address.
-        }
-        addressBuilder.apply {
-            billingAddressBuilder.apply {
-            }
-        }
-        captureMethod = CaptureMethod.AUTOMATIC
-        returnUrl = "https://example.com/return"
-    }.build()
-    val response = client.token_authorize(request)
-    println("Status: ${response.status.name}")
-}
-
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
-    val request = buildVoidRequest("probe_connector_txn_001")
+    val request = buildVoidRequest("hld_146231656762572800")
     val response = client.void(request)
     if (response.status.name == "FAILED")
         throw RuntimeException("Void failed: ${response.error.unifiedDetails.message}")
@@ -594,23 +348,14 @@ fun main(args: Array<String>) {
         "processRefund" -> processRefund(txnId)
         "processVoidPayment" -> processVoidPayment(txnId)
         "processGetPayment" -> processGetPayment(txnId)
-        "authenticate" -> authenticate(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
         "get" -> get(txnId)
-        "incrementalAuthorization" -> incrementalAuthorization(txnId)
-        "postAuthenticate" -> postAuthenticate(txnId)
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
-        "proxySetupRecurring" -> proxySetupRecurring(txnId)
-        "recurringCharge" -> recurringCharge(txnId)
-        "recurringRevoke" -> recurringRevoke(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        "reverse" -> reverse(txnId)
-        "setupRecurring" -> setupRecurring(txnId)
-        "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, incrementalAuthorization, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, recurringRevoke, refund, refundGet, reverse, setupRecurring, tokenAuthorize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, refund, refundGet, void")
     }
 }

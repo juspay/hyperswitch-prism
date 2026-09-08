@@ -440,6 +440,7 @@ pub struct Connectors {
     pub travelhub: ConnectorParams,
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
+    pub paydotcom: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1937,6 +1938,11 @@ impl<
                         payment_method_data::SkrillData {},
                     )),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::Neteller(
+                        payment_method_data::NetellerData {},
+                    )),
+                ),
                 grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(paze_wallet) => {
                     let paze_wallet_data = match paze_wallet.paze_data {
                         Some(grpc_api_types::payments::paze_wallet::PazeData::CompleteResponse(
@@ -2843,6 +2849,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::QwikcilverWallet)
             }
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(PaymentMethodType::Skrill),
+            grpc_api_types::payments::PaymentMethodType::Neteller => {
+                Ok(PaymentMethodType::Neteller)
+            }
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(PaymentMethodType::Interac),
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
@@ -2997,6 +3006,47 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::DirectCarrierBilling => {
                 Ok(PaymentMethodType::DirectCarrierBilling)
             }
+            grpc_api_types::payments::PaymentMethodType::Klarna => Ok(PaymentMethodType::Klarna),
+            grpc_api_types::payments::PaymentMethodType::Bluecode => {
+                Ok(PaymentMethodType::Bluecode)
+            }
+            grpc_api_types::payments::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(PaymentMethodType::IndonesianBankTransfer)
+            }
+            grpc_api_types::payments::PaymentMethodType::Mifinity => {
+                Ok(PaymentMethodType::Mifinity)
+            }
+            grpc_api_types::payments::PaymentMethodType::Paysera => Ok(PaymentMethodType::Paysera),
+            grpc_api_types::payments::PaymentMethodType::SepaGuaranteedDebit => {
+                Ok(PaymentMethodType::SepaGuaranteedDebit)
+            }
+            // Proto values without a common_enums::PaymentMethodType counterpart yet.
+            // They can be forwarded from hyperswitch but UCS has no domain mapping,
+            // so encoding a request for one is rejected rather than silently coerced.
+            grpc_api_types::payments::PaymentMethodType::BhnCardNetwork
+            | grpc_api_types::payments::PaymentMethodType::Breadpay
+            | grpc_api_types::payments::PaymentMethodType::EftDebitOrder
+            | grpc_api_types::payments::PaymentMethodType::Flexiti
+            | grpc_api_types::payments::PaymentMethodType::Payjustnow
+            | grpc_api_types::payments::PaymentMethodType::Payshap
+            | grpc_api_types::payments::PaymentMethodType::PayshapProxy
+            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoPush
+            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoQr
+            | grpc_api_types::payments::PaymentMethodType::PixEmv
+            | grpc_api_types::payments::PaymentMethodType::PixKey
+            | grpc_api_types::payments::PaymentMethodType::PixQr
+            | grpc_api_types::payments::PaymentMethodType::Qris => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "PaymentMethodType {value:?} is not yet supported in UCS"
+                        )),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
         }
     }
 }
@@ -3118,6 +3168,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(Some(PaymentMethodType::MobilePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
@@ -7029,6 +7080,10 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
                     payment_account_reference,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 }
             }
             _ => {
@@ -7096,6 +7151,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 network_txn_link_id: None,
                 splits: None,
                 payment_account_reference: None,
+                sender_payment_instrument_id: None,
             }
         }
     };
@@ -7192,6 +7248,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -9090,6 +9150,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
@@ -13889,6 +13950,7 @@ pub enum PaymentMethodDataType {
     Netbanking,
     QwikcilverWalletDirect,
     Skrill,
+    Neteller,
     CardWithNoCvc,
 }
 
