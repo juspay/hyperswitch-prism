@@ -40,14 +40,6 @@ use super::RapydRouterData;
 /// Rapyd digital-wallet `payment_type` values.
 const WALLET_TYPE_GOOGLE_PAY: &str = "google_pay";
 const WALLET_TYPE_APPLE_PAY: &str = "apple_pay";
-/// Google Pay decrypted `payment_method` discriminator (Rapyd expects `CARD`).
-const GOOGLE_PAY_PAYMENT_METHOD_CARD: &str = "CARD";
-/// Google Pay decrypted `auth_method`: cryptogram present vs PAN-only.
-const GOOGLE_PAY_AUTH_CRYPTOGRAM_3DS: &str = "CRYPTOGRAM_3DS";
-const GOOGLE_PAY_AUTH_PAN_ONLY: &str = "PAN_ONLY";
-/// Apple Pay decrypted `applicationExpirationDate` is `YYMMDD`. Cards carry only
-/// month + year, so the day is padded to month-end per Apple's convention.
-const APPLE_PAY_EXPIRY_DAY: &str = "31";
 
 /// Apple Pay `paymentDataType` — Apple's PKPaymentToken spec defines exactly
 /// `3DSecure` and `EMV`. The decrypted network-token path is always `3DSecure`.
@@ -57,6 +49,73 @@ pub enum RapydApplePayPaymentDataType {
     ThreeDSecure,
     #[serde(rename = "EMV")]
     Emv,
+}
+
+/// Google Pay decrypted `payment_method` discriminator.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum RapydGooglePayPaymentMethod {
+    #[serde(rename = "CARD")]
+    Card,
+}
+
+/// Google Pay decrypted `auth_method`: cryptogram present vs PAN-only.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum RapydGooglePayAuthMethod {
+    #[serde(rename = "CRYPTOGRAM_3DS")]
+    Cryptogram3ds,
+    #[serde(rename = "PAN_ONLY")]
+    PanOnly,
+}
+
+/// Card funding for the wallet `brand_data.type`.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RapydCardFunding {
+    Credit,
+    Debit,
+    Prepaid,
+}
+
+impl TryFrom<&str> for RapydCardFunding {
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.to_lowercase().as_str() {
+            "credit" => Ok(Self::Credit),
+            "debit" => Ok(Self::Debit),
+            "prepaid" => Ok(Self::Prepaid),
+            other => Err(IntegrationError::NotSupported {
+                message: format!("rapyd wallet card funding: {other}"),
+                connector: "rapyd",
+                context: Default::default(),
+            })?,
+        }
+    }
+}
+
+/// Serialize a currency as its ISO-4217 numeric code (e.g. "978" for EUR),
+/// which is the form Rapyd's decrypted Apple Pay `currencyCode` expects.
+fn serialize_currency_as_numeric<S>(
+    currency: &common_enums::Currency,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(currency.iso_4217())
+}
+
+/// Parse a wallet's card-network string (Apple sends `"Visa"`, Google `"VISA"`)
+/// into `CardNetwork`. Serde aliases cover the casing differences.
+fn parse_card_network(
+    network: &str,
+) -> Result<common_enums::CardNetwork, error_stack::Report<IntegrationError>> {
+    serde_json::from_value(serde_json::Value::String(network.to_string())).change_context(
+        IntegrationError::NotSupported {
+            message: format!("rapyd wallet card network: {network}"),
+            connector: "rapyd",
+            context: Default::default(),
+        },
+    )
 }
 
 /// Rapyd `payment_method.type` identifier. Rapyd's types are country-prefixed
@@ -427,7 +486,8 @@ pub struct RapydApplePayDecryptedData {
     application_primary_account_number: cards::CardNumber,
     application_expiration_date: Secret<String>,
     /// ISO-4217 numeric currency code (e.g. "978" for EUR), per Apple/Rapyd.
-    currency_code: String,
+    #[serde(serialize_with = "serialize_currency_as_numeric")]
+    currency_code: common_enums::Currency,
     transaction_amount: MinorUnit,
     payment_data_type: RapydApplePayPaymentDataType,
     payment_data: RapydApplePayCryptogram,
@@ -445,9 +505,9 @@ pub struct RapydApplePayCryptogram {
 #[serde(rename_all = "camelCase")]
 pub struct RapydApplePayBrandData {
     display_name: String,
-    network: String,
+    network: common_enums::CardNetwork,
     #[serde(rename = "type")]
-    card_type: String,
+    card_type: RapydCardFunding,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -460,7 +520,7 @@ pub struct RapydGooglePayDecryptedDetails {
 #[serde(rename_all = "camelCase")]
 pub struct RapydGooglePayDecryptedData {
     gateway_merchant_id: Secret<String>,
-    payment_method: String,
+    payment_method: RapydGooglePayPaymentMethod,
     payment_method_details: RapydGooglePayMethodDetails,
 }
 
@@ -470,7 +530,7 @@ pub struct RapydGooglePayMethodDetails {
     expiration_year: Secret<String>,
     expiration_month: Secret<String>,
     pan: cards::CardNumber,
-    auth_method: String,
+    auth_method: RapydGooglePayAuthMethod,
     #[serde(skip_serializing_if = "Option::is_none")]
     eci_indicator: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -481,7 +541,7 @@ pub struct RapydGooglePayMethodDetails {
 #[serde(rename_all = "camelCase")]
 pub struct RapydGooglePayBrandData {
     card_details: String,
-    card_network: String,
+    card_network: common_enums::CardNetwork,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -590,16 +650,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 let auth =
                                     RapydAuthType::try_from(&item.router_data.connector_config)?;
                                 let auth_method = if decrypt_data.cryptogram.is_some() {
-                                    GOOGLE_PAY_AUTH_CRYPTOGRAM_3DS
+                                    RapydGooglePayAuthMethod::Cryptogram3ds
                                 } else {
-                                    GOOGLE_PAY_AUTH_PAN_ONLY
+                                    RapydGooglePayAuthMethod::PanOnly
                                 };
                                 RapydWalletDetails::GooglePayDecrypted(Box::new(
                                     RapydGooglePayDecryptedDetails {
                                         decrypted_data: RapydGooglePayDecryptedData {
                                             gateway_merchant_id: auth.access_key,
-                                            payment_method: GOOGLE_PAY_PAYMENT_METHOD_CARD
-                                                .to_string(),
+                                            payment_method: RapydGooglePayPaymentMethod::Card,
                                             payment_method_details: RapydGooglePayMethodDetails {
                                                 expiration_year: decrypt_data
                                                     .get_four_digit_expiry_year()
@@ -626,7 +685,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 pan: decrypt_data
                                                     .application_primary_account_number
                                                     .clone(),
-                                                auth_method: auth_method.to_string(),
+                                                auth_method,
                                                 eci_indicator: decrypt_data.eci_indicator.clone(),
                                                 cryptogram: decrypt_data.cryptogram.clone(),
                                             },
@@ -635,7 +694,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             card_details: decrypt_data
                                                 .application_primary_account_number
                                                 .get_last4(),
-                                            card_network: data.info.card_network.clone(),
+                                            card_network: parse_card_network(
+                                                &data.info.card_network,
+                                            )?,
                                         },
                                     },
                                 ))
@@ -675,19 +736,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             Some(decrypt_data) => {
                                 // Hyperswitch decrypted the Apple Pay payload; forward the
                                 // decrypted card + cryptogram as Rapyd's `decrypted_data`.
-                                let expiry_year = decrypt_data
+                                // Rapyd wants YYMMDD; the decrypted token exposes only
+                                // month + year (via the shared expiry helpers), so append
+                                // the last day of the expiry month (leap-aware).
+                                let ctx = || {
+                                    crate::utils::integration_ctx(
+                                        "Apple Pay decrypted token has an invalid card expiry",
+                                        "Ensure the Apple Pay payload was decrypted with the card expiry.",
+                                    )
+                                };
+                                let expiry_year_yy = decrypt_data
                                     .get_two_digit_expiry_year()
                                     .change_context(IntegrationError::MissingRequiredField {
                                         field_name: "apple expiration_year",
-                                        context: crate::utils::integration_ctx(
-                                            "Apple Pay decrypted token has no 2-digit expiry year",
-                                            "Ensure the Apple Pay payload was decrypted with the card expiry.",
-                                        ),
+                                        context: ctx(),
                                     })?;
+                                let month_u8 = decrypt_data
+                                    .get_expiry_month()
+                                    .peek()
+                                    .parse::<u8>()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "apple expiration_month",
+                                        context: ctx(),
+                                    })?;
+                                let year_i32 = decrypt_data
+                                    .get_four_digit_expiry_year()
+                                    .peek()
+                                    .parse::<i32>()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "apple expiration_year",
+                                        context: ctx(),
+                                    })?;
+                                let last_day = time::Month::try_from(month_u8)
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "apple expiration_month",
+                                        context: ctx(),
+                                    })?
+                                    .length(year_i32);
                                 let application_expiration_date = Secret::new(format!(
-                                    "{}{}{APPLE_PAY_EXPIRY_DAY}",
-                                    expiry_year.peek(),
-                                    decrypt_data.get_expiry_month().peek(),
+                                    "{}{month_u8:02}{last_day:02}",
+                                    expiry_year_yy.peek(),
                                 ));
                                 RapydWalletDetails::ApplePayDecrypted(Box::new(
                                     RapydApplePayDecryptedDetails {
@@ -696,12 +784,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                                 .application_primary_account_number
                                                 .clone(),
                                             application_expiration_date,
-                                            currency_code: item
-                                                .router_data
-                                                .request
-                                                .currency
-                                                .iso_4217()
-                                                .to_string(),
+                                            currency_code: item.router_data.request.currency,
                                             transaction_amount: item
                                                 .router_data
                                                 .request
@@ -721,8 +804,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         },
                                         brand_data: RapydApplePayBrandData {
                                             display_name: data.payment_method.display_name.clone(),
-                                            network: data.payment_method.network.clone(),
-                                            card_type: data.payment_method.pm_type.clone(),
+                                            network: parse_card_network(
+                                                &data.payment_method.network,
+                                            )?,
+                                            card_type: RapydCardFunding::try_from(
+                                                data.payment_method.pm_type.as_str(),
+                                            )?,
                                         },
                                     },
                                 ))
@@ -770,7 +857,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 )))
             }
-            PaymentMethodData::PaymentMethodToken(token_data) => {
+            PaymentMethodData::PaymentMethodToken(ref token_data) => {
                 Some(RapydPaymentMethodData::Token(token_data.token.clone()))
             }
             _ => None,
@@ -783,9 +870,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // When the merchant requests future off-session use, ask Rapyd to save
         // the card and create an inline customer, so the response carries the
         // reusable `card_*` / `cus_*` tokens (the mandate) for later MIT calls.
-        let (customer, save_payment_method) =
-            if item.router_data.request.setup_future_usage.is_some() {
-                let customer_name = item
+        let (customer, save_payment_method) = if item
+            .router_data
+            .request
+            .setup_future_usage
+            .is_some()
+        {
+            let customer_name = item
                 .router_data
                 .request
                 .customer_name
@@ -797,28 +888,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     "Send the customer name on the payment request when using setup_future_usage.",
                 ),
             })?;
-                let customer_email = item
-                .router_data
-                .request
-                .email
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "customer.email",
-                context: crate::utils::integration_ctx(
-                    "Rapyd's inline customer requires an email",
-                    "Send the customer email on the payment request when using setup_future_usage.",
-                ),
-            })?;
-                (
-                    Some(RapydCustomerRef::Inline(RapydInlineCustomer {
-                        name: Secret::new(customer_name),
-                        email: customer_email,
-                    })),
-                    Some(true),
-                )
-            } else {
-                (None, None)
-            };
+            let customer_email = item.router_data.request.get_email()?;
+            (
+                Some(RapydCustomerRef::Inline(RapydInlineCustomer {
+                    name: Secret::new(customer_name),
+                    email: customer_email,
+                })),
+                Some(true),
+            )
+        } else {
+            (None, None)
+        };
         Ok(Self {
             amount,
             currency: item.router_data.request.currency,
