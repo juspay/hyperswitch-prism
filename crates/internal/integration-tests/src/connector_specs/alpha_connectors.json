@@ -62,6 +62,9 @@
     "kount": {},
     "loonio": {},
     "maya": {},
+    "merchante": {
+      "reason": "No Merchante (MerchantE by Omise, cert.merchante-solutions.com) sandbox credentials are configured in CI yet — merchant onboarding is pending. Authorize (Sale/Preauth), Capture (Settle), Void, Refund, PSync/RSync (via retry_id Inquiry), SetupRecurring (Verify $0 with store_card=Y) and RepeatPayment (MIT with card_id + cit_mit_indicator=M101) were designed against the documented certification endpoint during development. Remove this entry once credentials are added so CI starts certifying it."
+    },
     "mifinity": {},
     "mollie": {},
     "multisafepay": {},

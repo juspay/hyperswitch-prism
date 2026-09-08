@@ -317,6 +317,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Merchante => ConnectorSpecificConfig::Merchante {
+            profile_id: id(),
+            profile_key: k(),
+            base_url: None,
+        },
         ConnectorEnum::Nmi => ConnectorSpecificConfig::Nmi {
             api_key: k(),
             public_key: None,

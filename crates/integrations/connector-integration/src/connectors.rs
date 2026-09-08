@@ -328,3 +328,6 @@ pub mod d24;
 pub use self::d24::D24;
 pub mod paydotcom;
 pub use self::paydotcom::Paydotcom;
+
+pub mod merchante;
+pub use self::merchante::Merchante;

@@ -912,6 +912,7 @@ enum Connector {
   PAYNEARME = 143;
   D24 = 144;
   PAYDOTCOM = 145;
+  MERCHANTE = 146;
 }
 
 // Payment method types
@@ -5765,6 +5766,12 @@ message MonerisConfig {
   optional string base_url = 50;
 }
 
+message MerchanteConfig {
+  SecretString profile_id = 1;
+  SecretString profile_key = 2;
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -6176,6 +6183,8 @@ message ConnectorSpecificConfig {
     D24Config d24 = 155;
     // PAYDOTCOM = 145
     PaydotcomConfig paydotcom = 156;
+    // MERCHANTE = 146
+    MerchanteConfig merchante = 157;
   }
 }
 
