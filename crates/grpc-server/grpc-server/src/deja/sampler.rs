@@ -127,12 +127,16 @@ impl SuperpositionRecordingSampler {
     fn decide(&self, facts: &RequestRecordingFacts) -> bool {
         let policy = self.policy_for(&facts.rpc);
         // The boolean records wholesale; the percentage samples the remainder.
-        policy.record
-            || (policy.percent > 0 && request_bucket(&facts.request_id) < policy.percent)
+        policy.record || (policy.percent > 0 && request_bucket(&facts.request_id) < policy.percent)
     }
 
     fn policy_for(&self, rpc: &str) -> ResolvedPolicy {
-        if let Some(hit) = self.memo.read().ok().and_then(|memo| memo.get(rpc).copied()) {
+        if let Some(hit) = self
+            .memo
+            .read()
+            .ok()
+            .and_then(|memo| memo.get(rpc).copied())
+        {
             return hit;
         }
 
@@ -288,7 +292,10 @@ deja_record = true
             "production",
             &sampler_cfg(true),
         );
-        assert!(sampler.decide(&facts(AUTHORIZE)), "targeted override samples in");
+        assert!(
+            sampler.decide(&facts(AUTHORIZE)),
+            "targeted override samples in"
+        );
         assert!(
             !sampler.decide(&facts("/types.PaymentService/Refund")),
             "everything else inherits the dark default"
@@ -343,8 +350,7 @@ unrelated = false
         let sampler =
             SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(true));
         assert!(!sampler.decide(&facts(AUTHORIZE)));
-        let open =
-            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false));
+        let open = SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false));
         assert!(open.decide(&facts(AUTHORIZE)));
     }
 
@@ -411,8 +417,14 @@ deja_record_percent = 50
         let ids: Vec<String> = (0..999).map(|i| format!("req-{i}")).collect();
         let low = ids.iter().find(|id| request_bucket(id) < 50).unwrap();
         let high = ids.iter().find(|id| request_bucket(id) >= 50).unwrap();
-        assert!(sampler.decide(&with_id(low)), "bucket below the gate records");
-        assert!(!sampler.decide(&with_id(high)), "bucket at/above the gate skips");
+        assert!(
+            sampler.decide(&with_id(low)),
+            "bucket below the gate records"
+        );
+        assert!(
+            !sampler.decide(&with_id(high)),
+            "bucket at/above the gate skips"
+        );
         assert!(
             sampler.decide(&with_id(low)) && !sampler.decide(&with_id(high)),
             "same request id, same answer — the gate is deterministic"
@@ -443,7 +455,10 @@ deja_record = true
             "production",
             &sampler_cfg(true),
         );
-        assert!(production.decide(&facts(AUTHORIZE)), "percent 100 always records");
+        assert!(
+            production.decide(&facts(AUTHORIZE)),
+            "percent 100 always records"
+        );
         assert!(
             !production.decide(&facts("/types.RefundService/Refund")),
             "percent 0 (default) never gates in"
@@ -486,10 +501,14 @@ deja_record = true
         sampler.decide(&facts(AUTHORIZE));
         let hit = sampler.memo.read().unwrap().get(AUTHORIZE).copied();
         assert!(
-            matches!(hit, Some(ResolvedPolicy { record: true, percent: 0 })),
+            matches!(
+                hit,
+                Some(ResolvedPolicy {
+                    record: true,
+                    percent: 0
+                })
+            ),
             "first consult lands the resolved policy in the memo"
         );
     }
-
-
 }

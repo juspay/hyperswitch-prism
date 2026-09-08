@@ -283,7 +283,9 @@ impl Service {
             sampler
         });
         #[cfg(feature = "deja")]
-        let router = router.layer(crate::deja::http_layer::DejaHttpIngressLayer::new(deja_sampler));
+        let router = router.layer(crate::deja::http_layer::DejaHttpIngressLayer::new(
+            deja_sampler,
+        ));
         let router = router
             .layer(request_id_layer)
             .layer(propagate_request_id_layer)
