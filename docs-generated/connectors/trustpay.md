@@ -196,7 +196,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | x |
 | MiFinity | x |
 | Bluecode | x |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | x |
 | MB Way | x |
 | Satispay | x |
@@ -223,7 +223,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | ⚠ |
 | Slovakia | ⚠ |
 | UK | ⚠ |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | ⚠ |
 | WebPay | x |
 | Local | ⚠ |
@@ -238,7 +238,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | ⚠ |
 | Bizum | ⚠ |
 | EFT | ⚠ |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | x |
 | SEPA | ✓ |
 | BACS | x |
@@ -261,9 +261,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | x |
 | BECS | x |
 | SEPA Guaranteed | x |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | x |
-| Givex | x |
+| Givex | ⚠ |
 | PaySafeCard | x |
 | E-Voucher | x |
 | Boleto | x |
