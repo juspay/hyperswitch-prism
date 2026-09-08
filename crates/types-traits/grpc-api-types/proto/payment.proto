@@ -911,7 +911,8 @@ enum Connector {
   TRAVELHUB = 142;
   PAYNEARME = 143;
   D24 = 144;
-  GLOBALPAYMENTS_REALEX = 145;
+  PAYDOTCOM = 145;
+  GLOBALPAYMENTS_REALEX = 146;
 }
 
 // Payment method types
@@ -1033,6 +1034,34 @@ enum PaymentMethodType {
   SKRILL = 114;
   PAYMAYA = 115;
   GRAB_PAY = 116;
+  // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
+  // taken by the Connector enum in this same proto package, and protobuf requires
+  // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
+  // both a connector and a payment method; this value carries the enum-name prefix
+  // that the protobuf style guide recommends for exactly this reason.
+  PAYMENT_METHOD_TYPE_KLARNA = 117;
+  BHN_CARD_NETWORK = 118;
+  BLUECODE = 119;
+  BREADPAY = 120;
+  EFT_DEBIT_ORDER = 121;
+  FLEXITI = 122;
+  INDONESIAN_BANK_TRANSFER = 123;
+  // PAYMENT_METHOD_TYPE_MIFINITY (not bare MIFINITY): the value name MIFINITY is
+  // already taken by the Connector enum in this same proto package; see the
+  // PAYMENT_METHOD_TYPE_KLARNA note above.
+  PAYMENT_METHOD_TYPE_MIFINITY = 124;
+  PAYJUSTNOW = 125;
+  PAYSERA = 126;
+  PAYSHAP = 127;
+  PAYSHAP_PROXY = 128;
+  PIX_AUTOMATICO_PUSH = 129;
+  PIX_AUTOMATICO_QR = 130;
+  PIX_EMV = 131;
+  PIX_KEY = 132;
+  PIX_QR = 133;
+  QRIS = 134;
+  SEPA_GUARANTEED_DEBIT = 135;
+  NETELLER = 136;
 }
 
 // Product type enumeration
@@ -2766,6 +2795,10 @@ message PaymentServiceAuthorizeResponse {
 
   // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
   optional string payment_account_reference = 28;
+
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
+  optional string sender_payment_instrument_id = 29;
 }
 
 // Request message for synchronizing payment status
@@ -2889,6 +2922,8 @@ message PaymentServiceGetResponse {
   // Payment method updates
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
 
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
   optional string sender_payment_instrument_id = 30;
 
   // Split payment response data from connector
@@ -5094,6 +5129,8 @@ message PaysafePaymentMethodDetails {
   map<string, PaysafeRedirectAccountId> skrill = 5;
   // paysafecard processing accounts, keyed by currency.
   map<string, PaysafeRedirectAccountId> pay_safe_card = 6;
+  // Neteller wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> neteller = 7;
 }
 
 message LoonioConfig {
@@ -5809,6 +5846,13 @@ message D24Config {
   optional string base_url = 50;
 }
 
+// Pay.com REST API v1.
+// api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
+message PaydotcomConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -6145,8 +6189,10 @@ message ConnectorSpecificConfig {
     PaynearmeConfig paynearme = 154;
     // D24 = 144
     D24Config d24 = 155;
-    // GLOBALPAYMENTS_REALEX = 145
-    GlobalpaymentsRealexConfig globalpayments_realex = 156;
+    // PAYDOTCOM = 145
+    PaydotcomConfig paydotcom = 156;
+    // GLOBALPAYMENTS_REALEX = 146
+    GlobalpaymentsRealexConfig globalpayments_realex = 157;
   }
 }
 

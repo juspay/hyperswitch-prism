@@ -152,6 +152,8 @@ pub struct PaysafePaymentMethodDetails {
     pub apple_pay: Option<HashMap<common_enums::enums::Currency, PaysafeApplePayAccountId>>,
     /// Skrill wallet processing accounts, keyed by currency.
     pub skrill: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
+    /// Neteller wallet processing accounts, keyed by currency.
+    pub neteller: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
     /// paysafecard processing accounts, keyed by currency.
     pub pay_safe_card: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
 }
@@ -210,6 +212,7 @@ pub enum PaysafeAccountKind {
     Interac,
     ApplePay(PaysafeApplePayFlow),
     Skrill,
+    Neteller,
     PaysafeGiftCard,
 }
 
@@ -270,6 +273,13 @@ impl PaysafePaymentMethodDetails {
                     .and_then(|skrill| skrill.get(&currency))
                     .and_then(|skrill| skrill.three_ds.clone()),
                 "Missing skrill account_id",
+            ),
+            PaysafeAccountKind::Neteller => (
+                self.neteller
+                    .as_ref()
+                    .and_then(|neteller| neteller.get(&currency))
+                    .and_then(|neteller| neteller.three_ds.clone()),
+                "Missing neteller account_id",
             ),
             PaysafeAccountKind::PaysafeGiftCard => (
                 self.pay_safe_card
@@ -349,6 +359,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Xendit {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Pay.com REST API v1.
+    /// `api_key` = the `x-paycom-api-key` value (test_… sandbox / live_… production).
+    Paydotcom {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
@@ -1459,6 +1475,7 @@ impl ConnectorSpecificConfig {
             Paynearme { api_key, key1 },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
+            Paydotcom { api_key },
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -1976,6 +1993,7 @@ impl ConnectorSpecificConfig {
                 Paynearme { api_key, key1 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
+                Paydotcom { api_key },
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2636,6 +2654,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 terminal_id: jpmorgan_orbital.terminal_id,
                 base_url: jpmorgan_orbital.base_url,
                 merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
+            }),
+            AuthType::Paydotcom(paydotcom) => Ok(Self::Paydotcom {
+                api_key: paydotcom.api_key.ok_or_else(err)?,
+                base_url: paydotcom.base_url,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,
@@ -3731,6 +3753,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         merchant_key: key1.clone(),
                         website: api_secret.clone(),
                         client_id: Some(key2.clone()),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Paydotcom => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
