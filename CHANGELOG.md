@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.08.0
+
+### Features
+
+- **connector:** [PAY.COM] add Pay.com connector — Authorize (3DS + no-3DS), PSync, Capture, Void, Refund, RSync ([#2223](https://github.com/juspay/connector-service/pull/2223)) ([`e0aa0db`](https://github.com/juspay/connector-service/commit/e0aa0db5b9a62838d313b9595e9d08af98dfeeb3))
+- **wallet:** [Paysafe] Implement a new wallet neteller ([#2216](https://github.com/juspay/connector-service/pull/2216)) ([`5b1a13a`](https://github.com/juspay/connector-service/commit/5b1a13ac46b18b51ecdda4a7f7412d10e2f0a4ce))
+
+**Full Changelog:** [`2026.09.07.2...2026.09.08.0`](https://github.com/juspay/connector-service/compare/2026.09.07.2...2026.09.08.0)
+
+- - -
+
 ## 2026.09.07.2
 
 ### Bug Fixes
