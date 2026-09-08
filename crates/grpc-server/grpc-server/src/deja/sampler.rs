@@ -563,6 +563,10 @@ deja_record = true
             !sandbox.decide(&with_id("/types.RefundService/Refund", &low)),
             "refund class percent 0 overrides the environment percent"
         );
+        assert!(
+            !sandbox.decide(&with_id("/types.PaymentService/Refund", &low)),
+            "live refunds ride PaymentService (verified on tape) and must stay dark too"
+        );
 
         let production = SuperpositionRecordingSampler::assemble(
             Some(snapshot.clone()),

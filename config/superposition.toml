@@ -1047,3 +1047,11 @@ deja_record = true
 [[overrides]]
 _context_ = { environment = "sandbox", rpc_service = "refund" }
 deja_record_percent = 0
+
+# Live-topology fix (verified on the tape 2026-09-08): hyperswitch's router
+# drives refunds through /types.PaymentService/Refund — the rpc_service rule
+# above only matches direct RefundService calls — so the never-record rule
+# for LIVE refund traffic targets the rpc itself.
+[[overrides]]
+_context_ = { environment = "sandbox", rpc_method = "/types.PaymentService/Refund" }
+deja_record_percent = 0
