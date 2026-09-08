@@ -1,0 +1,10 @@
+{
+  "connector": "etisalat",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RecurringPaymentService/Charge"
+  ]
+}

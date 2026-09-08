@@ -912,6 +912,7 @@ enum Connector {
   PAYNEARME = 143;
   D24 = 144;
   PAYDOTCOM = 145;
+  ETISALAT = 146;
 }
 
 // Payment method types
@@ -5765,6 +5766,13 @@ message MonerisConfig {
   optional string base_url = 50;
 }
 
+message EtisalatConfig {
+  SecretString user_name = 1;
+  SecretString password = 2;
+  SecretString customer = 3; // The merchant identifier assigned by EPG (sandbox uses "Demo Merchant").
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -6176,6 +6184,8 @@ message ConnectorSpecificConfig {
     D24Config d24 = 155;
     // PAYDOTCOM = 145
     PaydotcomConfig paydotcom = 156;
+    // ETISALAT = 146
+    EtisalatConfig etisalat = 157;
   }
 }
 
