@@ -617,6 +617,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds_comp_ind: Some(
                 request
                     .threeds_completion_indicator
+                    .clone()
                     .map(netcetera_types::ThreeDSMethodCompletionIndicator::from)
                     .unwrap_or(netcetera_types::ThreeDSMethodCompletionIndicator::U),
             ),
