@@ -1,4 +1,4 @@
-use common_enums::{AttemptStatus, Currency, FrmDecision};
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, FrmDecision};
 use common_utils::types::FloatMajorUnit;
 use domain_types::connector_flow::PreRiskCheck;
 use domain_types::{
@@ -136,20 +136,24 @@ pub struct NsureMetadata {
     pub account_type: Option<NsureAccountType>,
 }
 
+/// Device and session signals. Every field is a `Secret`: taken together they
+/// are a device fingerprint, and `end_user_ip` is personal data in its own right
+/// under GDPR. `Secret` masks them in logs only — the serialized request body
+/// still carries the real values.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NsureSessionInfo {
     /// Minted by the nSure browser/mobile SDK; optional within sessionInfo.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_id: Option<String>,
+    pub device_id: Option<Secret<String>>,
     /// Required by nSure whenever `sessionInfo` is present.
-    pub user_agent: String,
+    pub user_agent: Secret<String>,
     /// Required by nSure whenever `sessionInfo` is present.
-    pub end_user_ip: String,
+    pub end_user_ip: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub language: Option<String>,
+    pub language: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<String>,
+    pub country: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -264,7 +268,7 @@ pub struct NsurePaymentMethod {
     pub billing_info: Option<NsureBillingInfo>,
     /// Required by the `other` variant.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
+    pub name: Option<NsurePaymentMethodName>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
@@ -274,6 +278,23 @@ pub enum NsurePaymentMethodType {
     Paypal,
     BankTransfer,
     Other,
+}
+
+/// Value for `paymentMethod.name`, which nSure's `other` variant requires. It
+/// names the instrument for methods that have no first-class nSure variant, so
+/// the set is closed rather than free-form text.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum NsurePaymentMethodName {
+    GooglePay,
+    ApplePay,
+    AliPay,
+    /// A wallet prism carries but nSure has no dedicated name for.
+    Wallet,
+    /// A payment method that is neither card, wallet nor bank transfer.
+    Other,
+    /// No payment method data reached the connector at all.
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Default)]
@@ -293,7 +314,7 @@ pub struct NsureBillingInfo {
 #[serde(rename_all = "camelCase")]
 pub struct NsureAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<String>,
+    pub country: Option<CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -460,23 +481,27 @@ fn nsure_billing_info(address: Option<&Address>) -> Option<NsureBillingInfo> {
     let address = address?;
     let details = address.address.as_ref();
     let nsure_address = details.map(|details| NsureAddress {
-        country: details.country.map(|country| country.to_string()),
+        country: details.get_optional_country(),
+        // No `get_optional_state` exists; `get_state` returns a `Result` and this
+        // field is optional to nSure, so the field is read directly.
         state: details.state.clone(),
-        city: details.city.clone(),
+        city: details.get_optional_city(),
         // nSure models the street as one line; join line1/line2 when both exist.
-        street: match (details.line1.as_ref(), details.line2.as_ref()) {
+        // `AddressDetails::get_combined_address_line` is deliberately not used:
+        // it joins with `,` rather than a space and errors unless *both* lines
+        // are present, whereas most addresses carry only line1.
+        street: match (details.get_optional_line1(), details.get_optional_line2()) {
             (Some(line1), Some(line2)) => {
                 Some(Secret::new(format!("{} {}", line1.peek(), line2.peek())))
             }
-            (Some(line1), None) => Some(line1.clone()),
-            (None, Some(line2)) => Some(line2.clone()),
+            (Some(line), None) | (None, Some(line)) => Some(line),
             (None, None) => None,
         },
-        postal_code: details.zip.clone(),
+        postal_code: details.get_optional_zip(),
     });
     let info = NsureBillingInfo {
-        first_name: details.and_then(|details| details.first_name.clone()),
-        last_name: details.and_then(|details| details.last_name.clone()),
+        first_name: details.and_then(|details| details.get_optional_first_name()),
+        last_name: details.and_then(|details| details.get_optional_last_name()),
         address: nsure_address,
         phone_info: address
             .phone
@@ -489,25 +514,6 @@ fn nsure_billing_info(address: Option<&Address>) -> Option<NsureBillingInfo> {
         && info.address.is_none()
         && info.phone_info.is_none();
     (!is_empty).then_some(info)
-}
-
-/// Split a PAN into (bin, last4). nSure's card variant requires `last4`; `bin`
-/// is the first six digits, which it uses for issuer lookup.
-fn card_bin_last4(pan: &str) -> (Option<Secret<String>>, Option<Secret<String>>) {
-    let digits: String = pan.chars().filter(|c| c.is_ascii_digit()).collect();
-    let bin = (digits.len() >= 6).then(|| Secret::new(digits[..6].to_string()));
-    let last4 = (digits.len() >= 4).then(|| Secret::new(digits[digits.len() - 4..].to_string()));
-    (bin, last4)
-}
-
-/// Normalise a 2- or 4-digit expiry year to the 4-digit form nSure documents.
-fn four_digit_year(year: &Secret<String>) -> Secret<String> {
-    let raw = year.peek().trim();
-    if raw.len() == 2 {
-        Secret::new(format!("20{raw}"))
-    } else {
-        Secret::new(raw.to_string())
-    }
 }
 
 fn nsure_payment_method(
@@ -532,13 +538,14 @@ fn nsure_payment_method(
     };
     match payment_method {
         Some(PaymentMethodData::Card(card)) => {
-            let (bin, last4) = card_bin_last4(card.card_number.peek());
+            // `get_card_isin` / `get_last4` come from `cards::CardNumber`, so the
+            // BIN and last four are derived the same way as everywhere else.
             NsurePaymentMethod {
                 payment_method_type: NsurePaymentMethodType::Card,
-                bin,
-                last4,
+                bin: Some(Secret::new(card.card_number.0.get_card_isin())),
+                last4: Some(Secret::new(card.card_number.0.get_last4())),
                 expiration_month: Some(card.card_exp_month.clone()),
-                expiration_year: Some(four_digit_year(&card.card_exp_year)),
+                expiration_year: Some(card.get_expiry_year_4_digit()),
                 card_holder_name: card.card_holder_name.clone(),
                 ..base
             }
@@ -559,26 +566,26 @@ fn nsure_payment_method(
                 domain_types::payment_method_data::WalletData::GooglePay(_)
                 | domain_types::payment_method_data::WalletData::GooglePayRedirect(_) => {
                     NsurePaymentMethod {
-                        name: Some("googlePay".to_string()),
+                        name: Some(NsurePaymentMethodName::GooglePay),
                         ..base
                     }
                 }
                 domain_types::payment_method_data::WalletData::ApplePay(_)
                 | domain_types::payment_method_data::WalletData::ApplePayRedirect(_) => {
                     NsurePaymentMethod {
-                        name: Some("applePay".to_string()),
+                        name: Some(NsurePaymentMethodName::ApplePay),
                         ..base
                     }
                 }
                 domain_types::payment_method_data::WalletData::AliPayQr(_)
                 | domain_types::payment_method_data::WalletData::AliPayRedirect(_) => {
                     NsurePaymentMethod {
-                        name: Some("aliPay".to_string()),
+                        name: Some(NsurePaymentMethodName::AliPay),
                         ..base
                     }
                 }
                 _ => NsurePaymentMethod {
-                    name: Some("wallet".to_string()),
+                    name: Some(NsurePaymentMethodName::Wallet),
                     ..base
                 },
             }
@@ -591,11 +598,11 @@ fn nsure_payment_method(
         }
         // Everything prism can carry but nSure has no first-class variant for.
         Some(_) => NsurePaymentMethod {
-            name: Some("other".to_string()),
+            name: Some(NsurePaymentMethodName::Other),
             ..base
         },
         None => NsurePaymentMethod {
-            name: Some("unknown".to_string()),
+            name: Some(NsurePaymentMethodName::Unknown),
             ..base
         },
     }
@@ -715,18 +722,19 @@ impl<
         // SDK deviceId rides along when present.
         let session_info = match (user_agent, end_user_ip) {
             (Some(user_agent), Some(end_user_ip)) => Some(NsureSessionInfo {
-                device_id: feature_data.device_id.clone(),
-                user_agent,
-                end_user_ip,
+                device_id: feature_data.device_id.clone().map(Secret::new),
+                user_agent: Secret::new(user_agent),
+                end_user_ip: Secret::new(end_user_ip),
                 language: browser
                     .and_then(|info| info.language.as_deref())
-                    .and_then(nsure_language),
+                    .and_then(nsure_language)
+                    .map(Secret::new),
                 country: req
                     .address
                     .as_ref()
                     .and_then(|address| address.get_payment_billing())
                     .and_then(|billing| billing.address.as_ref())
-                    .and_then(|details| details.country.map(|c| c.to_string())),
+                    .and_then(|details| details.country.map(|c| Secret::new(c.to_string()))),
             }),
             _ => None,
         };
