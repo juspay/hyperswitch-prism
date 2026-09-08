@@ -1,4 +1,4 @@
-use common_utils::{pii, types::MinorUnit};
+use common_utils::{pii, types::ConnectorMinorUnit};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -371,7 +371,7 @@ pub struct InstructionNarrative {
 
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub struct PaymentValue {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: common_enums::Currency,
 }
 

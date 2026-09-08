@@ -3,7 +3,8 @@ use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, Refund
 use common_utils::{
     consts,
     pii::{Email, SecretSerdeValue},
-    types::MinorUnit,
+    types::ConnectorMinorUnit,
+    AmountConvertor,
 };
 use domain_types::{
     connector_flow::{
@@ -361,7 +362,7 @@ pub struct FinixPaymentThreeDSecure {
 
 #[derive(Debug, Serialize)]
 pub struct FinixPaymentsRequest {
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
@@ -378,7 +379,7 @@ pub type FinixAuthorizeRequest = FinixPaymentsRequest;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixAuthorizeResponse {
     pub id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     pub state: FinixPaymentStatus,
     #[serde(rename = "_links")]
@@ -533,7 +534,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.amount,
+            amount: common_utils::MinorUnitForConnector
+                .convert(router_data.request.amount, router_data.request.currency)
+                .unwrap_or_default(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -657,7 +660,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FinixPaymentsResponse {
     pub id: String,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub currency: Currency,
     #[serde(alias = "status")]
     pub state: FinixPaymentStatus,
@@ -782,7 +785,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct FinixCaptureRequest {
-    pub capture_amount: MinorUnit,
+    pub capture_amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub idempotency_id: Option<String>,
 }
@@ -809,7 +812,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            capture_amount: item.router_data.request.minor_amount_to_capture,
+            capture_amount: common_utils::MinorUnitForConnector
+                .convert(item.router_data.request.minor_amount_to_capture, item.router_data.request.currency)
+                .unwrap_or_default(),
             idempotency_id: None,
         })
     }
@@ -929,7 +934,7 @@ pub type FinixVoidResponse = FinixPaymentsResponse;
 
 #[derive(Debug, Serialize)]
 pub struct FinixRefundRequest {
-    pub refund_amount: MinorUnit,
+    pub refund_amount: ConnectorMinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub idempotency_id: Option<String>,
 }
@@ -1052,7 +1057,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            refund_amount: item.router_data.request.minor_refund_amount,
+            refund_amount: common_utils::MinorUnitForConnector
+                .convert(item.router_data.request.minor_refund_amount, item.router_data.request.currency)
+                .unwrap_or_default(),
             idempotency_id: None,
         })
     }
@@ -1771,7 +1778,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_finix_fraud_session_id(router_data.request.connector_feature_data.as_ref());
 
         Ok(Self {
-            amount: router_data.request.minor_amount,
+            amount: common_utils::MinorUnitForConnector
+                .convert(router_data.request.minor_amount, router_data.request.currency)
+                .unwrap_or_default(),
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
@@ -1944,8 +1953,8 @@ pub struct FinixWebhookPaymentsResponse {
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
     pub application: Option<Secret<String>>,
-    pub amount: MinorUnit,
-    pub captured_amount: Option<MinorUnit>,
+    pub amount: ConnectorMinorUnit,
+    pub captured_amount: Option<ConnectorMinorUnit>,
     pub currency: Currency,
     pub is_void: Option<bool>,
     pub source: Option<Secret<String>>,
@@ -1977,7 +1986,7 @@ pub enum FinixDisputeState {
 pub struct FinixDisputes {
     pub transfer: String,
     pub reason: Option<String>,
-    pub amount: MinorUnit,
+    pub amount: ConnectorMinorUnit,
     pub state: FinixDisputeState,
     pub currency: Currency,
     pub id: String,
@@ -2318,7 +2327,9 @@ pub(super) fn build_finix_payment_webhook_response(
         status_code: 200,
         response_headers: None,
         amount_captured: None,
-        minor_amount_captured: resource.captured_amount,
+        minor_amount_captured: resource.captured_amount.and_then(|a|
+            common_utils::MinorUnitForConnector.convert_back(a, resource.currency).ok()
+        ),
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
@@ -2374,10 +2385,21 @@ pub(super) fn build_finix_dispute_webhook_response(
         }
     };
 
+    let dispute_amount_minor = domain_types::utils::convert_back_amount_to_minor_units(
+        &common_utils::types::MinorUnitForConnector,
+        dispute.amount,
+        dispute.currency,
+    )
+    .map_err(|_| error_stack::report!(WebhookError::WebhookAmountConversionFailed {
+        reason: format!(
+            "Failed to convert dispute amount back to MinorUnit: amount={}, currency={}",
+            dispute.amount, dispute.currency
+        ),
+    }))?;
     Ok(DisputeWebhookDetailsResponse {
         amount: domain_types::utils::convert_amount_for_webhook(
             &common_utils::types::StringMinorUnitForConnector,
-            dispute.amount,
+            dispute_amount_minor,
             dispute.currency,
         )?,
         currency: dispute.currency,

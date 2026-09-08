@@ -26,7 +26,7 @@ use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     request::Method,
-    types::{ConnectorMinorUnit, MinorUnit, StringMinorUnit},
+    types::{ConnectorMinorUnit, StringMinorUnit},
     AmountConvertor,
 };
 use domain_types::{
@@ -1671,7 +1671,7 @@ pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
     #[serde(default)]
-    pub amount: Option<MinorUnit>,
+    pub amount: Option<ConnectorMinorUnit>,
     #[serde(
         default,
         serialize_with = "paydotcom_currency::option::serialize",

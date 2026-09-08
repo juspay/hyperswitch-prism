@@ -313,7 +313,7 @@ fn get_optional_full_name(
 #[serde_with::skip_serializing_none]
 pub struct Purchase {
     /// Purchase amount in minor units of currency.
-    pub purchase_amount: Option<common_utils::types::MinorUnit>,
+    pub purchase_amount: Option<common_utils::types::ConnectorMinorUnit>,
     /// ISO 4217 three-digit currency code.
     pub purchase_currency: String,
     /// ISO 4217 currency exponent (number of minor-unit digits).
