@@ -4,10 +4,10 @@
 //! declared here, together with [`SuperpositionRecordingSampler`] — the concrete policy a
 //! record-mode process installs. The decision (`deja_record`, default FALSE) is evaluated
 //! in-process against the boot-parsed `config/superposition.toml`, dimensioned on
-//! `environment` × `rpc_method`, memoized per rpc (the snapshot is frozen at boot, so a
-//! memo can never go stale), and fail-closed: every failure path — no snapshot, key
-//! missing, eval error — resolves to `!fail_closed`, which by default records nothing.
-//!
+//! `environment` × `rpc_method` × `rpc_service` (the service class derived from the
+//! path), memoized per rpc (the snapshot is frozen at boot, so a memo can never go
+//! stale), and fail-closed: every failure path — no snapshot, key missing, eval error —
+//! resolves to `!fail_closed`, which by default records nothing.
 
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
@@ -26,6 +26,25 @@ pub trait RequestRecordingSampler: Send + Sync {
         &self,
         facts: RequestRecordingFacts,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + '_>>;
+}
+
+/// The service class of an rpc path, derived structurally — `/types.PaymentService/
+/// Authorize` → `payment` — so per-class overrides need no maintained prefix map
+/// (hyperswitch needs a server-side cohort for this because ITS derivation runs
+/// remotely; ours is this function). Malformed paths class as `unknown`.
+fn rpc_service(rpc: &str) -> String {
+    let service = rpc
+        .trim_start_matches('/')
+        .split('/')
+        .next()
+        .and_then(|package| package.rsplit('.').next())
+        .unwrap_or("")
+        .trim_end_matches("Service");
+    if service.is_empty() {
+        "unknown".to_owned()
+    } else {
+        service.to_lowercase()
+    }
 }
 
 /// The Superposition-backed recording policy (see the module doc). Built once at
@@ -93,6 +112,7 @@ impl SuperpositionRecordingSampler {
             Some(superposition) => match superposition.resolve_with(&[
                 ("environment", self.environment),
                 ("rpc_method", &facts.rpc),
+                ("rpc_service", &rpc_service(&facts.rpc)),
             ]) {
                 Ok(resolved) => match resolved.get(&self.record_key).and_then(|v| v.as_bool()) {
                     Some(decision) => decision,
@@ -272,6 +292,41 @@ unrelated = false
         let open =
             SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false));
         assert!(open.decide(&facts(AUTHORIZE)));
+    }
+
+    /// The service class derives structurally from the path — no map to maintain.
+    #[test]
+    fn rpc_service_derives_from_the_path() {
+        assert_eq!(rpc_service("/types.PaymentService/Authorize"), "payment");
+        assert_eq!(rpc_service("/types.RefundService/Refund"), "refund");
+        assert_eq!(rpc_service("/grpc.health.v1.Health/Check"), "health");
+        assert_eq!(rpc_service(""), "unknown");
+    }
+
+    /// A class-targeted override samples in every rpc of that service and none
+    /// of any other — the file-side analogue of hyperswitch's cohort context.
+    #[test]
+    fn class_override_targets_the_whole_service() {
+        const BY_CLASS: &str = r#"
+[default-configs]
+deja_record = { value = false, schema = { type = "boolean" } }
+
+[dimensions]
+environment = { position = 1, schema = { type = "string" } }
+rpc_service = { position = 2, schema = { type = "string" } }
+
+[[overrides]]
+_context_ = { environment = "production", rpc_service = "payment" }
+deja_record = true
+"#;
+        let sampler = SuperpositionRecordingSampler::assemble(
+            Some(snapshot(BY_CLASS)),
+            "production",
+            &sampler_cfg(true),
+        );
+        assert!(sampler.decide(&facts("/types.PaymentService/Authorize")));
+        assert!(sampler.decide(&facts("/types.PaymentService/Capture")));
+        assert!(!sampler.decide(&facts("/types.RefundService/Refund")));
     }
 
     /// Decisions memoize per rpc — sound because the snapshot is boot-frozen.
