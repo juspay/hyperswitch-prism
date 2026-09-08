@@ -63,12 +63,24 @@ const MERCHANT_ENDPOINT_PREFIX_TEMPLATE: &str = "{{merchant_endpoint_prefix}}";
 /// would produce an invalid URL).
 fn resolve_netcetera_base_url(
     base_url: &str,
+    connector_config: &ConnectorSpecificConfig,
     connector_feature_data: Option<hyperswitch_masking::Secret<serde_json::Value>>,
 ) -> CustomResult<String, IntegrationError> {
     let base_url = base_url.trim_end_matches('/');
     if !base_url.contains(MERCHANT_ENDPOINT_PREFIX_TEMPLATE) {
         return Ok(base_url.to_string());
     }
+
+    // Typed connector config first (same mechanism as `AdyenConfig.endpoint_prefix`).
+    if let ConnectorSpecificConfig::Netcetera {
+        endpoint_prefix: Some(endpoint_prefix),
+        ..
+    } = connector_config
+    {
+        return Ok(base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, endpoint_prefix));
+    }
+
+    // DEPRECATED fallback: `endpoint_prefix` inside the `connector_feature_data` blob.
 
     let netcetera_meta: netcetera_types::NetceteraMeta = connector_feature_data
         .map(|data| crate::utils::to_connector_meta_from_secret(Some(data)))
@@ -392,6 +404,7 @@ macros::macro_connector_implementation!(
             // Netcetera 3DS Server version / 3DS method endpoint (PRes).
             let base_url = resolve_netcetera_base_url(
                 self.base_url(&req.resource_common_data.connectors),
+                &req.connector_config,
                 req.resource_common_data.connector_feature_data.clone(),
             )?;
             Ok(format!("{base_url}/3ds/versioning"))
@@ -429,6 +442,7 @@ macros::macro_connector_implementation!(
             // Netcetera 3DS Server authentication endpoint (AReq -> ARes).
             let base_url = resolve_netcetera_base_url(
                 self.base_url(&req.resource_common_data.connectors),
+                &req.connector_config,
                 req.resource_common_data.connector_feature_data.clone(),
             )?;
             Ok(format!("{base_url}/3ds/authentication"))
@@ -466,6 +480,7 @@ macros::macro_connector_implementation!(
             // Netcetera 3DS Server results fetch endpoint (RReq -> RRes).
             let base_url = resolve_netcetera_base_url(
                 self.base_url(&req.resource_common_data.connectors),
+                &req.connector_config,
                 req.resource_common_data.connector_feature_data.clone(),
             )?;
             Ok(format!("{base_url}/3ds/results"))
