@@ -200,9 +200,11 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                     // Rapyd needs the customer (`cus_*`) alongside the saved
                                     // card on MIT. `connector_customer` is transient request
                                     // state, so bind it to the mandate here to survive to MIT.
-                                    mandate_metadata: response_customer_token.as_ref().map(
-                                        |cus| Secret::new(serde_json::json!({ RAPYD_MANDATE_CUSTOMER_KEY: cus })),
-                                    ),
+                                    mandate_metadata: response_customer_token.as_ref().map(|cus| {
+                                        Secret::new(
+                                            serde_json::json!({ RAPYD_MANDATE_CUSTOMER_KEY: cus }),
+                                        )
+                                    }),
                                 })
                             });
                         let network_txn_id = data
@@ -253,8 +255,12 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
 
         // Thread the Rapyd customer (`cus_*`) captured on a CIT save so it is
         // available as the connector customer for later MIT charges.
-        let resolved_customer = response_customer_token
-            .or_else(|| item.router_data.resource_common_data.connector_customer.clone());
+        let resolved_customer = response_customer_token.or_else(|| {
+            item.router_data
+                .resource_common_data
+                .connector_customer
+                .clone()
+        });
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
@@ -789,15 +795,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // reusable `card_*` / `cus_*` tokens (the mandate) for later MIT calls.
         let (customer, save_payment_method) =
             if item.router_data.request.setup_future_usage.is_some() {
-                let customer_name = item
-                    .router_data
-                    .request
-                    .customer_name
-                    .clone()
-                    .ok_or(IntegrationError::MissingRequiredField {
+                let customer_name = item.router_data.request.customer_name.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
                         field_name: "customer.name",
                         context: Default::default(),
-                    })?;
+                    },
+                )?;
                 let customer_email = item.router_data.request.email.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "customer.email",
