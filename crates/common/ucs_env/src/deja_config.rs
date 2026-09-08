@@ -154,6 +154,11 @@ pub struct SamplerConfig {
     pub record_key: String,
     /// On sampler error, default to not recording.
     pub fail_closed: bool,
+    /// Honor an upstream recorder's own decision (`x-deja-record` on the incoming
+    /// call) so both services tape the same flow — hyperswitch trickling its
+    /// sampling decision down to UCS. OFF by default: a client-supplied header
+    /// must not drive recording unless the deployment opts in.
+    pub honor_upstream: bool,
 }
 
 impl Default for SamplerConfig {
@@ -161,6 +166,7 @@ impl Default for SamplerConfig {
         Self {
             record_key: "deja_record".to_string(),
             fail_closed: true,
+            honor_upstream: false,
         }
     }
 }

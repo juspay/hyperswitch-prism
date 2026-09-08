@@ -3,6 +3,10 @@
 # for powerful contextual configuration overrides
 
 [default-configs]
+# Deja per-request recording decision - default SKIP. Production records
+# nothing until a deliberate override samples something in.
+deja_record = { value = false, schema = { type = "boolean" } }
+
 # Common configuration
 common_environment = { value = "sandbox", schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
@@ -84,6 +88,9 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 # Environment dimension - determines which environment configuration to use
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
+# Full rpc path as observed at deja ingress, e.g. "/types.PaymentService/Authorize".
+rpc_method = { position = 3, schema = { type = "string" } }
+
 # Connector dimension - determines which payment processor URLs to use
 connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24"] } }
 
@@ -93,6 +100,8 @@ connector = { position = 2, schema = { type = "string", enum = ["glomopay", "str
 [[overrides]]
 _context_ = { environment = "development" }
 common_environment = "development"
+# Deja: the local rig keeps recording exactly as before the sampler landed.
+deja_record = true
 log_kafka_enabled = true
 lineage_enabled = true
 events_transformations_gateway = "connector"
@@ -1000,3 +1009,13 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
+
+# ============================================================================
+# Sandbox Environment Overrides
+# ============================================================================
+# Deja: the sandbox custom pod keeps recording exactly as before the sampler
+# landed. Production inherits the dark default; sample-in there is always a
+# deliberate, targeted act (environment x rpc_method override).
+[[overrides]]
+_context_ = { environment = "sandbox" }
+deja_record = true

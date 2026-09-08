@@ -115,6 +115,9 @@ where
                             .should_record(RequestRecordingFacts {
                                 request_id: request_id.clone(),
                                 rpc: path.clone(),
+                                upstream_decision: super::sampler::parse_record_flag(
+                                    parts.headers.get(super::sampler::UPSTREAM_DECISION_HEADER),
+                                ),
                             })
                             .await
                     }
