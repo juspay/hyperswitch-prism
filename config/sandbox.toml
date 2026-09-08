@@ -224,8 +224,6 @@ observed_sink = ""    # optional: where replay records what the candidate DID
 [deja.sampler]
 record_key = "deja_record"      # superposition boolean consulted per request
 fail_closed = true              # sampler failure => record nothing
-honor_upstream = false          # opt-in: x-deja-record from an upstream recorder
-                                # (hyperswitch) overrides the local decision
 
 # [deja.identity] is deliberately not declared — identity has one source of
 # truth in code: the pod hostname (k8s sets it to the pod name) for the

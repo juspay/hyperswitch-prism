@@ -8,11 +8,6 @@
 //! memo can never go stale), and fail-closed: every failure path — no snapshot, key
 //! missing, eval error — resolves to `!fail_closed`, which by default records nothing.
 //!
-//! Trickle-down: with `deja.sampler.honor_upstream = true` (default OFF), an upstream
-//! service that already decided to record this flow — hyperswitch stamping
-//! `x-deja-record` on its UCS call — overrides the local policy, so both sides tape the
-//! same payment. Deliberately opt-in: a client-supplied header must not drive recording
-//! unless the deployment says so.
 
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
 
@@ -22,10 +17,6 @@ use common_utils::{consts::Env, superposition_config::SuperpositionConfig};
 pub struct RequestRecordingFacts {
     pub request_id: String,
     pub rpc: String,
-    /// The upstream caller's own recording decision for this flow, parsed from the
-    /// `x-deja-record` header/metadata when present. Consulted only when
-    /// `deja.sampler.honor_upstream` is on.
-    pub upstream_decision: Option<bool>,
 }
 
 /// Decides whether a given request should be recorded. Consulted once per request in
@@ -37,19 +28,6 @@ pub trait RequestRecordingSampler: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = bool> + Send + '_>>;
 }
 
-/// The header/metadata key an upstream recorder stamps its own decision on.
-pub const UPSTREAM_DECISION_HEADER: &str = "x-deja-record";
-
-/// Parse the upstream `x-deja-record` value. Anything unrecognized is `None` —
-/// an absent or malformed flag never influences the decision.
-pub(crate) fn parse_record_flag(value: Option<&http::HeaderValue>) -> Option<bool> {
-    match value?.to_str().ok()?.trim() {
-        "1" | "true" => Some(true),
-        "0" | "false" => Some(false),
-        _ => None,
-    }
-}
-
 /// The Superposition-backed recording policy (see the module doc). Built once at
 /// install time, exactly when the process is in record mode.
 pub struct SuperpositionRecordingSampler {
@@ -59,7 +37,6 @@ pub struct SuperpositionRecordingSampler {
     environment: &'static str,
     record_key: String,
     fail_closed: bool,
-    honor_upstream: bool,
     /// rpc path → decision. Sound because the snapshot is frozen at boot; failure
     /// decisions memoize too, which also bounds their warn to once per rpc.
     memo: std::sync::RwLock<HashMap<String, bool>>,
@@ -96,20 +73,11 @@ impl SuperpositionRecordingSampler {
             environment,
             record_key: sampler.record_key.clone(),
             fail_closed: sampler.fail_closed,
-            honor_upstream: sampler.honor_upstream,
             memo: std::sync::RwLock::new(HashMap::new()),
         }
     }
 
     fn decide(&self, facts: &RequestRecordingFacts) -> bool {
-        // Trickle-down first: an upstream recorder's explicit decision wins, so the
-        // two services tape the same flows. Never memoized — it is per-request.
-        if self.honor_upstream {
-            if let Some(upstream) = facts.upstream_decision {
-                return upstream;
-            }
-        }
-
         if let Some(hit) = self
             .memo
             .read()
@@ -223,19 +191,17 @@ deja_record = true
         Arc::new(config)
     }
 
-    fn sampler_cfg(fail_closed: bool, honor_upstream: bool) -> ucs_env::deja_config::SamplerConfig {
+    fn sampler_cfg(fail_closed: bool) -> ucs_env::deja_config::SamplerConfig {
         ucs_env::deja_config::SamplerConfig {
             record_key: "deja_record".to_string(),
             fail_closed,
-            honor_upstream,
         }
     }
 
-    fn facts(rpc: &str, upstream: Option<bool>) -> RequestRecordingFacts {
+    fn facts(rpc: &str) -> RequestRecordingFacts {
         RequestRecordingFacts {
             request_id: "req-1".to_string(),
             rpc: rpc.to_string(),
-            upstream_decision: upstream,
         }
     }
 
@@ -246,11 +212,11 @@ deja_record = true
         let sampler = SuperpositionRecordingSampler::assemble(
             Some(snapshot(POLICY)),
             "production",
-            &sampler_cfg(true, false),
+            &sampler_cfg(true),
         );
-        assert!(sampler.decide(&facts(AUTHORIZE, None)), "targeted override samples in");
+        assert!(sampler.decide(&facts(AUTHORIZE)), "targeted override samples in");
         assert!(
-            !sampler.decide(&facts("/types.PaymentService/Refund", None)),
+            !sampler.decide(&facts("/types.PaymentService/Refund")),
             "everything else inherits the dark default"
         );
     }
@@ -261,10 +227,10 @@ deja_record = true
         let sampler = SuperpositionRecordingSampler::assemble(
             Some(snapshot(POLICY)),
             "development",
-            &sampler_cfg(true, false),
+            &sampler_cfg(true),
         );
-        assert!(sampler.decide(&facts(AUTHORIZE, None)));
-        assert!(sampler.decide(&facts("/types.PaymentService/Refund", None)));
+        assert!(sampler.decide(&facts(AUTHORIZE)));
+        assert!(sampler.decide(&facts("/types.PaymentService/Refund")));
     }
 
     /// A snapshot without the record key resolves to the configured failure
@@ -285,15 +251,15 @@ unrelated = false
         let closed = SuperpositionRecordingSampler::assemble(
             Some(snapshot(KEYLESS)),
             "production",
-            &sampler_cfg(true, false),
+            &sampler_cfg(true),
         );
-        assert!(!closed.decide(&facts(AUTHORIZE, None)), "fail-closed skips");
+        assert!(!closed.decide(&facts(AUTHORIZE)), "fail-closed skips");
         let open = SuperpositionRecordingSampler::assemble(
             Some(snapshot(KEYLESS)),
             "production",
-            &sampler_cfg(false, false),
+            &sampler_cfg(false),
         );
-        assert!(open.decide(&facts(AUTHORIZE, None)), "fail-open records");
+        assert!(open.decide(&facts(AUTHORIZE)), "fail-open records");
     }
 
     /// Record mode with no snapshot at all: every decision is the failure
@@ -301,11 +267,11 @@ unrelated = false
     #[test]
     fn no_source_uses_failure_default() {
         let sampler =
-            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(true, false));
-        assert!(!sampler.decide(&facts(AUTHORIZE, None)));
+            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(true));
+        assert!(!sampler.decide(&facts(AUTHORIZE)));
         let open =
-            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false, false));
-        assert!(open.decide(&facts(AUTHORIZE, None)));
+            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false));
+        assert!(open.decide(&facts(AUTHORIZE)));
     }
 
     /// Decisions memoize per rpc — sound because the snapshot is boot-frozen.
@@ -314,9 +280,9 @@ unrelated = false
         let sampler = SuperpositionRecordingSampler::assemble(
             Some(snapshot(POLICY)),
             "production",
-            &sampler_cfg(true, false),
+            &sampler_cfg(true),
         );
-        sampler.decide(&facts(AUTHORIZE, None));
+        sampler.decide(&facts(AUTHORIZE));
         assert_eq!(
             sampler.memo.read().unwrap().get(AUTHORIZE).copied(),
             Some(true),
@@ -324,38 +290,5 @@ unrelated = false
         );
     }
 
-    /// The upstream decision wins only when the deployment opted in; a header
-    /// on its own must never drive recording.
-    #[test]
-    fn upstream_decision_honored_only_when_enabled() {
-        let honoring = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(POLICY)),
-            "production",
-            &sampler_cfg(true, true),
-        );
-        assert!(honoring.decide(&facts("/types.PaymentService/Refund", Some(true))));
-        assert!(!honoring.decide(&facts(AUTHORIZE, Some(false))), "upstream skip wins too");
 
-        let ignoring = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(POLICY)),
-            "production",
-            &sampler_cfg(true, false),
-        );
-        assert!(
-            !ignoring.decide(&facts("/types.PaymentService/Refund", Some(true))),
-            "honor_upstream off: the header is inert"
-        );
-    }
-
-    /// Only literal true/false flags parse; anything else is absent.
-    #[test]
-    fn record_flag_parses_strictly() {
-        let hv = |s: &str| http::HeaderValue::from_str(s).unwrap();
-        assert_eq!(parse_record_flag(Some(&hv("1"))), Some(true));
-        assert_eq!(parse_record_flag(Some(&hv("true"))), Some(true));
-        assert_eq!(parse_record_flag(Some(&hv("0"))), Some(false));
-        assert_eq!(parse_record_flag(Some(&hv("false"))), Some(false));
-        assert_eq!(parse_record_flag(Some(&hv("yes"))), None);
-        assert_eq!(parse_record_flag(None), None);
-    }
 }
