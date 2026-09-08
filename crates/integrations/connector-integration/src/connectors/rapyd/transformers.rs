@@ -267,7 +267,8 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                         let network_txn_id = data
                             .payment_method_data
                             .as_ref()
-                            .and_then(|pmd| pmd.network_reference_id.clone());
+                            .and_then(|pmd| pmd.network_reference_id.clone())
+                            .map(|nti| nti.expose());
 
                         (
                             attempt_status,
@@ -570,25 +571,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let return_url = item.router_data.request.get_router_return_url()?;
-        // A zero-amount request is a card verification / mandate setup; Rapyd
-        // wants "0" there, not the converter's "0.00".
-        let amount = if item.router_data.request.minor_amount.get_amount_as_i64() == 0 {
-            StringMajorUnit::zero()
-        } else {
-            item.connector
-                .amount_converter
-                .convert(
-                    item.router_data.request.minor_amount,
-                    item.router_data.request.currency,
-                )
-                .change_context(IntegrationError::AmountConversionFailed {
-                    context: crate::utils::amount_conversion_ctx(
-                        "rapyd authorize",
-                        &item.router_data.request.minor_amount,
-                        &item.router_data.request.currency,
-                    ),
-                })?
-        };
+        // Authorize always sends the real transaction amount. Zero-amount card
+        // verification is the SetupMandate flow's responsibility (hyperswitch
+        // routes `amount == 0 && setup_future_usage` there), not Authorize.
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(
+                item.router_data.request.minor_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: crate::utils::amount_conversion_ctx(
+                    "rapyd authorize",
+                    &item.router_data.request.minor_amount,
+                    &item.router_data.request.currency,
+                ),
+            })?;
 
         let (capture, payment_method_options) =
             match item.router_data.resource_common_data.payment_method {
@@ -872,22 +871,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // reusable `card_*` / `cus_*` tokens (the mandate) for later MIT calls.
         let (customer, save_payment_method) =
             if item.router_data.request.setup_future_usage.is_some() {
-                let customer_name = item
-                .router_data
-                .request
-                .customer_name
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "customer.name",
-                context: crate::utils::integration_ctx(
-                    "Rapyd creates an inline customer to save the card, which requires a name",
-                    "Send the customer name on the payment request when using setup_future_usage.",
-                ),
-            })?;
+                let customer_name = item.router_data.request.get_customer_name()?;
                 let customer_email = item.router_data.request.get_email()?;
                 (
                     Some(RapydCustomerRef::Inline(RapydInlineCustomer {
-                        name: Secret::new(customer_name),
+                        name: customer_name,
                         email: customer_email,
                     })),
                     Some(true),
@@ -1019,7 +1007,7 @@ pub struct ResponseData {
 /// Subset of Rapyd's response `payment_method_data` object.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydResponsePaymentMethodData {
-    pub network_reference_id: Option<String>,
+    pub network_reference_id: Option<Secret<String>>,
 }
 
 // Capture Request
@@ -1580,8 +1568,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let payment_method = match &request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let card_issuer = domain_types::utils::get_card_issuer(ccard.card_number.peek())?;
-                let pm_type = RapydPaymentMethodType::try_from(card_issuer)?;
+                // Placeholder India type — see the Authorize flow: the sandbox
+                // merchant enables `in_amex_card`, not the per-network types.
+                let pm_type = RapydPaymentMethodType::InAmexCard;
                 // Rapyd documents `payment_method.fields.name` as required
                 // (https://docs.rapyd.net/en/create-card-payment-method.html).
                 // Prefer the cardholder name on the card itself; fall back to
@@ -1736,6 +1725,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         }),
                     ),
                     _ => {
+                        // Surface the 3DS redirect so verification can be completed.
+                        let redirection_data = data
+                            .redirect_url
+                            .as_ref()
+                            .filter(|url| !url.is_empty())
+                            .map(|url| {
+                                Url::parse(url).change_context(
+                                    crate::utils::response_handling_fail_for_connector(
+                                        item.http_code,
+                                        "rapyd",
+                                    ),
+                                )
+                            })
+                            .transpose()?
+                            .map(|url| RedirectForm::from((url, Method::Get)));
                         // The saved card token is the mandate reference used on
                         // MIT replays; Rapyd charges it without a customer id.
                         let mandate_reference = data.payment_method.as_ref().map(|card| {
@@ -1758,7 +1762,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             terminal_status,
                             Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
-                                redirection_data: None,
+                                redirection_data: redirection_data.map(Box::new),
                                 mandate_reference,
                                 connector_metadata: None,
                                 network_txn_id: None,

@@ -1788,6 +1788,17 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     pub fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }
+    /// Customer name, masked. Errors with a missing-field error when absent.
+    pub fn get_customer_name(&self) -> Result<Secret<String>, Error> {
+        self.customer_name
+            .clone()
+            .map(Secret::new)
+            .ok_or_else(missing_field_err("customer_name"))
+    }
+    /// Customer name if present, masked.
+    pub fn get_optional_customer_name(&self) -> Option<Secret<String>> {
+        self.customer_name.clone().map(Secret::new)
+    }
     pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
         self.customer_document_details.clone()
     }
