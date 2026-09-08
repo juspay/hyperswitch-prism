@@ -859,83 +859,31 @@ fn get_card<T: PaymentMethodDataTypes + std::fmt::Debug>(
         .attach_printable("elavon_pg: unsupported payment method on Authorize")),
     }
 }
-
-/// EPG's `Card.expirationMonth` is an integer in 1–12, never a zero-padded string.
+/// EPG types `Card.expirationMonth` as a bounded integer, so the shared
+/// 1..=12-validated accessor is used rather than a local parse.
 fn expiration_month<T: PaymentMethodDataTypes>(
     card: &Card<T>,
 ) -> Result<u8, error_stack::Report<IntegrationError>> {
-    card.card_exp_month
-        .peek()
-        .trim()
-        .parse::<u8>()
-        .ok()
-        .filter(|month| (1..=12).contains(month))
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Elavon Payment Gateway expects Card.expirationMonth as an integer \
-                         between 1 and 12"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })
-            .attach_printable("elavon_pg: card expiry month is not an integer in 1..=12")
-        })
+    card.get_expiry_month_as_u8()
+        .attach_printable("elavon_pg: card expiry month is not an integer in 1..=12")
 }
 
-/// EPG's `Card.expirationYear` is a 4-digit integer in 2000–2099, so a 2-digit UCS
-/// expiry is expanded before it is parsed.
+/// EPG types `Card.expirationYear` as a four-digit integer, so the shared accessor
+/// expands a 2-digit UCS expiry and range-checks it.
 fn expiration_year<T: PaymentMethodDataTypes>(
     card: &Card<T>,
 ) -> Result<u16, error_stack::Report<IntegrationError>> {
-    card.get_expiry_year_4_digit()
-        .peek()
-        .trim()
-        .parse::<u16>()
-        .ok()
-        .filter(|year| (2000..=2099).contains(year))
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_year",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Elavon Payment Gateway expects Card.expirationYear as a four-digit \
-                         integer between 2000 and 2099"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })
-            .attach_printable("elavon_pg: card expiry year is not a four-digit year in 2000..=2099")
-        })
+    card.get_expiry_year_4_digit_as_u16()
+        .attach_printable("elavon_pg: card expiry year is not a four-digit year in 2000..=2099")
 }
 
-/// `Card.securityCode` is `required` by EPG's schema, so a missing CVC is rejected
-/// here — naming the caller-facing field — rather than sent as an incomplete card.
+/// `Card.securityCode` is `required` by EPG's schema, so a blank CVC is rejected via
+/// the shared accessor rather than sent as an incomplete card.
 fn security_code<T: PaymentMethodDataTypes>(
     card: &Card<T>,
 ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    if card.card_cvc.peek().trim().is_empty() {
-        Err(
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_data.card.card_cvc",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Elavon Payment Gateway declares Card.securityCode required on every \
-                         card sale (3 digits for Visa/Mastercard/Discover, 4 for Amex)"
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })
-            .attach_printable("elavon_pg: card CVC absent on Authorize"),
-        )
-    } else {
-        Ok(card.card_cvc.clone())
-    }
+    card.get_card_cvc_required()
+        .attach_printable("elavon_pg: card CVC absent on Authorize")
 }
 
 /// Builds EPG's `threeDSecure` object from the external-authentication results UCS
