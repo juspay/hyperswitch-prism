@@ -38,6 +38,7 @@ boost.base_url = "https://stage-api.boostconnect.biz/gateway"
 tesouro.base_url = "https://api.sandbox.tesouro.com"
 kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+nsure.base_url = "https://sandbox.nsureapi.com"
 plaid.base_url = "https://sandbox.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
@@ -200,3 +201,42 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 enabled = false
 
 [connector_response_masking.connector_keys]
+# --- Déjà record/replay ---------------------------------------------------------
+# Only has any effect when built with the `deja` feature; ignored otherwise.
+# mode: "disabled" (default, byte-identical to today) | "record" | "replay".
+# Déjà record/replay harness. Inert here (`mode = "disabled"`); the full knob
+# surface is declared so `CS__DEJA__*` environment overrides bind to visible
+# keys. "record" streams boundary events + the execution graph to Kafka;
+# "replay" is a sealed-pod mode the déjà orchestrator drives — the replay job
+# boots this same image with CS__DEJA__MODE=replay plus a rendered lookup
+# table and re-drives the recorded requests while every side effect is
+# substituted from the tape (locally: scripts/deja-local/replay-dev.sh).
+[deja]
+mode = "disabled"     # "disabled" | "record" | "replay"
+run_id = ""           # recording/replay identity; empty => derived at boot
+
+[deja.recording.kafka]
+topic = "ucs-deja-recording-events"
+brokers = []          # empty => inherit the [events] brokers at boot
+
+[deja.replay]
+source = ""           # rendered LookupTable JSONL, or a raw-tape artifact dir
+lookup_dir = ""       # with no `source`: uses <lookup_dir>/<run_id>.jsonl
+observed_sink = ""    # optional: where replay records what the candidate DID
+
+[deja.sampler]
+record_key = "deja_record"      # superposition boolean consulted per request
+fail_closed = true              # sampler failure => record nothing
+
+# [deja.identity] is deliberately not declared — identity has one source of
+# truth in code: the pod hostname (k8s sets it to the pod name) for the
+# instance and the git sha baked into the binary for provenance. See
+# `IdentityConfig` in ucs_env::deja_config for the resolution chain and the
+# CS__DEJA__IDENTITY__* overrides.
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000

@@ -424,6 +424,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -897,6 +898,7 @@ impl Connectors {
         };
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
+            FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
         }
         Ok(patched)
     }
@@ -4616,6 +4618,11 @@ impl<
 {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::request_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, payment_method_data): (AuthorizationRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -5690,6 +5697,11 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::flow_data_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -6932,6 +6944,11 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::response_generate", skip_all)
+)]
 #[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
