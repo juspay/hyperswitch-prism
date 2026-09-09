@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, RefundStatus};
+use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     types::StringMajorUnit,
@@ -23,7 +23,12 @@ use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::MerchanteRouterData;
-use crate::types::ResponseRouterData;
+use crate::{
+    types::ResponseRouterData,
+    utils::{
+        get_unimplemented_payment_method_error_message, serialize_currency_as_iso4217_numeric,
+    },
+};
 
 /// Distinct type alias so the flow-implementation macro generates a
 /// `MerchanteRefundSyncRequestTemplating` marker separate from PSync's
@@ -32,15 +37,8 @@ use crate::types::ResponseRouterData;
 pub type MerchanteRefundSyncRequest = MerchanteSyncRequest;
 
 // ============================================================================
-// CONSTANTS — Merchante `transaction_type` codes and gateway sentinels
+// CONSTANTS — gateway sentinels
 // ============================================================================
-const TXN_TYPE_SALE: &str = "D";
-const TXN_TYPE_PREAUTH: &str = "P";
-const TXN_TYPE_SETTLE: &str = "S";
-const TXN_TYPE_VOID: &str = "V";
-const TXN_TYPE_REFUND: &str = "U";
-const TXN_TYPE_INQUIRY: &str = "I";
-const TXN_TYPE_VERIFY: &str = "A";
 
 const ECOM_INDICATOR_DEFAULT: &str = "7";
 const ECOM_INDICATOR_RECURRING_MOTO: &str = "2";
@@ -55,6 +53,36 @@ const MERCHANTE_PARTIAL_APPROVED: &str = "010";
 // The retry_id field is capped at 16 chars by the gateway. connector_request_reference_id
 // can be longer, so we truncate defensively.
 const RETRY_ID_MAX_LEN: usize = 16;
+
+// ============================================================================
+// TRANSACTION TYPE ENUM
+// ============================================================================
+
+/// Merchante `transaction_type` single-character codes.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum MerchanteTransactionType {
+    /// Sale — authorized and automatically marked for capture.
+    #[serde(rename = "D")]
+    Sale,
+    /// Pre-Authorization — authorized but not yet captured.
+    #[serde(rename = "P")]
+    PreAuth,
+    /// Settle — marks a pre-authorized transaction for capture.
+    #[serde(rename = "S")]
+    Settle,
+    /// Void — cancels a Pre-Authorization.
+    #[serde(rename = "V")]
+    Void,
+    /// Refund — credits the cardholder (full or partial).
+    #[serde(rename = "U")]
+    Refund,
+    /// Inquiry — looks up the response from an earlier transaction by retry_id.
+    #[serde(rename = "I")]
+    Inquiry,
+    /// Verification Only — verifies card without charging; used with store_card=Y.
+    #[serde(rename = "A")]
+    Verify,
+}
 
 // ============================================================================
 // AUTHENTICATION
@@ -108,12 +136,12 @@ fn truncate_retry_id(reference: &str) -> String {
     }
 }
 
-/// Merchante's Sale (`D`) auto-captures; Preauth (`P`) requires a later Settle.
-fn sale_txn_type(is_auto_capture: bool) -> &'static str {
+/// Merchante's Sale (`D`) auto-captures; PreAuth (`P`) requires a later Settle.
+fn sale_txn_type(is_auto_capture: bool) -> MerchanteTransactionType {
     if is_auto_capture {
-        TXN_TYPE_SALE
+        MerchanteTransactionType::Sale
     } else {
-        TXN_TYPE_PREAUTH
+        MerchanteTransactionType::PreAuth
     }
 }
 
@@ -134,8 +162,9 @@ pub struct MerchantePaymentResponse {
     pub avs_result: Option<String>,
     #[serde(default)]
     pub cvv2_result: Option<String>,
+    /// Permanent card token returned when `store_card=Y` was sent in the request.
     #[serde(default)]
-    pub card_id: Option<String>,
+    pub card_id: Option<Secret<String>>,
     #[serde(default)]
     pub payment_account_reference: Option<String>,
     #[serde(default)]
@@ -238,11 +267,12 @@ pub struct MerchantePaymentsRequest<
 > {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_amount: StringMajorUnit,
-    pub currency_code: String,
+    #[serde(serialize_with = "serialize_currency_as_iso4217_numeric")]
+    pub currency_code: Currency,
     pub card_number: domain_types::payment_method_data::RawCardNumber<T>,
-    pub card_exp_date: String,
+    pub card_exp_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv2: Option<Secret<String>>,
     pub moto_ecommerce_ind: String,
@@ -252,9 +282,9 @@ pub struct MerchantePaymentsRequest<
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_number: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_street_address: Option<String>,
+    pub cardholder_street_address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_zip: Option<String>,
+    pub cardholder_zip: Option<Secret<String>>,
     /// Set to "Y" to have Merchante return a permanent card_id on the response
     /// (used when the caller wants to reuse the card for MIT later on).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -314,60 +344,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
 
-        let card =
-            match &router_data.request.payment_method_data {
-                PaymentMethodData::Card(card) => card,
-                _ => return Err(Report::new(IntegrationError::NotSupported {
-                    message: "Only raw card payments are supported by Merchante".to_string(),
-                    connector: "merchante",
-                    context: IntegrationErrorContext {
+        let card = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(Report::new(IntegrationError::not_implemented(
+                    get_unimplemented_payment_method_error_message("merchante"),
+                    IntegrationErrorContext {
                         suggested_action: Some(
                             "Route non-card payment methods to a different connector; \
-                             Merchante's raw-card API accepts card_number + card_exp_date only."
+                             Merchante only accepts card_number + card_exp_date."
                                 .to_string(),
                         ),
                         doc_url: None,
                         additional_context: Some(
-                            "Merchante Authorize: received PaymentMethodData variant other than \
-                             Card. Wallets (Apple Pay / Google Pay decrypted), bank redirects, \
-                             and BNPL are not wired for this connector."
+                            "Merchante Authorize: received PaymentMethodData variant other \
+                             than Card. Wallets, bank redirects, and BNPL are not supported."
                                 .to_string(),
                         ),
                     },
-                })),
-            };
-
-        let store_card = router_data
-            .request
-            .is_mandate_payment()
-            .then(|| "Y".to_string());
-
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
-
-        let card_exp_date = card
-            .get_card_expiry_month_year_2_digit_with_delimiter(String::new())?
-            .peek()
-            .to_string();
+                )))
+            }
+        };
 
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: sale_txn_type(router_data.request.is_auto_capture()).to_string(),
+            transaction_type: sale_txn_type(router_data.request.is_auto_capture()),
             transaction_amount: amount,
-            currency_code: router_data.request.currency.iso_4217().to_string(),
+            currency_code: router_data.request.currency,
             card_number: card.card_number.clone(),
-            card_exp_date,
+            card_exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
             cvv2: Some(card.card_cvc.clone()),
             moto_ecommerce_ind: ECOM_INDICATOR_DEFAULT.to_string(),
             account_data_source: ACCOUNT_DATA_SOURCE_KEYED.to_string(),
-            client_reference_number: reference.clone(),
-            retry_id: truncate_retry_id(reference),
-            invoice_number: Some(reference.clone()),
+            client_reference_number: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
+            invoice_number: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
             cardholder_street_address: None,
             cardholder_zip: None,
-            store_card,
+            store_card: router_data
+                .request
+                .is_mandate_payment()
+                .then_some("Y".to_string()),
         })
     }
 }
@@ -387,7 +417,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if item.response.is_approved() {
             let mandate_reference = item.response.card_id.clone().map(|card_id| {
                 Box::new(MandateReference {
-                    connector_mandate_id: Some(card_id),
+                    connector_mandate_id: Some(card_id.peek().to_string()),
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
@@ -433,7 +463,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 pub struct MerchanteSyncRequest {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub retry_id: String,
 }
 
@@ -457,7 +487,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: TXN_TYPE_INQUIRY.to_string(),
+            transaction_type: MerchanteTransactionType::Inquiry,
             retry_id: truncate_retry_id(
                 &router_data
                     .resource_common_data
@@ -529,14 +559,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
         // Use the same connector_request_reference_id that was sent as retry_id
         // on the original Refund — Merchante's Inquiry looks up by that field.
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: TXN_TYPE_INQUIRY.to_string(),
-            retry_id: truncate_retry_id(reference),
+            transaction_type: MerchanteTransactionType::Inquiry,
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
         })
     }
 }
@@ -576,7 +607,7 @@ impl TryFrom<ResponseRouterData<MerchantePaymentResponse, Self>>
 pub struct MerchanteCaptureRequest {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_amount: StringMajorUnit,
     pub transaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -628,18 +659,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         let transaction_id = router_data.request.get_connector_transaction_id()?;
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
 
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: TXN_TYPE_SETTLE.to_string(),
+            transaction_type: MerchanteTransactionType::Settle,
             transaction_amount: amount,
             transaction_id,
-            invoice_number: Some(reference.clone()),
-            retry_id: truncate_retry_id(reference),
+            invoice_number: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
         })
     }
 }
@@ -698,7 +735,7 @@ impl TryFrom<ResponseRouterData<MerchantePaymentResponse, Self>>
 pub struct MerchanteVoidRequest {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_id: String,
     pub retry_id: String,
 }
@@ -725,7 +762,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: TXN_TYPE_VOID.to_string(),
+            transaction_type: MerchanteTransactionType::Void,
             transaction_id: router_data.request.connector_transaction_id.clone(),
             retry_id: truncate_retry_id(
                 &router_data
@@ -790,7 +827,7 @@ impl TryFrom<ResponseRouterData<MerchantePaymentResponse, Self>>
 pub struct MerchanteRefundRequest {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_id: String,
     /// Omit for full refund; include for partial.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -852,19 +889,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         };
 
-        // Use connector_request_reference_id (always populated) as the retry_id
-        // seed; refund_id is Option and may not carry.
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
-
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: TXN_TYPE_REFUND.to_string(),
+            transaction_type: MerchanteTransactionType::Refund,
             transaction_id: router_data.request.connector_transaction_id.clone(),
             transaction_amount: amount,
-            retry_id: truncate_retry_id(reference),
+            // Use connector_request_reference_id (always populated) as the retry_id
+            // seed; refund_id is Option and may not carry.
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
         })
     }
 }
@@ -904,10 +941,12 @@ impl TryFrom<ResponseRouterData<MerchantePaymentResponse, Self>>
 pub struct MerchanteRepeatPaymentRequest {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_amount: StringMajorUnit,
-    pub currency_code: String,
-    pub card_id: String,
+    #[serde(serialize_with = "serialize_currency_as_iso4217_numeric")]
+    pub currency_code: Currency,
+    /// Stored card token returned from a prior Authorize with `store_card=Y`.
+    pub card_id: Secret<String>,
     pub moto_ecommerce_ind: String,
     pub account_data_source: String,
     pub card_on_file: String,
@@ -1022,25 +1061,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
-
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
-            transaction_type: sale_txn_type(router_data.request.is_auto_capture()).to_string(),
+            transaction_type: sale_txn_type(router_data.request.is_auto_capture()),
             transaction_amount: amount,
-            currency_code: router_data.request.currency.iso_4217().to_string(),
-            card_id,
+            currency_code: router_data.request.currency,
+            card_id: Secret::new(card_id),
             moto_ecommerce_ind: ECOM_INDICATOR_RECURRING_MOTO.to_string(),
             account_data_source: ACCOUNT_DATA_SOURCE_COF.to_string(),
             card_on_file: "Y".to_string(),
             merchant_initiated: "Y".to_string(),
             cit_mit_indicator: CIT_MIT_UNSCHEDULED.to_string(),
-            client_reference_number: reference.clone(),
-            retry_id: truncate_retry_id(reference),
-            invoice_number: Some(reference.clone()),
+            client_reference_number: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
+            invoice_number: Some(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
         })
     }
 }
@@ -1099,11 +1146,12 @@ pub struct MerchanteSetupMandateRequest<
 > {
     pub profile_id: Secret<String>,
     pub profile_key: Secret<String>,
-    pub transaction_type: String,
+    pub transaction_type: MerchanteTransactionType,
     pub transaction_amount: StringMajorUnit,
-    pub currency_code: String,
+    #[serde(serialize_with = "serialize_currency_as_iso4217_numeric")]
+    pub currency_code: Currency,
     pub card_number: domain_types::payment_method_data::RawCardNumber<T>,
-    pub card_exp_date: String,
+    pub card_exp_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv2: Option<Secret<String>>,
     pub moto_ecommerce_ind: String,
@@ -1145,10 +1193,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let card = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => card,
             _ => {
-                return Err(Report::new(IntegrationError::NotSupported {
-                    message: "Only raw card payments are supported by Merchante".to_string(),
-                    connector: "merchante",
-                    context: IntegrationErrorContext {
+                return Err(Report::new(IntegrationError::not_implemented(
+                    get_unimplemented_payment_method_error_message("merchante"),
+                    IntegrationErrorContext {
                         suggested_action: Some(
                             "Route non-card payment methods to a different connector; \
                              Merchante's tokenization endpoint accepts card_number + \
@@ -1158,40 +1205,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         doc_url: None,
                         additional_context: Some(
                             "Merchante SetupMandate (transaction_type=A with store_card=Y): \
-                             received PaymentMethodData variant other than Card. Merchante \
-                             tokenises raw cards only."
+                             received PaymentMethodData variant other than Card."
                                 .to_string(),
                         ),
                     },
-                }))
+                )))
             }
         };
-
-        let reference = &router_data
-            .resource_common_data
-            .connector_request_reference_id;
 
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
             // Verify (A) validates the card without settling it; combined with
             // store_card=Y this returns a permanent card_id for later MIT calls.
-            transaction_type: TXN_TYPE_VERIFY.to_string(),
+            transaction_type: MerchanteTransactionType::Verify,
             // Zero-value verify is USD-only per the Merchante docs; use the
             // amount converter's zero to stay consistent with its formatting.
             transaction_amount: StringMajorUnit::zero(),
-            currency_code: router_data.request.currency.iso_4217().to_string(),
+            currency_code: router_data.request.currency,
             card_number: card.card_number.clone(),
-            card_exp_date: card
-                .get_card_expiry_month_year_2_digit_with_delimiter(String::new())?
-                .peek()
-                .to_string(),
+            card_exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
             cvv2: Some(card.card_cvc.clone()),
             moto_ecommerce_ind: ECOM_INDICATOR_DEFAULT.to_string(),
             account_data_source: ACCOUNT_DATA_SOURCE_KEYED.to_string(),
             store_card: "Y".to_string(),
-            client_reference_number: reference.clone(),
-            retry_id: truncate_retry_id(reference),
+            client_reference_number: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            retry_id: truncate_retry_id(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+            ),
         })
     }
 }
@@ -1213,7 +1259,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         if item.response.is_approved() {
             let mandate_reference = item.response.card_id.clone().map(|card_id| {
                 Box::new(MandateReference {
-                    connector_mandate_id: Some(card_id),
+                    connector_mandate_id: Some(card_id.peek().to_string()),
                     payment_method_id: None,
                     mandate_metadata: None,
                     connector_mandate_request_reference_id: None,
