@@ -7,13 +7,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
     },
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
-        SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -478,17 +479,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(capture_method_not_supported(*method));
         }
 
-        // Saferpay expresses stored credentials through Secure Card Data aliases. The
-        // alias is now created by the dedicated `SetupMandate` flow
-        // (`Alias/InsertDirect`), but the Transaction interface still has no wiring
-        // here: charging one needs `PaymentMeans.Alias.Id` in place of the PAN
-        // (a repeat-payment flow), and registering one alongside a charge needs
-        // `RegisterAlias` on `AuthorizeDirect`. Neither is implemented, so both
-        // intents are still refused rather than silently dropped.
+        // Saferpay expresses stored credentials through Secure Card Data aliases.
+        // `SetupMandate` (`Alias/InsertDirect`) creates the alias and `RepeatPayment`
+        // (`AuthorizeDirect` with `PaymentMeans.Alias.Id` + `Initiator: MERCHANT`)
+        // charges it. Authorize itself still has no alias wiring — charging one from
+        // here would drop the MIT flagging Saferpay forwards to the scheme, and
+        // registering one alongside a charge needs `RegisterAlias` on
+        // `AuthorizeDirect`. Both intents are refused rather than silently dropped.
         if request.mandate_id.is_some() {
             return Err(not_supported(
-                "Charging a stored Saferpay alias from Authorize — no repeat-payment flow \
-                 is implemented"
+                "Charging a stored Saferpay alias from Authorize — use the RepeatPayment \
+                 flow (RecurringPaymentService/Charge), which sends the alias with \
+                 Initiator: MERCHANT"
                     .to_string(),
             ));
         }
@@ -592,6 +594,30 @@ pub struct SaferpayTransaction {
     pub six_transaction_reference: Option<String>,
     #[serde(rename = "ApprovalCode")]
     pub approval_code: Option<String>,
+    /// Scheme-level chaining identifiers created by the issuer. This is Saferpay's
+    /// network-transaction-id equivalent — no field named `NetworkTransactionId`
+    /// exists anywhere in the JSON API. Returned since SpecVersion 1.21; read by
+    /// the RepeatPayment flow to continue an MIT chain.
+    #[serde(rename = "IssuerReference")]
+    pub issuer_reference: Option<SaferpayIssuerReferenceResponse>,
+}
+
+/// `IssuerReferenceInfo` — the response half of `Authentication.IssuerReference`.
+///
+/// `SettlementDate` is deliberately not modelled: it has no UCS carrier on either
+/// side (see `SaferpayIssuerReference` on the request), so parsing it would leave a
+/// field nothing reads.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayIssuerReferenceResponse {
+    /// Surfaced as `network_txn_id`. Masked: it identifies a stored credential and
+    /// is enough to continue a merchant-initiated chain on another PSP.
+    #[serde(rename = "TransactionStamp")]
+    pub transaction_stamp: Option<Secret<String>>,
+    /// Surfaced as `network_txn_link_id`. Saferpay only started returning this at
+    /// SpecVersion 1.52, and this integration is pinned to
+    /// `SAFERPAY_SPEC_VERSION` (1.44), so in practice it arrives empty today.
+    #[serde(rename = "MastercardTLID")]
+    pub mastercard_tlid: Option<Secret<String>>,
 }
 
 impl SaferpayTransaction {
@@ -2093,6 +2119,442 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpaySetupMandateR
                 // The card check ran and the credential is stored; there is no later
                 // settlement step for a registration, so this is terminal success.
                 status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// REPEAT PAYMENT — `Transaction/AuthorizeDirect` as a merchant-initiated charge
+// =============================================================================
+//
+// A Saferpay MIT is an ordinary `AuthorizeDirect` with two things changed:
+//
+//  1. `Initiator: "MERCHANT"` — the CIT/MIT flag Saferpay forwards to Visa,
+//     Mastercard and Amex. It exists on `AuthorizeDirect` and on no other endpoint.
+//  2. The payment means is the stored credential rather than a fresh PAN:
+//     `PaymentMeans.Alias.Id` for a Secure Card Data alias (what `SetupMandate`
+//     mints), or a raw card plus `Authentication.IssuerReference` for the
+//     PSP-agnostic path where the credential was acquired elsewhere.
+//
+// `Authentication.Exemption: "RECURRING"` is deliberately NOT sent. The recurring-
+// payments guide carries a `danger` callout — "Requesting any exemption without the
+// consent of your acquirer can lead to rejections and your account being blocked!" —
+// and the PSD2 guide adds that an exemption forfeits the 3-D Secure liability shift.
+// UCS has no field that expresses acquirer consent, so the correct (and sufficient)
+// MIT signal is `Initiator` alone.
+//
+// `AuthorizeDirect` never auto-captures: there is no capture, `AutoCapture`, `Sale`
+// or `SettlementMode` member on the request, so an MIT answers `AUTHORIZED` and the
+// caller settles it with the existing Capture flow — exactly as Authorize does.
+
+/// `Initiator` on `AuthorizeDirect` (SpecVersion >= 1.21). In card-scheme jargon
+/// `MERCHANT` means MIT and `PAYER` means CIT.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum SaferpayInitiator {
+    /// The only value this flow ever sends: RepeatPayment is merchant-initiated by
+    /// definition. Sent explicitly rather than relying on Saferpay's default,
+    /// because this value is what reaches the scheme and issuers decline on wrong
+    /// flagging.
+    #[serde(rename = "MERCHANT")]
+    Merchant,
+    /// Payer-initiated. Never emitted here — a CIT cannot run on `AuthorizeDirect`
+    /// at all, since that endpoint can perform no cardholder authentication.
+    #[serde(rename = "PAYER")]
+    Payer,
+}
+
+/// `PaymentMeans.Alias.Id` — maxLength 40 in the Saferpay schema.
+const ALIAS_ID_MAX_LEN: usize = 40;
+/// `Authentication.IssuerReference.TransactionStamp` — maxLength 50.
+const ISSUER_TRANSACTION_STAMP_MAX_LEN: usize = 50;
+/// `Authentication.IssuerReference.MastercardTLID` — exactly 22 characters,
+/// case-sensitive.
+const MASTERCARD_TLID_LEN: usize = 22;
+
+/// A length/shape violation Saferpay would answer with HTTP 400 `VALIDATION_FAILED`.
+/// Failing locally keeps the specific field and limit in `error_message`, which the
+/// gateway's `ErrorDetail` array does not reliably carry.
+fn invalid_length(
+    field_name: &'static str,
+    requirement: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name,
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "saferpay rejects this value: {requirement}. Sending it would return \
+                 HTTP 400 VALIDATION_FAILED"
+            )),
+            suggested_action: Some(
+                "Re-run SetupMandate to obtain a valid stored credential, or supply the \
+                 scheme identifier exactly as the acquiring PSP returned it"
+                    .to_string(),
+            ),
+            doc_url: Some(SAFERPAY_TRANSACTION_DOC_URL.to_string()),
+        },
+    })
+}
+
+/// `PaymentMeans.Alias` — names a Secure Card Data alias in place of a PAN.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasReference {
+    /// The `connector_mandate_id` `SetupMandate` produced. Masked: presenting it is
+    /// what charges the stored card, so it is a bearer credential.
+    #[serde(rename = "Id")]
+    pub id: Secret<String>,
+}
+
+/// The two `PaymentMeans` shapes an MIT can take. Untagged because Saferpay
+/// discriminates on the member name (`Alias` vs `Card`), not on a type field.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum SaferpayRepeatPaymentMeans<T: PaymentMethodDataTypes> {
+    /// The primary path: charge the alias `SetupMandate` registered.
+    Alias {
+        #[serde(rename = "Alias")]
+        alias: SaferpayAliasReference,
+    },
+    /// PSP-agnostic MIT: the credential was acquired through another provider, so
+    /// the raw card travels with the scheme identifiers in `IssuerReference`.
+    /// `VerificationCode` is never sent — PCI rules forbid storing a CVC for MITs.
+    Card {
+        #[serde(rename = "Card")]
+        card: SaferpayCardDetails<T>,
+    },
+}
+
+/// `Authentication.IssuerReference` — Saferpay's network-transaction-id passthrough,
+/// accepted on the `AuthorizeDirect` **request** only (SpecVersion >= 1.21).
+///
+/// `SettlementDate` (a 4-character `MMDD` string, Mastercard only) is a third member
+/// of this container. It is deliberately omitted: no UCS type carries a settlement
+/// date — `NetworkMandateIdRef` has exactly `network_transaction_id` and
+/// `transaction_link_id` — and inventing one (from `created_at`, say) would send the
+/// issuer a date it never issued.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayIssuerReference {
+    /// `NetworkMandateIdRef::network_transaction_id`.
+    #[serde(rename = "TransactionStamp")]
+    pub transaction_stamp: Secret<String>,
+    /// `NetworkMandateIdRef::transaction_link_id`.
+    #[serde(rename = "MastercardTLID", skip_serializing_if = "Option::is_none")]
+    pub mastercard_tlid: Option<Secret<String>>,
+}
+
+/// The `Authentication` container as an MIT uses it: `IssuerReference` only.
+///
+/// Distinct from `SaferpayAuthentication`, which the 3DS `Initialize` leg uses to
+/// send `ThreeDsChallenge` — the two members never travel together, and an MIT runs
+/// no cardholder challenge.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayMitAuthentication {
+    #[serde(rename = "IssuerReference")]
+    pub issuer_reference: SaferpayIssuerReference,
+}
+
+/// Body for a merchant-initiated `POST /Payment/v1/Transaction/AuthorizeDirect`.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TerminalId")]
+    pub terminal_id: Secret<String>,
+    #[serde(rename = "Payment")]
+    pub payment: SaferpayPaymentDetails,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayRepeatPaymentMeans<T>,
+    #[serde(rename = "Initiator")]
+    pub initiator: SaferpayInitiator,
+    #[serde(rename = "Authentication", skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<SaferpayMitAuthentication>,
+}
+
+type RepeatPaymentRouterData<T> =
+    RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>;
+
+/// Builds `Authentication.IssuerReference` from the scheme identifiers UCS carries
+/// for a PSP-agnostic MIT, validating both documented length constraints locally.
+fn issuer_reference(
+    network: &domain_types::connector_types::NetworkMandateIdRef,
+) -> Result<SaferpayIssuerReference, error_stack::Report<IntegrationError>> {
+    let transaction_stamp = network.network_transaction_id.trim();
+    if transaction_stamp.is_empty() {
+        return Err(missing_field(
+            "mandate_reference.network_mandate_id.network_transaction_id",
+        ));
+    }
+    if transaction_stamp.chars().count() > ISSUER_TRANSACTION_STAMP_MAX_LEN {
+        return Err(invalid_length(
+            "mandate_reference.network_mandate_id.network_transaction_id",
+            "Authentication.IssuerReference.TransactionStamp is limited to 50 characters",
+        ));
+    }
+
+    let mastercard_tlid = network
+        .transaction_link_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|tlid| !tlid.is_empty())
+        .map(|tlid| {
+            // A TLID of any other length is rejected outright rather than trimmed or
+            // padded: it is a scheme-issued identifier, so a wrong-length value is a
+            // bug upstream, not something to repair here.
+            if tlid.chars().count() == MASTERCARD_TLID_LEN {
+                Ok(Secret::new(tlid.to_string()))
+            } else {
+                Err(invalid_length(
+                    "mandate_reference.network_mandate_id.transaction_link_id",
+                    "Authentication.IssuerReference.MastercardTLID must be exactly 22 characters",
+                ))
+            }
+        })
+        .transpose()?;
+
+    Ok(SaferpayIssuerReference {
+        transaction_stamp: Secret::new(transaction_stamp.to_string()),
+        mastercard_tlid,
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<RepeatPaymentRouterData<T>, T>> for SaferpayRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<RepeatPaymentRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        // Byte-identical to the Authorize flow's guard: `AuthorizeDirect` carries no
+        // capture field at all, so accepting `Automatic` would report `requires_capture`
+        // and leave the money unmoved until the authorization expired.
+        if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
+            &request.capture_method
+        {
+            return Err(capture_method_not_supported(*method));
+        }
+
+        // Externally obtained 3DS results (`Authentication.ExternalThreeDS`) need
+        // SpecVersion 1.47 and this integration is pinned to 1.44. An MIT also runs no
+        // cardholder authentication, so there is nothing here that could consume them.
+        // Refuse rather than silently dropping the caller's SCA evidence.
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "External/merchant-provided 3DS authentication data on a merchant-initiated \
+                 transaction"
+                    .to_string(),
+            ));
+        }
+
+        let (payment_means, authentication) = match &request.mandate_reference {
+            // Primary path. `SetupMandate` (`Alias/InsertDirect`) emits only a
+            // `connector_mandate_id`, so this is what a Saferpay-originated mandate
+            // always arrives as.
+            MandateReferenceId::ConnectorMandateId(stored) => {
+                let alias_id = stored
+                    .get_connector_mandate_id()
+                    .map(|alias_id| alias_id.trim().to_string())
+                    .filter(|alias_id| !alias_id.is_empty())
+                    .ok_or_else(|| missing_field("mandate_reference.connector_mandate_id"))?;
+
+                if alias_id.chars().count() > ALIAS_ID_MAX_LEN {
+                    return Err(invalid_length(
+                        "mandate_reference.connector_mandate_id",
+                        "PaymentMeans.Alias.Id is limited to 40 characters",
+                    ));
+                }
+
+                (
+                    SaferpayRepeatPaymentMeans::Alias {
+                        alias: SaferpayAliasReference {
+                            id: Secret::new(alias_id),
+                        },
+                    },
+                    None,
+                )
+            }
+            // PSP-agnostic path: the card was acquired elsewhere, so Saferpay needs the
+            // PAN plus the scheme identifiers from the original CIT. Documented by the
+            // PSD2 guide as "only possible if you are fully PCI certified" — the same
+            // posture `AuthorizeDirect` already requires of this connector.
+            MandateReferenceId::NetworkMandateId(network) => {
+                let card = match &request.payment_method_data {
+                    PaymentMethodData::Card(card) => card,
+                    // The MIT-shaped carrier, and reachable: the Charge handler builds
+                    // this variant from `PaymentMethod.card_with_no_cvc`, and a
+                    // merchant-initiated charge legitimately has no CVC — which is
+                    // exactly what this flow sends (`VerificationCode` is always `None`).
+                    // Saferpay's `PaymentMeans.Card` would accept it; the obstacle is
+                    // local, so say so instead of reporting the card as missing.
+                    // `CardWithNoCvc` holds a concrete `cards::CardNumber` while
+                    // `SaferpayCardDetails<T>` needs a `RawCardNumber<T>`, and no generic
+                    // conversion exists — no connector in the tree consumes this variant.
+                    PaymentMethodData::CardWithNoCvc(_) => {
+                        return Err(not_supported(
+                            "A CVC-less card (PaymentMethod.card_with_no_cvc) on a \
+                             merchant-initiated transaction — present the stored credential \
+                             as a Saferpay alias (connector_mandate_id) instead"
+                                .to_string(),
+                        ))
+                    }
+                    // Same rejection every other card-extraction site in this file uses:
+                    // the alias path needs no card, but this one cannot work without one.
+                    _ => {
+                        return Err(error_stack::report!(IntegrationError::NotImplemented(
+                            "Only card payments are supported by saferpay".to_string(),
+                            context(),
+                        )))
+                    }
+                };
+
+                let exp_year = card
+                    .get_expiry_year_4_digit()
+                    .expose()
+                    .parse::<u16>()
+                    .map_err(|_| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "card_exp_year",
+                            context: context(),
+                        })
+                    })?;
+                let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "card_exp_month",
+                        context: context(),
+                    })
+                })?;
+
+                (
+                    SaferpayRepeatPaymentMeans::Card {
+                        card: SaferpayCardDetails {
+                            number: card.card_number.clone(),
+                            exp_year: Secret::new(exp_year),
+                            exp_month: Secret::new(exp_month),
+                            // Never sent on an MIT: the cardholder is not present and
+                            // storing a CVC for later use is a PCI violation.
+                            verification_code: None,
+                            holder_name: card.get_optional_cardholder_name(),
+                        },
+                    },
+                    Some(SaferpayMitAuthentication {
+                        issuer_reference: issuer_reference(network)?,
+                    }),
+                )
+            }
+            // Saferpay's Transaction interface accepts a PAN or an alias in
+            // `PaymentMeans`; `SchemeToken` exists but carries an Apple Pay / Google Pay
+            // DPAN and its own cryptogram, not a network token plus NTI. There is no
+            // member that expresses this combination, so it is unsupported rather than
+            // not-yet-built.
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(not_supported(
+                    "Network-token mandates (NetworkTokenWithNTI) — Saferpay's PaymentMeans \
+                     accepts a card, a Secure Card Data alias or a wallet SchemeToken, none \
+                     of which carries a network token with an issuer reference"
+                        .to_string(),
+                ));
+            }
+        };
+
+        let amount = SaferpayAmountConvertor::convert(request.minor_amount, request.currency)?;
+
+        let description = common
+            .description
+            .clone()
+            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string());
+
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            terminal_id: auth.terminal_id.clone(),
+            payment: SaferpayPaymentDetails {
+                amount: SaferpayAmount {
+                    value: amount,
+                    currency_code: request.currency,
+                },
+                order_id: truncate_order_id(
+                    request
+                        .merchant_order_id
+                        .as_deref()
+                        .unwrap_or(&common.connector_request_reference_id),
+                ),
+                description,
+            },
+            payment_means,
+            initiator: SaferpayInitiator::Merchant,
+            authentication,
+        })
+    }
+}
+
+/// The newtype only gives the macro framework a distinct response type per flow;
+/// an MIT answers with the same envelope as any other `AuthorizeDirect`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SaferpayRepeatPaymentResponse(pub SaferpayPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayRepeatPaymentResponse, Self>>
+    for RepeatPaymentRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpayRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        // Declines arrive as HTTP 402 with the standard error envelope, which
+        // `build_error_response` already turns into an `ErrorResponse`. A 2xx here is
+        // always a real transaction, and it always carries one.
+        let transaction = response.transaction.as_ref().ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: RepeatPayment response carried no Transaction object",
+            ))
+        })?;
+
+        let issuer_reference = transaction.issuer_reference.as_ref();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction.id.clone()),
+                // An MIT on `AuthorizeDirect` never redirects — the endpoint performs no
+                // cardholder authentication at all.
+                redirection_data: None,
+                // Charging a stored credential mints no new one: the alias the caller
+                // presented stays the mandate. Re-surfacing it here would look like a
+                // second registration.
+                mandate_reference: None,
+                // Publishes `capture_id` / `authorized_amount`, which the Capture flow
+                // reads back to tell a full settlement from a partial one.
+                connector_metadata: transaction.connector_metadata(),
+                // The scheme identifiers for the next link in the MIT chain.
+                network_txn_id: issuer_reference
+                    .and_then(|reference| reference.transaction_stamp.clone())
+                    .map(ExposeInterface::expose),
+                network_txn_link_id: issuer_reference
+                    .and_then(|reference| reference.mastercard_tlid.clone())
+                    .map(ExposeInterface::expose),
+                connector_response_reference_id: transaction
+                    .six_transaction_reference
+                    .clone()
+                    .or_else(|| transaction.order_id.clone()),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                // Reuses the connector's single transaction-status mapping: AUTHORIZED ->
+                // Authorized (the caller's Capture flow settles it), CAPTURED -> Charged,
+                // CANCELED -> Voided, PENDING/unrecognised -> Pending.
+                status: transaction.attempt_status(),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

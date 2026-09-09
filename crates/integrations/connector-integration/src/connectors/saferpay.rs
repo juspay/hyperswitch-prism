@@ -6,12 +6,14 @@ use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, SetupMandateRequestData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -32,8 +34,8 @@ use transformers::{
     SaferpayCaptureResponse, SaferpayPSyncRequest, SaferpayPSyncResponse,
     SaferpayPreAuthenticateRequest, SaferpayPreAuthenticateResponse, SaferpayRefundRequest,
     SaferpayRefundResponse, SaferpayRefundSyncRequest, SaferpayRefundSyncResponse,
-    SaferpaySetupMandateRequest, SaferpaySetupMandateResponse, SaferpayVoidRequest,
-    SaferpayVoidResponse,
+    SaferpayRepeatPaymentRequest, SaferpayRepeatPaymentResponse, SaferpaySetupMandateRequest,
+    SaferpaySetupMandateResponse, SaferpayVoidRequest, SaferpayVoidResponse,
 };
 
 use super::macros;
@@ -121,6 +123,12 @@ macros::create_all_prerequisites!(
             request_body: SaferpaySetupMandateRequest<T>,
             response_body: SaferpaySetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: SaferpayRepeatPaymentRequest<T>,
+            response_body: SaferpayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -386,6 +394,48 @@ macros::macro_connector_implementation!(
     }
 );
 
+// RepeatPayment Flow — merchant-initiated charge of a stored credential.
+//
+// Same endpoint as a non-3DS Authorize (`AuthorizeDirect`); what makes it an MIT is
+// the body: `Initiator: MERCHANT` plus the stored alias in `PaymentMeans.Alias.Id`
+// instead of a PAN. Saferpay has no dedicated recurring endpoint, and
+// `Transaction/AuthorizeReferenced` — the alternative, which chains off a previous
+// `TransactionId` rather than an alias — is out of scope: `SetupMandate` emits only
+// a `connector_mandate_id`, and `AuthorizeReferenced` accepts neither `Initiator`
+// nor `IssuerReference`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Saferpay,
+    curl_request: Json(SaferpayRepeatPaymentRequest<T>),
+    curl_response: SaferpayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                PATH_AUTHORIZE_DIRECT
+            ))
+        }
+    }
+);
+
 // Capture Flow — settles an authorized transaction and yields the `CaptureId` that
 // a later Refund must reference.
 macros::macro_connector_implementation!(
@@ -576,6 +626,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Saferpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Saferpay<T>
 {
 }
@@ -634,8 +689,8 @@ macros::macro_connector_payout_implementation!(
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
 // Everything outside Authorize / PSync / Capture / Void / Refund / RSync /
-// PreAuthenticate / SetupMandate is stubbed: charging a stored alias (repeat payment),
-// alias revocation, disputes and payouts are out of scope for this card-only
+// PreAuthenticate / SetupMandate / RepeatPayment is stubbed: alias revocation
+// (`Alias/Delete`), disputes and payouts are out of scope for this card-only
 // integration.
 macros::macro_connector_flow_status_impls!(
     connector: Saferpay,
@@ -655,7 +710,6 @@ macros::macro_connector_flow_status_impls!(
         CreateOrder,
         PaymentMethodToken,
         VoidPC,
-        RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         SubmitEvidence,

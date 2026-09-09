@@ -243,6 +243,16 @@
     "https://docs.saferpay.com/home/integration-guide/testing-and-go-live",
     "https://docs.saferpay.com/home/interfaces/backoffice/settings/json-api-basic-client-certificate-authentication",
     "https://docs.saferpay.com/home/integration-guide/introduction",
-    "https://docs.saferpay.com/home/llms.txt"
+    "https://docs.saferpay.com/home/llms.txt",
+    "https://saferpay.github.io/jsonapi/#Payment_v1_Transaction_AuthorizeReferenced",
+    "https://saferpay.github.io/jsonapi/#Payment_v1_Alias_InsertDirect",
+    "https://saferpay.github.io/jsonapi/#Payment_v1_Alias_Inquire",
+    "https://saferpay.github.io/jsonapi/#Payment_v1_Alias_Delete",
+    "https://docs.saferpay.com/home/integration-guide/general-information/psd2",
+    "https://docs.saferpay.com/home/integration-guide/general-information/psd2.md",
+    "https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/transaction-interface/recurring-payments.md",
+    "https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/transaction-interface.md",
+    "https://docs.saferpay.com/home/integration-guide/changelog",
+    "https://github.com/saferpay/jsonapi/blob/master/texts/Changelog.md"
   ]
 }

@@ -755,7 +755,7 @@ connector_id: saferpay
 doc: docs/connectors/saferpay.md
 scenarios: none
 payment_methods: none
-flows: capture, get, pre_authenticate, proxy_setup_recurring, refund_get, setup_recurring, void
+flows: capture, get, pre_authenticate, proxy_setup_recurring, recurring_charge, refund_get, setup_recurring, void
 examples_python: none
 
 ## Shift4

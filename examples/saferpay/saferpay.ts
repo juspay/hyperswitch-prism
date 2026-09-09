@@ -5,9 +5,9 @@
 // Saferpay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx saferpay.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CardNetwork, Currency, FutureUsage } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "pre_authenticate", "proxy_setup_recurring", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
+export const SUPPORTED_FLOWS = ["capture", "get", "pre_authenticate", "proxy_setup_recurring", "recurring_charge", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -99,6 +99,27 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
     };
 }
 
+function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
+    return {
+        "connectorRecurringPaymentId": {  // Reference to existing mandate.
+        },
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
+            "token": {  // Payment tokens.
+                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
+            }
+        },
+        "returnUrl": "https://example.com/recurring-return",
+        "captureMethod": CaptureMethod.MANUAL,  // Capture Settings.
+        "connectorCustomerId": "cust_probe_123",
+        "paymentMethodType": PaymentMethodType.PAY_PAL,
+        "offSession": true  // Behavioral Flags and Preferences.
+    };
+}
+
 function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
@@ -184,6 +205,15 @@ async function proxySetupRecurring(merchantTransactionId: string, config: types.
     return proxyResponse;
 }
 
+// Flow: RecurringPaymentService.Charge
+async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const recurringPaymentClient = new RecurringPaymentClient(config);
+
+    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
+
+    return recurringResponse;
+}
+
 // Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const refundClient = new RefundClient(config);
@@ -214,7 +244,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, preAuthenticate, proxySetupRecurring, refundGet, setupRecurring, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxySetupRecurringRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    capture, get, preAuthenticate, proxySetupRecurring, recurringCharge, refundGet, setupRecurring, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

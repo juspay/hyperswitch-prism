@@ -677,8 +677,41 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for saferpay"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "capture_method": "MANUAL",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"Description\":\"Payment\"},\"PaymentMeans\":{\"Alias\":{\"Id\":\"probe-mandate-123\"}},\"Initiator\":\"MERCHANT\"}"
+        }
       }
     },
     "recurring_revoke": {
