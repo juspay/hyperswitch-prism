@@ -112,7 +112,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"blik\":{\"shopper_name\":\"John\"},\"type\":\"blik\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -171,9 +172,10 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
-          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\",\"three_ds\":{\"return_url\":\"https://example.com/return\"}},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
       },
       "CashappQr": {
@@ -293,7 +295,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"googlepay\":{\"encrypted_payment_token\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\",\"payment_data_type\":\"encrypted_payment_token\"},\"type\":\"googlepay\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -338,7 +341,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"ideal\":{},\"type\":\"ideal\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -405,7 +409,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"klarna\":{\"country_code\":\"US\",\"billing\":{\"address\":{\"country_code\":\"US\"}}},\"type\":\"klarna\"},\"payment_method_options\":{\"klarna\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
@@ -551,7 +556,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"paypal\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"paypal\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -664,7 +670,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"skrill\":{\"shopper_name\":\"John\",\"shopper_email\":\"test@example.com\",\"country_code\":\"US\"},\"type\":\"skrill\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -716,7 +723,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"trustly\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"trustly\"},\"return_url\":\"https://example.com/return\"}"
         }
@@ -778,7 +786,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"amount\":\"10.00\",\"request_id\":\"capture_probe_capture_001\"}"
         }
@@ -813,7 +822,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"request_id\":\"create_probe_order_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"merchant_order_id\":\"probe_order_001\",\"referrer_data\":{\"type\":\"hyperswitch\",\"version\":\"1.0.0\"},\"order\":null}"
         }
@@ -907,7 +917,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": null
         }
@@ -936,14 +947,50 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for airwallex"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "connector_order_reference_id": "probe_order_ref_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_ref_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
+          },
+          "body": null
+        }
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for airwallex"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id. Airwallex confirms an existing PaymentIntent, so the intent created by CreateOrder must be identified on this call — Missing required field: connector_order_id. Airwallex confirms an existing PaymentIntent, so the intent created by CreateOrder must be identified on this call"
       }
     },
     "proxy_authorize": {
@@ -984,9 +1031,10 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
-          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
+          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\",\"three_ds\":{\"return_url\":\"https://example.com/return\"}},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\"}"
         }
       }
     },
@@ -1039,7 +1087,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"payment_intent_id\":\"probe_connector_txn_001\",\"amount\":\"10.00\",\"reason\":\"customer_request\",\"request_id\":\"refund_probe_refund_001\"}"
         }
@@ -1066,7 +1115,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": null
         }
@@ -1121,7 +1171,8 @@
           "headers": {
             "authorization": "Bearer probe_access_token",
             "content-type": "application/json",
-            "via": "HyperSwitch"
+            "via": "HyperSwitch",
+            "x-api-version": "2024-06-14"
           },
           "body": "{\"cancellation_reason\":\"Voided by merchant\",\"request_id\":\"void_probe_void_001\"}"
         }

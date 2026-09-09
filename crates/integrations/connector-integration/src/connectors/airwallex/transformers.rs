@@ -8,14 +8,15 @@ use common_utils::{
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PostAuthenticate, PreAuthenticate,
+        RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -305,40 +306,91 @@ pub struct AirwallexPaymentRequest {
     pub customer_id: Option<String>,
 }
 
-/// 3DS continuation request body for the card `confirm_continue` leg. After the browser returns
-/// from the Airwallex 3DS redirect, HS re-invokes the Authorize flow with a populated
-/// `redirect_response`; we echo that payload back to Airwallex as `three_ds.acs_response` with
-/// `type: "3ds_continue"`. Mirrors native HS `AirwallexCompleteRequest`.
+/// Request body for the Authorize flow.
+///
+/// On [`AIRWALLEX_API_VERSION`] a 3DS card payment is exactly two Airwallex calls: this
+/// `POST /pa/payment_intents/{id}/confirm`, and — after the shopper returns from the
+/// Airwallex-hosted 3DS page — a bodyless `GET /pa/payment_intents/{id}`. The old
+/// `confirm_continue` continuation body (`{request_id, type:"3ds_continue", three_ds:{…}}`) was
+/// removed from the Airwallex contract on `2024-06-14`, so there is no second request shape to
+/// model: the return leg carries no body at all and is built in `Airwallex::build_request_v2`.
+///
+/// [`AIRWALLEX_API_VERSION`]: super::AIRWALLEX_API_VERSION
+pub type AirwallexAuthorizeRequest = AirwallexPaymentRequest;
+
+/// Native-3DS block nested at `payment_method.card.three_ds`.
+///
+/// Required by Airwallex on `[2024-02-22, 2026-06-30)` for any card confirm that may run 3DS:
+/// it is where the shopper is sent once the hosted authentication page finishes. Mutually
+/// exclusive with [`AirwallexExternalThreeDs`] — sending both is a `validation_error`.
 #[derive(Debug, Serialize)]
-pub struct AirwallexCompleteRequest {
-    pub request_id: String,
-    pub three_ds: AirwallexThreeDsData,
-    #[serde(rename = "type")]
-    pub three_ds_type: AirwallexThreeDsType,
+pub struct AirwallexCardThreeDs {
+    pub return_url: String,
 }
 
+/// External-3DS pass-through block nested at `payment_method.card.external_three_ds`.
+///
+/// Used when the cardholder was already authenticated by a router-side 3DS provider and UCS is
+/// only relaying the proof. Note the CAVV travels as `authentication_value`; there is no `cavv`
+/// and no `xid` field on the request — those two names exist only on the *response* `ds_data`.
+///
+/// Airwallex's own description of `three_ds_action` says this block lives at
+/// `payment_method_options.card.external_three_ds`. That prose is wrong: the schema (and the
+/// 3DS guide's worked example) both place it under `payment_method.card`, as a sibling of
+/// `number` and `cvc`.
 #[derive(Debug, Serialize)]
-pub struct AirwallexThreeDsData {
+pub struct AirwallexExternalThreeDs {
+    /// The 3DS2 CAVV / 3DS1 AAV. Secret: it is a single-use authorisation credential.
+    pub authentication_value: Secret<String>,
+    /// Two-character ECI from the ACS or the directory server.
+    pub eci: String,
+    pub ds_transaction_id: Secret<String>,
+    pub three_ds_server_transaction_id: Secret<String>,
+    /// 3DS version as `major.minor.patch`, rendered from the caller's `SemanticVersion`.
+    pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub acs_response: Option<Secret<String>>,
+    pub three_ds_exemption: Option<AirwallexThreeDsExemption>,
 }
 
-#[derive(Debug, Serialize, Default)]
-pub enum AirwallexThreeDsType {
-    #[default]
-    #[serde(rename = "3ds_continue")]
-    ThreeDSContinue,
+/// The three exemption values Airwallex accepts on `external_three_ds.three_ds_exemption`.
+/// Every other UCS [`common_enums::ExemptionIndicator`] variant has no Airwallex counterpart and
+/// the field is omitted rather than guessed — a wrong exemption claim shifts liability back to
+/// the merchant.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AirwallexThreeDsExemption {
+    Tra,
+    Lvp,
+    Anonymous,
 }
 
-/// Untagged request body for the Authorize flow. Leg 1 (`Confirm`) confirms the payment intent at
-/// `/confirm`; leg 2 (`ConfirmContinue`) finishes card 3DS at `/confirm_continue`. The leg is
-/// chosen by whether HS supplied a `redirect_response` (i.e. the browser returned from 3DS). Both
-/// legs return `AirwallexPaymentsResponse`. `untagged` so each serializes as its inner body.
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
-pub enum AirwallexAuthorizeRequest {
-    Confirm(Box<AirwallexPaymentRequest>),
-    ConfirmContinue(AirwallexCompleteRequest),
+/// How the card confirm should handle 3DS. The two Airwallex blocks are mutually exclusive, so
+/// they are modelled as one value rather than two independently-settable `Option`s.
+///
+/// Neither variant sets `payment_method_options.card.three_ds_action`, and that is deliberate.
+/// On the pinned API version `three_ds_action` is read only by
+/// `POST /pa/payment_intents/create`; `/confirm` does not declare it, and Airwallex ignores
+/// unknown keys silently rather than rejecting them, so setting it there does nothing at all.
+/// It is not set on create either, because none of its three values is derivable there safely:
+///
+/// * `EXTERNAL_3DS` is the one that belongs with [`Self::External`], but `PaymentCreateOrderData`
+///   carries no `authentication_data`, so CreateOrder cannot know an external proof is coming.
+/// * `SKIP_3DS` and `EXTERNAL_3DS` are both entitlement-gated. On an account without them
+///   Airwallex fails the *create* with `validation_error` ("Skip 3DS is not allowed. Contact the
+///   support team if you wish to use this option."), which would turn a payment that merely
+///   wanted to skip 3DS into a payment that cannot be created at all.
+/// * `FORCE_3DS` would make Airwallex run its own 3DS on top of a relayed external proof.
+///
+/// Omitting the key is Airwallex's documented fourth behaviour — "use the default global 3DS
+/// settings" — which is what this connector has always relied on. Consequence for
+/// [`Self::External`]: the relayed proof is honoured only on accounts Airwallex has enabled
+/// External 3DS for and whose global settings select it.
+#[derive(Debug)]
+pub enum AirwallexThreeDsMode {
+    /// Airwallex runs 3DS itself and returns the shopper to `return_url`.
+    Native { return_url: String },
+    /// A router-side 3DS provider already authenticated; relay the proof.
+    External(Box<AirwallexExternalThreeDs>),
 }
 
 #[derive(Debug, Serialize)]
@@ -551,6 +603,13 @@ pub struct AirwallexCardDetails {
     pub expiry_year: Secret<String>,
     pub cvc: Secret<String>,
     pub name: Option<Secret<String>>,
+    /// Native 3DS return URL. Present for every card confirm that may run Airwallex-hosted 3DS;
+    /// absent when `external_three_ds` is sent (the two are mutually exclusive).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<AirwallexCardThreeDs>,
+    /// External 3DS pass-through proof; see [`AirwallexExternalThreeDs`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_three_ds: Option<Box<AirwallexExternalThreeDs>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -665,27 +724,15 @@ pub struct AirwallexPayLaterOptions {
     pub auto_capture: Option<bool>,
 }
 
-// Confirm request structure for 2-step flow (only payment method data)
-#[derive(Debug, Serialize)]
-pub struct AirwallexConfirmRequest {
-    pub request_id: String,
-    pub payment_method: AirwallexPaymentMethod,
-    // Mirrors AirwallexPaymentRequest: omit rather than send an explicit null.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payment_method_options: Option<AirwallexPaymentOptions>,
-    pub return_url: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_data: Option<AirwallexDeviceData>,
-}
-
-// Helper function to extract device data from browser info (matching Hyperswitch pattern)
-fn get_device_data<T: PaymentMethodDataTypes>(
-    request: &PaymentsAuthorizeData<T>,
-) -> Result<Option<AirwallexDeviceData>, error_stack::Report<IntegrationError>> {
-    let browser_info = match request.get_browser_info() {
-        Ok(info) => info,
-        Err(_) => return Ok(None), // If browser info is not available, return None instead of erroring
-    };
+/// Builds Airwallex's `device_data` block from the caller's browser information.
+///
+/// Takes the `BrowserInformation` directly rather than a flow-specific request type so the
+/// `Authorize` and `PreAuthenticate` legs send byte-identical device data. `None` in means no
+/// `device_data` key on the wire — Airwallex treats it as optional.
+fn get_device_data(
+    browser_info: Option<&domain_types::router_request_types::BrowserInformation>,
+) -> Option<AirwallexDeviceData> {
+    let browser_info = browser_info?;
 
     let browser = AirwallexBrowser {
         java_enabled: browser_info.get_java_enabled().unwrap_or(false),
@@ -709,7 +756,7 @@ fn get_device_data<T: PaymentMethodDataTypes>(
         }
     };
 
-    Ok(Some(AirwallexDeviceData {
+    Some(AirwallexDeviceData {
         accept_header: browser_info.get_accept_header().unwrap_or_default(),
         browser,
         ip_address: browser_info
@@ -725,14 +772,26 @@ fn get_device_data<T: PaymentMethodDataTypes>(
             .get_time_zone()
             .map(|tz| tz.to_string())
             .unwrap_or_else(|_| "0".to_string()),
-    }))
+    })
 }
 
-// Shared Card conversion used by both the intent (AirwallexPaymentRequest) and
-// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift.
+/// Shared Card conversion used by every builder that puts a card on the Airwallex wire
+/// (`Authorize`, `SetupMandate`, `PreAuthenticate`) so the paths cannot drift.
+///
+/// `three_ds` selects the mutually-exclusive 3DS block Airwallex nests under
+/// `payment_method.card`; pass `None` only when the caller has established that no 3DS block
+/// belongs on this request.
 fn get_card_details<T: PaymentMethodDataTypes>(
     card_data: &domain_types::payment_method_data::Card<T>,
+    three_ds: Option<AirwallexThreeDsMode>,
 ) -> AirwallexPaymentMethod {
+    let (three_ds, external_three_ds) = match three_ds {
+        Some(AirwallexThreeDsMode::Native { return_url }) => {
+            (Some(AirwallexCardThreeDs { return_url }), None)
+        }
+        Some(AirwallexThreeDsMode::External(external)) => (None, Some(external)),
+        None => (None, None),
+    };
     AirwallexPaymentMethod::Card(AirwallexCardData {
         card: AirwallexCardDetails {
             number: Secret::new(card_data.card_number.peek().to_string()),
@@ -743,13 +802,93 @@ fn get_card_details<T: PaymentMethodDataTypes>(
                 .card_holder_name
                 .clone()
                 .map(|name| Secret::new(name.expose())),
+            three_ds,
+            external_three_ds,
         },
         payment_method_type: AirwallexPaymentType::Card,
     })
 }
 
-// Shared BankRedirect conversion used by both the intent (AirwallexPaymentRequest) and
-// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. iDeal only carries
+/// Turns router-side 3DS proof into Airwallex's `external_three_ds` block.
+///
+/// Every field Airwallex marks required for 3DS2 is sourced from exactly one place in
+/// [`AuthenticationData`] and fails locally with `MissingRequiredField` when absent — a partial
+/// `external_three_ds` is rejected by Airwallex with a `validation_error` that names a field the
+/// merchant cannot act on.
+///
+/// [`AuthenticationData`]: domain_types::router_request_types::AuthenticationData
+fn build_external_three_ds(
+    authentication_data: &domain_types::router_request_types::AuthenticationData,
+) -> Result<Box<AirwallexExternalThreeDs>, error_stack::Report<IntegrationError>> {
+    let missing = |field_name: &'static str, airwallex_field: &str| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name,
+            context: aw_err_ctx(
+                format!(
+                    "Airwallex external 3DS requires \
+                     payment_method.card.external_three_ds.{airwallex_field}; it is only \
+                     accepted as a complete 3DS2 proof"
+                ),
+                "Send the full authentication result from your 3DS provider in \
+                 authentication_data (cavv, eci, ds_trans_id, threeds_server_transaction_id, \
+                 message_version), or drop authentication_data entirely and let Airwallex run \
+                 3DS itself",
+            ),
+        })
+    };
+
+    Ok(Box::new(AirwallexExternalThreeDs {
+        authentication_value: authentication_data
+            .cavv
+            .clone()
+            .ok_or_else(|| missing("authentication_data.cavv", "authentication_value"))?,
+        eci: authentication_data
+            .eci
+            .clone()
+            .ok_or_else(|| missing("authentication_data.eci", "eci"))?,
+        ds_transaction_id: authentication_data
+            .ds_trans_id
+            .clone()
+            .map(Secret::new)
+            .ok_or_else(|| missing("authentication_data.ds_trans_id", "ds_transaction_id"))?,
+        three_ds_server_transaction_id: authentication_data
+            .threeds_server_transaction_id
+            .clone()
+            .map(Secret::new)
+            .ok_or_else(|| {
+                missing(
+                    "authentication_data.threeds_server_transaction_id",
+                    "three_ds_server_transaction_id",
+                )
+            })?,
+        version: authentication_data
+            .message_version
+            .as_ref()
+            .map(|version| version.to_string())
+            .ok_or_else(|| missing("authentication_data.message_version", "version"))?,
+        // Only TRA and LVP have Airwallex counterparts. Everything else is omitted rather than
+        // approximated — claiming the wrong exemption moves fraud liability to the merchant.
+        three_ds_exemption: authentication_data.exemption_indicator.as_ref().and_then(
+            |exemption| match exemption {
+                common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+                    Some(AirwallexThreeDsExemption::Tra)
+                }
+                common_enums::ExemptionIndicator::LowValue => Some(AirwallexThreeDsExemption::Lvp),
+                common_enums::ExemptionIndicator::SecureCorporatePayment
+                | common_enums::ExemptionIndicator::TrustedListing
+                | common_enums::ExemptionIndicator::ThreeDsOutage
+                | common_enums::ExemptionIndicator::ScaDelegation
+                | common_enums::ExemptionIndicator::OutOfScaScope
+                | common_enums::ExemptionIndicator::LowRiskProgram
+                | common_enums::ExemptionIndicator::RecurringOperation
+                | common_enums::ExemptionIndicator::Other => None,
+            },
+        ),
+    }))
+}
+
+// Shared BankRedirect conversion used by every Airwallex request builder so the paths cannot
+// drift. iDeal only carries
 // the issuer bank; Trustly and Blik additionally need the shopper name (and, for Trustly, the
 // billing country).
 fn get_bankredirect_details(
@@ -803,8 +942,7 @@ fn get_bankredirect_details(
     }
 }
 
-// Shared wallet conversion used by both the intent (AirwallexPaymentRequest) and
-// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift.
+// Shared wallet conversion used by every Airwallex request builder so the paths cannot drift.
 fn get_wallet_details(
     wallet_data: &domain_types::payment_method_data::WalletData,
     resource_common_data: &PaymentFlowData,
@@ -877,8 +1015,8 @@ fn get_wallet_details(
     }
 }
 
-// Shared PayLater conversion used by both the intent (AirwallexPaymentRequest) and
-// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. Mirrors the
+// Shared PayLater conversion used by every Airwallex request builder so the paths cannot
+// drift. Mirrors the
 // reference upstream `get_paylater_details`: Klarna carries billing details + country code,
 // Atome carries the shopper phone with country code.
 fn get_paylater_details(
@@ -934,8 +1072,8 @@ fn get_paylater_details(
     }
 }
 
-// Shared BankTransfer conversion used by both the intent (AirwallexPaymentRequest) and
-// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. Mirrors the
+// Shared BankTransfer conversion used by every Airwallex request builder so the paths cannot
+// drift. Mirrors the
 // reference upstream `get_banktransfer_details`: the Indonesian bank transfer carries the
 // shopper name/email, the selected bank, and the billing country code.
 fn get_banktransfer_details(
@@ -990,18 +1128,25 @@ fn get_banktransfer_details(
     }
 }
 
-/// Whether this Authorize call is the card 3DS return leg, which Airwallex finishes on
-/// `/confirm_continue` with a `3ds_continue` body rather than on `/confirm`.
+/// Whether this Authorize call is the card 3DS return leg — the invocation that happens *after*
+/// the shopper has come back from the Airwallex-hosted 3DS page.
+///
+/// On [`AIRWALLEX_API_VERSION`] that leg is a **read**, not a second charge: Airwallex removed
+/// `three_ds` and the `3ds_continue` type from `confirm_continue` on `2024-06-14`, and its own
+/// guide says the merchant must "Retrieve PaymentIntent to confirm status". So this predicate
+/// selects a bodyless `GET /pa/payment_intents/{id}` instead of the `/confirm` POST. It is the
+/// reason the composite `Authorize` that runs after `PostAuthenticate` cannot double-charge.
 ///
 /// Gated on the payment method being a card **and** HS having supplied a `redirect_response`.
-/// In practice only cards come back through Authorize, because `get_return_url` routes cards to
+/// In practice only cards come back through Authorize, because the return URL routes cards to
 /// `complete_authorize_url` and APMs to `router_return_url` — but that is an emergent property of
-/// a different branch. Keying the endpoint and the request body off the same explicit condition
-/// means an APM that ever did return here gets its normal confirm body instead of a `three_ds`
-/// payload Airwallex would reject for a PayPal or Klarna intent.
+/// a different branch. Keying the endpoint and the HTTP method off one explicit condition means
+/// an APM that ever did return here still gets its normal confirm POST.
 ///
-/// Used by both [`AirwallexAuthorizeRequest::try_from`] and `get_url` in `airwallex.rs`, so the
-/// URL and the body cannot disagree about which leg is being sent.
+/// Used by `get_url` and `build_request_v2` in `airwallex.rs`, so the URL and the method cannot
+/// disagree about which leg is being sent.
+///
+/// [`AIRWALLEX_API_VERSION`]: super::AIRWALLEX_API_VERSION
 pub(crate) fn is_card_three_ds_continue<T: PaymentMethodDataTypes>(
     request: &PaymentsAuthorizeData<T>,
 ) -> bool {
@@ -1012,17 +1157,20 @@ pub(crate) fn is_card_three_ds_continue<T: PaymentMethodDataTypes>(
         )
 }
 
-// Single entry point for turning the domain payment method into the Airwallex payload. Both the
-// intent (AirwallexPaymentRequest) and the confirm (AirwallexConfirmRequest) builders call it, so
-// the two request paths cannot drift.
+/// Single entry point for turning the domain payment method into the Airwallex payload, shared by
+/// the `Authorize` and `PreAuthenticate` request builders so the request paths cannot drift.
+///
+/// `three_ds` is only meaningful on the card arm; Airwallex has no 3DS block for wallets, bank
+/// redirects, pay-later or bank transfers, which carry their own redirect contract.
 fn get_payment_method_details<T: PaymentMethodDataTypes>(
     payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
     resource_common_data: &PaymentFlowData,
     customer_name: Option<Secret<String>>,
+    three_ds: Option<AirwallexThreeDsMode>,
 ) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
     match payment_method_data {
         domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-            Ok(get_card_details(card_data))
+            Ok(get_card_details(card_data, three_ds))
         }
         domain_types::payment_method_data::PaymentMethodData::BankRedirect(bank_redirect_data) => {
             get_bankredirect_details(bank_redirect_data, resource_common_data)
@@ -1046,6 +1194,10 @@ fn get_payment_method_details<T: PaymentMethodDataTypes>(
 // Build the correct `payment_method_options` object for the selected payment method.
 // Card/Wallet/BankRedirect keep the historical card options; PayLater emits its own
 // klarna/atome options block with `auto_capture`, mirroring the reference upstream.
+//
+// `three_ds_action` is deliberately NOT part of this block. Airwallex only reads it on
+// `POST /pa/payment_intents/create`; on `/confirm` it is an unknown key, and Airwallex silently
+// ignores unknown keys rather than rejecting them. See the note on [`AirwallexThreeDsMode`].
 fn build_payment_method_options(
     payment_method: &AirwallexPaymentMethod,
     auto_capture: bool,
@@ -1116,6 +1268,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         // UCS unified flow - always create payment intent with payment method
 
+        // Per-method return_url (mirrors native HS): card 3DS must come back through the Authorize
+        // completion leg, so point Airwallex at `complete_authorize_url`; APM redirects
+        // (wallets/bank-redirect/paylater) return through PSync via `router_return_url`.
+        let return_url = match &item.router_data.request.payment_method_data {
+            domain_types::payment_method_data::PaymentMethodData::Card(_) => item
+                .router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .or_else(|| item.router_data.request.get_router_return_url().ok()),
+            _ => item.router_data.request.get_router_return_url().ok(),
+        };
+
+        // Which 3DS block goes under `payment_method.card`, if any.
+        //
+        // * Router-side authentication already happened (`authentication_data` populated) ->
+        //   relay the proof as `external_three_ds` (see [`AirwallexThreeDsMode::External`] for the
+        //   account entitlement this additionally needs).
+        // * Otherwise Airwallex runs 3DS itself and needs
+        //   `payment_method.card.three_ds.return_url` — on the pinned API version the top-level
+        //   `return_url` is NOT the 3DS return URL (that only happens from 2026-06-30), so
+        //   omitting this strands the shopper on the hosted page.
+        let three_ds = match item.router_data.request.authentication_data.as_ref() {
+            Some(authentication_data) => Some(AirwallexThreeDsMode::External(
+                build_external_three_ds(authentication_data)?,
+            )),
+            None => return_url
+                .clone()
+                .map(|return_url| AirwallexThreeDsMode::Native { return_url }),
+        };
+
         let payment_method = get_payment_method_details(
             &item.router_data.request.payment_method_data,
             &item.router_data.resource_common_data,
@@ -1124,6 +1307,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .customer_name
                 .clone()
                 .map(Secret::new),
+            three_ds,
         )?;
 
         let auto_capture = matches!(
@@ -1177,20 +1361,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 None,
             )
         } else {
-            (None, None, get_device_data(&item.router_data.request)?)
-        };
-
-        // Per-method return_url (mirrors native HS): card 3DS must come back through the Authorize
-        // completion leg (`confirm_continue`), so point Airwallex at `complete_authorize_url`; APM
-        // redirects (wallets/bank-redirect/paylater) return through PSync via `router_return_url`.
-        let return_url = match &item.router_data.request.payment_method_data {
-            domain_types::payment_method_data::PaymentMethodData::Card(_) => item
-                .router_data
-                .request
-                .complete_authorize_url
-                .clone()
-                .or_else(|| item.router_data.request.get_router_return_url().ok()),
-            _ => item.router_data.request.get_router_return_url().ok(),
+            (
+                None,
+                None,
+                get_device_data(item.router_data.request.browser_info.as_ref()),
+            )
         };
 
         Ok(Self {
@@ -1202,77 +1377,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_consent,
             customer_id,
         })
-    }
-}
-
-/// Build the Authorize request body, selecting the initial confirm leg or the 3DS
-/// `confirm_continue` leg based on whether HS supplied a `redirect_response`.
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        super::AirwallexRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    > for AirwallexAuthorizeRequest
-{
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        item: super::AirwallexRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        // Same gate as `get_url` in airwallex.rs, so the endpoint and the body always agree.
-        let three_ds_return_leg = item
-            .router_data
-            .request
-            .redirect_response
-            .as_ref()
-            .filter(|_| is_card_three_ds_continue(&item.router_data.request));
-        match three_ds_return_leg {
-            // 3DS return leg: echo the ACS/redirect payload back as three_ds.acs_response.
-            Some(redirect_response) => {
-                let acs_response = redirect_response
-                    .payload
-                    .as_ref()
-                    .map(|data| serde_json::to_string(data.peek()))
-                    .transpose()
-                    .change_context(IntegrationError::RequestEncodingFailed {
-                        context: aw_err_ctx(
-                            "Failed to serialize the 3DS redirect payload into \
-                             three_ds.acs_response for the Airwallex confirm_continue call",
-                            "Ensure the redirect response payload echoed back from the ACS is \
-                             valid JSON",
-                        ),
-                    })?
-                    .map(Secret::new);
-                // Unique per call: a 3DS flow issues confirm_continue more than once (after DDC,
-                // then after the challenge). Airwallex rejects a reused request_id with
-                // "duplicate_request", so use a fresh UUID like native HS (not the deterministic
-                // connector_request_reference_id).
-                let request_id = common_utils::fp_utils::generate_uuid_v4();
-                Ok(Self::ConfirmContinue(AirwallexCompleteRequest {
-                    request_id,
-                    three_ds: AirwallexThreeDsData { acs_response },
-                    three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
-                }))
-            }
-            // Initial leg: build the standard confirm body.
-            None => Ok(Self::Confirm(Box::new(AirwallexPaymentRequest::try_from(
-                item,
-            )?))),
-        }
     }
 }
 
@@ -1318,7 +1422,7 @@ pub type AirwallexSyncResponse = AirwallexPaymentsResponse;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AirwallexPaymentAttempt {
     pub id: Option<String>,
-    pub status: Option<String>, // Changed from AirwallexPaymentStatus to String to handle different values
+    pub status: Option<AirwallexAttemptStatus>,
     pub amount: Option<FloatMajorUnit>,
     pub payment_method: Option<AirwallexPaymentMethodInfo>,
     pub authorization_code: Option<String>,
@@ -1326,6 +1430,112 @@ pub struct AirwallexPaymentAttempt {
     pub processor_response: Option<AirwallexProcessorResponse>,
     pub created_at: Option<String>,
     pub updated_at: Option<String>,
+    /// 3DS / risk outcome for this attempt. Present on `confirm` and on the retrieve that ends a
+    /// 3DS journey; it is where the CAVV and ECI live.
+    pub authentication_data: Option<AirwallexAttemptAuthenticationData>,
+}
+
+/// `latest_payment_attempt.status`, as enumerated by the `2024-06-14` PaymentIntents schema.
+/// Anything outside the set deserialises to `Unknown` rather than failing the whole response.
+///
+/// Two neighbouring enums are easy to confuse with this one and are NOT it:
+/// `latest_payment_attempt.payment_method.status` (`CREATED` / `DISABLED`) describes the stored
+/// payment method, and `AirwallexPaymentStatus` describes the intent. A decline does not get its
+/// own value here — it arrives as `FAILED` with a `failure_code`.
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AirwallexAttemptStatus {
+    Received,
+    AuthenticationRedirected,
+    PendingAuthorization,
+    Authorized,
+    CaptureRequested,
+    Expired,
+    Cancelled,
+    Failed,
+    Settled,
+    Paid,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `latest_payment_attempt.authentication_data`.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AirwallexAttemptAuthenticationData {
+    pub ds_data: Option<AirwallexDsData>,
+    pub fraud_data: Option<AirwallexFraudData>,
+    pub avs_result: Option<String>,
+    pub cvc_result: Option<String>,
+}
+
+/// `authentication_data.ds_data` — the directory-server outcome of a 3DS authentication.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AirwallexDsData {
+    /// 3DS message version, e.g. `"2.2.0"`. Parsed into a `SemanticVersion`, never hardcoded.
+    #[serde(default, deserialize_with = "deserialize_non_empty_string")]
+    pub version: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_yes_no")]
+    pub liability_shift_indicator: Option<AirwallexYesNo>,
+    /// Two-character ECI. Airwallex documents it per-network (Visa `05`/`06`/`07`, Mastercard
+    /// `02`/`01`/`00`) and the set is open-ended across networks, so it stays an opaque string.
+    #[serde(default, deserialize_with = "deserialize_non_empty_string")]
+    pub eci: Option<String>,
+    /// The 3DS2 authentication value. Secret: it is a single-use authorisation credential.
+    pub cavv: Option<Secret<String>>,
+    /// 3DS1 transaction identifier, present only when Airwallex fell back to 3DS1. Secret for the
+    /// same reason as `cavv`.
+    pub xid: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "deserialize_optional_yes_no")]
+    pub frictionless: Option<AirwallexYesNo>,
+}
+
+/// Airwallex renders these `ds_data` flags as the literal strings `"Y"` / `"N"`.
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, PartialEq, Eq)]
+pub enum AirwallexYesNo {
+    #[serde(rename = "Y")]
+    Yes,
+    #[serde(rename = "N")]
+    No,
+}
+
+/// Reads a `ds_data` Y/N flag that Airwallex may not have decided yet.
+///
+/// While the shopper is still on the hosted 3DS page Airwallex renders these flags as the empty
+/// string rather than omitting them or sending `null` — its own 3DS guide's
+/// `AUTHENTICATION_REDIRECTED` example shows `"liability_shift_indicator": ""`. A plain
+/// `Option<AirwallexYesNo>` fails on that, and because `ds_data` is nested inside the intent, one
+/// empty flag would fail the *entire* confirm response and report a live payment as an error.
+///
+/// Anything that is not `Y` or `N` therefore reads as `None`, which is exactly what Airwallex
+/// documents `null` to mean here: "N/A or undeterminable".
+fn deserialize_optional_yes_no<'de, D>(deserializer: D) -> Result<Option<AirwallexYesNo>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(match raw.as_deref() {
+        Some("Y") => Some(AirwallexYesNo::Yes),
+        Some("N") => Some(AirwallexYesNo::No),
+        _ => None,
+    })
+}
+
+/// Same problem as [`deserialize_optional_yes_no`] for the free-form `ds_data` strings: an
+/// in-flight `eci`/`version` arrives as `""`, and an empty ECI is worse than no ECI because it
+/// would be forwarded to the caller as if the directory server had stated one.
+fn deserialize_non_empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    Ok(raw.filter(|value| !value.is_empty()))
+}
+
+/// `authentication_data.fraud_data`.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AirwallexFraudData {
+    pub action: Option<String>,
+    pub score: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1343,6 +1553,11 @@ pub enum AirwallexPaymentStatus {
     Cancelled,
     Failed,
     Pending,
+    /// Airwallex added a status we do not model yet. Deserialising it instead of erroring keeps
+    /// the rest of the intent (id, next_action, ds_data) usable; it maps to
+    /// `AttemptStatus::Unresolved`, never to `Failure` — we cannot claim the money did not move.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1370,11 +1585,25 @@ pub struct AirwallexCardInfo {
     pub fingerprint: Option<String>,
 }
 
+/// `next_action.type`.
+///
+/// Card 3DS on [`AIRWALLEX_API_VERSION`] produces `redirect_iframe`, which lands on `Other`;
+/// APM redirects produce `redirect`. Both mean the same thing to UCS — send the shopper to
+/// `next_action.url` — so the two arms are kept only because `redirect` is a documented value
+/// and `Other` is the catch-all.
+///
+/// There is deliberately **no `device_data_collection` variant**. Airwallex split the 3DS method
+/// call out as its own `next_action` only before `2024-06-14`, and
+/// [`AIRWALLEX_API_VERSION`] is sent on every request (see `Airwallex::build_headers`), so no
+/// response this connector can receive carries it. A variant for it would be dead code, and the
+/// `DeviceDataCollectionPending` status it used to produce would strand the payment: nothing in
+/// this connector implements a DDC leg.
+///
+/// [`AIRWALLEX_API_VERSION`]: super::AIRWALLEX_API_VERSION
 #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AirwallexNextActionType {
     Redirect,
-    DeviceDataCollection,
     #[serde(other)]
     Other,
 }
@@ -1428,20 +1657,14 @@ fn get_payment_status(
         AirwallexPaymentStatus::Failed => AttemptStatus::Failure,
         AirwallexPaymentStatus::Processing => AttemptStatus::Pending,
         AirwallexPaymentStatus::RequiresPaymentMethod => AttemptStatus::PaymentMethodAwaited,
+        // REQUIRES_CUSTOMER_ACTION only means something if Airwallex also said what the action
+        // is. With a `next_action` this is the redirect the shopper has to make; without one the
+        // response contradicts itself and we must not guess a state the caller would act on —
+        // hence Unresolved rather than a Failure the money may not agree with.
         AirwallexPaymentStatus::RequiresCustomerAction => {
-            next_action
-                .as_ref()
-                .map_or(
-                    AttemptStatus::AuthenticationPending,
-                    |action| match action.action_type {
-                        AirwallexNextActionType::DeviceDataCollection => {
-                            AttemptStatus::DeviceDataCollectionPending
-                        }
-                        AirwallexNextActionType::Redirect | AirwallexNextActionType::Other => {
-                            AttemptStatus::AuthenticationPending
-                        }
-                    },
-                )
+            next_action.as_ref().map_or(AttemptStatus::Unresolved, |_| {
+                AttemptStatus::AuthenticationPending
+            })
         }
         AirwallexPaymentStatus::RequiresCapture => AttemptStatus::Authorized,
         AirwallexPaymentStatus::Authorized => AttemptStatus::Authorized,
@@ -1450,6 +1673,7 @@ fn get_payment_status(
         AirwallexPaymentStatus::CaptureRequested => AttemptStatus::Charged,
         AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
         AirwallexPaymentStatus::Pending => AttemptStatus::Pending,
+        AirwallexPaymentStatus::Unknown => AttemptStatus::Unresolved,
     }
 }
 
@@ -2025,78 +2249,6 @@ impl TryFrom<ResponseRouterData<AirwallexVoidResponse, Self>>
 // Removed over-engineered validation - use simple get_payment_status instead
 // The Airwallex API is trusted to return correct status (following Hyperswitch pattern)
 
-// Implementation for confirm request type (2-step flow)
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        super::AirwallexRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    > for AirwallexConfirmRequest
-{
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(
-        item: super::AirwallexRouterData<
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        // Confirm flow for 2-step process (not currently used in UCS)
-
-        let payment_method = get_payment_method_details(
-            &item.router_data.request.payment_method_data,
-            &item.router_data.resource_common_data,
-            item.router_data
-                .request
-                .customer_name
-                .clone()
-                .map(Secret::new),
-        )?;
-
-        let auto_capture = matches!(
-            item.router_data.request.capture_method,
-            Some(common_enums::CaptureMethod::Automatic)
-                | Some(common_enums::CaptureMethod::SequentialAutomatic)
-                | None
-        );
-
-        // Extended authorization (pre-auth hold); build_payment_method_options only
-        // applies it on the card arm, which is the only place Airwallex accepts it.
-        let authorization_type = matches!(
-            item.router_data.request.request_extended_authorization,
-            Some(true)
-        )
-        .then_some(AirwallexCardAuthorizationType::PreAuth);
-
-        let payment_method_options =
-            build_payment_method_options(&payment_method, auto_capture, authorization_type);
-
-        let device_data = get_device_data(&item.router_data.request)?;
-
-        Ok(Self {
-            request_id: format!(
-                "confirm_{}",
-                item.router_data.resource_common_data.payment_id
-            ),
-            payment_method,
-            payment_method_options,
-            return_url: item.router_data.request.get_router_return_url().ok(),
-            device_data,
-        })
-    }
-}
-
 // ===== CREATE ORDER FLOW TYPES =====
 
 // Referrer data to identify UCS implementation to Airwallex
@@ -2302,6 +2454,8 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
             AirwallexPaymentStatus::Paid => AttemptStatus::Charged,
             AirwallexPaymentStatus::CaptureRequested => AttemptStatus::Charged,
             AirwallexPaymentStatus::Pending => AttemptStatus::Pending,
+            // Unrecognised intent status: the order may well exist, so never Failure.
+            AirwallexPaymentStatus::Unknown => AttemptStatus::Unresolved,
         };
 
         router_data.response = Ok(domain_types::connector_types::PaymentCreateOrderResponse {
@@ -2447,9 +2601,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // A CIT card consent is the most likely place for Airwallex to raise a 3DS challenge, so
+        // it needs the same `payment_method.card.three_ds.return_url` the Authorize confirm
+        // sends: on the pinned API version the top-level `return_url` is not the 3DS return URL.
+        let three_ds = item
+            .router_data
+            .request
+            .router_return_url
+            .clone()
+            .map(|return_url| AirwallexThreeDsMode::Native { return_url });
+
         let payment_method = match &item.router_data.request.payment_method_data {
             domain_types::payment_method_data::PaymentMethodData::Card(card_data) => {
-                get_card_details(card_data)
+                get_card_details(card_data, three_ds)
             }
             _ => {
                 return Err(IntegrationError::NotSupported {
@@ -2837,5 +3001,476 @@ impl TryFrom<ResponseRouterData<AirwallexCustomerResponse, Self>>
         });
         router_data.resource_common_data.connector_http_status_code = Some(item.http_code);
         Ok(router_data)
+    }
+}
+
+// =====================================================================================
+// 3DS AUTHENTICATION TRIO — PreAuthenticate / PostAuthenticate
+// =====================================================================================
+//
+// On `AIRWALLEX_API_VERSION` a 3DS card payment is exactly TWO Airwallex network calls:
+//
+//   PreAuthenticate   POST /pa/payment_intents/{id}/confirm   -> REQUIRES_CUSTOMER_ACTION
+//                                                                 + next_action.redirect_iframe
+//   (browser)         GET  next_action.url                    -> Airwallex-hosted page runs the
+//                                                                 3DS method call AND, if the
+//                                                                 issuer asks for it, the ACS
+//                                                                 challenge; redirects back to
+//                                                                 payment_method.card.three_ds.return_url
+//   PostAuthenticate  GET  /pa/payment_intents/{id}           -> settled intent + ds_data
+//
+// There is deliberately NO `Authenticate` leg. Airwallex removed `confirm_continue`'s
+// `3ds_continue` type on 2024-06-14 and hides the method call and the challenge behind the one
+// hosted redirect, so there is no merchant-issued API call between `confirm` and the browser's
+// return. `Airwallex::next_authentication_step` therefore never returns
+// `AuthenticationStep::Authenticate`, and `PaymentAuthenticateV2` is intentionally not
+// implemented: an unreachable implementation would invite a second `confirm`, and on Airwallex
+// `confirm` IS the authorization — a second one is a double charge.
+
+/// Airwallex's own `authentication_data` is nested under the attempt; both 3DS legs read it from
+/// exactly here so they cannot disagree about where the CAVV came from.
+fn get_attempt_ds_data(response: &AirwallexPaymentsResponse) -> Option<&AirwallexDsData> {
+    response
+        .latest_payment_attempt
+        .as_ref()
+        .and_then(|attempt| attempt.authentication_data.as_ref())
+        .and_then(|authentication_data| authentication_data.ds_data.as_ref())
+}
+
+/// Derives `AuthenticationData.trans_status` from what Airwallex actually reports.
+///
+/// Airwallex does not expose a raw 3DS `transStatus`, so it is reconstructed from the liability
+/// shift indicator and the presence of a CAVV. `TransactionStatus::default()` is `Failure`, so
+/// this never falls through to a derive: with no `ds_data` the honest answer is `None`, and a
+/// pending challenge is `ChallengeRequired`, not a failed authentication.
+fn get_trans_status(
+    ds_data: Option<&AirwallexDsData>,
+    status: &AirwallexPaymentStatus,
+    next_action: &Option<AirwallexNextAction>,
+) -> Option<common_enums::TransactionStatus> {
+    match ds_data {
+        Some(ds_data) if ds_data.cavv.is_some() => Some(match ds_data.liability_shift_indicator {
+            // Fully authenticated with liability shift.
+            Some(AirwallexYesNo::Yes) => common_enums::TransactionStatus::Success,
+            // A CAVV without liability shift is proof of attempt only.
+            Some(AirwallexYesNo::No) | None => common_enums::TransactionStatus::NotVerified,
+        }),
+        // The shopper is still on the Airwallex-hosted 3DS page.
+        _ if matches!(status, AirwallexPaymentStatus::RequiresCustomerAction)
+            && next_action.is_some() =>
+        {
+            Some(common_enums::TransactionStatus::ChallengeRequired)
+        }
+        // No ds_data and no challenge in flight: Airwallex has told us nothing about the
+        // authentication, so say nothing rather than defaulting to Failure.
+        _ => None,
+    }
+}
+
+/// Projects Airwallex's `ds_data` onto the canonical UCS [`AuthenticationData`].
+///
+/// Fields Airwallex does not expose on native 3DS stay `None` — notably `ds_trans_id` and
+/// `threeds_server_transaction_id`, which Airwallex only accepts as *request* fields under
+/// `external_three_ds` and never echoes back on the native flow.
+///
+/// [`AuthenticationData`]: domain_types::router_request_types::AuthenticationData
+fn build_authentication_data(
+    response: &AirwallexPaymentsResponse,
+) -> Option<domain_types::router_request_types::AuthenticationData> {
+    let ds_data = get_attempt_ds_data(response);
+    let trans_status = get_trans_status(ds_data, &response.status, &response.next_action);
+
+    // Nothing to report: no directory-server data and no challenge in flight.
+    if ds_data.is_none() && trans_status.is_none() {
+        return None;
+    }
+
+    Some(domain_types::router_request_types::AuthenticationData {
+        trans_status,
+        eci: ds_data.and_then(|ds| ds.eci.clone()),
+        cavv: ds_data.and_then(|ds| ds.cavv.clone()),
+        ucaf_collection_indicator: None,
+        // Airwallex does not surface either identifier on native 3DS.
+        threeds_server_transaction_id: None,
+        message_version: ds_data.and_then(|ds| {
+            ds.version
+                .as_ref()
+                .and_then(|version| version.parse::<common_utils::types::SemanticVersion>().ok())
+        }),
+        ds_trans_id: None,
+        acs_transaction_id: None,
+        // 3DS1 XID, present only on an Airwallex 3DS1 fallback.
+        transaction_id: ds_data.and_then(|ds| ds.xid.as_ref().map(|xid| xid.peek().to_string())),
+        network_params: None,
+        exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    })
+}
+
+/// `latest_payment_attempt.status` -> UCS. Used only to refine a NON-terminal intent status: when
+/// the intent and the attempt disagree the intent wins, because the intent is what Airwallex
+/// settles against.
+fn get_attempt_status(attempt_status: AirwallexAttemptStatus) -> AttemptStatus {
+    match attempt_status {
+        AirwallexAttemptStatus::Received => AttemptStatus::Started,
+        AirwallexAttemptStatus::AuthenticationRedirected => AttemptStatus::AuthenticationPending,
+        // The card is with the acquirer and no decision exists yet. Non-terminal on purpose: a
+        // terminal reading here would let the caller abandon a payment that is still live.
+        AirwallexAttemptStatus::PendingAuthorization => AttemptStatus::Pending,
+        AirwallexAttemptStatus::Authorized => AttemptStatus::Authorized,
+        AirwallexAttemptStatus::CaptureRequested
+        | AirwallexAttemptStatus::Settled
+        | AirwallexAttemptStatus::Paid => AttemptStatus::Charged,
+        AirwallexAttemptStatus::Expired | AirwallexAttemptStatus::Cancelled => {
+            AttemptStatus::Voided
+        }
+        // Covers declines too — Airwallex has no separate DECLINED value; the reason is in
+        // `failure_code`, which the error body carries.
+        AirwallexAttemptStatus::Failed => AttemptStatus::Failure,
+        AirwallexAttemptStatus::Unknown => AttemptStatus::Unresolved,
+    }
+}
+
+/// Resolves the status for a 3DS leg from the intent, refined by the attempt.
+///
+/// Terminal intent states are authoritative and are returned as-is. Only when the intent is
+/// non-terminal (still awaiting an action, or Unresolved) does the attempt get to say something
+/// more specific — that is how a `REQUIRES_CUSTOMER_ACTION` intent with an
+/// `AUTHENTICATION_REDIRECTED` attempt still reports `AuthenticationPending`.
+fn get_three_ds_leg_status(response: &AirwallexPaymentsResponse) -> AttemptStatus {
+    let intent_status = get_payment_status(&response.status, &response.next_action);
+    let intent_is_terminal = matches!(
+        intent_status,
+        AttemptStatus::Charged
+            | AttemptStatus::Authorized
+            | AttemptStatus::Voided
+            | AttemptStatus::Failure
+    );
+    if intent_is_terminal {
+        return intent_status;
+    }
+    match response
+        .latest_payment_attempt
+        .as_ref()
+        .and_then(|attempt| attempt.status)
+    {
+        Some(attempt_status) => match get_attempt_status(attempt_status) {
+            // The attempt knows no more than the intent does; keep the intent's reading so a
+            // missing attempt status can never downgrade AuthenticationPending to Unresolved.
+            AttemptStatus::Unresolved => intent_status,
+            refined => refined,
+        },
+        None => intent_status,
+    }
+}
+
+/// Resolves the Airwallex PaymentIntent id a confirm-style flow must act on.
+///
+/// `PaymentFlowData.connector_order_id` is the primary source — it is what `CreateOrder` stores.
+/// Some gRPC entry points have no proto field able to carry it (neither
+/// `RecurringPaymentServiceChargeRequest` nor
+/// `PaymentMethodAuthenticationServicePreAuthenticateRequest` has an order-id field, and both
+/// `ForeignTryFrom`s therefore leave `connector_order_id = None`), so those callers pass it
+/// through the connector's general-purpose escape hatch, `connector_feature_data`, as
+/// `{"connector_order_id": "int_..."}`. Both are request-carried; there is no config copy.
+///
+/// Kept in one place so every flow that confirms an intent agrees on where the id comes from.
+pub(crate) fn get_connector_order_id(
+    resource_common_data: &PaymentFlowData,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    resource_common_data
+        .connector_order_id
+        .clone()
+        .or_else(|| {
+            resource_common_data
+                .connector_feature_data
+                .as_ref()
+                .and_then(|feature_data| {
+                    feature_data
+                        .peek()
+                        .get("connector_order_id")
+                        .and_then(|id| id.as_str().map(|id| id.to_string()))
+                })
+        })
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_id",
+                context: aw_err_ctx(
+                    "Airwallex confirms an existing PaymentIntent, so the intent created by \
+                     CreateOrder must be identified on this call",
+                    "Run CreateOrder first and pass its id, either as connector_order_id or \
+                     through connector_feature_data as {\"connector_order_id\": \"int_...\"}",
+                ),
+            })
+        })
+}
+
+// ===== PreAuthenticate: POST /pa/payment_intents/{intent_id}/confirm =====
+
+/// The `confirm` body sent by the `PreAuthenticate` leg.
+///
+/// It is the same Airwallex call the inline `Authorize` path makes — on Airwallex there is no
+/// authenticate-without-charging endpoint, `confirm` *is* the authorization. That is why the
+/// `Authorize` that the composite loop runs after `PostAuthenticate` must be a read
+/// (`is_card_three_ds_continue`), and why no arm of `next_authentication_step` may lead to a
+/// second `confirm`.
+#[derive(Debug, Serialize)]
+pub struct AirwallexPreAuthenticateRequest {
+    pub request_id: String,
+    pub payment_method: AirwallexPaymentMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_method_options: Option<AirwallexPaymentOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_data: Option<AirwallexDeviceData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+/// Both 3DS legs read the same PaymentIntent shape the `PSync` leg already deserialises.
+pub type AirwallexPreAuthenticateResponse = AirwallexPaymentsResponse;
+/// `GET /pa/payment_intents/{id}` returns the identical object; see
+/// [`AirwallexPreAuthenticateResponse`].
+pub type AirwallexPostAuthenticateResponse = AirwallexPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::AirwallexRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AirwallexPreAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::AirwallexRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        let payment_method_data = request.payment_method_data.as_ref().ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
+                field_name: "payment_method",
+                context: aw_err_ctx(
+                    "Airwallex authenticates by confirming the PaymentIntent, so PreAuthenticate \
+                     must carry the card being authenticated",
+                    "Send payment_method.card on the PreAuthenticate request",
+                ),
+            }
+        })?;
+
+        // Airwallex needs somewhere to send the shopper when its hosted 3DS page finishes. On the
+        // pinned API version that is `payment_method.card.three_ds.return_url` and nothing else —
+        // the top-level `return_url` does not take over until 2026-06-30. Prefer the
+        // continuation URL the caller nominated for the post-redirect leg; fall back to the
+        // router return URL. Fail locally rather than silently sending a 3DS request the shopper
+        // could never return from.
+        let return_url = request
+            .continue_redirection_url
+            .as_ref()
+            .or(request.router_return_url.as_ref())
+            .map(|url| url.to_string())
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "continue_redirection_url",
+                context: aw_err_ctx(
+                    "Airwallex 3DS redirects the shopper back to \
+                     payment_method.card.three_ds.return_url once the hosted authentication page \
+                     completes; without it the payment cannot be finished",
+                    "Send continue_redirection_url (or return_url) on the PreAuthenticate request",
+                ),
+            })?;
+
+        let payment_method = get_payment_method_details(
+            payment_method_data,
+            &item.router_data.resource_common_data,
+            None,
+            Some(AirwallexThreeDsMode::Native { return_url }),
+        )?;
+
+        let auto_capture = request.is_auto_capture()?;
+
+        let payment_method_options =
+            build_payment_method_options(&payment_method, auto_capture, None);
+
+        // Derived from the caller's reference id, not a fresh UUID: Airwallex replays the prior
+        // response for a repeated request_id, which is exactly the idempotency we want if the
+        // caller retries this leg. It is prefixed so it cannot collide with the CreateOrder
+        // (`create_`) or Authorize (`confirm_`) request ids for the same payment.
+        let request_id = format!(
+            "preauth_{}",
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+        );
+
+        Ok(Self {
+            request_id,
+            payment_method,
+            payment_method_options,
+            device_data: get_device_data(request.browser_info.as_ref()),
+            customer_id: item
+                .router_data
+                .resource_common_data
+                .connector_customer
+                .clone(),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AirwallexPreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = get_three_ds_leg_status(&item.response);
+        // Always a GET redirect; see `AirwallexNextAction::method` for why the connector-supplied
+        // method is ignored.
+        let redirection_data = build_redirection_data(&item.response.next_action);
+        // Populated immediately on the frictionless path (no next_action, ds_data already
+        // carries the CAVV) so the composite loop can terminate without a second network call.
+        let authentication_data = build_authentication_data(&item.response);
+        let intent_id = item.response.id.clone();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: Some(ResponseId::ConnectorTransactionId(intent_id.clone())),
+                authentication_data,
+                redirection_data,
+                connector_response_reference_id: Some(intent_id.clone()),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                // Round-trip the Airwallex intent id so PostAuthenticate and the composite
+                // Authorize address the same intent instead of re-deriving it.
+                reference_id: Some(intent_id.clone()),
+                connector_order_id: Some(intent_id),
+                connector_http_status_code: Some(item.http_code),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== PostAuthenticate: GET /pa/payment_intents/{intent_id} =====
+
+/// Resolves which PaymentIntent the `PostAuthenticate` leg must retrieve.
+///
+/// `connector_order_reference_id` is the single source of truth: it is the id the caller carried
+/// forward from `CreateOrder`/`PreAuthenticate`. Airwallex also echoes `payment_intent_id` on the
+/// return URL, but a browser-supplied query parameter is not a trustworthy identifier, so it is
+/// used only as a correlation check (see the response transformer) and — when the caller supplied
+/// no reference at all — as the last resort that keeps the composite flow able to complete.
+pub(crate) fn get_post_authenticate_intent_id<T: PaymentMethodDataTypes>(
+    request: &PaymentsPostAuthenticateData<T>,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    request
+        .connector_order_reference_id
+        .clone()
+        .or_else(|| get_redirect_payment_intent_id(request))
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "connector_order_reference_id",
+                context: aw_err_ctx(
+                    "PostAuthenticate retrieves the Airwallex PaymentIntent that PreAuthenticate \
+                     confirmed; without its id there is nothing to retrieve",
+                    "Send connector_order_reference_id with the payment intent id returned by \
+                     PreAuthenticate",
+                ),
+            })
+        })
+}
+
+/// The `payment_intent_id` Airwallex appends to the 3DS return URL, if the caller forwarded the
+/// query string. Advisory only.
+fn get_redirect_payment_intent_id<T: PaymentMethodDataTypes>(
+    request: &PaymentsPostAuthenticateData<T>,
+) -> Option<String> {
+    let params = request.redirect_response.as_ref()?.params.as_ref()?;
+    serde_urlencoded::from_str::<AirwallexReturnUrlParams>(params.peek())
+        .ok()?
+        .payment_intent_id
+}
+
+/// The query parameters Airwallex appends to `three_ds.return_url`.
+///
+/// `succeeded`, `error_code` and `error_message` are deliberately not mapped to a status: the
+/// Airwallex guide says to "Retrieve PaymentIntent to confirm status", and a value the browser
+/// carried is not an authority on whether money moved.
+#[derive(Debug, Deserialize)]
+pub struct AirwallexReturnUrlParams {
+    pub payment_intent_id: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPostAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PostAuthenticate,
+        PaymentFlowData,
+        PaymentsPostAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AirwallexPostAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Correlation check: the intent we retrieved must be the one the browser came back from.
+        // A mismatch means we are reporting on the wrong payment, which is an unknown outcome —
+        // never a Failure, because the real intent may well have been charged.
+        let correlated = get_redirect_payment_intent_id(&item.router_data.request)
+            .is_none_or(|redirect_intent_id| redirect_intent_id == item.response.id);
+
+        let status = if correlated {
+            get_three_ds_leg_status(&item.response)
+        } else {
+            AttemptStatus::Unresolved
+        };
+        let authentication_data = correlated
+            .then(|| build_authentication_data(&item.response))
+            .flatten();
+        let intent_id = item.response.id.clone();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostAuthenticateResponse {
+                authentication_data,
+                connector_response_reference_id: Some(intent_id.clone()),
+                status_code: item.http_code,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                reference_id: Some(intent_id.clone()),
+                connector_order_id: Some(intent_id),
+                connector_http_status_code: Some(item.http_code),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }

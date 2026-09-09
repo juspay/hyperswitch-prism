@@ -10,7 +10,17 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/SetupRecurring",
     "PaymentService/Void"
-  ]
+  ],
+  "unsupported_scenarios": {
+    "PaymentMethodAuthenticationService/PreAuthenticate": {
+      "threeds_card_pre_authenticate": "implemented and verified against the live Airwallex sandbox by hand, but not runnable from this harness: Airwallex authenticates by confirming a PaymentIntent that CreateOrder must have created first, and PaymentMethodAuthenticationServicePreAuthenticateRequest has no order-id field while PaymentMethodAuthenticationService/PreAuthenticate declares no depends_on, so the harness cannot hand the intent id to this suite."
+    },
+    "PaymentMethodAuthenticationService/PostAuthenticate": {
+      "threeds_card_post_authenticate": "implemented and verified against the live Airwallex sandbox by hand, but not runnable from this harness: Airwallex authenticates by confirming a PaymentIntent that CreateOrder must have created first, and PaymentMethodAuthenticationServicePreAuthenticateRequest has no order-id field while PaymentMethodAuthenticationService/PreAuthenticate declares no depends_on, so the harness cannot hand the intent id to this suite."
+    }
+  }
 }
