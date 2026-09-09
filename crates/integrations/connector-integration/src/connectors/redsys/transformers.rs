@@ -755,6 +755,7 @@ fn get_payments_response(
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::AuthenticateResponse {
@@ -790,6 +791,7 @@ fn get_payments_response(
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         } else {
             Ok(PaymentsResponseData::AuthenticateResponse {
@@ -1620,6 +1622,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1747,6 +1750,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -1912,6 +1916,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         });
                         (attempt_status, payment_response)
                     } else {
@@ -1951,6 +1956,7 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         });
                         (status, payment_response)
                     }

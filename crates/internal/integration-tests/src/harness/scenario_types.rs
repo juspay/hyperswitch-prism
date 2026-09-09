@@ -240,6 +240,22 @@ pub struct ConnectorSuiteSpec {
     pub connector: String,
     /// Suites explicitly supported for this connector.
     pub supported_suites: Vec<String>,
+    /// Payment methods supported, as the `payment_method` oneof variant a
+    /// scenario populates (`card`, `klarna`, `upi_intent`).
+    ///
+    /// A scenario naming a method runs only if it appears here; one naming none
+    /// always runs. Empty or absent runs everything.
+    #[serde(default)]
+    pub supported_payment_methods: Vec<String>,
+    /// Scenarios this connector cannot support, as `suite -> scenario -> reason`.
+    /// They are skipped rather than run and failed.
+    ///
+    /// Kept here rather than in `override.json` because it states a capability,
+    /// not a test-data delta: a reviewer asking what a connector cannot do reads
+    /// one small file instead of several kilobytes of test cards. The reason is
+    /// the map value, so a declaration without one cannot be written.
+    #[serde(default)]
+    pub unsupported_scenarios: BTreeMap<String, BTreeMap<String, String>>,
     /// If set, the harness reads this request field as the connector request
     /// reference ID instead of generating the default `{suite}_{scenario}_ref`.
     /// Example: `"merchant_order_id"`.
@@ -340,6 +356,8 @@ pub enum ScenarioError {
         path: PathBuf,
         source: serde_json::Error,
     },
+    #[error("connector spec '{path}' is invalid: {message}")]
+    InvalidConnectorSpec { path: PathBuf, message: String },
     #[error("scenario skipped: {reason}")]
     Skipped { reason: String },
 }

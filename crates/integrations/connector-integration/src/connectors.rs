@@ -289,6 +289,9 @@ pub use self::flywire::Flywire;
 pub mod affirm;
 pub use self::affirm::Affirm;
 
+pub mod moneris;
+pub use self::moneris::Moneris;
+
 pub mod kount;
 pub use self::kount::Kount;
 
@@ -302,3 +305,26 @@ pub use self::tesouro::Tesouro;
 
 pub mod boost;
 pub use self::boost::Boost;
+
+pub mod citigate;
+pub use self::citigate::Citigate;
+pub mod ilixium;
+pub use self::ilixium::Ilixium;
+
+pub mod worldpayraft;
+pub use self::worldpayraft::Worldpayraft;
+
+pub mod jpmorganorbital;
+pub use self::jpmorganorbital::JpmorganOrbital;
+pub mod saferpay;
+pub use self::saferpay::Saferpay;
+
+pub mod travelhub;
+pub use self::travelhub::Travelhub;
+pub mod paynearme;
+pub use self::paynearme::Paynearme;
+
+pub mod d24;
+pub use self::d24::D24;
+pub mod paydotcom;
+pub use self::paydotcom::Paydotcom;

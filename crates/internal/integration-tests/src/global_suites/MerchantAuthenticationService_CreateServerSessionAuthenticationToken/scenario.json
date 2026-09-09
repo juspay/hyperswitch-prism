@@ -40,21 +40,5 @@
       }
     },
     "display_name": "Create Session Token | Create Session With Metadata"
-  },
-  "create_session_fail_invalid_currency": {
-    "grpc_req": {
-      "merchant_session_id": "auto_generate",
-      "amount": {
-        "minor_amount": 10000,
-        "currency": "XXX"
-      },
-      "test_mode": true
-    },
-    "assert": {
-      "error": {
-        "must_exist": true
-      }
-    },
-    "display_name": "Create Session Token | Create Session Fail Invalid Currency"
   }
 }

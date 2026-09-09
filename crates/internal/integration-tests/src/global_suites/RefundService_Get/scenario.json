@@ -5,7 +5,6 @@
       "refund_id": "auto_generate",
       "connector_refund_id": "auto_generate",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -36,7 +35,6 @@
       "refund_id": "auto_generate",
       "connector_refund_id": "auto_generate",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -66,7 +64,6 @@
       "refund_id": "auto_generate",
       "connector_refund_id": "auto_generate",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""

@@ -7,7 +7,7 @@
 
 import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["get", "parse_event", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["get", "parse_event", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -17,6 +17,7 @@ const _defaultConfig: types.IConnectorConfig = {
         boost: {
             clientId: { value: 'YOUR_CLIENT_ID' },
             merchantSecret: { value: 'YOUR_MERCHANT_SECRET' },
+            publicKey: { value: 'YOUR_PUBLIC_KEY' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -36,7 +37,7 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
 
 function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
     return {
-        "merchantEventId": "probe_event_001",  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        "merchantEventId": "probe_event_001",
         "requestDetails": {
             "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
             "uri": "https://example.com/webhook",  // URI of the request.
@@ -56,19 +57,6 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             },
             "body": new Uint8Array(Buffer.from("{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}", "utf-8"))  // Body of the HTTP request.
         }
-    };
-}
-
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "reason": "customer_request"  // Reason for the refund.
     };
 }
 
@@ -109,15 +97,6 @@ async function parseEvent(merchantTransactionId: string, config: types.IConnecto
     return parseResponse;
 }
 
-// Flow: PaymentService.Refund
-async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
-
-    return refundResponse;
-}
-
 // Flow: RefundService.Get
 async function refundGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const refundClient = new RefundClient(config);
@@ -130,7 +109,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    get, handleEvent, parseEvent, refund, refundGet, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundRequest, _buildRefundGetRequest
+    get, handleEvent, parseEvent, refundGet, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildRefundGetRequest
 };
 
 // CLI runner

@@ -20,7 +20,6 @@
         "time_zone_offset_minutes": -480
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -68,7 +67,6 @@
         "time_zone_offset_minutes": -480
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -116,7 +114,6 @@
         "time_zone_offset_minutes": -480
       },
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""

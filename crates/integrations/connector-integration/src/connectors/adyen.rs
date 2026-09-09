@@ -392,11 +392,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     &response,
                     "typed_connector_response",
                 );
+                // Mirror hyperswitch: message -> title -> placeholder.
+                let message = response
+                    .message
+                    .or(response.title)
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
                 Ok(ErrorResponse {
                     status_code: res.status_code,
                     code: response.error_code,
-                    message: response.message.to_owned(),
-                    reason: Some(response.message),
+                    message: message.clone(),
+                    reason: Some(message),
                     attempt_status: None,
                     connector_transaction_id: response.psp_reference,
                     network_decline_code: None,
@@ -413,7 +418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}));
                 }
                 tracing::error!(deserialization_error =? error_msg);
-                utils::handle_json_response_deserialization_failure(res, "mifinity")
+                utils::handle_json_response_deserialization_failure(res, "adyen")
             }
         }
     }
@@ -977,6 +982,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transformers::get_adyen_payment_method_update_from_webhook(&notif);
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(
                 notif.psp_reference.clone(),
             )),

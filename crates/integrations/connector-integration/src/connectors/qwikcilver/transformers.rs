@@ -2,15 +2,16 @@ use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
     connector_flow::{
-        Authorize, CreatePaymentMethod, GetPaymentMethod, Recharge, Refund,
-        ServerAuthenticationToken,
+        Authorize, CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
+        Refund, ServerAuthenticationToken,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, RechargeRequestData, RechargeResponseData, RefundFlowData,
-        RefundsData, RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
+        PaymentsResponseData, RawConnectorStatus, RechargeRequestData, RechargeResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -360,6 +361,7 @@ where
         let body = item.response;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
+        data.resource_common_data.raw_connector_status = Some(raw_connector_status_from_qc(&body));
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
                 data.resource_common_data.status = REDEEM_SUCCESS_STATUS;
@@ -378,6 +380,7 @@ where
                     mandate_reference: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
             _ => Err(error_response_from_qc(
@@ -542,6 +545,7 @@ impl TryFrom<ResponseRouterData<QwikcilverCancelRedeemResponse, Self>>
         let body = item.response;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
+        data.resource_common_data.raw_connector_status = Some(raw_connector_status_from_qc(&body));
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => Ok(RefundsResponseData {
                 connector_refund_id: body.transaction_id.to_string(),
@@ -948,6 +952,14 @@ where
 #[serde(transparent)]
 pub struct QwikcilverGetWalletResponse(pub QwikcilverWalletEnvelope);
 
+/// Distinct response newtype for `PaymentMethodEligibility`. Wraps the identical
+/// `QwikcilverWalletEnvelope` payload `GetPaymentMethod` parses — macro-generated templating
+/// types are keyed by response type name, so this flow needs its own type to avoid colliding
+/// with `GetPaymentMethod`'s templating impl, even though it's the same connector call.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct QwikcilverEligibilityResponse(pub QwikcilverWalletEnvelope);
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWalletDetails {
@@ -1078,6 +1090,7 @@ fn customer_details_to_customer_info(
         customer_phone_number,
         customer_phone_country_code: None,
         salutation: customer.salutation.clone(),
+        date_of_birth: None,
     }
 }
 
@@ -1204,6 +1217,73 @@ impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
     }
 }
 
+/// Performs the exact same wallet lookup as `GetPaymentMethod` and derives eligibility from
+/// the wallet's status: ACTIVE → Eligible, INACTIVE → Ineligible. The resolved wallet's
+/// payment method details (balance, items, etc.) are returned alongside the eligibility
+/// verdict in the same response.
+impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
+    for RouterDataV2<
+        PaymentMethodEligibility,
+        PaymentFlowData,
+        PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<QwikcilverEligibilityResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let body = item.response.0;
+        data.resource_common_data.raw_connector_response =
+            serde_json::to_string(&body).ok().map(Secret::new);
+        data.response = match body.response_code {
+            QWIKCILVER_SUCCESS_CODE => {
+                let currency = data.request.amount.currency;
+                let (eligibility, payment_method_details) =
+                    if let Some(wallet) = body.wallet.as_ref() {
+                        let eligibility = match map_wallet_status(wallet.status.as_ref()) {
+                            Some(common_enums::WalletStatus::Active) => {
+                                common_enums::EligibilityStatus::Eligible
+                            }
+                            Some(common_enums::WalletStatus::Inactive) => {
+                                common_enums::EligibilityStatus::Ineligible
+                            }
+                            Some(common_enums::WalletStatus::Unspecified) | None => {
+                                common_enums::EligibilityStatus::Unknown
+                            }
+                        };
+                        (
+                            eligibility,
+                            Some(wallet_details_to_payment_method_details(
+                                wallet,
+                                Some(currency),
+                            )),
+                        )
+                    } else {
+                        (common_enums::EligibilityStatus::Unknown, None)
+                    };
+                Ok(PaymentMethodEligibilityResponse {
+                    eligibility,
+                    payment_method_details,
+                    status_code: u32::from(item.http_code),
+                })
+            }
+            _ => {
+                let txn_id = body.transaction_id.map(|t| t.to_string());
+                Err(error_response_from_qc(
+                    (&body).into(),
+                    txn_id,
+                    item.http_code,
+                    None,
+                ))
+            }
+        };
+        Ok(data)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverErrorResponse {
@@ -1275,6 +1355,43 @@ impl From<&QwikcilverWalletEnvelope> for QwikcilverErrorResponse {
     }
 }
 
+/// Per QwikWallet RestAPI V2 §6 `APIResponse`, every Qwikcilver endpoint reports its outcome
+/// with the same quad, on success as well as on failure:
+///
+/// - `ResponseCode`     — "Generated by Server. Value 0 indicates success, rest is failure."
+///   This is the Pine Labs status code enumerated in §4 Common Response Codes (0, 10010
+///   "Balance is insufficient", 10042, …), so it is the raw status code.
+/// - `ResponseMessage`  — the accompanying status text ("Transaction successful.", …).
+/// - `ErrorCode`        — "Actual error/exception details returned in case of system error".
+///   Despite the name it is *not* the business status code — it is only populated on system
+///   exceptions (the 50x class), so it must not shadow `ResponseCode`.
+/// - `ErrorDescription` — "Description of the error code", the companion to `ErrorCode`.
+///
+/// `QwikcilverErrorResponse` already normalises that quad for each response shape, so this
+/// reuses those `From` impls as the single source for the raw status.
+///
+/// Only Authorize (Redeem) and Refund (Cancel Redeem) call this: they are the flows whose gRPC
+/// response — `PaymentServiceAuthorizeResponse` and `RefundResponse` — carries a
+/// `raw_connector_status` field. The PaymentMethodService responses (Recharge, Create, Get,
+/// Eligibility) have no such field, so setting it on their flow data would be discarded.
+pub(crate) fn raw_connector_status_from_qc<'a, R>(response: &'a R) -> RawConnectorStatus
+where
+    QwikcilverErrorResponse: From<&'a R>,
+{
+    let status = QwikcilverErrorResponse::from(response);
+    RawConnectorStatus {
+        code: status.response_code.map(|code| code.to_string()),
+        message: status.response_message,
+        // System-error detail, when Qwikcilver sends any — surfaced as the supporting reason
+        // rather than as the code.
+        reason: match (status.error_code, status.error_description) {
+            (Some(code), Some(description)) => Some(format!("{code}: {description}")),
+            (Some(detail), None) | (None, Some(detail)) => Some(detail),
+            (None, None) => None,
+        },
+    }
+}
+
 pub(crate) fn error_response_from_qc(
     err: QwikcilverErrorResponse,
     connector_txn_id: Option<String>,
@@ -1301,13 +1418,14 @@ pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
         }
     }
     if reference_id.is_empty() {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        return SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .ok()
-            .and_then(|d| u64::try_from(d.as_nanos()).ok())
-            .map(|nanos| nanos & 0x7FFF_FFFF_FFFF_FFFF)
-            .unwrap_or(1);
+        return u64::try_from(
+            common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos(),
+        )
+        .ok()
+        .map(|nanos| nanos & 0x7FFF_FFFF_FFFF_FFFF)
+        .unwrap_or(1);
     }
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(reference_id.as_bytes());
@@ -1318,7 +1436,7 @@ pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
 }
 
 pub(crate) fn current_datetime_qwikcilver() -> String {
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     let (h, m, s) = (now.hour(), now.minute(), now.second());
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",

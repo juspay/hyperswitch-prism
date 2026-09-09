@@ -198,13 +198,24 @@ You are the Foundation Setup Subagent. Your ONLY responsibility is to establish 
 #### STEP 2: Tech Spec Analysis
 ```bash
 # Read tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
-# Extract connector_name and base_url
+# Extract connector_name and base_url (sandbox)
+# Extract production_base_url if the connector has a distinct live URL (optional)
 # Validate tech spec completeness
 ```
 
 #### STEP 3: Execute add_connector.sh Script
 ```bash
 # Execute: ./add_connector.sh {connector_name} {base_url} --force -y
+#
+# If the production base URL differs from the sandbox {base_url}, pass it so the
+# superposition production override is correct:
+#   ./add_connector.sh {connector_name} {base_url} --production-url {production_base_url} --force -y
+#
+# NOTE: this script also auto-registers the connector's base URLs in
+# config/superposition.toml (dimension enum + sandbox/production overrides) and wires it into
+# Connectors::patch_connector_urls in crates/types-traits/domain_types/src/types.rs for dynamic
+# URL patching. When --production-url is omitted, the production override reuses {base_url}.
+#
 # This script MUST complete successfully
 # If script fails, analyze error and fix before proceeding
 ```

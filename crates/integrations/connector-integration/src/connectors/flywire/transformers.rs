@@ -521,6 +521,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -632,6 +633,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 status_code: item.http_code,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 // HTTP 200 from /confirm only means Flywire accepted the form.
@@ -1032,6 +1034,7 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
     fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
         let data = body.parse_payment_data()?;
         Ok(Self {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(data.payment_id)),
             status: data.status.to_attempt_status(),
             error_code: None,

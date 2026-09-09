@@ -9,8 +9,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck,
-        PreAuthenticate, PreRiskCheck, ServerAuthenticationToken,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck, PreRiskCheck,
+        ServerAuthenticationToken,
     },
     connector_types::{
         PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
@@ -27,7 +27,7 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_response_types::{RedirectForm, Response},
+    router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
@@ -382,139 +382,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 {
 }
 
-// =============================================================================
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Kount<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Kount<T>
-{
-    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
-        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
-    }
-
-    fn build_request_v2(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        // No outbound call: the DDC HTML is built locally in `handle_response_v2`.
-        Ok(None)
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        // Never called (build_request_v2 returns None); present to satisfy the trait.
-        Err(IntegrationError::connector_flow_not_implemented(
-            ConnectorCommon::id(self),
-            "pre_authenticate_url",
-            IntegrationErrorContext {
-                additional_context: Some(
-                    "Kount PreAuthenticate makes no outbound call (local DDC HTML only); \
-                     get_url is unreachable because build_request_v2 returns None"
-                        .to_owned(),
-                ),
-                suggested_action: Some(
-                    "No action required: the DDC HTML is built locally in handle_response_v2"
-                        .to_owned(),
-                ),
-                doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
-            },
-        )
-        .into())
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        _event_builder: Option<&mut events::Event>,
-        _res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        use domain_types::connector_types::RawConnectorRequestResponse;
-
-        // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
-        // deviceSessionId (which hashes the same merchant transaction id). Falls
-        // back to the connector request reference when it is absent.
-        let session_ref = data
-            .request
-            .merchant_transaction_id
-            .clone()
-            .unwrap_or_else(|| {
-                data.resource_common_data
-                    .connector_request_reference_id
-                    .clone()
-            });
-        let session_id = kount::hash_session_id(&session_ref);
-        // Access token threaded via state.access_token → PaymentFlowData.access_token.
-        let token = data
-            .resource_common_data
-            .access_token
-            .as_ref()
-            .map(|t| t.access_token.peek().to_owned());
-        let client_id = token
-            .as_deref()
-            .and_then(client_id_from_access_token)
-            .unwrap_or_default();
-        // DDC `environment` follows the access token's environment, not a hardcode.
-        let sandbox = token
-            .as_deref()
-            .map(access_token_is_sandbox)
-            .unwrap_or(true);
-        let script = build_ddc_script(&client_id, &session_id, sandbox);
-
-        let mut router_data = data.clone();
-        router_data.resource_common_data.status =
-            common_enums::AttemptStatus::DeviceDataCollectionPending;
-        router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
-            resource_id: None,
-            authentication_data: None,
-            redirection_data: Some(Box::new(RedirectForm::Script {
-                script_data: script,
-            })),
-            connector_response_reference_id: Some(
-                data.resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
-            status_code: 200,
-        });
-        router_data
-            .resource_common_data
-            .set_typed_connector_response(None);
-        Ok(router_data)
-    }
-}
+macros::macro_connector_local_flow_implementation!(
+    connector: Kount,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    handle_response: kount::handle_pre_authenticate_response,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+);
 
 // ===== PAYOUT (no-op) IMPLEMENTATIONS =====
 crate::connectors::macros::macro_connector_payout_implementation!(
@@ -786,8 +668,14 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // FrmServiceTrait requires the remaining FRM markers. `expand_flow_status_impl!`
 // has no arms for FRM flows, so these stubs are hand-written.
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::FrmServiceTrait for Kount<T>
+//
+// Not generic over `T`: FrmServiceTrait also requires
+// `PaymentPreAuthenticateV2<DefaultPCIHolder>` (fixed — Frm requests never carry
+// payment-method data), which `Kount<T>` only provides for the matching `T`. This
+// impl is restricted to `Kount<DefaultPCIHolder>` to match, which is also the only
+// monomorphization `FrmConnectorData::convert_connector` ever constructs.
+impl connector_types::FrmServiceTrait
+    for Kount<domain_types::payment_method_data::DefaultPCIHolder>
 {
 }
 

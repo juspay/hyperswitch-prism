@@ -86,9 +86,27 @@ impl SuperpositionConfig {
         connector: &str,
         environment: &str,
     ) -> Result<Map<String, Value>, SuperpositionConfigError> {
-        let context = EvaluationContext::default()
-            .with_custom_field(DIMENSION_CONNECTOR, connector)
-            .with_custom_field(DIMENSION_ENVIRONMENT, environment);
+        self.resolve_with(&[
+            (DIMENSION_CONNECTOR, connector),
+            (DIMENSION_ENVIRONMENT, environment),
+        ])
+        .await
+    }
+
+    /// Resolve with caller-supplied dimensions. `resolve` delegates here; callers
+    /// with other dimension sets (the déjà sampler's `environment` × `rpc_method` ×
+    /// `rpc_service`) use this directly. Evaluation runs in-process against the
+    /// provider's cached snapshot, which the file watcher refreshes on change — so a
+    /// caller must not cache the result across requests.
+    pub async fn resolve_with(
+        &self,
+        dimensions: &[(&str, &str)],
+    ) -> Result<Map<String, Value>, SuperpositionConfigError> {
+        let context = dimensions
+            .iter()
+            .fold(EvaluationContext::default(), |context, (key, value)| {
+                context.with_custom_field(*key, *value)
+            });
 
         self.provider
             .resolve_all_features(context)

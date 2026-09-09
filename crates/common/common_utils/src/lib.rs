@@ -2,7 +2,9 @@
 
 extern crate self as common_utils;
 
+pub mod bytes_utils;
 pub mod config_patch;
+pub mod connector_response_masking;
 pub mod crypto;
 pub mod custom_serde;
 pub mod errors;
@@ -38,7 +40,8 @@ pub use superposition_config::{
 };
 pub use types::{
     AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit, MinorUnitForConnector,
-    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit,
+    StringMajorUnit, StringMajorUnitForConnector, StringMinorUnit, StringTwoDecimalUnit,
+    StringTwoDecimalUnitForConnector,
 };
 pub mod connector_request_kafka;
 pub mod events;
@@ -56,6 +59,15 @@ fn generate_ref_id_with_default_length<const MAX_LENGTH: u8, const MIN_LENGTH: u
 
 /// Generate a time-ordered (time-sortable) unique identifier using the current time
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_time_ordered_id",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_time_ordered_id(prefix: &str) -> String {
     format!("{prefix}_{}", uuid::Uuid::now_v7().as_simple())
 }
@@ -90,6 +102,11 @@ pub mod date_time {
     }
 
     /// Create a new [`PrimitiveDateTime`] with the current date and time in UTC.
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(component = "common_utils", operation = "date_time::now", codec = SerdeCodec,)
+    )]
     pub fn now() -> PrimitiveDateTime {
         let utc_date_time = OffsetDateTime::now_utc();
         PrimitiveDateTime::new(utc_date_time.date(), utc_date_time.time())
@@ -101,8 +118,26 @@ pub mod date_time {
     }
 
     /// Return the UNIX timestamp of the current date and time in UTC
+    #[cfg_attr(feature = "deja", track_caller)]
+    #[cfg_attr(
+        feature = "deja",
+        deja::time(
+            component = "common_utils",
+            operation = "date_time::now_unix_timestamp",
+            codec = SerdeCodec,
+        )
+    )]
     pub fn now_unix_timestamp() -> i64 {
         OffsetDateTime::now_utc().unix_timestamp()
+    }
+
+    /// Return the UNIX timestamp of the current date and time in UTC, in milliseconds.
+    ///
+    /// Derived from [`now`] the same way `date_as_yyyymmddthhmmssmmmz` is, so every
+    /// wall-clock read in the codebase flows through one function — one clock source,
+    /// no second one to drift from it.
+    pub fn now_unix_millis() -> i64 {
+        i64::try_from(now().assume_utc().unix_timestamp_nanos() / 1_000_000).unwrap_or(i64::MAX)
     }
 
     /// Calculate execution time for a async block in milliseconds

@@ -109,7 +109,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -120,6 +121,7 @@ mod tests {
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -129,7 +131,9 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -219,6 +223,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -316,7 +325,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -328,6 +338,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -338,7 +349,9 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -405,6 +418,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -476,7 +494,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -488,6 +507,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -498,7 +518,9 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -565,6 +587,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_02".to_string(),
@@ -658,7 +685,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -671,6 +699,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -680,7 +709,9 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -770,6 +801,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1043,7 +1079,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1054,6 +1091,7 @@ mod tests {
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,
@@ -1064,7 +1102,9 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                split_settlement: None,
                 customer_document_details: None,
+                customer_date_of_birth: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1150,6 +1190,11 @@ mod tests {
                 mit_category: None,
                 domain_data: None,
                 partner_merchant_identifier_details: None,
+                is_account_funding_transaction: None,
+                recipient_details: None,
+                business_country: None,
+                additional_connector_details: None,
+                customer: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1259,7 +1304,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1271,6 +1317,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 typed_connector_response: None,
             },
@@ -1280,7 +1327,9 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                split_settlement: None,
                 customer_document_details: None,
+                customer_date_of_birth: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1366,6 +1415,11 @@ mod tests {
                 mit_category: None,
                 domain_data: None,
                 partner_merchant_identifier_details: None,
+                is_account_funding_transaction: None,
+                recipient_details: None,
+                business_country: None,
+                additional_connector_details: None,
+                customer: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1478,7 +1532,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1488,6 +1543,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -1609,7 +1665,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1620,6 +1677,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     typed_connector_response: None,
                 },
@@ -1743,7 +1801,8 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }
+                    .into(),
                     vault_headers: None,
                     connector_response_headers: None,
                     raw_connector_request: None,
@@ -1753,6 +1812,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
                     settlement_status: None,
                     merchant_request_id: None,
                     typed_connector_response: None,
@@ -1763,7 +1823,9 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
                     customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -1830,6 +1892,11 @@ mod tests {
                     mit_category: None,
                     domain_data: None,
                     partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_INVALID".to_string(),
@@ -1923,7 +1990,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -1935,6 +2003,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 typed_connector_response: None,
             },
@@ -2067,7 +2136,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2077,6 +2147,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,
@@ -2199,7 +2270,8 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                },
+                }
+                .into(),
                 vault_headers: None,
                 connector_response_headers: None,
                 raw_connector_request: None,
@@ -2209,6 +2281,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                connector_returned_payment_method_details: None,
                 settlement_status: None,
                 merchant_request_id: None,
                 typed_connector_response: None,

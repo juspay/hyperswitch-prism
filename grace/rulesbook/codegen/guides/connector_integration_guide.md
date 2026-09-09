@@ -171,6 +171,54 @@ impl TryFrom<&ConnectorAuthType> for ConnectorNameAuthType {
 }
 ```
 
+#### Step 2.3: Superposition URL Registration & Dynamic URL Patching
+
+> **✅ `add_connector.sh` now does this automatically** as part of scaffolding — it registers the
+> connector in `config/superposition.toml` and wires it into `patch_connector_urls` in `types.rs`.
+> This section documents what the script produces so you can **verify** it, and how to supply a
+> distinct production URL. It became automated after being a manual step (ref PR
+> [juspay/hyperswitch-prism#2118](https://github.com/juspay/hyperswitch-prism/pull/2118)).
+
+By default the script writes the single `base_url` to both the sandbox (default) and production
+overrides. When the connector has a distinct live URL, pass it explicitly:
+
+```bash
+./add_connector.sh {connector_name} {sandbox_base_url} --production-url {production_base_url}
+```
+
+**Naming convention** (e.g. `twoc_twop_paco` ↔ `ConnectorEnum::TwocTwopPaco`):
+- superposition enum value, `_context_ = { connector = "..." }`, and `patched.<field>` → **snake_case** (`{connector_name}`)
+- `ConnectorEnum::<Variant>` → **PascalCase** (`{ConnectorName}`)
+
+**A. `config/superposition.toml`** — the script adds `"{connector_name}"` to the `connector`
+dimension `enum` under `[dimensions]` and appends override blocks at the END of the file:
+
+```toml
+# {ConnectorName}
+[[overrides]]
+_context_ = { connector = "{connector_name}" }
+connector_base_url = "{sandbox_base_url}"
+
+# {ConnectorName} Production
+[[overrides]]
+_context_ = { connector = "{connector_name}", environment = "production" }
+connector_base_url = "{production_base_url}"
+```
+
+**B. `crates/types-traits/domain_types/src/types.rs` → `Connectors::patch_connector_urls()`** — the
+script inserts a match arm BEFORE the `_ =>` fallback and adds the name to the fallback's
+"Supported connectors:" hint:
+
+```rust
+ConnectorEnum::{ConnectorName} => {
+    patched.{connector_name}.apply(params_patch);
+}
+```
+
+> Connectors with extra URL fields (e.g. TrustPay uses `ConnectorParamsWithMoreUrls`) need a
+> connector-specific patch struct instead of `params_patch` directly — the script emits the standard
+> arm, so adjust it by hand for such cases (mirror the nearest existing arm).
+
 ### Phase 3: Flow Implementation
 
 > **📖 Pattern Reference:** For detailed implementation patterns, see:

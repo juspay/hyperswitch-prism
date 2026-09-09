@@ -37,6 +37,8 @@ For new connectors or shared plumbing changes, read and compare:
 - `crates/integrations/connector-integration/src/default_implementations.rs`
 - `crates/integrations/connector-integration/src/types.rs`
 - `crates/types-traits/domain_types/src/connector_types.rs`
+- `config/superposition.toml` (connector dimension `enum` + base-URL overrides)
+- `crates/types-traits/domain_types/src/types.rs` (`Connectors::apply` dynamic URL patching)
 
 When payment methods change, also read:
 
@@ -52,6 +54,9 @@ When webhook or source verification changes, also read:
 
 - connector registration is complete and consistent
 - `ConnectorEnum`, module exports, and `convert_connector` stay aligned
+- connector base URLs are registered in `config/superposition.toml` (connector dimension `enum` +
+  sandbox & production `connector_base_url` overrides) and the connector is wired into
+  `Connectors::apply` in `types.rs` for dynamic URL patching (added to the match, not left to `_ =>`)
 - default trait implementations are updated when a new connector needs them
 - auth headers, signatures, and request signing are connector-correct
 - URLs, methods, headers, and body encodings match the connector behavior being claimed
@@ -70,6 +75,8 @@ When webhook or source verification changes, also read:
 - auth material exposed in errors, logs, or serialized values
 - webhook verification bypassed or made optional without a strong reason
 - new connector added without all registration points updated
+- new connector missing `config/superposition.toml` URL overrides or not added to
+  `Connectors::apply` (silently unsupported for dynamic URL patching)
 - payment method support claimed in code or docs but absent in tests/specs
 
 ## Output Format

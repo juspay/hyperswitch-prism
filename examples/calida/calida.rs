@@ -19,6 +19,9 @@ fn build_client() -> ConnectorClient {
         connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Calida(CalidaConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                shop_name: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_SHOP_NAME".to_string(),
+                )), // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),
@@ -46,7 +49,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.

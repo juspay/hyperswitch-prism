@@ -8,22 +8,69 @@
 
 use std::fmt::Write;
 
-/// Generate webhook signature for a given connector
+/// Connector-specific inputs a signature scheme needs beyond the payload and
+/// secret. All fields are optional: a new scheme adds a field here and a match
+/// arm below, rather than a branch in the caller.
+#[derive(Debug, Default, Clone)]
+pub struct SignatureContext<'a> {
+    pub timestamp: Option<i64>,
+    /// Request URI/path, for schemes that hash it in (e.g. phonepe).
+    pub api_path: Option<&'a str>,
+    /// Key/version index appended to the signature, for schemes that use one
+    /// (e.g. phonepe's `###<key_index>` suffix). Defaults to "1" if the
+    /// scheme requires one and none is supplied.
+    pub key_index: Option<&'a str>,
+}
+
+/// Generate webhook signature for a given connector.
 ///
-/// Returns the signature string that should be placed in the appropriate header
+/// `payload` must be the exact bytes the connector's own verification code
+/// hashes. For most connectors that is the raw request body; for phonepe it is
+/// the inner base64 `response` string, which the caller must extract first.
+///
+/// Returns the signature string for the connector's signature header.
 pub fn generate_signature(
     connector: &str,
     payload: &[u8],
     secret: &str,
-    timestamp: Option<i64>,
+    ctx: &SignatureContext<'_>,
 ) -> Result<String, String> {
     match connector {
-        "stripe" => generate_stripe_signature(payload, secret, timestamp),
+        "stripe" => generate_stripe_signature(payload, secret, ctx.timestamp),
         "adyen" => generate_adyen_signature(),
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
+        "phonepe" => generate_phonepe_signature(payload, secret, ctx),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Generate PhonePe webhook X-VERIFY signature.
+///
+/// PhonePe's checksum, matching connectors/phonepe/transformers.rs's
+/// compute_phonepe_webhook_checksum exactly:
+///   sha256(base64_body + api_path + salt_key) + "###" + key_index
+fn generate_phonepe_signature(
+    inner_base64_body: &[u8],
+    salt_key: &str,
+    ctx: &SignatureContext<'_>,
+) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+
+    let base64_body = std::str::from_utf8(inner_base64_body)
+        .map_err(|e| format!("phonepe signature payload must be UTF-8: {e}"))?;
+    let api_path = ctx.api_path.unwrap_or("");
+    let key_index = ctx.key_index.unwrap_or("1");
+
+    let checksum_input = format!("{base64_body}{api_path}{salt_key}");
+    let hash_bytes = Sha256::digest(checksum_input.as_bytes());
+
+    let mut hex_hash = String::with_capacity(hash_bytes.len() * 2);
+    for byte in hash_bytes {
+        write!(&mut hex_hash, "{byte:02x}").map_err(|e| format!("Failed to write hex: {e}"))?;
+    }
+
+    Ok(format!("{hex_hash}###{key_index}"))
 }
 
 /// Generate Stripe webhook signature

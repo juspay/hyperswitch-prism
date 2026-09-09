@@ -54,14 +54,18 @@ Output format:
 
 ## Subagent 2: Foundation Setup
 
-**Inputs**: connector_name, base_url
-**Outputs**: scaffold created, build passes, convention check results
+**Inputs**: connector_name, base_url, production_base_url
+**Outputs**: scaffold created, superposition URLs registered + URL patching wired, build passes, convention check results
 
 ```
 Set up the foundation for the {ConnectorName} connector.
 
 1. Run the scaffold script:
    .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --force -y
+
+   If the production base URL differs from the sandbox {base_url}, pass it too so the
+   superposition production override is correct:
+   .skills/new-connector/scripts/add_connector.sh {connector_name} {base_url} --production-url {production_base_url} --force -y
 
    If the script doesn't exist there, also check:
    grace/rulesbook/codegen/add_connector.sh
@@ -95,11 +99,45 @@ Set up the foundation for the {ConnectorName} connector.
    - SourceVerification
    - BodyDecoding
 
-8. Verify: cargo build --package connector-integration
+8. VERIFY superposition URL registration + dynamic URL patching (the scaffold script in step 1
+   now does BOTH of these automatically — confirm they landed; do them by hand only if missing).
+   Naming: superposition enum value / _context_ / patched.<field> use snake_case
+   ({connector_name}); ConnectorEnum::<Variant> uses PascalCase ({ConnectorName}).
+
+   a. config/superposition.toml
+      - "{connector_name}" is in the `connector` dimension enum under [dimensions].
+      - Override blocks exist at the END of the file (sandbox default + production):
+
+        # {ConnectorName}
+        [[overrides]]
+        _context_ = { connector = "{connector_name}" }
+        connector_base_url = "{sandbox_base_url}"
+
+        # {ConnectorName} Production
+        [[overrides]]
+        _context_ = { connector = "{connector_name}", environment = "production" }
+        connector_base_url = "{production_base_url}"
+
+      - If you did NOT pass --production-url, the production override reuses {base_url}; fix it if
+        the connector has a distinct live URL.
+
+   b. crates/types-traits/domain_types/src/types.rs  ->  Connectors::patch_connector_urls()
+      - A match arm exists BEFORE the `_ =>` fallback:
+
+        ConnectorEnum::{ConnectorName} => {
+            patched.{connector_name}.apply(params_patch);
+        }
+
+      - "{connector_name}" is in the "Supported connectors:" list in the `_ =>` error message.
+
+9. Verify: cargo build --package connector-integration
 
 Output:
   STATUS: SUCCESS | FAILED
   FILES_CREATED: [list of files]
+  FILES_MODIFIED: [config/superposition.toml, crates/types-traits/domain_types/src/types.rs, ...]
+  SUPERPOSITION_URLS_REGISTERED: YES | NO
+  URL_PATCHING_WIRED: YES | NO
   BUILD: PASS | FAIL
   CONVENTION_VIOLATIONS: [none] or [list]
 ```

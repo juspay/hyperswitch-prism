@@ -236,6 +236,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id,
             status,
             connector_response_reference_id: None,

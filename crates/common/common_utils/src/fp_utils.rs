@@ -40,17 +40,51 @@ where
 }
 
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(
+        component = "common_utils",
+        operation = "generate_id_with_default_len",
+        codec = SerdeCodec,
+    )
+)]
 pub fn generate_id_with_default_len(prefix: &str) -> String {
     let len: usize = ID_LENGTH;
     format!("{}_{}", prefix, nanoid::nanoid!(len, &ALPHABETS))
 }
 
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_id", codec = SerdeCodec,)
+)]
 pub fn generate_id(length: usize, prefix: &str) -> String {
     format!("{}_{}", prefix, nanoid::nanoid!(length, &ALPHABETS))
 }
 
 #[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_uuid_v7", codec = SerdeCodec,)
+)]
 pub fn generate_uuid_v7() -> String {
     uuid::Uuid::now_v7().to_string()
+}
+
+/// Generate a random (v4) UUID string. Connector code that needs a random
+/// idempotency key / client-request-id should call this helper rather than
+/// `uuid::Uuid::new_v4()` directly — every entropy source in the codebase is a
+/// single, auditable function, and under déjà the value is captured on tape
+/// and replayed deterministically.
+#[inline]
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "common_utils", operation = "generate_uuid_v4", codec = SerdeCodec,)
+)]
+pub fn generate_uuid_v4() -> String {
+    uuid::Uuid::new_v4().to_string()
 }

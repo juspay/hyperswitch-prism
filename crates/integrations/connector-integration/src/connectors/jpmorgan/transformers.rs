@@ -800,6 +800,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
             splits: None,
+            payment_account_reference: None,
         })
     }
 }

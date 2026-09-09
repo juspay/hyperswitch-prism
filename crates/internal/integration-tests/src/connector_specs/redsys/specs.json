@@ -6,6 +6,8 @@
     "PaymentService/Capture",
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/Refund",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "PaymentService/Get",
+    "RefundService/Get"
   ]
 }
