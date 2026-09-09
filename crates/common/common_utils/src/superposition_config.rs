@@ -20,8 +20,15 @@ use crate::consts::{
     CONFIG_KEY_CONNECTOR_THIRD_BASE_URL, DIMENSION_CONNECTOR, DIMENSION_ENVIRONMENT,
 };
 
-/// Error type for superposition configuration operations
+/// Error type for superposition configuration operations.
+///
+/// Under `deja` the WHOLE `Result<_, SuperpositionConfigError>` of a config read is
+/// captured on record and substituted on replay ("recording threw ⇒ replay throws"),
+/// so the error must round-trip through tape JSON. Every variant carries only a
+/// `String`, which keeps that trivial; the derive is feature-gated so the release
+/// build stays dependency-lean. Same shape as hyperswitch's `SuperpositionError`.
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum SuperpositionConfigError {
     #[error("Failed to initialize superposition local provider: {0}")]
     InitializationError(String),
@@ -276,27 +283,42 @@ impl SuperpositionConfig {
         connector: &str,
         environment: &str,
     ) -> Result<Map<String, Value>, SuperpositionConfigError> {
-        self.resolve_with(&[
-            (DIMENSION_CONNECTOR, connector),
-            (DIMENSION_ENVIRONMENT, environment),
-        ])
+        self.resolve_with(
+            &[
+                (DIMENSION_CONNECTOR, connector),
+                (DIMENSION_ENVIRONMENT, environment),
+            ],
+            None,
+        )
         .await
     }
 
     /// Resolve with caller-supplied dimensions. `resolve` delegates here; callers
     /// with other dimension sets (the déjà sampler's `environment` × `rpc_method` ×
     /// `rpc_service`) use this directly. Evaluation runs in-process against the
-    /// provider's cached snapshot, which the file watcher refreshes on change — so a
-    /// caller must not cache the result across requests.
+    /// provider's cached snapshot, which the source refreshes (poll or file watch) — so
+    /// a caller must not cache the result across requests.
+    ///
+    /// `targeting_key` is the identifier Superposition buckets EXPERIMENTS on — the
+    /// OpenFeature targeting key, deliberately NOT a dimension. Without it no experiment
+    /// variant ever applies (the provider evaluates zero experiments for an empty key,
+    /// silently), so a consumer that wants to be sampled by a remote experiment must
+    /// pass one: the déjà sampler passes the request id (a request either records or
+    /// not); a merchant-facing consumer would pass the merchant id so one merchant sees
+    /// one consistent variant. Plain config reads pass `None`.
     pub async fn resolve_with(
         &self,
         dimensions: &[(&str, &str)],
+        targeting_key: Option<&str>,
     ) -> Result<Map<String, Value>, SuperpositionConfigError> {
-        let context = dimensions
+        let mut context = dimensions
             .iter()
             .fold(EvaluationContext::default(), |context, (key, value)| {
                 context.with_custom_field(*key, *value)
             });
+        if let Some(targeting_key) = targeting_key {
+            context = context.with_targeting_key(targeting_key);
+        }
 
         self.provider
             .resolve_all_features(context)

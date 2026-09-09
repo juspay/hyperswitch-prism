@@ -149,6 +149,26 @@ async fn unreachable_remote_initialises_from_the_fallback_file() {
     );
 }
 
+/// The targeting key is the experiment-bucketing identifier, not a dimension: on a
+/// source that carries no experiments it changes nothing, and it never leaks into
+/// the dimension match (a policy keyed on `environment`/`connector` resolves the
+/// same with or without it).
+#[tokio::test]
+async fn targeting_key_is_inert_without_experiments_and_is_not_a_dimension() {
+    let config = SuperpositionConfig::from_file(&baked_path()).await.unwrap();
+    let dims = [("connector", "stripe"), ("environment", "sandbox")];
+    let without = config.resolve_with(&dims, None).await.unwrap();
+    let with = config
+        .resolve_with(&dims, Some("request-42"))
+        .await
+        .unwrap();
+    assert_eq!(without, with);
+    assert_eq!(
+        with.get("connector_base_url").and_then(|url| url.as_str()),
+        Some("https://api.stripe.com/")
+    );
+}
+
 /// Both the workspace and the configured fallback file are unusable: boot still
 /// continues on the baked file — fail-open — rather than aborting like hyperswitch.
 #[tokio::test]

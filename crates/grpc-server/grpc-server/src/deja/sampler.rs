@@ -153,11 +153,14 @@ impl SuperpositionRecordingSampler {
             return failure_policy; // no-source: logged once at install
         };
         match superposition
-            .resolve_with(&[
-                ("environment", self.environment),
-                ("rpc_method", rpc),
-                ("rpc_service", &rpc_service(rpc)),
-            ])
+            .resolve_with(
+                &[
+                    ("environment", self.environment),
+                    ("rpc_method", rpc),
+                    ("rpc_service", &rpc_service(rpc)),
+                ],
+                None,
+            )
             .await
         {
             Ok(resolved) => {
