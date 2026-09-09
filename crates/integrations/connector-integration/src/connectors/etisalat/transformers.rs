@@ -736,7 +736,7 @@ fn success_payments_response(
         connector_metadata: None,
         network_txn_id: body.approval_code.clone(),
         network_txn_link_id: None,
-        connector_response_reference_id: Some(transaction_id),
+        connector_response_reference_id: body.order_id.clone().or(Some(transaction_id)),
         incremental_authorization_allowed: None,
         splits: None,
         status_code: http_status_code,

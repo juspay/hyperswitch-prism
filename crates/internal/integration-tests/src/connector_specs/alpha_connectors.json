@@ -32,9 +32,6 @@
     "dlocal": {},
     "easebuzz": {},
     "elavon": {},
-    "etisalat": {
-      "reason": "No Etisalat EPG (comtrust.ae:2443) sandbox credentials are configured in CI yet — merchant onboarding is pending. Authorize, Capture, Void (Reversal), Refund and RepeatPayment (Channel=R MIT) were validated against the sandbox using the documented Demo Merchant test account during development. Remove this entry once credentials are added so CI starts certifying it."
-    },
     "finix": {},
     "fiservcommercehub": {},
     "fiservemea": {},
