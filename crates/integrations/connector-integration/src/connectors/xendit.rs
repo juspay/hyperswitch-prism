@@ -47,7 +47,13 @@ use error_stack::ResultExt;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    /// Required on every Payments API v3 endpoint; it is a single-valued enum.
+    /// <https://docs.xendit.co/apidocs/create-payment-request>
+    pub(crate) const API_VERSION: &str = "api-version";
 }
+
+/// The only value Xendit accepts for the `api-version` header on the v3 Payments API.
+pub(crate) const XENDIT_API_VERSION: &str = "2024-11-11";
 
 macros::macro_connector_payout_implementation!(
     connector: Xendit,
@@ -125,10 +131,16 @@ macros::create_all_prerequisites!(
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
-            let mut header = vec![(
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            )];
+            let mut header = vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.get_content_type().to_string().into(),
+                ),
+                (
+                    headers::API_VERSION.to_string(),
+                    XENDIT_API_VERSION.to_string().into(),
+                ),
+            ];
             let mut api_key = self
                 .get_auth_header(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -255,7 +267,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payment_requests", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v3/payment_requests", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -289,7 +301,7 @@ macros::macro_connector_implementation!(
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
             Ok(format!(
-                "{}/payment_requests/{connector_payment_id}",
+                "{}/v3/payment_requests/{connector_payment_id}",
                 self.connector_base_url_payments(req),
             ))
         }
@@ -319,13 +331,10 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let connector_payment_id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+            // v3 captures address the payment (`py-...`), not the payment request (`pr-...`).
+            let payment_id = xendit::get_capture_payment_id(&req.request)?;
             Ok(format!(
-                "{}/payment_requests/{connector_payment_id}/captures",
+                "{}/v3/payments/{payment_id}/capture",
                 self.connector_base_url_payments(req)
             ))
         }
