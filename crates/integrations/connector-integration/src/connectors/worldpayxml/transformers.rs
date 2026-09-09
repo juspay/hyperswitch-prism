@@ -18,7 +18,7 @@ use domain_types::{
     payment_method_data::{
         Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
+    router_data::{ConnectorResponseData, ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::{RedirectForm, Response},
 };
@@ -32,6 +32,26 @@ use super::{
     WorldpayxmlRouterData,
 };
 use crate::{types::ResponseRouterData, utils};
+
+/// Worldpay's `AuthorisationId` is the issuer approval code, not a scheme
+/// network transaction id. Surface it as the connector-response `auth_code`
+/// (mirroring the hyperswitch direct path); it must never go into
+/// `network_txn_id`, which is reserved for the scheme transaction identifier.
+fn get_worldpayxml_auth_code(
+    payment: &responses::WorldpayxmlPayment,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+) -> Option<ConnectorResponseData> {
+    payment
+        .authorisation_id
+        .as_ref()
+        .and_then(|auth_id| auth_id.id.clone())
+        .map(|auth_code| {
+            ConnectorResponseData::with_auth_code(
+                auth_code,
+                payment_method_type.unwrap_or(common_enums::PaymentMethodType::Card),
+            )
+        })
+}
 use common_utils::{errors::CustomResult, pii::SecretSerdeValue};
 
 const API_VERSION: &str = "1.4";
@@ -2276,10 +2296,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             redirection_data: None,
             mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
             connector_metadata: None,
-            network_txn_id: payment
-                .authorisation_id
-                .as_ref()
-                .and_then(|auth_id| auth_id.id.clone()),
+            network_txn_id: None,
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -2291,6 +2308,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: get_worldpayxml_auth_code(
+                    payment,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2422,10 +2443,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             redirection_data: None,
             mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
             connector_metadata: None,
-            network_txn_id: payment
-                .authorisation_id
-                .as_ref()
-                .and_then(|auth_id| auth_id.id.clone()),
+            network_txn_id: None,
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -2437,6 +2455,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: get_worldpayxml_auth_code(
+                    payment,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2564,10 +2586,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             redirection_data: None,
             mandate_reference: get_worldpayxml_mandate_reference(order_status, payment),
             connector_metadata: None,
-            network_txn_id: payment
-                .authorisation_id
-                .as_ref()
-                .and_then(|auth_id| auth_id.id.clone()),
+            network_txn_id: None,
             network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
@@ -2579,6 +2598,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: get_worldpayxml_auth_code(
+                    payment,
+                    router_data.resource_common_data.payment_method_type,
+                ),
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -2908,10 +2931,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     redirection_data: None,
                     mandate_reference: None,
                     connector_metadata: None,
-                    network_txn_id: payment
-                        .authorisation_id
-                        .as_ref()
-                        .and_then(|auth_id| auth_id.id.clone()),
+                    network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
@@ -2923,6 +2943,10 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        connector_response: get_worldpayxml_auth_code(
+                            payment,
+                            router_data.resource_common_data.payment_method_type,
+                        ),
                         ..router_data.resource_common_data.clone()
                     },
                     response: Ok(payments_response_data),
