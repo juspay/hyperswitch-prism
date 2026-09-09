@@ -1,0 +1,294 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5424180279791732"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "line2": {
+              "value": "Suite 123"
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "state": {
+              "value": "Leinster"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          },
+          "shipping_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "state": {
+              "value": "Leinster"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4035874000424977"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5424180279791732"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate",
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4035874000424977"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "capture_full_amount": {
+      "grpc_req": {
+        "merchant_capture_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        }
+      }
+    },
+    "capture_partial_amount": {
+      "grpc_req": {
+        "merchant_capture_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 604,
+          "currency": "EUR"
+        }
+      }
+    },
+    "capture_with_merchant_order_id": {
+      "grpc_req": {
+        "merchant_capture_id": "auto_generate",
+        "amount_to_capture": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        }
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        }
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "merchant_refund_id": "auto_generate",
+        "refund_amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_amount": 1204
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "merchant_refund_id": "auto_generate",
+        "refund_amount": {
+          "minor_amount": 604,
+          "currency": "EUR"
+        },
+        "payment_amount": 1204
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "merchant_refund_id": "auto_generate",
+        "refund_amount": {
+          "minor_amount": 1204,
+          "currency": "EUR"
+        },
+        "payment_amount": 1204
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "merchant_void_id": "auto_generate"
+      }
+    },
+    "void_with_amount": {
+      "grpc_req": {
+        "merchant_void_id": "auto_generate"
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "merchant_void_id": "auto_generate"
+      }
+    }
+  },
+  "PaymentService/Reverse": {
+    "reverse_full_payment": {
+      "grpc_req": {
+        "merchant_reverse_id": "auto_generate"
+      }
+    },
+    "reverse_with_reason": {
+      "grpc_req": {
+        "merchant_reverse_id": "auto_generate"
+      }
+    }
+  }
+}

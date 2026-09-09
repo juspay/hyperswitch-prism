@@ -221,5 +221,32 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "Authipay": [
+    "https://docs.fiserv.dev/public/openapi/6582b0d2483992005c5c56f0",
+    "https://docs.fiserv.dev/public/reference/payments-intro",
+    "https://docs.fiserv.dev/public/reference/submitprimarytransaction",
+    "https://docs.fiserv.dev/public/reference/submitsecondarytransaction",
+    "https://docs.fiserv.dev/public/reference/transactioninquiry",
+    "https://docs.fiserv.dev/public/reference/orderinquiry",
+    "https://docs.fiserv.dev/public/reference/postman-collection",
+    "https://docs.fiserv.dev/public/docs/payments-api-quickstart",
+    "https://docs.fiserv.dev/public/docs/payments-general-concepts",
+    "https://docs.fiserv.dev/public/docs/payments-pre-authorisation",
+    "https://docs.fiserv.dev/public/docs/message-signature",
+    "https://docs.fiserv.dev/public/v3.0/docs/general-getting-started",
+    "https://docs.fiserv.dev/public/docs/response-codes",
+    "https://docs.fiserv.dev/public/docs/3-d-secure-1",
+    "https://docs.fiserv.dev/public/docs/merchant-initiated-transactions-mit-1",
+    "https://docs.fiserv.dev/public/docs/card-verification",
+    "https://docs.fiserv.dev/public/docs/moto-restapi",
+    "https://docs.fiserv.dev/public/docs/recurring-payments",
+    "https://docs.fiserv.dev/public/docs/payment-methods",
+    "https://docs.fiserv.dev/public/docs/payments-test-cards",
+    "https://docs.fiserv.dev/public/docs/payment-scenarios-overview-global",
+    "https://docs.fiserv.dev/public/docs/purchasing-cards",
+    "https://raw.githubusercontent.com/Fiserv-Developer/Payments-Documents/main/IPG_Integration%20Guide_API_2024-1.pdf",
+    "https://raw.githubusercontent.com/Fiserv-Developer/Payments-Documents/main/General%20Gateway%20Response%20Codes.pdf",
+    "https://raw.githubusercontent.com/Fiserv-Developer/Payments-Documents/main/OmniPay%20Response%20codes.pdf"
   ]
 }

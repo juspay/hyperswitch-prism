@@ -184,10 +184,9 @@ macros::create_all_prerequisites!(
         fn build_headers_with_signature(
             &self,
             auth: &authipay::AuthipayAuthType,
+            client_request_id: String,
             request_body_str: &str,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            // Generate client request ID and timestamp
-            let client_request_id = authipay::AuthipayAuthType::generate_client_request_id();
             let timestamp = authipay::AuthipayAuthType::generate_timestamp();
 
             // Generate HMAC signature
@@ -228,9 +227,35 @@ macros::create_all_prerequisites!(
         fn build_headers_for_get(
             &self,
             auth: &authipay::AuthipayAuthType,
+            client_request_id: String,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // For GET requests, use empty body for signature generation
-            self.build_headers_with_signature(auth, "")
+            self.build_headers_with_signature(auth, client_request_id, "")
+        }
+
+        /// The stable per-attempt reference that `Client-Request-Id` is derived from.
+        ///
+        /// `merchant_request_id` is the caller's own idempotency token when it supplied one;
+        /// `connector_request_reference_id` is the per-attempt reference UCS always populates.
+        /// Both are stable across a retry of the same attempt, which is exactly what Authipay's
+        /// idempotency control needs — see `authipay::derive_client_request_id`.
+        fn payment_request_reference<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data
+                .get_merchant_request_id()
+                .unwrap_or_else(|_| req.resource_common_data.connector_request_reference_id.clone())
+        }
+
+        /// Refund-flow sibling of `payment_request_reference`.
+        fn refund_request_reference<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data
+                .get_merchant_request_id()
+                .unwrap_or_else(|_| req.resource_common_data.connector_request_reference_id.clone())
         }
 
         /// Helper to get base URL for payment flows
@@ -287,16 +312,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // Build the request to get the body for HMAC signature
             let connector_req = AuthipayPaymentsRequest::try_from(req)?;
             let request_body_str = serde_json::to_string(&connector_req)
-                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: crate::utils::integration_ctx(
+                        "authipay: could not serialize the request body for the Message-Signature preimage.",
+                        "Report this — the request struct must serialize deterministically or the HMAC will not match the body that is sent.",
+                    ),
+                })?;
 
-            // Generate headers with HMAC signature
+            // Generate headers with HMAC signature over the SAME bytes that will be sent.
             self.build_headers_with_signature(
                 &auth,
+                authipay::derive_client_request_id(
+                    authipay::AuthipayOperation::Authorize,
+                    &self.payment_request_reference(req),
+                ),
                 &request_body_str,
             )
         }
@@ -328,10 +367,18 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // For GET requests, use empty body for HMAC signature
-            self.build_headers_for_get(&auth)
+            self.build_headers_for_get(
+                &auth,
+                authipay::AuthipayAuthType::generate_client_request_id(),
+            )
         }
 
         fn get_url(
@@ -343,7 +390,12 @@ macros::macro_connector_implementation!(
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: crate::utils::integration_ctx(
+                        "authipay: the gateway transaction id (ipgTransactionId) returned by Authorize is required to address a secondary transaction or an inquiry.",
+                        "Supply connector_transaction_id from the Authorize response.",
+                    ),
+                })?;
 
             let base_url = self.connector_base_url_payments(req);
             // Append transaction ID to base URL for GET request
@@ -371,16 +423,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // Build the request to get the body for HMAC signature
             let connector_req = AuthipayVoidRequest::try_from(req)?;
             let request_body_str = serde_json::to_string(&connector_req)
-                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: crate::utils::integration_ctx(
+                        "authipay: could not serialize the request body for the Message-Signature preimage.",
+                        "Report this — the request struct must serialize deterministically or the HMAC will not match the body that is sent.",
+                    ),
+                })?;
 
-            // Generate headers with HMAC signature
+            // Generate headers with HMAC signature over the SAME bytes that will be sent.
             self.build_headers_with_signature(
                 &auth,
+                authipay::derive_client_request_id(
+                    authipay::AuthipayOperation::Void,
+                    &self.payment_request_reference(req),
+                ),
                 &request_body_str,
             )
         }
@@ -418,16 +484,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // Build the request to get the body for HMAC signature
             let connector_req = AuthipayVoidPCRequest::try_from(req)?;
             let request_body_str = serde_json::to_string(&connector_req)
-                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: crate::utils::integration_ctx(
+                        "authipay: could not serialize the request body for the Message-Signature preimage.",
+                        "Report this — the request struct must serialize deterministically or the HMAC will not match the body that is sent.",
+                    ),
+                })?;
 
-            // Generate headers with HMAC signature
+            // Generate headers with HMAC signature over the SAME bytes that will be sent.
             self.build_headers_with_signature(
                 &auth,
+                authipay::derive_client_request_id(
+                    authipay::AuthipayOperation::VoidPostCapture,
+                    &self.payment_request_reference(req),
+                ),
                 &request_body_str,
             )
         }
@@ -462,16 +542,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // Build the request to get the body for HMAC signature
             let connector_req = AuthipayCaptureRequest::try_from(req)?;
             let request_body_str = serde_json::to_string(&connector_req)
-                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: crate::utils::integration_ctx(
+                        "authipay: could not serialize the request body for the Message-Signature preimage.",
+                        "Report this — the request struct must serialize deterministically or the HMAC will not match the body that is sent.",
+                    ),
+                })?;
 
-            // Generate headers with HMAC signature
+            // Generate headers with HMAC signature over the SAME bytes that will be sent.
             self.build_headers_with_signature(
                 &auth,
+                authipay::derive_client_request_id(
+                    authipay::AuthipayOperation::Capture,
+                    &self.payment_request_reference(req),
+                ),
                 &request_body_str,
             )
         }
@@ -485,7 +579,12 @@ macros::macro_connector_implementation!(
                 .request
                 .connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: crate::utils::integration_ctx(
+                        "authipay: the gateway transaction id (ipgTransactionId) returned by Authorize is required to address a secondary transaction or an inquiry.",
+                        "Supply connector_transaction_id from the Authorize response.",
+                    ),
+                })?;
 
             let base_url = self.connector_base_url_payments(req);
             // Secondary transaction pattern: {base_url}/{transaction_id}
@@ -513,16 +612,30 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // Build the request to get the body for HMAC signature
             let connector_req = AuthipayRefundRequest::try_from(req)?;
             let request_body_str = serde_json::to_string(&connector_req)
-                .change_context(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: crate::utils::integration_ctx(
+                        "authipay: could not serialize the request body for the Message-Signature preimage.",
+                        "Report this — the request struct must serialize deterministically or the HMAC will not match the body that is sent.",
+                    ),
+                })?;
 
-            // Generate headers with HMAC signature
+            // Generate headers with HMAC signature over the SAME bytes that will be sent.
             self.build_headers_with_signature(
                 &auth,
+                authipay::derive_client_request_id(
+                    authipay::AuthipayOperation::Refund,
+                    &self.refund_request_reference(req),
+                ),
                 &request_body_str,
             )
         }
@@ -559,10 +672,18 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = authipay::AuthipayAuthType::try_from(&req.connector_config)
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                    context: crate::utils::integration_ctx(
+                        "authipay: expected ConnectorSpecificConfig::Authipay with api_key and api_secret.",
+                        "Configure the Authipay merchant connector account with the Api-Key and the matching HMAC secret from the same Fiserv Developer-Portal application.",
+                    ),
+                })?;
 
             // For GET requests, use empty body for HMAC signature
-            self.build_headers_for_get(&auth)
+            self.build_headers_for_get(
+                &auth,
+                authipay::AuthipayAuthType::generate_client_request_id(),
+            )
         }
 
         fn get_url(
@@ -658,21 +779,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.code.unwrap_or_default(),
-            message: response.message.unwrap_or_default(),
-            reason: response.api_trace_id,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-            typed_connector_response: typed,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_request: None,
-        })
+        // `attempt_status` stays `None`: this builder is flow-agnostic and `get_error_response_v2`
+        // routes Refund and RSync through it too, where `ForeignFrom<FlowStatus> for RefundStatus`
+        // coerces any `Payment(_)` value to `RefundFailure`. A blanket failure here would report a
+        // charged payment — or a refund that never declined — as failed. Each flow's own
+        // transformer sets the status it derived; see `build_refund_flow_response`.
+        Ok(authipay::build_authipay_error_response(
+            &response,
+            res.status_code,
+            typed,
+        ))
     }
 }
 
