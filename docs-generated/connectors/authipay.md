@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L127) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L120) · [Rust](../../examples/authipay/authipay.rs#L165)
+**Examples:** [Python](../../examples/authipay/authipay.py#L183) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L122) · [Rust](../../examples/authipay/authipay.rs#L236)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L146) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L136) · [Rust](../../examples/authipay/authipay.rs#L181)
+**Examples:** [Python](../../examples/authipay/authipay.py#L202) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L138) · [Rust](../../examples/authipay/authipay.rs#L252)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L171) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L158) · [Rust](../../examples/authipay/authipay.rs#L204)
+**Examples:** [Python](../../examples/authipay/authipay.py#L227) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L160) · [Rust](../../examples/authipay/authipay.rs#L275)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L196) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L180) · [Rust](../../examples/authipay/authipay.rs#L227)
+**Examples:** [Python](../../examples/authipay/authipay.py#L252) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L182) · [Rust](../../examples/authipay/authipay.rs#L298)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L218) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L199) · [Rust](../../examples/authipay/authipay.rs#L246)
+**Examples:** [Python](../../examples/authipay/authipay.py#L274) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L201) · [Rust](../../examples/authipay/authipay.rs#L317)
 
 ## API Reference
 
@@ -169,9 +169,11 @@ Retrieve current payment status from the connector.
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -307,7 +309,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L252) · [Kotlin](../../examples/authipay/authipay.kt#L217) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L312) · [Kotlin](../../examples/authipay/authipay.kt#L219) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Capture
 
@@ -318,7 +320,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L261) · [Kotlin](../../examples/authipay/authipay.kt#L229) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L321) · [Kotlin](../../examples/authipay/authipay.kt#L231) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Get
 
@@ -329,7 +331,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L270) · [Kotlin](../../examples/authipay/authipay.kt#L239) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L330) · [Kotlin](../../examples/authipay/authipay.kt#L241) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -340,7 +342,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L279) · [Kotlin](../../examples/authipay/authipay.kt#L247) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L339) · [Kotlin](../../examples/authipay/authipay.kt#L249) · [Rust](../../examples/authipay/authipay.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L348) · [Kotlin](../../examples/authipay/authipay.kt#L278) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Refund
 
@@ -351,7 +364,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L288) · [Kotlin](../../examples/authipay/authipay.kt#L276) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L357) · [Kotlin](../../examples/authipay/authipay.kt#L310) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Reverse
 
@@ -362,7 +375,18 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L306) · [Kotlin](../../examples/authipay/authipay.kt#L298) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L375) · [Kotlin](../../examples/authipay/authipay.kt#L332) · [Rust](../../examples/authipay/authipay.rs)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L384) · [Kotlin](../../examples/authipay/authipay.kt#L340) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Void
 
@@ -373,7 +397,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts) · [Kotlin](../../examples/authipay/authipay.kt#L306) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts) · [Kotlin](../../examples/authipay/authipay.kt#L379) · [Rust](../../examples/authipay/authipay.rs)
 
 ### Refunds
 
@@ -386,4 +410,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L297) · [Kotlin](../../examples/authipay/authipay.kt#L286) · [Rust](../../examples/authipay/authipay.rs)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L366) · [Kotlin](../../examples/authipay/authipay.kt#L320) · [Rust](../../examples/authipay/authipay.rs)
