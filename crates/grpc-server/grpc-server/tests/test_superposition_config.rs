@@ -4,7 +4,7 @@
 use std::{fs, time::Duration};
 
 use common_utils::{
-    superposition_config::{SourceKind, SuperpositionSettings},
+    superposition_config::{SourceKind, SuperpositionClientConfig},
     SuperpositionConfig,
 };
 use tokio::time::{sleep, timeout};
@@ -97,8 +97,8 @@ fn baked_path() -> String {
     )
 }
 
-fn remote_settings() -> SuperpositionSettings {
-    SuperpositionSettings {
+fn remote_settings() -> SuperpositionClientConfig {
+    SuperpositionClientConfig {
         enabled: true,
         // Nothing listens here: connection refused, immediately. The point is a
         // remote source that cannot initialise, so the fallback path is exercised
@@ -107,14 +107,14 @@ fn remote_settings() -> SuperpositionSettings {
         token: hyperswitch_masking::Secret::new("sp_test".to_string()),
         org_id: "hyperswitch".to_string(),
         workspace_id: "prism".to_string(),
-        ..SuperpositionSettings::default()
+        ..SuperpositionClientConfig::default()
     }
 }
 
 /// Source selection, disabled: the baked file, watched — today's behaviour.
 #[tokio::test]
 async fn disabled_settings_select_the_baked_file() {
-    let config = SuperpositionConfig::new(&SuperpositionSettings::default(), &baked_path())
+    let config = SuperpositionConfig::new(&SuperpositionClientConfig::default(), &baked_path())
         .await
         .unwrap();
     assert_eq!(config.source(), SourceKind::File);
@@ -173,7 +173,7 @@ async fn targeting_key_is_inert_without_experiments_and_is_not_a_dimension() {
 /// continues on the baked file — fail-open — rather than aborting like hyperswitch.
 #[tokio::test]
 async fn unreachable_remote_with_bad_fallback_degrades_to_the_baked_file() {
-    let settings = SuperpositionSettings {
+    let settings = SuperpositionClientConfig {
         backup_file_path: Some(std::path::PathBuf::from("/nonexistent/superposition.toml")),
         ..remote_settings()
     };

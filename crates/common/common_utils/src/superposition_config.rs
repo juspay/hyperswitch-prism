@@ -51,7 +51,7 @@ pub enum SuperpositionConfigError {
 /// POLLING_INTERVAL,REQUEST_TIMEOUT,BACKUP_FILE_PATH}`.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
-pub struct SuperpositionSettings {
+pub struct SuperpositionClientConfig {
     pub enabled: bool,
     /// Superposition server URL.
     pub endpoint: String,
@@ -70,7 +70,7 @@ pub struct SuperpositionSettings {
     pub backup_file_path: Option<PathBuf>,
 }
 
-impl Default for SuperpositionSettings {
+impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
             enabled: false,
@@ -85,10 +85,12 @@ impl Default for SuperpositionSettings {
     }
 }
 
-impl SuperpositionSettings {
-    /// A deliberately enabled remote source with a broken config is a deployment error:
-    /// fail loud at boot rather than silently serving the file. Only meaningful when
-    /// `enabled`; callers skip it otherwise.
+impl SuperpositionClientConfig {
+    /// Do the settings describe a workspace at all (endpoint, token, org, workspace)?
+    /// hyperswitch's check, field for field. Only meaningful when `enabled`. Prism's
+    /// loader treats a failure as "remote source off" — reported, then served from the
+    /// baked file — never as a reason to refuse boot: Superposition being unreachable
+    /// or misdescribed must not block payments.
     pub fn validate(&self) -> Result<(), SuperpositionConfigError> {
         let invalid = |message: &str| {
             Err(SuperpositionConfigError::InvalidConfiguration(
@@ -163,7 +165,7 @@ impl SuperpositionConfig {
     /// `Err` only when NO source could initialise; the caller then runs without
     /// Superposition (static connector config, sampler in its no-source state).
     pub async fn new(
-        settings: &SuperpositionSettings,
+        settings: &SuperpositionClientConfig,
         baked_path: &str,
     ) -> Result<Self, SuperpositionConfigError> {
         if settings.enabled {
@@ -575,21 +577,21 @@ mod tests {
         );
     }
 
-    fn remote_settings() -> SuperpositionSettings {
-        SuperpositionSettings {
+    fn remote_settings() -> SuperpositionClientConfig {
+        SuperpositionClientConfig {
             enabled: true,
             endpoint: "http://superposition:8080".to_string(),
             token: Secret::new("sp_token".to_string()),
             org_id: "hyperswitch".to_string(),
             workspace_id: "prism".to_string(),
-            ..SuperpositionSettings::default()
+            ..SuperpositionClientConfig::default()
         }
     }
 
     /// The default table is the file-only posture: off, nothing to validate.
     #[test]
     fn settings_default_is_disabled_with_hyperswitch_polling_interval() {
-        let settings = SuperpositionSettings::default();
+        let settings = SuperpositionClientConfig::default();
         assert!(!settings.enabled);
         assert_eq!(settings.polling_interval, 15);
         assert!(settings.backup_file_path.is_none());
@@ -600,7 +602,7 @@ mod tests {
     #[test]
     fn settings_validate_rejects_each_missing_remote_field() {
         assert!(remote_settings().validate().is_ok());
-        let cases: [(&str, Box<dyn Fn(&mut SuperpositionSettings)>); 5] = [
+        let cases: [(&str, Box<dyn Fn(&mut SuperpositionClientConfig)>); 5] = [
             ("endpoint", Box::new(|s| s.endpoint = "  ".to_string())),
             (
                 "valid URL",

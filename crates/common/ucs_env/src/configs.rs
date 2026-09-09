@@ -14,7 +14,7 @@ use common_utils::{
         RuntimeMetadataPatch,
     },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
-    superposition_config::SuperpositionSettings,
+    superposition_config::SuperpositionClientConfig,
     SuperpositionConfig,
 };
 use domain_types::{
@@ -67,7 +67,7 @@ pub struct Config {
     /// source or hand the process a different token.
     #[serde(default)]
     #[patch(ignore)]
-    pub superposition: SuperpositionSettings,
+    pub superposition: SuperpositionClientConfig,
     /// The initialised Superposition provider (connector URL resolution, the déjà
     /// sampler). Built at startup from `superposition` + `config/superposition.toml`.
     #[serde(skip)]
@@ -433,6 +433,23 @@ impl Config {
         let config = {
             let mut config = config;
             config.post_patch_processing();
+
+            // Superposition is never a reason to refuse boot. An enabled remote source
+            // whose settings cannot describe a workspace (no endpoint/token/org/
+            // workspace) is reported — the logger is not up yet, so to stderr — and the
+            // remote source is switched OFF: the process serves policy from the baked
+            // config/superposition.toml, the same fail-open posture as a déjà record
+            // misconfiguration. Payments are never blocked by a policy source.
+            if config.superposition.enabled {
+                #[allow(clippy::print_stderr)]
+                if let Err(error) = config.superposition.validate() {
+                    eprintln!(
+                        "superposition configuration error: {error}; remote source disabled, \
+                         policy comes from the baked config/superposition.toml"
+                    );
+                    config.superposition.enabled = false;
+                }
+            }
             config
         };
 
@@ -442,16 +459,6 @@ impl Config {
         // Fail loud at boot on an unsafe déjà configuration (e.g. replay in production).
         #[cfg(feature = "deja")]
         config.deja.validate(&config.common.environment)?;
-
-        // A remote Superposition source that was deliberately enabled but cannot be
-        // described (no endpoint/token/org/workspace) is a deployment error, not
-        // something to paper over with the baked file.
-        if config.superposition.enabled {
-            config
-                .superposition
-                .validate()
-                .map_err(|error| config::ConfigError::Message(error.to_string()))?;
-        }
 
         // Fail fast on malformed platform CA config, using the same PEM parser as
         // runtime client construction. Iterates the hand-maintained list in

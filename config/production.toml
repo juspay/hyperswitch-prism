@@ -205,9 +205,10 @@ enabled = false
 # --- Superposition: where policy comes from ---------------------------------
 # Off (default): the baked config/superposition.toml, watched for changes.
 # On: the same provider over a remote workspace, polled every polling_interval
-# seconds, with the baked file as the provider's init-time fallback. Enabling
-# without endpoint/token/org/workspace fails boot loudly (see
-# SuperpositionSettings::validate). Env overrides: CS__SUPERPOSITION__*.
+# seconds, with the baked file as the provider's init-time fallback. Boot never
+# fails because of Superposition: enabling without endpoint/token/org/workspace,
+# or an unreachable workspace, is reported and the baked file serves policy.
+# Env overrides: CS__SUPERPOSITION__*.
 [superposition]
 enabled = false
 endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.local:80
