@@ -228,7 +228,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::PaymayaRedirect(_)
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
                 Default::default(),
             ))?,

@@ -469,7 +469,9 @@ macros::macro_connector_implementation!(
                 }
                 // Redirect wallets stay on the standard paymenthandles endpoint
                 // (singleusepaymenthandles 5270s; no MIT replay for redirect rails).
-                PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+                PaymentMethodData::Wallet(
+                    WalletData::Skrill(_) | WalletData::Neteller(_),
+                ) => {
                     Ok(format!("{base}v1/paymenthandles"))
                 }
                 _ => Ok(format!("{base}v1/paymenthandles")),

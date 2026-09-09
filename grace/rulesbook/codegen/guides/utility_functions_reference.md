@@ -189,7 +189,7 @@ let return_url = data.router_return_url
 **Use Case:** Use in `build_error_response` when deserialization of expected error response format fails.
 **Example:**
 ```rust
-fn build_error_response(&self, res: Response, event_builder: Option<&mut ConnectorEvent>)
+fn build_error_response(&self, res: Response, event_builder: Option<&mut events::Event>, connector_config: &ConnectorSpecificConfig)
     -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response_data = String::from_utf8(res.response.to_vec())
         .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;

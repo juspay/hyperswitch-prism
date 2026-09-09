@@ -127,7 +127,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PaymayaRedirect(_)
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))
@@ -336,7 +337,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::PaymayaRedirect(_)
             | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))

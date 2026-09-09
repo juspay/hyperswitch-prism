@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // PaysafePaymentMethodDetails carries several optional per-currency account
-    // maps (card, ach, apple_pay, interac, skrill, pay_safe_card). The
+    // maps (card, ach, apple_pay, interac, skrill, pay_safe_card, neteller). The
     // x-connector-config header only supplies the subset a merchant has
     // provisioned, so any omitted map must default to empty. Without this,
     // serde treats a missing (non-optional proto map) field as a hard error,

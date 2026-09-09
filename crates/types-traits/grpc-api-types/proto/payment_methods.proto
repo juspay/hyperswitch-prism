@@ -106,7 +106,8 @@ message PaymentMethod {
 
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
-    PayhereRedirectWallet payhere_redirect = 188;          // PayHere redirect wallet
+    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
+    PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -730,6 +731,11 @@ message MobilePayRedirectWallet {
 // Skrill Redirect - Digital wallet for online payments
 message SkrillRedirectWallet {
   // Fields will be added as needed for Skrill Redirect integration
+}
+
+// Neteller Redirect - Digital wallet for online payments
+message NetellerRedirectWallet {
+  // Consumer email is sourced from billing details.
 }
 
 // Paysera Redirect - European digital wallet and payment service

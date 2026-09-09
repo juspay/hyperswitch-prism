@@ -74,6 +74,9 @@
     "nuvei": {},
     "paybox": {},
     "payconex": {},
+    "paydotcom": {
+      "reason": "No Pay.com sandbox credentials are available; the integration is verified end to end from Hyperswitch through UCS against a mock Pay.com server, with request shapes checked against apiref.pay.com. See PR #2223."
+    },
     "payhere": {
       "reason": "No PayHere sandbox credentials (App ID/App Secret/Merchant ID/Merchant Secret) are configured in CI, so certification cannot run. Remove this entry once credentials are added so CI starts certifying it."
     },

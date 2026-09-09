@@ -424,6 +424,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -439,6 +440,7 @@ pub struct Connectors {
     pub travelhub: ConnectorParams,
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
+    pub paydotcom: ConnectorParams,
     pub payhere: ConnectorParams,
 }
 
@@ -896,6 +898,7 @@ impl Connectors {
         };
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
+            FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
         }
         Ok(patched)
     }
@@ -1940,6 +1943,11 @@ impl<
                         payment_method_data::SkrillData {},
                     )),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::Neteller(
+                        payment_method_data::NetellerData {},
+                    )),
+                ),
                 grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(paze_wallet) => {
                     let paze_wallet_data = match paze_wallet.paze_data {
                         Some(grpc_api_types::payments::paze_wallet::PazeData::CompleteResponse(
@@ -2847,6 +2855,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::QwikcilverWallet)
             }
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(PaymentMethodType::Skrill),
+            grpc_api_types::payments::PaymentMethodType::Neteller => {
+                Ok(PaymentMethodType::Neteller)
+            }
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(PaymentMethodType::Interac),
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
@@ -3163,6 +3174,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(Some(PaymentMethodType::MobilePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => Ok(Some(PaymentMethodType::Payhere)),
@@ -4611,6 +4623,11 @@ impl<
 {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::request_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, payment_method_data): (AuthorizationRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -5685,6 +5702,11 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::flow_data_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -6927,6 +6949,11 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::response_generate", skip_all)
+)]
 #[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
@@ -7243,6 +7270,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -9145,6 +9176,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayHere => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
@@ -13946,6 +13978,7 @@ pub enum PaymentMethodDataType {
     Netbanking,
     QwikcilverWalletDirect,
     Skrill,
+    Neteller,
     CardWithNoCvc,
 }
 
@@ -18955,6 +18988,7 @@ impl<
                     )
                 })
                 .transpose()?,
+            connector_order_reference_id: value.connector_order_reference_id,
         })
     }
 }
@@ -19242,9 +19276,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Post-auth uses 3DS
@@ -19964,6 +20000,35 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 network_transaction_id: None,
                 merchant_order_id: connector_response_reference_id,
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
+                incremental_authorization_allowed: None,
+                status: grpc_status.into(),
+                error: None,
+                raw_connector_response,
+                typed_connector_response,
+                raw_connector_status,
+                status_code: status_code.into(),
+                response_headers,
+                state: None,
+            },
+            // Payment-confirmation flows (e.g. APM confirm via PostAuthenticate) return
+            // TransactionResponse rather than PostAuthenticateResponse.
+            PaymentsResponseData::TransactionResponse {
+                resource_id,
+                connector_response_reference_id,
+                network_txn_id,
+                status_code,
+                ..
+            } => PaymentMethodAuthenticationServicePostAuthenticateResponse {
+                connector_transaction_id: match resource_id {
+                    ResponseId::ConnectorTransactionId(id) => Some(id),
+                    ResponseId::EncodedData(data) => Some(data),
+                    ResponseId::NoResponseId => None,
+                },
+                redirection_data: None,
+                connector_feature_data,
+                network_transaction_id: network_txn_id,
+                merchant_order_id: connector_response_reference_id,
+                authentication_data: None,
                 incremental_authorization_allowed: None,
                 status: grpc_status.into(),
                 error: None,

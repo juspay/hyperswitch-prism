@@ -1544,6 +1544,7 @@ pub enum PaymentMethodType {
     SepaGuaranteedDebit,
     IndonesianBankTransfer,
     Skrill,
+    Neteller,
     Paysera,
     Paymaya,
     Payhere,
@@ -2487,6 +2488,7 @@ pub enum CountryAlpha3 {
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum KafkaClientError {
     /// Invalid configuration provided
     #[error("Invalid configuration: {message}")]
@@ -2504,6 +2506,7 @@ pub enum KafkaClientError {
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
+#[cfg_attr(feature = "deja", derive(serde::Serialize, serde::Deserialize))]
 pub enum ApiClientError {
     #[error("Header map construction failed")]
     HeaderMapConstructionFailed,
