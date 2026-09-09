@@ -11,7 +11,25 @@ const PARITY_CACHE_DIR = join(WORKSPACE_ROOT, ".cache");
 const PARITY_DASHBOARD_MD = join(WORKSPACE_ROOT, "parity-dashboard.md");
 const PARITY_CONNECTORS_DIR = join(WORKSPACE_ROOT, "connectors");
 const CLI_DIST = resolve(WORKSPACE_ROOT, "packages/cli/dist/index.js");
+// hyperswitch-prism repo root: grace-workspace/../..
+const REPO_ROOT = resolve(WORKSPACE_ROOT, "..", "..");
+const MVP_GENERATOR = join(REPO_ROOT, "scripts/generators/mvp/build_mvp.py");
+const MVP_JSON = join(WORKSPACE_ROOT, "packages/dashboard/src/data/mvp.json");
+// Generation takes ~0.4s, so this is only a debounce against rapid reloads,
+// not a cache: any page load more than this after the last build re-derives.
+const MVP_STALE_MS = 5_000;
 const DASHBOARD_STALE_MS = 5 * 60_000;
+
+/**
+ * Collapse a message into something legal in an HTTP header value.
+ *
+ * Subprocess errors carry stderr, which is multi-line. Passing that straight to
+ * setHeader throws ERR_INVALID_CHAR and kills the dev server — an error path
+ * taking down the process it was meant to report on.
+ */
+function headerSafe(message: string, max = 300): string {
+  return message.replace(/[\r\n\t]+/g, " ").replace(/[^\x20-\x7e]/g, "").slice(0, max);
+}
 
 async function newestTreeFile(): Promise<string | null> {
   try {
@@ -234,7 +252,7 @@ function parityApiPlugin(): Plugin {
           res.setHeader("content-type", "application/json");
           res.setHeader("x-parity-source", treePath);
           res.setHeader("x-parity-mtime", st ? new Date(st.mtimeMs).toISOString() : "");
-          if (refreshError) res.setHeader("x-parity-refresh-error", refreshError.slice(0, 200));
+          if (refreshError) res.setHeader("x-parity-refresh-error", headerSafe(refreshError, 200));
           res.end(raw);
           return;
         }
@@ -729,8 +747,86 @@ function connectorDiscoveryPlugin(): Plugin {
   };
 }
 
+
+// --- MVP readiness API -----------------------------------------------------
+//
+// GET /api/mvp.json[?force=1]
+//
+// mvp.json is derived from data/field_probe/ and a local hyperswitch checkout.
+// Both change under the server's feet (a CI probe refresh, a git pull), so the
+// endpoint re-runs the generator when the file is stale instead of serving
+// whatever was built at boot. Mirrors forceRefreshTree() above.
+
+let mvpRefreshInFlight: Promise<void> | null = null;
+
+function refreshMvp(): Promise<void> {
+  if (mvpRefreshInFlight) return mvpRefreshInFlight;
+  mvpRefreshInFlight = new Promise<void>((resolveRefresh, rejectRefresh) => {
+    const child = spawn("python3", [MVP_GENERATOR], {
+      cwd: REPO_ROOT,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stderr = "";
+    child.stderr?.on("data", (b) => (stderr += b.toString()));
+    child.on("error", (err) => rejectRefresh(err));
+    child.on("close", (code) => {
+      if (code === 0) resolveRefresh();
+      // The generator exits non-zero when a rubric signal stops resolving. That
+      // is a real defect, so surface it rather than silently serving stale data.
+      else rejectRefresh(new Error(`build_mvp.py exited ${code}: ${stderr.slice(-600)}`));
+    });
+  }).finally(() => {
+    mvpRefreshInFlight = null;
+  });
+  return mvpRefreshInFlight;
+}
+
+function mvpApiPlugin(): Plugin {
+  return {
+    name: "mvp-api",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const url = new URL(req.url, "http://localhost");
+        if (url.pathname !== "/api/mvp.json") return next();
+
+        const force = url.searchParams.get("force") === "1";
+        let st = await stat(MVP_JSON).catch(() => null);
+        let refreshError: string | null = null;
+
+        if (force || !st || Date.now() - st.mtimeMs > MVP_STALE_MS) {
+          try {
+            await refreshMvp();
+            st = await stat(MVP_JSON).catch(() => null);
+          } catch (err) {
+            refreshError = (err as Error).message;
+            // Fall through: serve the previous file if there is one, so a broken
+            // rubric degrades to stale-with-warning rather than a blank page.
+          }
+        }
+
+        if (!st) {
+          res.statusCode = 503;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: refreshError ?? "mvp.json missing; run build_mvp.py" }));
+          return;
+        }
+
+        const raw = await readFile(MVP_JSON, "utf8");
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.setHeader("cache-control", "no-store");
+        res.setHeader("x-mvp-mtime", new Date(st.mtimeMs).toISOString());
+        if (refreshError) res.setHeader("x-mvp-refresh-error", headerSafe(refreshError));
+        res.end(raw);
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), parityApiPlugin(), connectorDiscoveryPlugin()],
+  plugins: [react(), parityApiPlugin(), connectorDiscoveryPlugin(), mvpApiPlugin()],
   // HOST env is set to 0.0.0.0 by docker-compose so the dashboard is reachable
   // from outside the container. Native `pnpm dev` leaves HOST unset → defaults
   // to 127.0.0.1 (Vite's normal localhost-only behavior).

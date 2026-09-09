@@ -1,11 +1,12 @@
 import { Link, useLocation } from "react-router-dom";
 import { T } from "../theme";
-import connectorsData from "../data/connectors.json";
-import type { Connector } from "../types/connector";
+import mvpData from "../data/mvp.json";
 
-const CONNECTORS = connectorsData as Connector[];
-const CONNECTOR_COUNT = CONNECTORS.length;
-const FLOW_COUNT = CONNECTORS[0]?.flows.length ?? 0;
+// mvp.json (114 KB) rather than connectors.json (1,657 KB): the shared layout
+// pulled the larger file into every route just to print two integers, and its
+// 110-connector count contradicted the 108 shown everywhere else.
+const CONNECTOR_COUNT = (mvpData as { connectors: unknown[] }).connectors.length;
+const CAPABILITY_COUNT = (mvpData as { capabilities: unknown[] }).capabilities.length;
 
 const SIDEBAR_WIDTH = 240;
 
@@ -16,16 +17,34 @@ interface NavItem {
   path: string;
 }
 
-const NAV_ITEMS: NavItem[] = [
+// A static deploy (Netlify) has no supervisor WebSocket and no dev-server /api/*
+// middleware, so only the MVP views work there. Hiding the rest beats shipping
+// nav that leads to permanently-broken pages.
+const STATIC_BUILD = import.meta.env.VITE_STATIC === "1";
+
+const ALL_NAV_ITEMS: NavItem[] = [
   { id: "home", label: "Home", icon: "🏠", path: "/" },
   { id: "connectors", label: "Payment Processors", icon: "💳", path: "/connectors" },
+  { id: "mvp", label: "MVP Readiness", icon: "🎯", path: "/mvp" },
+  { id: "mvp-metrics", label: "MVP Metrics", icon: "📊", path: "/mvp/metrics" },
   { id: "parity", label: "Parity Checker", icon: "⚖️", path: "/parity" },
   { id: "pr-resolver", label: "PR Resolver", icon: "🔧", path: "/pr-resolver" },
 ];
 
+const NAV_ITEMS: NavItem[] = STATIC_BUILD
+  ? ALL_NAV_ITEMS.filter((i) => i.path.startsWith("/mvp"))
+  : ALL_NAV_ITEMS;
+
 export function NavigationSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // The nav entry that owns the current route: an exact match, else the longest
+  // path the route sits under. Without the "longest" rule, /mvp/metrics would
+  // highlight both "MVP Readiness" (/mvp) and "MVP Metrics".
+  const activePath = NAV_ITEMS.map((i) => i.path)
+    .filter((path) => currentPath === path || (path !== "/" && currentPath.startsWith(path + "/")))
+    .sort((a, b) => b.length - a.length)[0];
 
   return (
     <aside
@@ -89,8 +108,9 @@ export function NavigationSidebar() {
       <nav style={{ flex: 1, padding: "16px 12px" }}>
         {NAV_ITEMS.map((item) => {
           const isActive = currentPath === item.path;
-          const isActiveOrChild =
-            isActive || (item.path !== "/" && currentPath.startsWith(item.path + "/"));
+          // Longest matching path wins, so a nested item (/mvp/metrics) does not
+          // also light up its parent (/mvp).
+          const isActiveOrChild = item.path === activePath;
           return (
             <Link
               key={item.id}
@@ -139,7 +159,7 @@ export function NavigationSidebar() {
       >
         <div>Grace Workflow v2.3</div>
         <div style={{ marginTop: 4, opacity: 0.7 }}>
-          {`${CONNECTOR_COUNT} connectors · ${FLOW_COUNT} flows`}
+          {`${CONNECTOR_COUNT} connectors · ${CAPABILITY_COUNT} capabilities`}
         </div>
       </div>
     </aside>
@@ -154,6 +174,10 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
         style={{
           marginLeft: SIDEBAR_WIDTH,
           flex: 1,
+          // A flex item defaults to min-width:auto, so a wide child (the MVP
+          // matrix) stretches main past the viewport instead of scrolling
+          // inside its own panel, which clipped the header and stat cards.
+          minWidth: 0,
           minHeight: "100vh",
         }}
       >

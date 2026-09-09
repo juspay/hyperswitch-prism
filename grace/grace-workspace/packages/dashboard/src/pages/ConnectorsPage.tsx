@@ -4,6 +4,7 @@ import { useSessions } from "../hooks/useSessions";
 import { SidebarLayout } from "../components/NavigationSidebar";
 import { UnifiedCreateSessionModal, type SessionWithTaskInput } from "../components/UnifiedCreateSessionModal";
 import { T } from "../theme";
+import { isPermissiveProbe } from "../lib/probeTrust";
 import type { Connector, MethodGap } from "../types/connector";
 import connectorsData from "../data/connectors.json";
 import { Link } from "react-router-dom";
@@ -467,6 +468,7 @@ function ConnectorRow({
   isEven: boolean;
 }) {
   const hasNotImplemented = connector.stats.notImplemented > 0;
+  const permissive = isPermissiveProbe(connector.stats);
   const completionRate =
     connector.stats.total > 0
       ? Math.round(
@@ -483,6 +485,12 @@ function ConnectorRow({
   if (connector.stats.notSupported > connector.stats.supported) {
     statusColor = T.textSubtle;
     statusLabel = "Limited";
+  }
+  // Checked last so it wins: a permissive connector reports zero pending work,
+  // which would otherwise read as "Complete" — the most misleading label here.
+  if (permissive) {
+    statusColor = T.error;
+    statusLabel = "Unverified";
   }
 
   return (
@@ -534,7 +542,7 @@ function ConnectorRow({
           </a>
         </div>
         <div style={{ fontSize: 11, color: T.textMuted, marginTop: 4 }}>
-          Completion: {completionRate}%
+          Completion: {permissive ? `${completionRate}% (unverified)` : `${completionRate}%`}
         </div>
       </td>
       <td
