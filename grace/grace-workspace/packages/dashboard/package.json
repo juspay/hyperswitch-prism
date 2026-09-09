@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "predev": "tsx scripts/parse-connectors.ts",
+    "predev": "tsx scripts/parse-connectors.ts && python3 ../../../../scripts/generators/mvp/build_mvp.py",
     "dev": "vite",
-    "prebuild": "tsx scripts/parse-connectors.ts",
+    "prebuild": "tsx scripts/parse-connectors.ts && python3 ../../../../scripts/generators/mvp/build_mvp.py",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 3141",
     "typecheck": "tsc -b --noEmit"

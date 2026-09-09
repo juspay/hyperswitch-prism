@@ -1,0 +1,223 @@
+{
+  "_comment": [
+    "MVP rubric \u2014 UCS ONLY, and only signals UCS source proves outright.",
+    "No signal here may read the separate hyperswitch repo: UCS and hyperswitch are",
+    "different codebases with different connector implementations.",
+    "",
+    "Every field below is decided by a compiler-enforced declaration:",
+    "  flow  \u2014 the three-way partition in extract_flows.partition(). ConnectorServiceTrait",
+    "          has no default methods, so each connector lands in exactly one of",
+    "          impl / not_implemented / not_supported per flow, and the buckets",
+    "          provably account for all 108 connectors.",
+    "  trait \u2014 an override of an IncomingWebhook default. The defaults are inert",
+    "          (Err(WebhooksNotImplemented), Ok(false)), so override-vs-default is decidable.",
+    "  code  \u2014 an exact source pattern, verified arm-by-arm.",
+    "",
+    "is worse than a missing column:",
+    "  3DS (native)      \u2014 best signal is a ranked heuristic; 54% of connectors unknown.",
+    "                      is_three_ds() is equally the guard used to REJECT 3DS.",
+    "",
+    "TWO CONFIDENCE TIERS:",
+    "  proven      \u2014 a compiler-enforced declaration. Every cell is a fact.",
+    "                These alone determine met / gaps / effort / pct.",
+    "  best-effort \u2014 a real capability with no certain signal. Shown because the",
+    "                information is useful, EXCLUDED from scoring so it cannot",
+    "                contaminate a number presented as provable.",
+    "",
+    "STILL ABSENT (no honest signal at all): Order metadata update and Smart retry",
+    "(capabilities that do not exist in UCS), Decrypt-token/alternate-PSP (proxy_authorize",
+    "is a vault-alias proxy, a different thing), and Relay Refund/Capture (UCS is stateless,",
+    "so every refund is already relay-shaped; the columns duplicated others exactly)."
+  ],
+  "capabilities": [
+    {
+      "id": "cit",
+      "label": "CIT",
+      "description": "Customer-initiated payment.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "Authorize"
+        ],
+        "mode": "any"
+      },
+      "weight": 2,
+      "confidence": "proven"
+    },
+    {
+      "id": "mit",
+      "label": "MIT",
+      "description": "Merchant-initiated charge against a stored mandate.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "RepeatPayment"
+        ],
+        "mode": "any"
+      },
+      "weight": 5,
+      "confidence": "proven"
+    },
+    {
+      "id": "manual_capture",
+      "label": "Manual capture",
+      "description": "Separate authorize then capture.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "Capture"
+        ],
+        "mode": "any"
+      },
+      "weight": 1,
+      "confidence": "proven"
+    },
+    {
+      "id": "zero_auth",
+      "label": "$0 Auth",
+      "description": "Zero-amount authorization that stores a mandate.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "SetupMandate"
+        ],
+        "mode": "any"
+      },
+      "weight": 3,
+      "confidence": "proven"
+    },
+    {
+      "id": "void",
+      "label": "Void",
+      "description": "Cancel an authorized payment.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "Void"
+        ],
+        "mode": "any"
+      },
+      "weight": 1,
+      "confidence": "proven"
+    },
+    {
+      "id": "refunds",
+      "label": "Refunds, partial refunds",
+      "description": "Refund execution and refund sync.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "Refund",
+          "RSync"
+        ],
+        "mode": "all"
+      },
+      "weight": 2,
+      "confidence": "proven"
+    },
+    {
+      "id": "external_three_ds",
+      "label": "External 3DS",
+      "description": "Connector participates in externally-driven 3DS authentication.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "PreAuthenticate",
+          "Authenticate",
+          "PostAuthenticate"
+        ],
+        "mode": "any"
+      },
+      "weight": 8,
+      "confidence": "proven"
+    },
+    {
+      "id": "webhooks",
+      "label": "Webhooks (payments + refunds)",
+      "description": "Incoming webhook handling: the connector overrides the inert IncomingWebhook defaults.",
+      "signal": {
+        "type": "trait",
+        "methods": [
+          "get_event_type",
+          "process_payment_webhook"
+        ],
+        "mode": "any"
+      },
+      "weight": 3,
+      "confidence": "proven"
+    },
+    {
+      "id": "ntid_mit",
+      "label": "NTID support for MIT",
+      "description": "Consumes a network transaction id to authorize a merchant-initiated transaction.",
+      "signal": {
+        "type": "code",
+        "pattern": "MandateReferenceId::NetworkMandateId\\([a-z]|get_network_mandate_id\\(\\)",
+        "close_unknown": true
+      },
+      "weight": 3,
+      "confidence": "proven"
+    },
+    {
+      "id": "chargeback_notify",
+      "label": "Chargeback notification",
+      "description": "Overrides process_dispute_webhook to surface disputes.",
+      "signal": {
+        "type": "trait",
+        "methods": [
+          "process_dispute_webhook"
+        ],
+        "mode": "any"
+      },
+      "weight": 5,
+      "confidence": "proven"
+    },
+    {
+      "id": "chargeback_evidence",
+      "label": "Chargeback proof submission",
+      "description": "Submits dispute evidence to the processor.",
+      "signal": {
+        "type": "flow",
+        "flows": [
+          "SubmitEvidence"
+        ],
+        "mode": "any"
+      },
+      "weight": 5,
+      "confidence": "proven"
+    },
+    {
+      "id": "three_ds",
+      "label": "3DS (native)",
+      "description": "Native 3D Secure inside the connector's own Authorize flow. NO SINGLE CERTAIN SIGNAL EXISTS: connectors express it three different ways (stripe maps AuthenticationType::ThreeDs to a request value, checkout uses a force_3ds field, adyen an enum), and is_three_ds() is equally the guard used to REJECT 3DS. Ranked by evidence strength; connectors emitting only a generic redirect stay unknown.",
+      "signal": {
+        "type": "three_ds"
+      },
+      "weight": 5,
+      "confidence": "best-effort"
+    },
+    {
+      "id": "auto_capture",
+      "label": "Auto capture",
+      "description": "Authorize-and-capture in one call. UCS defaults CaptureMethod to Automatic, so this is the ABSENCE of an explicit refusal rather than a positive confirmation \u2014 read a high count as 'not refused', not as 'verified'.",
+      "signal": {
+        "type": "code_unless",
+        "reject": "CaptureMethod::Automatic[\\s\\S]{0,300}?(?:capture_method_not_supported|NotSupported|NotImplemented)"
+      },
+      "weight": 1,
+      "confidence": "best-effort"
+    },
+    {
+      "id": "decrypted_wallet",
+      "label": "Decrypted wallet, HS creds",
+      "description": "Apple Pay / Google Pay decrypted with Hyperswitch-held certificates. Detected from the decrypted-token types the connector consumes. Payment-method parsing is unreliable in general (a naive pass classified stripe as not supporting Card), so this is indicative, not proven.",
+      "signal": {
+        "type": "code",
+        "pattern": "ApplePayDecryptedData|ApplePayPredecryptData|GooglePayDecryptedData|PazeDecryptedData|ApplePayDecrypt\\b|GooglePayDecrypt\\b",
+        "close_unknown": true
+      },
+      "weight": 5,
+      "confidence": "best-effort"
+    }
+  ]
+}
