@@ -154,6 +154,10 @@ pub struct SamplerConfig {
     pub record_key: String,
     /// On sampler error, default to not recording.
     pub fail_closed: bool,
+    /// Budget for one policy lookup, in milliseconds; elapsed ⇒ the failure default.
+    /// Evaluation is in-process against a cached snapshot, so this only ever trips on a
+    /// stalled provider — kept for parity with hyperswitch's sampler (25 ms).
+    pub timeout_ms: u64,
 }
 
 impl Default for SamplerConfig {
@@ -161,6 +165,7 @@ impl Default for SamplerConfig {
         Self {
             record_key: "deja_record".to_string(),
             fail_closed: true,
+            timeout_ms: 25,
         }
     }
 }

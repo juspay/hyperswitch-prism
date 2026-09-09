@@ -11,13 +11,21 @@
 //! the remainder: the request id hashes to a stable bucket, so "record 8% of the payment
 //! class" is one override — hyperswitch's experiment posture, expressed in the file.
 //!
-//! The policy is resolved PER REQUEST, never memoized: the provider watches the file and
-//! refreshes its snapshot on change, so an edit to `superposition.toml` on a running pod
-//! takes effect on the next request. A memo keyed on rpc would silently serve the
-//! pre-edit policy forever — the provider's own cache is the memo, and it is the one that
-//! knows when the file moved.
+//! The policy is resolved PER REQUEST, never memoized: the provider refreshes its
+//! snapshot (a poll of the remote workspace, or a watch on the baked file), so a policy
+//! change reaches the next request. A memo keyed on rpc would silently serve the
+//! pre-change policy forever — the provider's own cache is the memo, and it is the one
+//! that knows when the source moved.
+//!
+//! The request id rides along as the experiment TARGETING KEY: on a remote source,
+//! Superposition experiments (`deja_record` CONTROL/TEST variants, ramped from the
+//! dashboard) bucket on it — hyperswitch's exact sampler posture. Without it no
+//! experiment ever applies, silently. Precedence: a `true` from an override or an
+//! experiment variant records wholesale; otherwise `deja_record_percent` samples the
+//! remainder; any failure — no source, missing key, eval error, timeout — resolves to
+//! `!fail_closed`.
 
-use std::{collections::HashSet, future::Future, pin::Pin, sync::Arc};
+use std::{collections::HashSet, future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use common_utils::{consts::Env, superposition_config::SuperpositionConfig};
 
@@ -86,6 +94,8 @@ pub struct SuperpositionRecordingSampler {
     /// `<record_key>_percent`: the percentage gate, composing with a custom key.
     percent_key: String,
     fail_closed: bool,
+    /// Per-lookup budget; elapsed ⇒ failure default (hyperswitch parity).
+    timeout_ms: u64,
     /// rpcs whose policy failure has already been warned about. Bounds each
     /// failure warn to once per rpc without caching the policy itself — a
     /// degraded snapshot must not flood the log on every request.
@@ -95,12 +105,20 @@ pub struct SuperpositionRecordingSampler {
 impl SuperpositionRecordingSampler {
     pub fn from_config(config: &ucs_env::configs::Config) -> Self {
         let sampler = &config.deja.sampler;
-        if config.superposition_config.is_none() {
-            tracing::error!(
+        match &config.superposition_config {
+            None => tracing::error!(
                 fail_closed = sampler.fail_closed,
                 "deja record mode with no sampling source (superposition.toml did not load); \
                  every request resolves to the configured failure default"
-            );
+            ),
+            Some(source) => tracing::info!(
+                source = %source.source(),
+                experiments_supported = source.experiments_supported(),
+                record_key = %sampler.record_key,
+                fail_closed = sampler.fail_closed,
+                timeout_ms = sampler.timeout_ms,
+                "deja recording sampler installed"
+            ),
         }
         Self::assemble(
             config.superposition_config.clone(),
@@ -124,12 +142,13 @@ impl SuperpositionRecordingSampler {
             percent_key: format!("{}_percent", sampler.record_key),
             record_key: sampler.record_key.clone(),
             fail_closed: sampler.fail_closed,
+            timeout_ms: sampler.timeout_ms,
             warned: std::sync::Mutex::new(HashSet::new()),
         }
     }
 
     async fn decide(&self, facts: &RequestRecordingFacts) -> bool {
-        let policy = self.policy_for(&facts.rpc).await;
+        let policy = self.policy_for(&facts.rpc, &facts.request_id).await;
         // The boolean records wholesale; the percentage samples the remainder.
         policy.record || (policy.percent > 0 && request_bucket(&facts.request_id) < policy.percent)
     }
@@ -143,7 +162,7 @@ impl SuperpositionRecordingSampler {
             .unwrap_or(true)
     }
 
-    async fn policy_for(&self, rpc: &str) -> ResolvedPolicy {
+    async fn policy_for(&self, rpc: &str, request_id: &str) -> ResolvedPolicy {
         let failure_default = !self.fail_closed;
         let failure_policy = ResolvedPolicy {
             record: failure_default,
@@ -152,17 +171,32 @@ impl SuperpositionRecordingSampler {
         let Some(superposition) = &self.superposition else {
             return failure_policy; // no-source: logged once at install
         };
-        match superposition
-            .resolve_with(
-                &[
-                    ("environment", self.environment),
-                    ("rpc_method", rpc),
-                    ("rpc_service", &rpc_service(rpc)),
-                ],
-                None,
-            )
-            .await
-        {
+        // The request id is the experiment targeting key (see the module doc); the
+        // timeout only ever trips on a stalled provider — evaluation is in-process.
+        let service = rpc_service(rpc);
+        let dimensions = [
+            ("environment", self.environment),
+            ("rpc_method", rpc),
+            ("rpc_service", service.as_str()),
+        ];
+        let lookup = superposition.resolve_with(&dimensions, Some(request_id));
+        let resolved =
+            match tokio::time::timeout(Duration::from_millis(self.timeout_ms.max(1)), lookup).await
+            {
+                Ok(resolved) => resolved,
+                Err(_elapsed) => {
+                    if self.first_warn(rpc, "timeout") {
+                        tracing::warn!(
+                            timeout_ms = self.timeout_ms,
+                            rpc = %rpc,
+                            failure_default,
+                            "deja sampler policy lookup timed out; using configured failure default"
+                        );
+                    }
+                    return failure_policy;
+                }
+            };
+        match resolved {
             Ok(resolved) => {
                 let record = match resolved.get(&self.record_key).and_then(|v| v.as_bool()) {
                     Some(decision) => decision,
@@ -296,6 +330,7 @@ deja_record = true
         ucs_env::deja_config::SamplerConfig {
             record_key: "deja_record".to_string(),
             fail_closed,
+            timeout_ms: 25,
         }
     }
 
