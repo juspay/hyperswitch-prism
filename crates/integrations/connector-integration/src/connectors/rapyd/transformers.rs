@@ -1,6 +1,6 @@
 use common_utils::{
-    ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit, FloatMajorUnit,
-    StringMajorUnit,
+    consts::NO_ERROR_CODE, ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit,
+    FloatMajorUnit, StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -29,6 +29,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt::Debug;
+use time::PrimitiveDateTime;
 use url::Url;
 
 use crate::types::ResponseRouterData;
@@ -181,8 +182,12 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status =
-                    get_status(data.status.to_owned(), data.next_action.to_owned());
+                let attempt_status = get_status(
+                    data.status.to_owned(),
+                    data.next_action
+                        .to_owned()
+                        .unwrap_or(NextAction::NotApplicable),
+                );
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
@@ -887,6 +892,10 @@ pub enum RapydPaymentStatus {
     #[default]
     #[serde(rename = "NEW")]
     New,
+    /// Any status Rapyd adds after this integration was written. Present so a
+    /// new upstream value parses instead of failing the whole response body.
+    #[serde(other)]
+    Unknown,
 }
 
 fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> common_enums::AttemptStatus {
@@ -907,6 +916,9 @@ fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> common_enu
         ) => common_enums::AttemptStatus::Voided,
         (RapydPaymentStatus::Error, _) => common_enums::AttemptStatus::Failure,
         (RapydPaymentStatus::New, _) => common_enums::AttemptStatus::Authorizing,
+        // An unrecognised upstream status is not terminal — leave the attempt
+        // pending so PSync resolves it rather than guessing an outcome.
+        (RapydPaymentStatus::Unknown, _) => common_enums::AttemptStatus::Pending,
     }
 }
 
@@ -942,14 +954,17 @@ pub struct ResponseData {
     pub id: String,
     pub amount: FloatMajorUnit,
     pub status: RapydPaymentStatus,
-    pub next_action: NextAction,
+    /// Absent on the reduced `PAYMENT_FAILED` webhook payload, hence optional.
+    /// Treated as `NextAction::NotApplicable` when missing.
+    pub next_action: Option<NextAction>,
     pub redirect_url: Option<String>,
     pub original_amount: Option<FloatMajorUnit>,
     pub is_partial: Option<bool>,
     pub currency_code: Option<common_enums::Currency>,
     pub country_code: Option<String>,
     pub captured: Option<bool>,
-    pub transaction_id: String,
+    /// Absent on the reduced `PAYMENT_FAILED` webhook payload, hence optional.
+    pub transaction_id: Option<String>,
     pub merchant_reference_id: Option<String>,
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
@@ -1063,16 +1078,23 @@ pub enum RefundStatus {
     Completed,
     Error,
     Rejected,
+    /// Documented on `refund-completed-webhook.html`; terminal.
+    Canceled,
     #[default]
     Pending,
+    /// Any refund status Rapyd adds after this integration was written.
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RefundStatus> for common_enums::RefundStatus {
     fn from(item: RefundStatus) -> Self {
         match item {
             RefundStatus::Completed => Self::Success,
-            RefundStatus::Error | RefundStatus::Rejected => Self::Failure,
-            RefundStatus::Pending => Self::Pending,
+            RefundStatus::Error | RefundStatus::Rejected | RefundStatus::Canceled => Self::Failure,
+            // An unrecognised status is not terminal — keep it pending so RSync
+            // resolves it rather than guessing success or failure.
+            RefundStatus::Pending | RefundStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -1091,6 +1113,8 @@ pub struct RefundResponseData {
     pub currency: common_enums::Currency,
     pub status: RefundStatus,
     pub created_at: Option<i64>,
+    /// Card-network error code, present on refund webhooks.
+    pub failure_code: Option<String>,
     pub failure_reason: Option<String>,
 }
 
@@ -1665,8 +1689,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status =
-                    get_status(data.status.to_owned(), data.next_action.to_owned());
+                let attempt_status = get_status(
+                    data.status.to_owned(),
+                    data.next_action
+                        .to_owned()
+                        .unwrap_or(NextAction::NotApplicable),
+                );
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
@@ -1912,8 +1940,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status =
-                    get_status(data.status.to_owned(), data.next_action.to_owned());
+                let attempt_status = get_status(
+                    data.status.to_owned(),
+                    data.next_action
+                        .to_owned()
+                        .unwrap_or(NextAction::NotApplicable),
+                );
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
@@ -1997,4 +2029,223 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ..item.router_data
         })
     }
+}
+
+// ---------------------------------------------------------------------------
+// Incoming webhooks
+// ---------------------------------------------------------------------------
+
+/// Rapyd webhook envelope.
+///
+/// Rapyd ships two envelope shapes: payment/dispute events (`id` is `wh_*`,
+/// `status` is `NEW`/`CLO`/`ERR`/`RET`, `created_at` is a unix timestamp) and
+/// refund events (`id` is a bare UUID, the `wh_*` id moves to `token`, `status`
+/// is `""` and `created_at` is `0`). Both are covered by this struct — the
+/// refund-only extra fields are simply not modelled.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RapydIncomingWebhook {
+    pub id: String,
+    #[serde(rename = "type")]
+    pub webhook_type: RapydWebhookObjectEventType,
+    pub data: WebhookData,
+    pub trigger_operation_id: Option<String>,
+    /// Delivery status of the webhook itself (`NEW` | `CLO` | `ERR` | `RET`),
+    /// empty string on the refund envelope. Not the resource status.
+    pub status: Option<String>,
+    pub created_at: Option<i64>,
+}
+
+/// The `type` discriminator on the webhook envelope.
+///
+/// Only the eight events UCS acts on are modelled; Rapyd's live catalogue is
+/// wider, so `#[serde(other)] Unknown` is mandatory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum RapydWebhookObjectEventType {
+    PaymentCompleted,
+    PaymentCaptured,
+    PaymentFailed,
+    RefundCompleted,
+    PaymentRefundRejected,
+    PaymentRefundFailed,
+    PaymentDisputeCreated,
+    PaymentDisputeUpdated,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Dispute lifecycle status, sent as a three-letter code on the dispute object.
+///
+/// The four codes below are the ones with a faithful `common_enums::DisputeStatus`
+/// counterpart. `PRA` (pre-arbitration), `ARB` (arbitration) and `REV` (reversed)
+/// deserialise to `Unknown` rather than being mapped to a guess.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+pub enum RapydWebhookDisputeStatus {
+    #[serde(rename = "ACT")]
+    Active,
+    #[serde(rename = "RVW")]
+    Review,
+    #[serde(rename = "LOS")]
+    Lose,
+    #[serde(rename = "WIN")]
+    Win,
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<RapydWebhookDisputeStatus> for domain_types::connector_types::EventType {
+    fn from(value: RapydWebhookDisputeStatus) -> Self {
+        match value {
+            RapydWebhookDisputeStatus::Active => Self::DisputeOpened,
+            RapydWebhookDisputeStatus::Review => Self::DisputeChallenged,
+            RapydWebhookDisputeStatus::Lose => Self::DisputeLost,
+            RapydWebhookDisputeStatus::Win => Self::DisputeWon,
+            RapydWebhookDisputeStatus::Unknown => Self::IncomingWebhookEventUnspecified,
+        }
+    }
+}
+
+impl RapydWebhookDisputeStatus {
+    /// `common_enums::DisputeStatus` has no "unspecified" variant, so an
+    /// unmapped Rapyd code is an error rather than a guessed status.
+    pub fn to_dispute_status(
+        self,
+    ) -> Result<common_enums::DisputeStatus, error_stack::Report<domain_types::errors::WebhookError>>
+    {
+        match self {
+            Self::Active => Ok(common_enums::DisputeStatus::DisputeOpened),
+            Self::Review => Ok(common_enums::DisputeStatus::DisputeChallenged),
+            Self::Lose => Ok(common_enums::DisputeStatus::DisputeLost),
+            Self::Win => Ok(common_enums::DisputeStatus::DisputeWon),
+            Self::Unknown => Err(error_stack::report!(
+                domain_types::errors::WebhookError::WebhookProcessingFailed
+            )
+            .attach_printable("Rapyd dispute status has no UCS DisputeStatus counterpart")),
+        }
+    }
+}
+
+/// The dispute object carried on `PAYMENT_DISPUTE_CREATED` / `PAYMENT_DISPUTE_UPDATED`.
+///
+/// `amount` is in **major** units, consistent with every other amount Rapyd
+/// sends (`ResponseData::amount` and `RefundResponseData::amount` are both
+/// `FloatMajorUnit`). Hyperswitch declared this `MinorUnit`; that would report a
+/// $10 dispute as $0.10.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct DisputeResponseData {
+    pub id: String,
+    pub amount: FloatMajorUnit,
+    pub currency: common_enums::Currency,
+    /// The `dispute_*` identifier. This — not `id` — is the dispute id UCS reports.
+    pub token: String,
+    pub dispute_reason_description: String,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub due_date: Option<PrimitiveDateTime>,
+    pub status: RapydWebhookDisputeStatus,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub created_at: Option<PrimitiveDateTime>,
+    #[serde(default, with = "common_utils::custom_serde::timestamp::option")]
+    pub updated_at: Option<PrimitiveDateTime>,
+    /// Parent payment id (`payment_*`) — the payment lookup key.
+    pub original_transaction_id: String,
+    #[serde(default)]
+    pub pre_dispute: Option<bool>,
+}
+
+/// The `data` object of a Rapyd webhook.
+///
+/// `#[serde(untagged)]` tries the variants in declaration order and takes the
+/// first that deserialises cleanly, so the order below is load-bearing and is
+/// pinned by the tests at the bottom of this file:
+///
+/// * `Dispute` first — it is the only payload carrying `token`,
+///   `original_transaction_id` and `dispute_reason_description`, all required.
+/// * `Refund` second — it is the only remaining payload carrying `payment`
+///   (the parent payment id), which is required.
+/// * `Payment` last — `ResponseData` is the most permissive of the three
+///   (`next_action`/`transaction_id` are optional so the reduced
+///   `PAYMENT_FAILED` body parses, and `RapydPaymentStatus` accepts unknown
+///   values), so it must not be tried before the other two or it would swallow
+///   refund and dispute bodies.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum WebhookData {
+    Dispute(DisputeResponseData),
+    Refund(RefundResponseData),
+    Payment(ResponseData),
+}
+
+impl From<ResponseData> for RapydPaymentsResponse {
+    fn from(value: ResponseData) -> Self {
+        Self {
+            status: Status {
+                error_code: NO_ERROR_CODE.to_owned(),
+                status: None,
+                message: None,
+                response_code: None,
+                operation_id: None,
+            },
+            data: Some(value),
+        }
+    }
+}
+
+impl From<RefundResponseData> for RefundResponse {
+    fn from(value: RefundResponseData) -> Self {
+        Self {
+            status: Status {
+                error_code: NO_ERROR_CODE.to_owned(),
+                status: None,
+                message: None,
+                response_code: None,
+                operation_id: None,
+            },
+            data: Some(value),
+        }
+    }
+}
+
+/// Maps the webhook envelope onto the UCS event taxonomy.
+///
+/// `PAYMENT_DISPUTE_UPDATED` fires on every dispute transition, so the real
+/// event has to be read from `data.status`, not from the `type` field.
+pub fn get_webhook_event_type(
+    webhook: &RapydIncomingWebhook,
+) -> domain_types::connector_types::EventType {
+    use domain_types::connector_types::EventType;
+
+    match webhook.webhook_type {
+        RapydWebhookObjectEventType::PaymentCompleted
+        | RapydWebhookObjectEventType::PaymentCaptured => EventType::PaymentIntentSuccess,
+        RapydWebhookObjectEventType::PaymentFailed => EventType::PaymentIntentFailure,
+        RapydWebhookObjectEventType::RefundCompleted => EventType::RefundSuccess,
+        RapydWebhookObjectEventType::PaymentRefundFailed
+        | RapydWebhookObjectEventType::PaymentRefundRejected => EventType::RefundFailure,
+        RapydWebhookObjectEventType::PaymentDisputeCreated => EventType::DisputeOpened,
+        RapydWebhookObjectEventType::PaymentDisputeUpdated => match &webhook.data {
+            WebhookData::Dispute(dispute_data) => EventType::from(dispute_data.status),
+            WebhookData::Payment(_) | WebhookData::Refund(_) => {
+                EventType::IncomingWebhookEventUnspecified
+            }
+        },
+        RapydWebhookObjectEventType::Unknown => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+/// Maps a webhook payment object onto an `AttemptStatus` using the same
+/// `(status, next_action)` table the Authorize / PSync / Capture paths use.
+/// `PAYMENT_FAILED` omits `next_action`; `NotApplicable` pairs with
+/// `RapydPaymentStatus::Error` to yield `AttemptStatus::Failure`.
+pub fn get_status_for_webhook(data: &ResponseData) -> common_enums::AttemptStatus {
+    get_status(
+        data.status.to_owned(),
+        data.next_action
+            .to_owned()
+            .unwrap_or(NextAction::NotApplicable),
+    )
+}
+
+/// Rapyd echoes `""` rather than `null` for unset string fields.
+pub(super) fn non_empty(value: Option<String>) -> Option<String> {
+    value.filter(|inner| !inner.is_empty())
 }

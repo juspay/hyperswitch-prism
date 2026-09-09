@@ -1,17 +1,29 @@
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use base64::Engine;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, StringMajorUnit};
+use common_utils::{
+    crypto::VerifySignature,
+    errors::CustomResult,
+    events,
+    ext_traits::{ByteSliceExt, Encode},
+    FloatMajorUnitForConnector, StringMajorUnit, StringMinorUnit,
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
         RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -42,7 +54,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, IntegrationErrorContext};
+use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -106,9 +118,339 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Rapyd<T>
 {
 }
+/// Reads a webhook header case-insensitively; Rapyd sends them lowercase but the
+/// caller's header map is not normalised.
+fn get_webhook_header<'a>(
+    headers: &'a std::collections::HashMap<String, String>,
+    header_name: &'static str,
+) -> Result<&'a str, Report<WebhookError>> {
+    headers
+        .iter()
+        .find_map(|(key, value)| {
+            key.eq_ignore_ascii_case(header_name)
+                .then_some(value.as_str())
+        })
+        .ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookMissingRequiredField { field: header_name })
+        })
+}
+
+/// Rebuilds the `url_path` component of the Rapyd webhook preimage.
+///
+/// Rapyd signs the **entire configured webhook URL**. Hyperswitch built it as
+/// `https://{host}/webhooks/{merchant_id}/rapyd`, but UCS's `verify_webhook_source`
+/// receives no merchant id, so the URL is reconstructed from what the caller
+/// actually forwards: `RequestDetails.uri` plus the `host` header.
+///
+/// * If `uri` is already absolute, it is used verbatim (query string stripped).
+/// * If `uri` is a bare path, it is composed onto `https://{host}`.
+///
+/// Precedent: `grabpay_webhook_path` in `connectors/grabpay.rs`.
+fn rapyd_webhook_url_path(request: &RequestDetails) -> Result<String, Report<WebhookError>> {
+    let uri = request.uri.as_deref().ok_or_else(|| {
+        error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "uri" })
+    })?;
+
+    if let Ok(url) = url::Url::parse(uri) {
+        let mut absolute = url.clone();
+        absolute.set_query(None);
+        absolute.set_fragment(None);
+        return Ok(absolute.as_str().trim_end_matches('/').to_string());
+    }
+
+    let host = get_webhook_header(&request.headers, "host")?;
+    let path = uri.split('?').next().unwrap_or(uri);
+    Ok(format!("https://{host}{path}"))
+}
+
+/// Assembles the Rapyd webhook HMAC preimage.
+///
+/// Exact component order, no separators:
+/// `url_path + salt + timestamp + access_key + secret_key + body_string`.
+/// `body_string` must be the RAW received bytes — re-serialising the JSON
+/// changes the whitespace and breaks verification.
+fn rapyd_webhook_preimage(
+    url_path: &str,
+    salt: &str,
+    timestamp: &str,
+    access_key: &str,
+    secret_key: &str,
+    body_string: &str,
+) -> String {
+    format!("{url_path}{salt}{timestamp}{access_key}{secret_key}{body_string}")
+}
+
+fn parse_rapyd_webhook(
+    body: &[u8],
+) -> Result<transformers::RapydIncomingWebhook, Report<WebhookError>> {
+    body.parse_struct::<transformers::RapydIncomingWebhook>("RapydIncomingWebhook")
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Rapyd<T>
 {
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)
+            .change_context(WebhookError::WebhookEventTypeNotFound)?;
+        Ok(transformers::get_webhook_event_type(&webhook))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)
+            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+
+        if matches!(
+            webhook.webhook_type,
+            transformers::RapydWebhookObjectEventType::Unknown
+        ) {
+            return Ok(None);
+        }
+
+        let reference = match webhook.data {
+            transformers::WebhookData::Payment(payment_data) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(payment_data.id),
+                    merchant_transaction_id: transformers::non_empty(
+                        payment_data.merchant_reference_id,
+                    ),
+                })
+            }
+            transformers::WebhookData::Refund(refund_data) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(refund_data.id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: Some(refund_data.payment),
+                    merchant_transaction_id: None,
+                })
+            }
+            transformers::WebhookData::Dispute(dispute_data) => {
+                WebhookResourceReference::Dispute(DisputeWebhookReference {
+                    connector_dispute_id: Some(dispute_data.token),
+                    connector_transaction_id: Some(dispute_data.original_transaction_id),
+                })
+            }
+        };
+
+        Ok(Some(reference))
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        // Rapyd has no separate webhook secret: the organization access_key /
+        // secret_key pair that signs outbound requests also signs webhooks.
+        let connector_config = connector_account_details
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+        let auth = RapydAuthType::try_from(&connector_config)
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)?;
+
+        let signature_header = get_webhook_header(&request.headers, "signature")
+            .change_context(WebhookError::WebhookSignatureNotFound)?;
+        let salt = get_webhook_header(&request.headers, "salt")?;
+        let timestamp = get_webhook_header(&request.headers, "timestamp")?;
+
+        let url_path = rapyd_webhook_url_path(&request)?;
+
+        // Rapyd double-encodes: the HMAC digest is hex-encoded to 64 ASCII
+        // characters and only then base64-encoded (URL-safe alphabet) into the
+        // header. Undo both to recover the 32 raw digest bytes.
+        let hex_ascii = BASE64_ENGINE_URL_SAFE
+            .decode(signature_header.as_bytes())
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+        let signature =
+            hex::decode(hex_ascii).change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        let body_string = String::from_utf8(request.body.clone())
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        let message = rapyd_webhook_preimage(
+            &url_path,
+            salt,
+            timestamp,
+            auth.access_key.peek(),
+            auth.secret_key.peek(),
+            &body_string,
+        );
+
+        // `HmacSha256::verify_signature` uses ring's constant-time comparison.
+        common_utils::crypto::HmacSha256
+            .verify_signature(
+                auth.secret_key.peek().as_bytes(),
+                &signature,
+                message.as_bytes(),
+            )
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)?;
+
+        let data = match webhook.data {
+            transformers::WebhookData::Payment(payment_data) => payment_data,
+            transformers::WebhookData::Refund(_) | transformers::WebhookData::Dispute(_) => {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookResourceObjectNotFound)
+                        .attach_printable("Rapyd payment webhook did not carry a payment object"),
+                )
+            }
+        };
+
+        let status = transformers::get_status_for_webhook(&data);
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(data.id.clone())),
+            status,
+            connector_response_reference_id: transformers::non_empty(
+                data.merchant_reference_id.clone(),
+            ),
+            connector_request_reference_id: None,
+            mandate_reference: None,
+            error_code: transformers::non_empty(data.failure_code.clone()),
+            error_message: transformers::non_empty(data.failure_message.clone()),
+            error_reason: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: data
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.network_reference_id.as_ref())
+                .map(|reference| reference.peek().to_owned()),
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)?;
+
+        let data = match webhook.data {
+            transformers::WebhookData::Refund(refund_data) => refund_data,
+            transformers::WebhookData::Payment(_) | transformers::WebhookData::Dispute(_) => {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookResourceObjectNotFound)
+                        .attach_printable("Rapyd refund webhook did not carry a refund object"),
+                )
+            }
+        };
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(data.id.clone()),
+            merchant_transaction_id: None,
+            status: common_enums::RefundStatus::from(data.status.clone()),
+            connector_response_reference_id: Some(data.payment.clone()),
+            error_code: transformers::non_empty(data.failure_code.clone()),
+            error_message: transformers::non_empty(data.failure_reason.clone()),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)?;
+
+        let data = match webhook.data {
+            transformers::WebhookData::Dispute(dispute_data) => dispute_data,
+            transformers::WebhookData::Payment(_) | transformers::WebhookData::Refund(_) => {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookResourceObjectNotFound)
+                        .attach_printable("Rapyd dispute webhook did not carry a dispute object"),
+                )
+            }
+        };
+
+        // Rapyd sends dispute amounts in major units (`"amount": 10` with
+        // `"currency": "USD"` is ten dollars), consistent with every other
+        // amount it sends. Convert major -> minor -> the response's
+        // StringMinorUnit.
+        let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+            &FloatMajorUnitForConnector,
+            data.amount,
+            data.currency,
+        )?;
+        let amount = domain_types::utils::convert_amount_for_webhook(
+            self.amount_converter_webhooks,
+            minor_amount,
+            data.currency,
+        )?;
+
+        Ok(DisputeWebhookDetailsResponse {
+            amount,
+            currency: data.currency,
+            // The `dispute_*` token, not `data.id` (an internal UUID).
+            dispute_id: data.token.clone(),
+            status: data.status.to_dispute_status()?,
+            stage: if data.pre_dispute.unwrap_or(false) {
+                common_enums::DisputeStage::PreDispute
+            } else {
+                common_enums::DisputeStage::Dispute
+            },
+            connector_response_reference_id: Some(data.original_transaction_id.clone()),
+            dispute_message: Some(data.dispute_reason_description.clone()),
+            connector_reason_code: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        let webhook = parse_rapyd_webhook(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+
+        // Re-encode the `data` object in the shape the flow handlers already
+        // understand, so the caller can feed it back through the existing
+        // `TryFrom<ResponseRouterData<..>>` impls.
+        let resource = match webhook.data {
+            transformers::WebhookData::Payment(payment_data) => {
+                RapydPaymentsResponse::from(payment_data)
+                    .encode_to_value()
+                    .change_context(WebhookError::WebhookResourceObjectNotFound)?
+            }
+            transformers::WebhookData::Refund(refund_data) => RefundResponse::from(refund_data)
+                .encode_to_value()
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?,
+            transformers::WebhookData::Dispute(dispute_data) => dispute_data
+                .encode_to_value()
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?,
+        };
+
+        Ok(Box::new(resource))
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"wh_sample000000000000000000000000","type":"PAYMENT_COMPLETED","data":{"id":"payment_sample0000000000000000000000","amount":10.0,"status":"CLO","next_action":"not_applicable","currency_code":"USD","captured":true,"paid":true,"transaction_id":"","merchant_reference_id":""},"trigger_operation_id":"00000000-0000-0000-0000-000000000000","status":"NEW","created_at":1711008868}"#
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Rapyd<T>
@@ -260,7 +602,8 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: StringMajorUnit
+        amount_converter: StringMajorUnit,
+        amount_converter_webhooks: StringMinorUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
