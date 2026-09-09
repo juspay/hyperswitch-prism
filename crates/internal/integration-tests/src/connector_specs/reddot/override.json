@@ -1,0 +1,54 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "capture_method": "AUTOMATIC",
+        "amount": { "minor_amount": 6000, "currency": "SGD" }
+      },
+      "assert": {
+        "status": { "one_of": ["PENDING", "AUTHENTICATION_PENDING"] }
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6000, "currency": "SGD" }
+      },
+      "assert": {
+        "status": { "one_of": ["PENDING", "AUTHENTICATION_PENDING"] }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "capture_method": "AUTOMATIC",
+        "amount": { "minor_amount": 6000, "currency": "SGD" }
+      },
+      "assert": {
+        "status": { "one_of": ["PENDING", "AUTHENTICATION_PENDING"] }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {
+        "amount": { "minor_amount": 6000, "currency": "SGD" }
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "refund_amount": { "minor_amount": 6000, "currency": "SGD" }
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "refund_amount": { "minor_amount": 3000, "currency": "SGD" }
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "refund_amount": { "minor_amount": 6000, "currency": "SGD" }
+      }
+    }
+  }
+}

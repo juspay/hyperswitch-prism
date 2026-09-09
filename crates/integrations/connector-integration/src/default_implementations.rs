@@ -295,7 +295,8 @@ default_impl_verify_webhook_source_v2!(
         Moneris,
         Ilixium,
         Worldpayraft,
-    ],
+        Reddot,    
+        ],
 );
 // PayPal has its own implementation in paypal.rs
 
@@ -475,7 +476,7 @@ default_impl_recharge_v2!(
     Worldpayxml,
     Xendit,
     Zift,
-);
+    Reddot,);
 
 // ============================================================================
 // CreatePaymentMethod / GetPaymentMethod default impls
@@ -704,7 +705,7 @@ default_impl_create_payment_method_v2!(
     Worldpayxml,
     Xendit,
     Zift,
-);
+    Reddot,);
 
 default_impl_get_payment_method_v2!(
     Citigate,
@@ -811,7 +812,7 @@ default_impl_get_payment_method_v2!(
     Worldpayxml,
     Xendit,
     Zift,
-);
+    Reddot,);
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
@@ -915,7 +916,8 @@ default_impl_payment_method_eligibility_v2!(
         Truelayer,
         Hyperswitch,
         Affirm,
-        Maya
+        Maya,
+        Reddot
     ],
 );
 
@@ -1088,4 +1090,4 @@ default_impl_refresh_payment_method_v2!(
     Worldpayxml,
     Xendit,
     Zift,
-);
+    Reddot,);

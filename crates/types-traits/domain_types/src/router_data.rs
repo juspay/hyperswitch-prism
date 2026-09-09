@@ -1000,6 +1000,12 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Reddot {
+        mid: Secret<String>,
+        secret: Secret<String>,
+        acquirer_cybersource: String,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1365,6 +1371,11 @@ impl ConnectorSpecificConfig {
             Worldpayraft {
                 license,
                 merchant_id
+            },
+            Reddot {
+                mid,
+                secret,
+                acquirer_cybersource
             },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1854,6 +1865,11 @@ impl ConnectorSpecificConfig {
                 Worldpayraft {
                     license,
                     merchant_id
+                },
+                Reddot {
+                    mid,
+                    secret,
+                    acquirer_cybersource
                 },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2504,6 +2520,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
                 base_url: worldpayraft.base_url,
+            }),
+            AuthType::Reddot(reddot) => Ok(Self::Reddot {
+                mid: reddot.mid.ok_or_else(err)?,
+                secret: reddot.secret.ok_or_else(err)?,
+                acquirer_cybersource: reddot.acquirer_cybersource,
+                base_url: reddot.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3762,6 +3784,15 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Worldpayraft {
                         license: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Reddot => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Reddot {
+                        mid: api_key.clone(),
+                        secret: key1.clone(),
+                        acquirer_cybersource: "false".to_string(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
