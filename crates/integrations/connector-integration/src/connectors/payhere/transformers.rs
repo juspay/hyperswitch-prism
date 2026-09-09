@@ -1,26 +1,19 @@
 use crate::{connectors::payhere::PayhereRouterData, types::ResponseRouterData};
-use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::request::Method;
+use common_enums::AttemptStatus;
+use common_utils::crypto::GenerateDigest;
 use domain_types::{
     connector_flow::ServerAuthenticationToken,
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundsData, RefundsResponseData, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{
-        ConnectorError, IntegrationError, IntegrationErrorContext,
-        ResponseTransformationErrorContext,
-    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
-use std::collections::HashMap;
-
-use common_utils::crypto::GenerateDigest;
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -150,171 +143,247 @@ impl
 
 // ---- Authorize ----
 
+/// Signed field set for PayHere's hosted checkout (`POST {base_url}/pay/checkout`),
+/// generated locally — see the connector doc comment: the checkout session must
+/// belong to the payer's browser, so Authorize returns these fields as a
+/// `RedirectForm::Form` rather than posting them itself. `hash`
+/// (`upper(md5(merchant_id + order_id + amount + currency + upper(md5(merchant_secret))))`)
+/// is PayHere's request signature.
+#[derive(Debug, Serialize)]
+pub struct PayherePaymentsRequest {
+    pub merchant_id: String,
+    pub return_url: String,
+    pub cancel_url: String,
+    pub notify_url: String,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: String,
+    pub phone: String,
+    pub address: String,
+    pub city: String,
+    pub country: String,
+    pub order_id: String,
+    pub items: String,
+    pub currency: String,
+    pub amount: String,
+    pub hash: String,
+}
+
+type PayhereAuthorizeRouterData<T> = RouterDataV2<
+    domain_types::connector_flow::Authorize,
+    PaymentFlowData,
+    PaymentsAuthorizeData<T>,
+    PaymentsResponseData,
+>;
+
+impl PayherePaymentsRequest {
+    fn from_router_data<
+        T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+    >(
+        router_data: &PayhereAuthorizeRouterData<T>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        use hyperswitch_masking::ExposeInterface;
+
+        match &router_data.request.payment_method_data {
+            domain_types::payment_method_data::PaymentMethodData::Wallet(
+                domain_types::payment_method_data::WalletData::PayhereRedirect {},
+            ) => {}
+            _ => {
+                return Err(error_stack::report!(IntegrationError::InvalidWallet {
+                    context: IntegrationErrorContext {
+                        suggested_action: None,
+                        doc_url: None,
+                        additional_context: Some(
+                            "payhere: only the payhere_redirect wallet is supported".to_string(),
+                        ),
+                    },
+                }))
+            }
+        }
+
+        let auth = PayhereAuthType::try_from(&router_data.connector_config).change_context(
+            IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: None,
+                    doc_url: None,
+                    additional_context: None,
+                },
+            },
+        )?;
+
+        let amount = common_utils::types::AmountConvertor::convert(
+            &common_utils::types::StringMajorUnitForConnector,
+            router_data.request.minor_amount,
+            router_data.request.currency,
+        )
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: Some("payhere: amount conversion failed".to_string()),
+            },
+        })?
+        .get_amount_as_string();
+
+        let hash_failed = || IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: Some("payhere: failed to compute checkout hash".to_string()),
+            },
+        };
+        let hash_secret = common_utils::crypto::Md5
+            .generate_digest(auth.merchant_secret.expose().as_bytes())
+            .change_context(hash_failed())?;
+        let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
+        let message = format!(
+            "{}{}{}{}{}",
+            auth.merchant_id.peek(),
+            router_data
+                .resource_common_data
+                .connector_request_reference_id,
+            amount,
+            router_data.request.currency,
+            hash_secret_upper
+        );
+        let final_hash = common_utils::crypto::Md5
+            .generate_digest(message.as_bytes())
+            .change_context(hash_failed())?;
+        let hash = hex::encode(final_hash).to_uppercase();
+
+        // The hosted checkout requires real customer billing details — fail
+        // closed when they are missing instead of posting fabricated data.
+        // Email/phone first come from the billing address block; when it lacks
+        // them, fall back to the request-level customer channel (same idiom as
+        // barclaycard/razorpay/givepayments).
+        let missing_billing = |field: &'static str| IntegrationError::MissingRequiredField {
+            field_name: field,
+            context: IntegrationErrorContext {
+                suggested_action: None,
+                doc_url: None,
+                additional_context: Some(
+                    "payhere: required (billing address block or customer object)".to_string(),
+                ),
+            },
+        };
+        let first_name = router_data
+            .resource_common_data
+            .get_billing_first_name()
+            .change_context(missing_billing("billing.first_name"))?;
+        let last_name = router_data
+            .resource_common_data
+            .get_billing_last_name()
+            .change_context(missing_billing("billing.last_name"))?;
+        let email = router_data
+            .resource_common_data
+            .get_billing_email()
+            .or_else(|_| router_data.request.get_email())
+            .change_context(missing_billing("billing.email / customer.email"))?;
+        let phone = router_data
+            .resource_common_data
+            .get_billing_phone_number()
+            .or_else(|_| {
+                router_data
+                    .request
+                    .customer
+                    .as_ref()
+                    .and_then(|customer| {
+                        customer.customer_phone_number.clone().map(|number| {
+                            match &customer.customer_phone_country_code {
+                                Some(country_code) => {
+                                    Secret::new(format!("{country_code}{}", number.peek()))
+                                }
+                                None => number,
+                            }
+                        })
+                    })
+                    .ok_or_else(domain_types::utils::missing_field_err(
+                        "customer.phone_number",
+                    ))
+            })
+            .change_context(missing_billing("billing.phone / customer.phone_number"))?;
+        let address = router_data
+            .resource_common_data
+            .get_billing_line1()
+            .change_context(missing_billing("billing.line1"))?;
+        let city = router_data
+            .resource_common_data
+            .get_billing_city()
+            .change_context(missing_billing("billing.city"))?;
+        let country = router_data
+            .resource_common_data
+            .get_billing_country()
+            .change_context(missing_billing("billing.country"))?
+            .to_string();
+
+        Ok(Self {
+            merchant_id: auth.merchant_id.peek().to_string(),
+            return_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .unwrap_or_default(),
+            cancel_url: router_data
+                .request
+                .router_return_url
+                .clone()
+                .unwrap_or_default(),
+            notify_url: router_data.request.webhook_url.clone().unwrap_or_default(),
+            first_name: first_name.expose().to_string(),
+            last_name: last_name.expose().to_string(),
+            email: email.peek().to_string(),
+            phone: phone.expose().to_string(),
+            address: address.expose().to_string(),
+            city: city.expose().to_string(),
+            country,
+            order_id: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            items: "Order".to_string(),
+            currency: router_data.request.currency.to_string(),
+            amount,
+            hash,
+        })
+    }
+}
+
 pub(crate) fn handle_authorize_response<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
-    data: &RouterDataV2<
-        domain_types::connector_flow::Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
+    data: &PayhereAuthorizeRouterData<T>,
     _event_builder: Option<&mut common_utils::events::Event>,
     _res: domain_types::router_response_types::Response,
-) -> common_utils::errors::CustomResult<
-    RouterDataV2<
-        domain_types::connector_flow::Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
-    ConnectorError,
-> {
-    use hyperswitch_masking::ExposeInterface;
-
+) -> common_utils::errors::CustomResult<PayhereAuthorizeRouterData<T>, ConnectorError> {
     let mut router_data = data.clone();
-    let item = data;
 
-    // Check payment method
-    match &item.request.payment_method_data {
-        domain_types::payment_method_data::PaymentMethodData::Wallet(
-            domain_types::payment_method_data::WalletData::PayhereRedirect {},
-        ) => {}
-        _ => {
-            return Err(error_stack::report!(
-                ConnectorError::ResponseHandlingFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: None,
-                        additional_context: Some(
-                            "payhere: only the payhere_redirect wallet is supported".to_string()
-                        )
-                    }
-                }
-            ))
-        }
-    }
-
-    let auth = PayhereAuthType::try_from(&item.connector_config).change_context(
+    let request = PayherePaymentsRequest::from_router_data(&router_data).change_context(
         ConnectorError::ResponseHandlingFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: None,
-                additional_context: None,
-            },
+            context: Default::default(),
         },
     )?;
-
-    let amount = common_utils::types::AmountConvertor::convert(
-        &common_utils::types::StringMajorUnitForConnector,
-        item.request.minor_amount,
-        item.request.currency,
-    )
-    .change_context(ConnectorError::ResponseHandlingFailed {
-        context: ResponseTransformationErrorContext {
-            http_status_code: None,
-            additional_context: None,
-        },
-    })?
-    .get_amount_as_string();
-
-    let merchant_secret = auth.merchant_secret.expose();
-    let hash_secret = common_utils::crypto::Md5
-        .generate_digest(merchant_secret.as_bytes())
-        .change_context(ConnectorError::ResponseHandlingFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: None,
-                additional_context: None,
-            },
+    let order_id = request.order_id.clone();
+    let request_value =
+        serde_json::to_value(&request).change_context(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
         })?;
-    let hash_secret_upper = hex::encode(hash_secret).to_uppercase();
-
-    let message = format!(
-        "{}{}{}{}{}",
-        auth.merchant_id.clone().expose(),
-        item.resource_common_data.connector_request_reference_id,
-        amount,
-        item.request.currency.to_string(),
-        hash_secret_upper
-    );
-    let final_hash = common_utils::crypto::Md5
-        .generate_digest(message.as_bytes())
-        .change_context(ConnectorError::ResponseHandlingFailed {
-            context: ResponseTransformationErrorContext {
-                http_status_code: None,
-                additional_context: None,
-            },
+    let form_object = request_value
+        .as_object()
+        .ok_or(ConnectorError::ResponseHandlingFailed {
+            context: Default::default(),
         })?;
-    let hash = hex::encode(final_hash).to_uppercase();
+    let form_fields = form_object
+        .iter()
+        .filter_map(|(key, value)| {
+            value
+                .as_str()
+                .map(|string| (key.clone(), string.to_string()))
+        })
+        .collect();
 
-    // The PayHere hosted checkout requires real customer billing details — fail
-    // closed when they are missing instead of posting fabricated data.
-    let missing_billing = |field: &'static str| ConnectorError::ResponseHandlingFailed {
-        context: ResponseTransformationErrorContext {
-            http_status_code: None,
-            additional_context: Some(format!("payhere: billing {field} is required for checkout")),
-        },
-    };
-    let first_name = item
-        .resource_common_data
-        .get_billing_first_name()
-        .change_context(missing_billing("first_name"))?;
-    let last_name = item
-        .resource_common_data
-        .get_billing_last_name()
-        .change_context(missing_billing("last_name"))?;
-    let email = item
-        .resource_common_data
-        .get_billing_email()
-        .change_context(missing_billing("email"))?;
-    let phone = item
-        .resource_common_data
-        .get_billing_phone_number()
-        .change_context(missing_billing("phone"))?;
-    let address = item
-        .resource_common_data
-        .get_billing_line1()
-        .change_context(missing_billing("address.line1"))?;
-    let city = item
-        .resource_common_data
-        .get_billing_city()
-        .change_context(missing_billing("city"))?;
-    let country = item
-        .resource_common_data
-        .get_billing_country()
-        .change_context(missing_billing("country"))?
-        .to_string();
-
-    let merchant_id = auth.merchant_id.expose();
-    let return_url = item.request.router_return_url.clone().unwrap_or_default();
-    let cancel_url = item.request.router_return_url.clone().unwrap_or_default();
-    let notify_url = item.request.webhook_url.clone().unwrap_or_default();
-    let order_id = item
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
-    let items = "Order".to_string();
-    let currency = item.request.currency.to_string();
-
-    let mut form_fields = HashMap::new();
-    form_fields.insert("merchant_id".to_string(), merchant_id);
-    form_fields.insert("return_url".to_string(), return_url);
-    form_fields.insert("cancel_url".to_string(), cancel_url);
-    form_fields.insert("notify_url".to_string(), notify_url);
-    form_fields.insert("first_name".to_string(), first_name.expose());
-    form_fields.insert("last_name".to_string(), last_name.expose());
-    form_fields.insert("email".to_string(), email.peek().to_string());
-    form_fields.insert("phone".to_string(), phone.expose());
-    form_fields.insert("address".to_string(), address.expose());
-    form_fields.insert("city".to_string(), city.expose());
-    form_fields.insert("country".to_string(), country);
-    form_fields.insert("order_id".to_string(), order_id);
-    form_fields.insert("items".to_string(), items);
-    form_fields.insert("currency".to_string(), currency);
-    form_fields.insert("amount".to_string(), amount);
-    form_fields.insert("hash".to_string(), hash);
-
-    // The checkout host must come from the configured base URL — the same config
-    // fed by superposition overrides — never from a hardcoded host table.
-    let base = item
+    // The checkout host must come from the configured base URL — the same
+    // config fed by superposition overrides — never from a hardcoded table.
+    let base = router_data
         .resource_common_data
         .connectors
         .payhere
@@ -323,30 +392,28 @@ pub(crate) fn handle_authorize_response<
     if base.is_empty() {
         return Err(error_stack::report!(
             ConnectorError::ResponseHandlingFailed {
-                context: ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(
-                        "payhere: connector base_url is not configured".to_string()
-                    )
-                }
+                context: Default::default(),
             }
         ));
     }
-    let endpoint = format!("{base}/pay/checkout");
-
-    let redirection_data = Some(Box::new(RedirectForm::Form {
-        endpoint,
-        method: Method::Post,
-        form_fields,
-    }));
 
     router_data.response = Ok(PaymentsResponseData::TransactionResponse {
-        resource_id: domain_types::connector_types::ResponseId::NoResponseId,
-        redirection_data,
+        // PayHere issues no payment id at checkout — the merchant-sent order_id
+        // is the only reference PayHere knows (echoed in webhooks and queried
+        // via the Retrieval API). Store it as the connector transaction id so
+        // downstream flows (PSync) have a reference to work with.
+        resource_id: domain_types::connector_types::ResponseId::ConnectorTransactionId(
+            order_id.clone(),
+        ),
+        redirection_data: Some(Box::new(RedirectForm::Form {
+            endpoint: format!("{base}/pay/checkout"),
+            method: common_utils::Method::Post,
+            form_fields,
+        })),
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
-        connector_response_reference_id: None,
+        connector_response_reference_id: Some(order_id),
         network_txn_link_id: None,
         payment_account_reference: None,
         splits: None,
@@ -420,6 +487,7 @@ impl
         router_data.response = Ok(PaymentsResponseData::TransactionResponse {
             resource_id: domain_types::connector_types::ResponseId::ConnectorTransactionId(
                 payment_data
+                    .as_ref()
                     .map(|d| d.payment_id.to_string())
                     .unwrap_or_default(),
             ),
@@ -427,7 +495,11 @@ impl
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
-            connector_response_reference_id: None,
+            // Surface PayHere's order_id as the reference id so callers that
+            // match the sync response against their tracker (euler's
+            // mandatory-PSync integrity check compares this field) see the id
+            // that was committed at authorize time.
+            connector_response_reference_id: payment_data.as_ref().map(|d| d.order_id.clone()),
             network_txn_link_id: None,
             payment_account_reference: None,
             splits: None,
@@ -435,128 +507,6 @@ impl
             status_code: item.http_code,
         });
         router_data.resource_common_data.status = status;
-
-        Ok(router_data)
-    }
-}
-
-// ---- Refund ----
-
-#[derive(Debug, Serialize)]
-pub struct PayhereRefundRequest {
-    pub payment_id: String,
-    pub description: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub amount: Option<String>,
-}
-
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<
-        PayhereRouterData<
-            RouterDataV2<
-                domain_types::connector_flow::Refund,
-                RefundFlowData,
-                RefundsData,
-                RefundsResponseData,
-            >,
-            T,
-        >,
-    > for PayhereRefundRequest
-{
-    type Error = error_stack::Report<IntegrationError>;
-    fn try_from(
-        item: PayhereRouterData<
-            RouterDataV2<
-                domain_types::connector_flow::Refund,
-                RefundFlowData,
-                RefundsData,
-                RefundsResponseData,
-            >,
-            T,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let amount = common_utils::types::AmountConvertor::convert(
-            &common_utils::types::StringMajorUnitForConnector,
-            item.router_data.request.minor_refund_amount,
-            item.router_data.request.currency,
-        )
-        .change_context(IntegrationError::RequestEncodingFailed {
-            context: IntegrationErrorContext {
-                suggested_action: None,
-                doc_url: None,
-                additional_context: None,
-            },
-        })?
-        .get_amount_as_string();
-        let router_data = item.router_data;
-        Ok(Self {
-            payment_id: router_data.request.connector_transaction_id.clone(),
-            description: router_data
-                .request
-                .reason
-                .clone()
-                .unwrap_or("Refund".to_string()),
-            amount: Some(amount),
-        })
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-pub struct PayhereRefundResponse {
-    pub status: i32,
-    pub msg: String,
-    pub data: Option<i64>,
-}
-
-impl
-    TryFrom<
-        ResponseRouterData<
-            PayhereRefundResponse,
-            RouterDataV2<
-                domain_types::connector_flow::Refund,
-                RefundFlowData,
-                RefundsData,
-                RefundsResponseData,
-            >,
-        >,
-    >
-    for RouterDataV2<
-        domain_types::connector_flow::Refund,
-        RefundFlowData,
-        RefundsData,
-        RefundsResponseData,
-    >
-{
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<
-            PayhereRefundResponse,
-            RouterDataV2<
-                domain_types::connector_flow::Refund,
-                RefundFlowData,
-                RefundsData,
-                RefundsResponseData,
-            >,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let mut router_data = item.router_data;
-
-        let status = match item.response.status {
-            1 => RefundStatus::Success,
-            -1 => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
-        };
-
-        router_data.response = Ok(RefundsResponseData {
-            connector_refund_id: item
-                .response
-                .data
-                .map(|d| d.to_string())
-                .unwrap_or_default(),
-            refund_status: status,
-            acquirer_reference_number: None,
-            status_code: item.http_code,
-        });
 
         Ok(router_data)
     }

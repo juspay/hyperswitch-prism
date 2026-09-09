@@ -7,7 +7,7 @@ use common_utils::{
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_flow::{PSync, Refund, ServerAuthenticationToken},
+    connector_flow::{PSync, ServerAuthenticationToken},
     connector_types::*,
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -21,6 +21,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, decode::BodyDecoding,
+    verification::ConnectorSourceVerificationSecrets,
 };
 use serde::Serialize;
 
@@ -53,12 +54,6 @@ macros::create_all_prerequisites!(
             flow: PSync,
             response_body: PayhereSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ),
-        (
-            flow: Refund,
-            request_body: PayhereRefundRequest,
-            response_body: PayhereRefundResponse,
-            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -135,14 +130,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn verify_webhook_source(
         &self,
         request: RequestDetails,
-        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
-        let secret = connector_webhook_secret
-            .ok_or(errors::WebhookError::WebhookSourceVerificationFailed)?;
-        let merchant_secret = std::str::from_utf8(&secret.secret).map_err(|_| {
-            error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
+        // Euler never sends `connector_webhook_secret` — source the merchant
+        // secret from the connector account config (key2) instead, same
+        // pattern as grabpay.
+        let connector_account_details = connector_account_details.ok_or_else(|| {
+            error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
         })?;
+        let auth = PayhereAuthType::try_from(&connector_account_details)
+            .change_context(errors::WebhookError::WebhookVerificationSecretInvalid)?;
+        let merchant_secret = auth.merchant_secret.expose();
         let payload: PayhereWebhookPayload =
             serde_urlencoded::from_bytes::<PayhereWebhookPayload>(&request.body).map_err(|_| {
                 error_stack::report!(errors::WebhookError::WebhookSourceVerificationFailed)
@@ -333,52 +332,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Payhere,
-    curl_request: Json(PayhereRefundRequest),
-    curl_response: PayhereRefundResponse,
-    flow_name: Refund,
-    resource_common_data: RefundFlowData,
-    flow_request: RefundsData,
-    flow_response: RefundsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, errors::IntegrationError> {
-            Ok(format!("{}/merchant/v1/payment/refund", self.base_url(&req.resource_common_data.connectors)))
-        }
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let access_token = req.resource_common_data.get_access_token().map_err(|err| {
-                errors::IntegrationError::FailedToObtainAuthType {
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some(err.to_string()),
-                        suggested_action: None,
-                        doc_url: None,
-                    },
-                }
-            })?;
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {}", access_token).into(),
-                ),
-            ])
-        }
-    }
-);
-
 macros::macro_connector_flow_status_impls!(
     connector: Payhere,
     generic_type: T,
@@ -400,6 +353,7 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         PaymentMethodToken,
         VoidPC,
+        Refund,
         RSync,
         Void,
                 RepeatPayment,
@@ -418,10 +372,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::VerifyRedirectResponse for Payhere<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     interfaces::verification::SourceVerification for Payhere<T>
 {
 }
@@ -435,10 +385,69 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::RefundV2 for Payhere<T>
+    interfaces::connector_types::ServerAuthentication for Payhere<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::ServerAuthentication for Payhere<T>
+    interfaces::connector_types::VerifyRedirectResponse for Payhere<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, errors::IntegrationError> {
+        // PayHere's return_url carries only an unsigned `order_id` — no
+        // status, no amount, nothing authoritative. Declaring the redirect
+        // response "verified" would make euler run tracker integrity checks
+        // on a dataless payload (mandatory amount check fails: "" vs stored
+        // amount → AUTHORIZATION_FAILED) and key status off nothing. Same
+        // situation as revolut: always unverified so that the caller performs
+        // a mandatory PSync — where amount/currency/txn-id checks run on the
+        // Retrieval API's real data instead.
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        request: &RequestDetails,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> CustomResult<RedirectDetailsResponse, errors::IntegrationError> {
+        // PayHere's return_url carries only an unsigned order_id — no status
+        // params, no amount. Return the reference id alone; combined with
+        // verify_redirect_response_source = false, the caller uses this just
+        // as a routing handle before doing a mandatory PSync (Retrieval API),
+        // which supplies the authoritative status and keeps tracker integrity
+        // checks on the real data.
+        let order_id = get_query_param(request, "order_id");
+        Ok(RedirectDetailsResponse {
+            resource_id: order_id.clone().map(ResponseId::ConnectorTransactionId),
+            status: None,
+            response_amount: None,
+            connector_response_reference_id: order_id,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: None,
+            connector_feature_data: None,
+        })
+    }
+}
+
+fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String> {
+    request.query_params.as_ref().and_then(|query_params| {
+        serde_json::from_str::<serde_json::Value>(query_params)
+            .ok()
+            .and_then(|value| {
+                value
+                    .as_object()
+                    .and_then(|object| object.get(param_name))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_owned)
+            })
+            .or_else(|| {
+                url::form_urlencoded::parse(query_params.as_bytes())
+                    .find(|(key, _)| key == param_name)
+                    .map(|(_, value)| value.into_owned())
+            })
+    })
 }
