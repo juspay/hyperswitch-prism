@@ -97,8 +97,40 @@
         "error": "This feature is not implemented: Only card payments are supported by saferpay. while building a Saferpay Transaction API request"
       },
       "Card": {
-        "status": "not_supported",
-        "error": "Capture method not supported. automatic capture on saferpay, whose Transaction interface has no sale mode — an authorization is always settled by an explicit Capture —"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "MANUAL",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://test.saferpay.com/api/Payment/v1/Transaction/AuthorizeDirect",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"RequestHeader\":{\"SpecVersion\":\"1.44\",\"CustomerId\":\"probe_key\",\"RequestId\":\"probe_txn_001\",\"RetryIndicator\":0},\"TerminalId\":\"probe_key\",\"Payment\":{\"Amount\":{\"Value\":\"1000\",\"CurrencyCode\":\"USD\"},\"OrderId\":\"probe_txn_001\",\"Description\":\"Payment\"},\"PaymentMeans\":{\"Card\":{\"Number\":\"4111111111111111\",\"ExpYear\":2030,\"ExpMonth\":3,\"VerificationCode\":\"737\",\"HolderName\":\"John Doe\"}}}"
+        }
       },
       "CashappQr": {
         "status": "not_implemented",

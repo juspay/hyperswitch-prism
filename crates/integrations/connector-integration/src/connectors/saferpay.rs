@@ -702,8 +702,40 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         DefendDispute,
         MandateRevoke,
-        // Both exist to hand `AuthenticationData` to a following Authorize. Saferpay's
-        // second call *is* the authorization, so it lives on Authorize instead.
+        // Saferpay exposes no authentication-only call, so there is no second or
+        // third leg for these to name.
+        //
+        // Its 3DS journey is `Transaction/Initialize` -> browser -> `Transaction/
+        // Authorize`, and the docs are explicit that the second call is the payment:
+        // "Up until now, no transaction has been made ... The transaction itself is
+        // made, with the execution of the transaction authorize request", and "the
+        // Transaction Authorize triggers the actual transaction, though it may only
+        // happen once". Its response carries `Transaction.Id`, "obligatory for
+        // capture/cancel". That is an authorization, and `PostAuthenticateResponse`
+        // (`connector_types.rs:2071`) has no `resource_id` to report one with —
+        // `pattern_postauthenticate.md:575` puts it plainly: "the subsequent Authorize
+        // is the only flow that is allowed to transition to Authorized/Charged".
+        //
+        // The whole `Payment/v1/Transaction/*` inventory was checked for a call that
+        // returns an authentication result without moving money: Initialize, Authorize,
+        // AuthorizeDirect, AuthorizeReferenced, Capture, MultipartCapture,
+        // AssertCapture, MultipartFinalize, Refund, AssertRefund, RefundDirect, Cancel,
+        // Inquire, AlternativePayment, QueryAlternativePayment, DccInquiry. There is
+        // none — no `AssertAuthorize` has ever existed. The one `Assert`-shaped
+        // result-fetch Saferpay has, `PaymentPage/Assert`, belongs to the Payment Page
+        // interface, where the authorization has *already* happened automatically
+        // ("The Assert only calls for the result").
+        //
+        // So `PreAuthenticate` (Initialize) + `Authorize` is the honest mapping, and it
+        // is one grace names for this exact shape: "Pre + Authorize only", alongside
+        // Kount, Worldpayxml, NMI and Ilixium. Adding empty `Authenticate` /
+        // `PostAuthenticate` legs would satisfy the flow-marker triplet and model
+        // nothing.
+        //
+        // Externally-run 3DS does not need them either: the merchant's result arrives on
+        // `PaymentsAuthorizeData::authentication_data` and goes out as
+        // `Authentication.ExternalThreeDS` on `AuthorizeDirect` — the zero-leg external
+        // 3DS shape, as Revolv3 does it.
         Authenticate,
         PostAuthenticate,
         IncrementalAuthorization,
