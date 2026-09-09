@@ -55,6 +55,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
 }
 
 // ===== CONNECTOR COMMON IMPLEMENTATION - Must be defined before macros =====
@@ -113,20 +114,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        // Shift4's error envelope carries the full decline picture. Dropping the
+        // network fields here would blind smart retry and the GSM error tables:
+        // `adviceCode == "do_not_try_again"` in particular is the merchant advice
+        // code that means "do not schedule a retry for this card".
+        //
+        // `attempt_status` stays `None` deliberately: this method is flow-agnostic
+        // (Refund and RSync route through it too), so stamping a payment status
+        // here would report a hard-declined refund as a terminal payment failure.
+        // Each flow's own transformer sets the concrete status.
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
                 .error
                 .code
                 .clone()
-                .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
-            message: response.error.message,
-            reason: None,
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+            message: response.error.message.clone(),
+            reason: Some(response.error.message),
             attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            connector_transaction_id: response.error.charge_id,
+            network_decline_code: response.error.issuer_decline_code,
+            network_advice_code: response.error.network_advice_code,
+            network_error_message: response.error.advice_code,
             typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -270,7 +280,23 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // Use JSON content type for authorize (matches Hyperswitch)
-            self.build_headers(req)
+            let mut header = self.build_headers(req)?;
+            // Shift4 executes a repeated POST /charges with the same
+            // `Idempotency-Key` once and replays the cached response, so a retry
+            // after a client timeout cannot double-charge. The key must therefore
+            // be stable for one logical attempt: it is taken from the caller's own
+            // request id, never freshly generated per call.
+            let idempotency_key = req
+                .resource_common_data
+                .merchant_request_id
+                .clone()
+                .unwrap_or_else(|| {
+                    req.resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
+            Ok(header)
         }
 
         fn get_url(
