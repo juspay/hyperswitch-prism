@@ -2295,29 +2295,51 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
             ))
         })?;
 
-        // Map transaction status to attempt status
+        // Map (transactionStatus, transactionType) to attempt status. Nuvei reports the
+        // settlement stage only through `transactionType`, so the pair is what decides
+        // whether funds actually moved. An unrecognised type must NOT be assumed captured:
+        // a future/undocumented type defaults to Pending so a sync never reports money as
+        // settled that Nuvei did not say was settled.
         let status = match transaction_details.transaction_status {
             Some(NuveiTransactionStatus::Approved) => {
-                // For PSync, we need to determine if it was authorized or captured
-                // Check transaction_type: "Auth" means authorized only, "Sale" means captured
                 match transaction_details.transaction_type.as_deref() {
-                    Some("Auth") => common_enums::AttemptStatus::Authorized,
+                    Some("Auth") | Some("InitAuth3D") => common_enums::AttemptStatus::Authorized,
                     Some("Sale") | Some("Settle") => common_enums::AttemptStatus::Charged,
-                    _ => common_enums::AttemptStatus::Charged, // Default to Charged for unknown types
+                    Some("Void") => common_enums::AttemptStatus::Voided,
+                    Some("Auth3D") => common_enums::AttemptStatus::AuthenticationPending,
+                    other => {
+                        tracing::warn!(
+                            transaction_type = ?other,
+                            "Nuvei PSync: APPROVED with an unrecognised transactionType; \
+                             reporting Pending rather than assuming settlement"
+                        );
+                        common_enums::AttemptStatus::Pending
+                    }
                 }
             }
-            Some(NuveiTransactionStatus::Declined) => common_enums::AttemptStatus::Failure,
-            Some(NuveiTransactionStatus::Error) => common_enums::AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                match transaction_details.transaction_type.as_deref() {
+                    Some("Auth") => common_enums::AttemptStatus::AuthorizationFailed,
+                    Some("Void") => common_enums::AttemptStatus::VoidFailed,
+                    Some("Auth3D") | Some("InitAuth3D") => {
+                        common_enums::AttemptStatus::AuthenticationFailed
+                    }
+                    _ => common_enums::AttemptStatus::Failure,
+                }
+            }
             Some(NuveiTransactionStatus::Redirect) => {
                 common_enums::AttemptStatus::AuthenticationPending
             }
             Some(NuveiTransactionStatus::Pending) => common_enums::AttemptStatus::Pending,
             _ => {
-                // If transaction_status is not present but status is SUCCESS, default to Pending
-                if matches!(response.status, NuveiPaymentStatus::Success) {
-                    common_enums::AttemptStatus::Pending
-                } else {
+                // transactionStatus absent: only an explicit FAILED/ERROR envelope is terminal.
+                if matches!(
+                    response.status,
+                    NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error
+                ) {
                     common_enums::AttemptStatus::Failure
+                } else {
+                    common_enums::AttemptStatus::Pending
                 }
             }
         };
@@ -2387,11 +2409,11 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
                 transaction_id: response.transaction_id.clone(),
             },
             item.http_code,
-            FlowStatus::Payment(common_enums::AttemptStatus::Failure),
+            FlowStatus::Payment(common_enums::AttemptStatus::CaptureFailed),
         ) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::CaptureFailed,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(error_response),
