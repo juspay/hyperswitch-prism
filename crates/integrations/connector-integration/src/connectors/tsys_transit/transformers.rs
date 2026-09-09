@@ -899,6 +899,8 @@ pub struct TsysTransitReturnResponse {
     pub transaction_id: Option<String>,
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
+    #[serde(rename = "returnedAmount", default)]
+    pub returned_amount: Option<String>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "VoidResponse")]
@@ -2688,14 +2690,41 @@ impl From<&TsysTransitTransactionDetails> for AttemptStatus {
 }
 
 
+/// TSYS's transaction-amount strings (e.g.
+/// `<transactionDetails><transactionAmount>`, only present on PSync's
+/// SearchTransactionResponse) are ambiguously formatted: sometimes a
+/// major-unit decimal string (e.g. "12.34") and sometimes an integer already
+/// expressed in minor units (e.g. "1234"). A "." is the only reliable signal
+/// to tell the two apart.
+fn parse_ambiguous_transaction_amount(
+    amount: &str,
+    currency: common_enums::Currency,
+    http_status_code: u16,
+) -> Result<MinorUnit, Report<ConnectorError>> {
+    let context = || ResponseTransformationErrorContext {
+        additional_context: Some(format!("Failed to parse transaction amount: {amount}")),
+        http_status_code: Some(http_status_code),
+    };
+
+    if amount.contains('.') {
+        let major_unit: StringMajorUnit =
+            serde_json::from_value(serde_json::Value::String(amount.to_string())).change_context(
+                ConnectorError::ResponseDeserializationFailed { context: context() },
+            )?;
+        super::TsysTransitAmountConvertor::convert_back(major_unit, currency)
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
+    } else {
+        amount
+            .parse::<i64>()
+            .map(MinorUnit::new)
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: context() })
+    }
+}
+
 /// Same settlement gate as `derive_processed_amount`, but for a raw amount
-/// string that may be ambiguously formatted: TSYS's
-/// `<transactionDetails><transactionAmount>` (only present on PSync's
-/// SearchTransactionResponse) is sometimes a major-unit decimal string (e.g.
-/// "12.34") and sometimes an integer already expressed in minor units (e.g.
-/// "1234"). A "." is the only reliable signal to tell the two apart. Returns
-/// `Ok(None)` when the transaction hasn't settled or the connector omitted
-/// the amount.
+/// string that may be ambiguously formatted — see
+/// `parse_ambiguous_transaction_amount`. Returns `Ok(None)` when the
+/// transaction hasn't settled or the connector omitted the amount.
 fn derive_transaction_amount(
     status: AttemptStatus,
     amount: Option<&str>,
@@ -2711,32 +2740,7 @@ fn derive_transaction_amount(
     }
 
     amount
-        .map(|amount| {
-            let context = || ResponseTransformationErrorContext {
-                additional_context: Some(format!("Failed to parse transaction amount: {amount}")),
-                http_status_code: Some(http_status_code),
-            };
-
-            if amount.contains('.') {
-                let major_unit: StringMajorUnit = serde_json::from_value(
-                    serde_json::Value::String(amount.to_string()),
-                )
-                .change_context(ConnectorError::ResponseDeserializationFailed {
-                    context: context(),
-                })?;
-                super::TsysTransitAmountConvertor::convert_back(major_unit, currency)
-                    .change_context(ConnectorError::ResponseDeserializationFailed {
-                        context: context(),
-                    })
-            } else {
-                amount
-                    .parse::<i64>()
-                    .map(MinorUnit::new)
-                    .change_context(ConnectorError::ResponseDeserializationFailed {
-                        context: context(),
-                    })
-            }
-        })
+        .map(|amount| parse_ambiguous_transaction_amount(amount, currency, http_status_code))
         .transpose()
 }
 
@@ -2773,7 +2777,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
             let minor_amount_captured = derive_transaction_amount(
                 status,
                 transaction_details.transaction_amount.as_deref(),
-                router_data.request.currency,
+                transaction_details.currency_code.unwrap_or(router_data.request.currency),
                 item.http_code,
             )?;
 
@@ -3103,6 +3107,10 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             acquirer_reference_number: None,
         };
 
+    let refund_amount = response.returned_amount.as_ref()
+            .map(|amount| parse_ambiguous_transaction_amount(amount, router_data.request.currency, item.http_code))
+            .transpose()?;
+
         Ok(Self {
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -3113,8 +3121,8 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
             // echoes the request's own refund amount/currency.
             request: RefundsData {
                 integrity_object: Some(RefundIntegrityObject {
-                    refund_amount: router_data.request.minor_refund_amount,
-                    currency: router_data.request.currency,
+                    refund_amount: refund_amount.unwrap_or(router_data.request.minor_refund_amount),
+                    currency: router_data.request.currency, // Not returned in ReturnResponse, so echo request's own currency
                 }),
                 ..router_data.request.clone()
             },
@@ -3122,6 +3130,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
         })
     }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TsysTransitRouterData<
