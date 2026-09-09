@@ -1,3 +1,4 @@
+pub mod signature;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -5,7 +6,8 @@ use std::fmt::Debug;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::Method, types::StringMajorUnit,
+    consts::NO_ERROR_MESSAGE, errors::CustomResult, events, ext_traits::ByteSliceExt,
+    request::Method, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
@@ -302,7 +304,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .unwrap_or_else(|_| {
                 let raw_response = String::from_utf8_lossy(&res.response);
                 let message = if raw_response.trim().is_empty() {
-                    "Unknown error from HiPay".to_string()
+                    NO_ERROR_MESSAGE.to_string()
                 } else if raw_response.len() > 200 {
                     format!("{}...", &raw_response[..200])
                 } else {
@@ -312,6 +314,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 hipay::HipayErrorResponse {
                     code: res.status_code.to_string(),
                     message,
+                    description: None,
                 }
             });
 
@@ -319,16 +322,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&error_response, "typed_connector_response");
+        // Only HiPay's `40xxxxx` codes come from the acquirer or the issuer. The `10xxxxx`
+        // and `30xxxxx` ranges are HiPay-side configuration, validation and lifecycle
+        // errors, and surfacing them as network decline codes would feed GSM retry rules
+        // declines the card networks never issued.
+        let is_network_decline = hipay::is_network_sourced_code(&error_response.code);
+        // `description` carries the actionable detail; `message` is the short headline.
+        // HiPay sends `""` rather than omitting `description` when it has nothing to add.
+        let reason = error_response
+            .description
+            .clone()
+            .filter(|description| !description.trim().is_empty())
+            .unwrap_or_else(|| error_response.message.clone());
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: error_response.code,
+            code: error_response.code.clone(),
             message: error_response.message.clone(),
-            reason: Some(error_response.message),
+            reason: Some(reason.clone()),
             attempt_status: None,
             connector_transaction_id: None,
-            network_decline_code: None,
+            network_decline_code: is_network_decline.then_some(error_response.code.clone()),
+            // HiPay publishes no advice/retry code — it has no equivalent of the Visa VAU
+            // or Mastercard MIT advice codes (`01`/`02`/`03`/`21`).
             network_advice_code: None,
-            network_error_message: None,
+            network_error_message: is_network_decline.then_some(reason),
             typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,
