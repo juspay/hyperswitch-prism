@@ -283,14 +283,26 @@ impl SuperpositionConfig {
         connector: &str,
         environment: &str,
     ) -> Result<Map<String, Value>, SuperpositionConfigError> {
-        self.resolve_with(
-            &[
-                (DIMENSION_CONNECTOR, connector),
-                (DIMENSION_ENVIRONMENT, environment),
-            ],
-            None,
-        )
-        .await
+        let dimensions = [
+            (DIMENSION_CONNECTOR, connector),
+            (DIMENSION_ENVIRONMENT, environment),
+        ];
+        // A déjà READ BOUNDARY (feature `deja`): captured on record, substituted on
+        // replay. Under a polled remote source the snapshot at replay time is not the
+        // one at record time, so the value must come from the tape or the replayed
+        // connector URL drifts off it. The sampler's `resolve_with` is deliberately not
+        // wrapped — it runs in record mode only, so there is nothing to substitute.
+        #[cfg(feature = "deja")]
+        {
+            deja_boundary::read("resolve", &dimensions, || {
+                self.resolve_with(&dimensions, None)
+            })
+            .await
+        }
+        #[cfg(not(feature = "deja"))]
+        {
+            self.resolve_with(&dimensions, None).await
+        }
     }
 
     /// Resolve with caller-supplied dimensions. `resolve` delegates here; callers
@@ -324,6 +336,130 @@ impl SuperpositionConfig {
             .resolve_all_features(context)
             .await
             .map_err(|error| SuperpositionConfigError::ResolutionError(error.to_string()))
+    }
+}
+
+/// The déjà read boundary around Superposition resolution — hyperswitch's
+/// `external_services::superposition::deja_boundary`, ported.
+///
+/// Each read is CAPTURED on record and SUBSTITUTED from the tape on replay: in replay
+/// there is no workspace to consult, and even the baked file may not be the snapshot the
+/// recording saw. The WHOLE `Result<_, SuperpositionConfigError>` round-trips
+/// ("recording threw ⇒ replay throws"). Identity is rank-2 span-path + occurrence — no
+/// call-site id — so a read matches by where in the request it happened plus its args
+/// image, exactly like the db/redis/superposition boundaries in hyperswitch.
+///
+/// A genuine tape MISS (a novel config read) returns a recoverable
+/// `Err(ResolutionError)` through `dispatch_async_or_miss` instead of the egress
+/// fail-stop, so `resolve_connector_urls` degrades to static config and the replayed
+/// request progresses. Reads only — there are no writes to wrap.
+#[cfg(feature = "deja")]
+mod deja_boundary {
+    use std::future::Future;
+
+    use serde_json::{json, Map, Value};
+
+    use super::SuperpositionConfigError;
+
+    const BOUNDARY: &str = "superposition";
+    const COMPONENT: &str = "SuperpositionConfig";
+
+    type Resolved = Result<Map<String, Value>, SuperpositionConfigError>;
+
+    pub(super) async fn read<F, Fut>(
+        operation: &'static str,
+        dimensions: &[(&str, &str)],
+        run: F,
+    ) -> Resolved
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Resolved>,
+    {
+        // Passthrough when déjà is inactive — no observation, no allocation.
+        if !deja::__private::observation_is_active() {
+            return run().await;
+        }
+
+        let caller = std::panic::Location::caller();
+        let correlation = deja::current_correlation_id();
+        let scope = format!("superposition::{operation}");
+        let identity = deja::__private::CallsiteIdentity {
+            version: 1,
+            source: deja::__private::CallsiteSource::SyntacticHash,
+            id: None,
+            scope: Some(scope.clone()),
+            occurrence: deja::__private::next_boundary_occurrence(
+                correlation.as_deref(),
+                deja::__private::CallsiteSource::SyntacticHash,
+                Some(&scope),
+            ),
+            caller_function: Some(operation.to_string()),
+            lexical_path: Some(scope.clone()),
+            syntax_hash: Some(deja::__private::stable_callsite_hash(&scope)),
+            span_path: deja::__private::current_span_path(),
+        };
+        let semantics = deja::__private::BoundarySemantics {
+            replay_strategy: deja::ReplayStrategy::Substitute,
+            kind: Some(BOUNDARY.to_string()),
+            declaration: Some(
+                deja::BoundaryDeclaration::default().operation(deja::OperationKind::ExternalCall),
+            ),
+        };
+        let spec = deja::__private::BoundarySpec::with_semantics(
+            BOUNDARY, COMPONENT, operation, semantics,
+        );
+        let observation = deja::__private::CrossingObservation::with_correlation(
+            spec,
+            identity,
+            caller,
+            correlation,
+        );
+
+        // The args image: dimensions SORTED, so the identity does not depend on
+        // caller argument order. No targeting key rides here (reads pass none).
+        let mut sorted: Vec<(String, String)> = dimensions
+            .iter()
+            .map(|(key, value)| ((*key).to_string(), (*value).to_string()))
+            .collect();
+        sorted.sort();
+        let args = json!({ "operation": operation, "dimensions": sorted });
+
+        deja::__private::dispatch_async_or_miss(
+            observation,
+            move || args,
+            run,
+            |recorded: Value| match recorded {
+                Value::Object(mut object) => {
+                    if let Some(Value::Object(map)) = object.remove("Ok") {
+                        return deja::__private::Reconstructed::Value(Ok(map));
+                    }
+                    match object
+                        .remove("Err")
+                        .map(serde_json::from_value::<SuperpositionConfigError>)
+                    {
+                        Some(Ok(error)) => deja::__private::Reconstructed::Value(Err(error)),
+                        _ => deja::__private::Reconstructed::Failed(
+                            "superposition codec: recorded payload carried neither Ok nor Err"
+                                .to_string(),
+                        ),
+                    }
+                }
+                _ => deja::__private::Reconstructed::Failed(
+                    "superposition codec: recorded payload is not an object".to_string(),
+                ),
+            },
+            |result: &Resolved| match result {
+                Ok(map) => (json!({ "Ok": map }), false),
+                Err(error) => (json!({ "Err": error }), true),
+            },
+            || {
+                Err(SuperpositionConfigError::ResolutionError(format!(
+                    "deja replay: no recorded Superposition value for `{operation}` (novel \
+                     config read); caller falls back to static config"
+                )))
+            },
+        )
+        .await
     }
 }
 
