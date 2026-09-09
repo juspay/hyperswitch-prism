@@ -37,8 +37,12 @@ const TXN_OP_CREDIT_PURCHASE: &str = "CP";
 const TXN_OP_DEBIT_PREAUTH: &str = "D";
 /// First segment of `connector_transaction_id` — original operation `POST /debit/purchase`.
 const TXN_OP_DEBIT_PURCHASE: &str = "DP";
-/// Number of `|`-separated segments in the composite `connector_transaction_id`.
-const TXN_REFERENCE_SEGMENTS: usize = 6;
+/// Number of `|`-separated segments in the composite `connector_transaction_id` as it was
+/// minted before the e-commerce indicator travelled with it. Still accepted, so every id
+/// already issued keeps parsing with exactly the meaning it had.
+const TXN_REFERENCE_SEGMENTS_LEGACY: usize = 6;
+/// Number of `|`-separated segments in the current composite `connector_transaction_id`.
+const TXN_REFERENCE_SEGMENTS: usize = 10;
 
 /// `ReturnCode` value meaning "the message itself was processed" (operation level).
 const RETURN_CODE_SUCCESS: &str = "0000";
@@ -62,8 +66,6 @@ const ENTRY_MODE_ECOMM: &str = "E-COMM";
 const POS_CONDITION_CODE_ECOMM: &str = "59";
 /// `TerminalData.TerminalEntryCap` — not applicable for e-commerce.
 const TERMINAL_ENTRY_CAP_DEFAULT: &str = "0";
-/// `E-commerceData.E-commerceIndicator` `07` — e-commerce, no 3-D Secure.
-const ECOMMERCE_INDICATOR_ECOMM_NO_3DS: &str = "07";
 
 // =============================================================================
 // AUTH TYPE
@@ -175,6 +177,253 @@ impl TryFrom<&str> for WorldpayraftAuthorizationType {
                     },
                 }
             )),
+        }
+    }
+}
+
+/// `E-commerceData.E-commerceIndicator` — the closed ten-value set that every electronic
+/// commerce transaction must carry. Verbatim from the specification: *"All electronic
+/// commerce transactions must include this field to indicate the type of transaction being
+/// performed. It can also be used to distinguish various types of Bill Payment
+/// transactions."* `maxLength: 2`.
+///
+/// This is **not** the raw network ECI. Worldpay normalises across the schemes: `05` means
+/// fully authenticated and `06` attempted whatever the brand, whereas Mastercard's own ECI
+/// set is `02`/`01`/`00` for the same three outcomes. [`Self::from_network_eci`] does that
+/// translation.
+///
+/// Note that `07` is **not** "3DS authenticated" — it explicitly says the transaction went
+/// through *neither* Verified by Visa *nor* Mastercard SecureCode. An earlier revision of
+/// this connector hardcoded `07` on every transaction and labelled it authenticated, which
+/// both mislabelled genuinely authenticated payments and threw away the recurring /
+/// installment signalling.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum WorldpayraftEcommerceIndicator {
+    /// `01` — Single transaction; the default for bill payments.
+    #[serde(rename = "01")]
+    SingleTransaction,
+    /// `02` — Recurring Transaction. A subsequent payment in an established series.
+    #[serde(rename = "02")]
+    RecurringTransaction,
+    /// `03` — Installment Payment.
+    #[serde(rename = "03")]
+    InstallmentPayment,
+    /// `05` — Verified by Visa authenticated / MasterCard SecureCode with AAV data /
+    /// Discover with CAVV data. Fully authenticated; liability shifted.
+    #[serde(rename = "05")]
+    Authenticated,
+    /// `06` — Verified by Visa attempts processing / MasterCard SecureCode with or without
+    /// AAV data / Discover with or without CAVV data. Authentication was attempted but the
+    /// issuer did not (or could not) authenticate.
+    #[serde(rename = "06")]
+    AttemptedAuthentication,
+    /// `07` — eCommerce, but neither Verified by Visa nor MasterCard SecureCode. Plain
+    /// unauthenticated e-commerce.
+    #[serde(rename = "07")]
+    NotAuthenticated,
+    /// `08` — the cardholder's payment card data was transmitted to the merchant using no
+    /// security method.
+    #[serde(rename = "08")]
+    NoSecurityMethod,
+    /// `09` — used by non-U.S. merchants to designate Secure Electronic Transaction (SET)
+    /// purchases.
+    #[serde(rename = "09")]
+    SecureElectronicTransaction,
+    /// `10` — Recurring transaction (first transaction of a recurring payment series).
+    #[serde(rename = "10")]
+    RecurringFirstOfSeries,
+    /// `20` — Token Initiated (American Express only).
+    #[serde(rename = "20")]
+    TokenInitiated,
+}
+
+impl WorldpayraftEcommerceIndicator {
+    /// The literal that goes on the wire.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::SingleTransaction => "01",
+            Self::RecurringTransaction => "02",
+            Self::InstallmentPayment => "03",
+            Self::Authenticated => "05",
+            Self::AttemptedAuthentication => "06",
+            Self::NotAuthenticated => "07",
+            Self::NoSecurityMethod => "08",
+            Self::SecureElectronicTransaction => "09",
+            Self::RecurringFirstOfSeries => "10",
+            Self::TokenInitiated => "20",
+        }
+    }
+
+    /// `true` for the two indicators that assert a 3-D Secure outcome. `3dSecureData` may
+    /// only accompany one of these: the cryptogram is what makes the transaction
+    /// authenticated, so presenting it under any other indicator contradicts itself and
+    /// RAFT rejects the pairing.
+    fn carries_authentication(self) -> bool {
+        match self {
+            Self::Authenticated | Self::AttemptedAuthentication => true,
+            Self::SingleTransaction
+            | Self::RecurringTransaction
+            | Self::InstallmentPayment
+            | Self::NotAuthenticated
+            | Self::NoSecurityMethod
+            | Self::SecureElectronicTransaction
+            | Self::RecurringFirstOfSeries
+            | Self::TokenInitiated => false,
+        }
+    }
+
+    /// Translate the **network** ECI returned by the external 3-D Secure service into the
+    /// RAFT indicator.
+    ///
+    /// Mastercard and Maestro publish `02` authenticated / `01` attempted / `00` not
+    /// authenticated; Visa, American Express and Discover publish `05` / `06` / `07`.
+    /// `E-commerceIndicator` always speaks the Visa-shaped set, so a Mastercard ECI has to
+    /// be converted rather than copied. Anything outside the two published sets is refused:
+    /// guessing here either forfeits a liability shift that was earned or claims one that
+    /// was not.
+    fn from_network_eci(
+        eci: &str,
+        brand: Option<WorldpayraftCardBrand>,
+    ) -> Result<Self, error_stack::Report<errors::IntegrationError>> {
+        let mapped = match brand {
+            Some(WorldpayraftCardBrand::Mastercard) => match eci {
+                "02" => Some(Self::Authenticated),
+                "01" => Some(Self::AttemptedAuthentication),
+                "00" => Some(Self::NotAuthenticated),
+                _ => None,
+            },
+            Some(WorldpayraftCardBrand::Visa)
+            | Some(WorldpayraftCardBrand::Amex)
+            | Some(WorldpayraftCardBrand::Discover)
+            | None => match eci {
+                "05" => Some(Self::Authenticated),
+                "06" => Some(Self::AttemptedAuthentication),
+                "07" => Some(Self::NotAuthenticated),
+                _ => None,
+            },
+        };
+        mapped.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.eci",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send the ECI the 3-D Secure server returned: 02/01/00 for \
+                         Mastercard and Maestro, 05/06/07 for Visa, American Express and \
+                         Discover"
+                            .to_string(),
+                    ),
+                    additional_context: Some(format!(
+                        "Worldpay RAFT E-commerceIndicator cannot be derived from network ECI \
+                         {eci:?} on card brand {brand:?}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })
+    }
+
+    /// Translate the 3-D Secure `transStatus` into the RAFT indicator. Used when the
+    /// authentication result carries no ECI of its own.
+    ///
+    /// Only `Y` (authenticated) and `A` (attempts processing / proof of attempted
+    /// authentication) assert an authentication to the network. Every other status —
+    /// denied, not performed, rejected, still-challenging or informational — means no
+    /// authentication was obtained, which is exactly what `07` says.
+    fn from_transaction_status(status: &common_enums::TransactionStatus) -> Self {
+        match status {
+            common_enums::TransactionStatus::Success => Self::Authenticated,
+            common_enums::TransactionStatus::NotVerified => Self::AttemptedAuthentication,
+            common_enums::TransactionStatus::Failure
+            | common_enums::TransactionStatus::VerificationNotPerformed
+            | common_enums::TransactionStatus::Rejected
+            | common_enums::TransactionStatus::ChallengeRequired
+            | common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication
+            | common_enums::TransactionStatus::InformationOnly => Self::NotAuthenticated,
+        }
+    }
+}
+
+impl From<common_enums::MitCategory> for WorldpayraftEcommerceIndicator {
+    /// The indicator for a merchant-initiated transaction.
+    ///
+    /// `02 Recurring Transaction` and `03 Installment Payment` name exactly the two
+    /// scheduled MIT shapes. An unscheduled card-on-file payment, and a resubmission of a
+    /// declined one, are neither — they are ordinary unauthenticated e-commerce, which is
+    /// what `07` says. `10` ("first transaction of a recurring payment series") belongs to
+    /// the cardholder-initiated transaction that establishes the series, never to a repeat
+    /// of it.
+    fn from(category: common_enums::MitCategory) -> Self {
+        match category {
+            common_enums::MitCategory::Recurring => Self::RecurringTransaction,
+            common_enums::MitCategory::Installment => Self::InstallmentPayment,
+            common_enums::MitCategory::Unscheduled | common_enums::MitCategory::Resubmission => {
+                Self::NotAuthenticated
+            }
+        }
+    }
+}
+
+impl TryFrom<&str> for WorldpayraftEcommerceIndicator {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    /// Rejects anything outside the published ten values.
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        [
+            Self::SingleTransaction,
+            Self::RecurringTransaction,
+            Self::InstallmentPayment,
+            Self::Authenticated,
+            Self::AttemptedAuthentication,
+            Self::NotAuthenticated,
+            Self::NoSecurityMethod,
+            Self::SecureElectronicTransaction,
+            Self::RecurringFirstOfSeries,
+            Self::TokenInitiated,
+        ]
+        .into_iter()
+        .find(|candidate| candidate.as_str() == value)
+        .ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "E-commerceIndicator",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Worldpay RAFT publishes ten E-commerceIndicator values \
+                         (01, 02, 03, 05, 06, 07, 08, 09, 10, 20); got {value:?}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })
+    }
+}
+
+/// `E-commerceData.3DSecureProgramProtocol` — the version of the 3-D Secure program the
+/// authentication was performed under. Verbatim: *"This value contains the current version
+/// of 3D secure software being used. Refer to the Mastercard processing specifications for
+/// a full list of valid values. Common values: 1 - 3D Secure Version 1.0 (3DS 1.0);
+/// 2 - EMV 3D Secure (3DS 2.0)"*. `maxLength: 1`, request only, credit only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum WorldpayraftThreeDsProgramProtocol {
+    /// `1` — 3-D Secure Version 1.0.
+    #[serde(rename = "1")]
+    ThreeDsOne,
+    /// `2` — EMV 3-D Secure (3DS 2.x).
+    #[serde(rename = "2")]
+    EmvThreeDs,
+}
+
+impl TryFrom<&common_utils::types::SemanticVersion> for WorldpayraftThreeDsProgramProtocol {
+    type Error = ();
+
+    /// The published set names only the major version. Mastercard may add values, so a
+    /// major version outside `1`/`2` is reported as unmappable and the caller omits the
+    /// optional field rather than asserting a protocol RAFT never defined — the same
+    /// treatment [`WorldpayraftSubsequentTransactionReasonCode`] gets.
+    fn try_from(version: &common_utils::types::SemanticVersion) -> Result<Self, Self::Error> {
+        match version.get_major() {
+            1 => Ok(Self::ThreeDsOne),
+            2 => Ok(Self::EmvThreeDs),
+            _ => Err(()),
         }
     }
 }
@@ -479,6 +728,31 @@ fn response_code_meaning(code: &str) -> Option<&'static str> {
     }
 }
 
+/// Published meaning of an `E-commerceData.3dSecureResult` (response only). The set is
+/// closed at fourteen values plus the documented empty string ("not set"); an unrecognised
+/// value returns `None` and is still surfaced verbatim in `connector_metadata`, exactly as
+/// [`return_code_meaning`] and [`response_code_meaning`] do for their codes.
+fn three_ds_result_meaning(code: &str) -> Option<&'static str> {
+    match code {
+        "" => Some("NOT SET"),
+        "0" => Some("CAVV AUTH RESULTS INVALID"),
+        "1" => Some("CAVV AUTH RESULTS FAILED"),
+        "2" => Some("CAVV AUTH RESULTS PASSED"),
+        "3" => Some("CAVV ATTEMPT PASSED"),
+        "4" => Some("CAVV ATTEMPT FAILED"),
+        "5" => Some("NOT APPLICABLE"),
+        "6" => Some("ISSUER NOT PARTICIPATING"),
+        "7" => Some("FAILED VALIDATION (US)"),
+        "8" => Some("PASSED VALIDATION (US)"),
+        "9" => Some("FAILED VALID. ACS U/A"),
+        "A" => Some("PASSED VALID. ACS U/A"),
+        "B" => Some("PASSED VALID. INFO ONLY"),
+        "C" => Some("ATTEMPT BYPASSED (NO KEY)"),
+        "D" => Some("AUTH BYPASSED (NO KEYS)"),
+        _ => None,
+    }
+}
+
 // =============================================================================
 // SHARED HELPERS
 // =============================================================================
@@ -571,6 +845,210 @@ fn reject_unsupported_capture_method(
 }
 
 // =============================================================================
+// EXTERNAL 3-D SECURE PASSTHROUGH
+// =============================================================================
+
+/// `3dSecureData` `maxLength`.
+const THREE_DS_DATA_MAX_LENGTH: usize = 100;
+
+/// Pad a base64 value out to a length which is a multiple of 4 with `=`.
+///
+/// Required verbatim by `3dSecureData`: *"All data is expected to be base64 encoded. If
+/// multiple base64 fields are concatenated, they must each be padded out to a length which
+/// is a multiple of 4 with equal signs."* Without it the reader cannot tell where the CAVV
+/// ends and the XID begins.
+fn pad_base64(value: &str) -> String {
+    match value.len() % 4 {
+        0 => value.to_string(),
+        remainder => format!("{value}{}", "=".repeat(4 - remainder)),
+    }
+}
+
+/// Choose the `E-commerceIndicator` for an authorize-family message.
+///
+/// With no external authentication result the payment is plain unauthenticated e-commerce,
+/// which is precisely what `07` means. With one, the network ECI is authoritative because
+/// it is the artefact that actually travels to the scheme; `transStatus` is the fallback
+/// for authentication results that carry no ECI. A result carrying neither is refused
+/// rather than quietly downgraded — a caller that sends `authentication_data` is asserting
+/// an authentication happened, and silently reporting it as unauthenticated would forfeit
+/// the liability shift it paid for.
+fn resolve_ecommerce_indicator(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+    brand: Option<WorldpayraftCardBrand>,
+) -> Result<WorldpayraftEcommerceIndicator, error_stack::Report<errors::IntegrationError>> {
+    let Some(authentication_data) = authentication_data else {
+        return Ok(WorldpayraftEcommerceIndicator::NotAuthenticated);
+    };
+    match (
+        authentication_data.eci.as_deref(),
+        authentication_data.trans_status.as_ref(),
+    ) {
+        (Some(eci), _) => WorldpayraftEcommerceIndicator::from_network_eci(eci, brand),
+        (None, Some(trans_status)) => Ok(WorldpayraftEcommerceIndicator::from_transaction_status(
+            trans_status,
+        )),
+        (None, None) => Err(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.eci",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send authentication_data.eci (or authentication_data.trans_status) \
+                         alongside the cryptogram, or omit authentication_data entirely for an \
+                         unauthenticated payment"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Worldpay RAFT derives E-commerceData.E-commerceIndicator from the \
+                         external 3-D Secure result and has no other source for it"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+        )),
+    }
+}
+
+/// The `E-commerceIndicator` for a merchant-initiated repeat payment.
+///
+/// A caller that does not classify the schedule has told us nothing that distinguishes the
+/// payment from ordinary unauthenticated e-commerce, which is what `07` means — the same
+/// reading `TerminalData.POSEnvironment` already takes of an unclassified MIT.
+fn repeat_payment_ecommerce_indicator(
+    mit_category: Option<&common_enums::MitCategory>,
+) -> WorldpayraftEcommerceIndicator {
+    mit_category
+        .cloned()
+        .map(WorldpayraftEcommerceIndicator::from)
+        .unwrap_or(WorldpayraftEcommerceIndicator::NotAuthenticated)
+}
+
+/// Assemble `E-commerceData.3dSecureData` — the base64 cryptogram bundle.
+///
+/// Per brand: *"Visa - CAVV + XID (optional); MasterCard - AAV; Discover - CAVV; American
+/// Express - AEVV + XID (optional)"*. Only Visa and American Express take the XID, so the
+/// other two brands get the cryptogram on its own. UCS models the XID as
+/// `threeds_server_transaction_id`, matching the other external-3DS connectors here.
+///
+/// `05` asserts "authenticated **with** AAV/CAVV data", so a missing cryptogram under that
+/// indicator is an error rather than an omission. `06` is published as "with or without AAV
+/// data", so an attempt with no cryptogram legitimately sends none.
+fn build_three_ds_data(
+    authentication_data: &domain_types::router_request_types::AuthenticationData,
+    brand: Option<WorldpayraftCardBrand>,
+    indicator: WorldpayraftEcommerceIndicator,
+) -> Result<Option<Secret<String>>, error_stack::Report<errors::IntegrationError>> {
+    let cryptogram = match (
+        authentication_data.cavv.as_ref(),
+        indicator == WorldpayraftEcommerceIndicator::Authenticated,
+    ) {
+        (Some(cavv), _) => pad_base64(cavv.peek()),
+        (None, true) => {
+            return Err(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "authentication_data.cavv",
+                    context: errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Send the CAVV/AAV/AEVV the 3-D Secure server returned, or send the \
+                             attempts ECI if the issuer did not authenticate"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "Worldpay RAFT E-commerceIndicator 05 means 'authenticated with AAV \
+                             / CAVV data'; the cryptogram belongs in E-commerceData.3dSecureData"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+            ))
+        }
+        (None, false) => return Ok(None),
+    };
+
+    if cryptogram.len() > THREE_DS_DATA_MAX_LENGTH {
+        return Err(error_stack::report!(
+            errors::IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.cavv",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Worldpay RAFT E-commerceData.3dSecureData has maxLength \
+                         {THREE_DS_DATA_MAX_LENGTH}; the base64 cryptogram alone is {} characters",
+                        cryptogram.len()
+                    )),
+                    ..Default::default()
+                },
+            }
+        ));
+    }
+
+    let xid = match brand {
+        Some(WorldpayraftCardBrand::Visa) | Some(WorldpayraftCardBrand::Amex) => {
+            authentication_data.threeds_server_transaction_id.as_deref()
+        }
+        Some(WorldpayraftCardBrand::Mastercard) | Some(WorldpayraftCardBrand::Discover) | None => {
+            None
+        }
+    };
+
+    let bundle = match xid {
+        Some(xid) => {
+            let combined = format!("{cryptogram}{}", pad_base64(xid));
+            // The XID is published as optional on both brands that accept it, so a bundle
+            // that will not fit keeps the cryptogram — which carries the liability shift —
+            // rather than being truncated into an unverifiable value.
+            if combined.len() > THREE_DS_DATA_MAX_LENGTH {
+                cryptogram
+            } else {
+                combined
+            }
+        }
+        None => cryptogram,
+    };
+
+    Ok(Some(Secret::new(bundle)))
+}
+
+/// Build the whole request-side `E-commerceData` block for an authorize-family message.
+///
+/// `is_debit` gates the two members the `/debit/*` schemas do not publish:
+/// `E-commerceData` there is exactly `{E-commerceIndicator, 3dSecureData}`.
+fn build_ecommerce_data(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+    brand: Option<WorldpayraftCardBrand>,
+    is_debit: bool,
+) -> Result<WorldpayraftEcommerceData, error_stack::Report<errors::IntegrationError>> {
+    let ecommerce_indicator = resolve_ecommerce_indicator(authentication_data, brand)?;
+
+    // The cryptogram and the 3DS provenance fields only make sense under an indicator that
+    // asserts an authentication; RAFT rejects `3dSecureData` presented under any other.
+    let authentication_data =
+        authentication_data.filter(|_| ecommerce_indicator.carries_authentication());
+
+    let three_ds_data = match authentication_data {
+        Some(authentication_data) => {
+            build_three_ds_data(authentication_data, brand, ecommerce_indicator)?
+        }
+        None => None,
+    };
+
+    Ok(WorldpayraftEcommerceData {
+        ecommerce_indicator,
+        three_ds_data,
+        three_ds_program_protocol: (!is_debit)
+            .then_some(authentication_data)
+            .flatten()
+            .and_then(|authentication_data| authentication_data.message_version.as_ref())
+            .and_then(|version| WorldpayraftThreeDsProgramProtocol::try_from(version).ok()),
+        three_ds_directory_server_transaction_id: (!is_debit)
+            .then_some(authentication_data)
+            .flatten()
+            .and_then(|authentication_data| authentication_data.ds_trans_id.clone()),
+    })
+}
+
+// =============================================================================
 // COMPOSITE CONNECTOR TRANSACTION ID
 // =============================================================================
 
@@ -586,8 +1064,12 @@ fn reject_unsupported_capture_method(
 /// reaches a follow-up flow. The same record is *also* published on the authorize response
 /// as structured `connector_metadata` for observability and webhook correlation.
 ///
-/// Wire format (six `|`-separated segments, none of which can contain `|`):
-/// `{C|CP|D|DP}|{APITransactionID}|{LocalDateTime}|{authorized minor amount}|{AuthorizationNumber}|{RetrievalREFNumber}`
+/// Wire format (ten `|`-separated segments, none of which can contain `|`):
+/// `{C|CP|D|DP}|{APITransactionID}|{LocalDateTime}|{authorized minor amount}|{AuthorizationNumber}|{RetrievalREFNumber}|{E-commerceIndicator}|{ReturnE-commerceIndicator}|{ReturnUCAFIndicator}|{ReturnEcommerceSecurityLevelIndicator}`
+///
+/// The first six segments are the original format and keep their exact meanings; a
+/// six-segment id minted before the e-commerce members travelled with it still parses, with
+/// the four new fields absent.
 #[derive(Debug, Clone)]
 pub(super) struct WorldpayraftTransactionReference {
     /// The endpoint the original message used. A completion or refund only needs the
@@ -613,6 +1095,22 @@ pub(super) struct WorldpayraftTransactionReference {
     /// `ReferenceTraceNumbers.RetrievalREFNumber` from the original response — the
     /// request-side lifecycle trace id, used as a secondary matching key.
     pub retrieval_ref_number: Option<String>,
+    /// `E-commerceData.E-commerceIndicator` as **sent** on the original message. Every
+    /// e-commerce message must carry the indicator, follow-ups included, and the follow-up
+    /// flows have no other channel to learn it. `None` only for a reference minted by an
+    /// operation that has no `E-commerceData` at all (tokenization) or by the pre-3DS
+    /// six-segment format.
+    pub ecommerce_indicator: Option<WorldpayraftEcommerceIndicator>,
+    /// `E-commerceData.ReturnE-commerceIndicator` from the original response — the ECI the
+    /// network settled on after a downgrade. `None` when the network left the acquirer's
+    /// indicator alone, which is the ordinary case.
+    pub return_ecommerce_indicator: Option<WorldpayraftEcommerceIndicator>,
+    /// `E-commerceData.ReturnUCAFIndicator` from the original response, replayed on
+    /// follow-ups for settlement.
+    pub return_ucaf_indicator: Option<String>,
+    /// `E-commerceData.ReturnEcommerceSecurityLevelIndicator` from the original response,
+    /// replayed on follow-ups for settlement.
+    pub return_ecommerce_security_level_indicator: Option<String>,
 }
 
 /// The financial operation a transaction was created by, and therefore the endpoint any
@@ -698,7 +1196,7 @@ impl WorldpayraftTransactionReference {
 
     fn encode(&self) -> String {
         format!(
-            "{}|{}|{}|{}|{}|{}",
+            "{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.operation.as_str(),
             self.api_transaction_id,
             self.local_date_time,
@@ -707,9 +1205,23 @@ impl WorldpayraftTransactionReference {
                 .unwrap_or_default(),
             self.authorization_number.as_deref().unwrap_or_default(),
             self.retrieval_ref_number.as_deref().unwrap_or_default(),
+            self.ecommerce_indicator
+                .map(WorldpayraftEcommerceIndicator::as_str)
+                .unwrap_or_default(),
+            self.return_ecommerce_indicator
+                .map(WorldpayraftEcommerceIndicator::as_str)
+                .unwrap_or_default(),
+            self.return_ucaf_indicator.as_deref().unwrap_or_default(),
+            self.return_ecommerce_security_level_indicator
+                .as_deref()
+                .unwrap_or_default(),
         )
     }
 
+    /// Accepts the ten-segment format and the original six-segment one. A six-segment id
+    /// was minted before the e-commerce members travelled with the reference, so its four
+    /// missing fields are genuinely unknown rather than defaulted: the follow-up simply
+    /// sends no `E-commerceData`, as it did before.
     pub(super) fn parse(raw: &str) -> Result<Self, error_stack::Report<errors::IntegrationError>> {
         let invalid = || {
             error_stack::report!(errors::IntegrationError::InvalidDataFormat {
@@ -718,7 +1230,10 @@ impl WorldpayraftTransactionReference {
                     additional_context: Some(format!(
                         "Worldpay RAFT expects the composite reference \
                          '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|\
-                         AuthorizationNumber|RetrievalREFNumber', got {raw:?}"
+                         AuthorizationNumber|RetrievalREFNumber|E-commerceIndicator|\
+                         ReturnE-commerceIndicator|ReturnUCAFIndicator|\
+                         ReturnEcommerceSecurityLevelIndicator' (or its original six-segment \
+                         form), got {raw:?}"
                     )),
                     ..Default::default()
                 },
@@ -726,26 +1241,69 @@ impl WorldpayraftTransactionReference {
         };
 
         let segments: Vec<&str> = raw.splitn(TXN_REFERENCE_SEGMENTS, '|').collect();
-        if segments.len() != TXN_REFERENCE_SEGMENTS {
+        if segments.len() != TXN_REFERENCE_SEGMENTS
+            && segments.len() != TXN_REFERENCE_SEGMENTS_LEGACY
+        {
             return Err(invalid());
         }
-        let operation =
-            WorldpayraftOriginalOperation::try_from(segments[0]).map_err(|()| invalid())?;
-        if segments[1].is_empty() || segments[2].is_empty() {
-            return Err(invalid());
-        }
-        let authorized_minor_amount = match segments[3] {
-            "" => None,
-            amount => Some(amount.parse::<i64>().map_err(|_| invalid())?),
+        let segment = |index: usize| segments.get(index).copied();
+        let required = |index: usize| segment(index).filter(|value| !value.is_empty());
+
+        let operation = WorldpayraftOriginalOperation::try_from(segment(0).ok_or_else(invalid)?)
+            .map_err(|()| invalid())?;
+        let api_transaction_id = required(1).ok_or_else(invalid)?.to_string();
+        let local_date_time = required(2).ok_or_else(invalid)?.to_string();
+        let authorized_minor_amount = match required(3) {
+            None => None,
+            Some(amount) => Some(amount.parse::<i64>().map_err(|_| invalid())?),
+        };
+        // A stored indicator that no longer parses would silently mislabel the follow-up's
+        // authentication state, so it is rejected rather than dropped.
+        let indicator = |index: usize| match required(index) {
+            None => Ok(None),
+            Some(value) => WorldpayraftEcommerceIndicator::try_from(value).map(Some),
         };
 
         Ok(Self {
             operation,
-            api_transaction_id: segments[1].to_string(),
-            local_date_time: segments[2].to_string(),
+            api_transaction_id,
+            local_date_time,
             authorized_minor_amount,
-            authorization_number: non_empty(segments[4]),
-            retrieval_ref_number: non_empty(segments[5]),
+            authorization_number: segment(4).and_then(non_empty),
+            retrieval_ref_number: segment(5).and_then(non_empty),
+            ecommerce_indicator: indicator(6)?,
+            return_ecommerce_indicator: indicator(7)?,
+            return_ucaf_indicator: segment(8).and_then(non_empty),
+            return_ecommerce_security_level_indicator: segment(9).and_then(non_empty),
+        })
+    }
+
+    /// The `E-commerceData` a follow-up message (completion, refund, reversal) carries.
+    ///
+    /// `None` when the original reference recorded no indicator — a tokenization reference,
+    /// or one in the pre-3DS six-segment format — because the block's only required member
+    /// would then have to be invented.
+    ///
+    /// The `Return*` members exist on the `/credit/*` schemas alone: `/debit/*`
+    /// `E-commerceData` is exactly `{E-commerceIndicator, 3dSecureData}`, so a debit
+    /// follow-up carries the indicator by itself.
+    fn follow_up_ecommerce_data(&self) -> Option<WorldpayraftFollowUpEcommerceData> {
+        let is_credit = !self.is_debit();
+        self.ecommerce_indicator.map(|sent| {
+            WorldpayraftFollowUpEcommerceData {
+                // What the transaction actually settled under: the network's value when it
+                // changed the indicator, otherwise the one the original message carried.
+                ecommerce_indicator: self.return_ecommerce_indicator.unwrap_or(sent),
+                return_ecommerce_indicator: is_credit
+                    .then_some(self.return_ecommerce_indicator)
+                    .flatten(),
+                return_ucaf_indicator: is_credit
+                    .then_some(self.return_ucaf_indicator.clone())
+                    .flatten(),
+                return_ecommerce_security_level_indicator: is_credit
+                    .then_some(self.return_ecommerce_security_level_indicator.clone())
+                    .flatten(),
+            }
         })
     }
 
@@ -848,10 +1406,94 @@ pub struct WorldpayraftTerminalData {
     pub pos_environment: Option<WorldpayraftPosEnvironment>,
 }
 
+/// Request-side `E-commerceData` for an authorize-family message.
+///
+/// RAFT runs **no** authentication of its own — there is no 3DS initiate, lookup, challenge
+/// or method endpoint in any of the 17 credit or 14 debit paths. Everything 3-D Secure
+/// about a RAFT payment is these fields, carrying a result some other party produced.
+///
+/// There is no separate `CAVV`, `XID`, `AAV`, `UCAF` or `ECI` request member: the
+/// cryptogram bundle is `3dSecureData` and the ECI is `E-commerceIndicator`.
+///
+/// The `/debit/*` schemas expose only `E-commerceIndicator` and `3dSecureData`; the last two
+/// members here exist on the `/credit/*` schemas alone and are left unset for debit.
 #[derive(Debug, Serialize)]
 pub struct WorldpayraftEcommerceData {
+    /// `E-commerceData.E-commerceIndicator`.
     #[serde(rename = "E-commerceIndicator")]
-    pub ecommerce_indicator: String,
+    pub ecommerce_indicator: WorldpayraftEcommerceIndicator,
+    /// `E-commerceData.3dSecureData`, `maxLength: 100` — the base64 cryptogram bundle.
+    /// Verbatim: *"Visa - CAVV + XID (optional); MasterCard - AAV; Discover - CAVV;
+    /// American Express - AEVV + XID (optional)"*, each concatenated element padded to a
+    /// length which is a multiple of 4 with equal signs.
+    ///
+    /// The description of `CardInfo.PAN` points a network-token cryptogram at a field
+    /// called `PaymentNetworkAuthenticationCryptogram`; no such field exists anywhere in
+    /// either specification. The real one is `E-commerceData.PaymentTokenAuthenticationCryptogram`,
+    /// which is not modelled here because the Authorize flow only accepts a raw card and so
+    /// never has a network-token cryptogram to put in it.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "3dSecureData")]
+    pub three_ds_data: Option<Secret<String>>,
+    /// `E-commerceData.3DSecureProgramProtocol` — credit only.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "3DSecureProgramProtocol"
+    )]
+    pub three_ds_program_protocol: Option<WorldpayraftThreeDsProgramProtocol>,
+    /// `E-commerceData.3DSecureDirectoryServerTransactionID`, `maxLength: 36` — the
+    /// dsTransID minted by the directory server during authentication. Credit only.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "3DSecureDirectoryServerTransactionID"
+    )]
+    pub three_ds_directory_server_transaction_id: Option<String>,
+}
+
+/// Request-side `E-commerceData` for a **follow-up** message — completion, refund or
+/// reversal.
+///
+/// `E-commerceIndicator` is required on every e-commerce message, follow-ups included, so
+/// the indicator the authorization went out with is replayed here. The three `Return*`
+/// members are bidirectional, not response-only: they appear in the request schema of
+/// `creditauth`, `creditpurchase`, `creditcompletion` and `creditrefund` alike, and the
+/// specification says of them *"For follow up messages such as completions and reversals,
+/// Worldpay will attempt to retrieve the original value, but this data can be sent back up
+/// to ensure it is logged for settlement reasons."*
+///
+/// `ReturnUCAFAAVData` is deliberately **not** echoed. It is the UCAF/AAV cardholder
+/// authentication cryptogram; the only channel that reaches a follow-up flow is the
+/// persisted `connector_transaction_id`, and a cryptogram does not belong in a stored
+/// identifier. Worldpay retrieves the original itself, as the same sentence says.
+///
+/// The `/debit/*` schemas carry no `Return*` member at all, so all three stay unset there.
+#[derive(Debug, Serialize)]
+pub struct WorldpayraftFollowUpEcommerceData {
+    /// `E-commerceData.E-commerceIndicator` — the indicator the transaction settled under:
+    /// whatever the network returned in `ReturnE-commerceIndicator`, else the value the
+    /// original message was sent with.
+    #[serde(rename = "E-commerceIndicator")]
+    pub ecommerce_indicator: WorldpayraftEcommerceIndicator,
+    /// `E-commerceData.ReturnE-commerceIndicator` — sent only when the network actually
+    /// changed the indicator on the original authorization.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "ReturnE-commerceIndicator"
+    )]
+    pub return_ecommerce_indicator: Option<WorldpayraftEcommerceIndicator>,
+    /// `E-commerceData.ReturnUCAFIndicator`, `maxLength: 1`.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "ReturnUCAFIndicator"
+    )]
+    pub return_ucaf_indicator: Option<String>,
+    /// `E-commerceData.ReturnEcommerceSecurityLevelIndicator`, `maxLength: 2` — the
+    /// security protocol / cardholder authentication (SLI) value actually presented to the
+    /// network.
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        rename = "ReturnEcommerceSecurityLevelIndicator"
+    )]
+    pub return_ecommerce_security_level_indicator: Option<String>,
 }
 
 /// Request-side `ReferenceTraceNumbers`.
@@ -1066,6 +1708,31 @@ pub struct WorldpayraftDiscResponseData {
     pub disc_transaction_id: Option<String>,
 }
 
+/// Response-side `E-commerceData`.
+///
+/// The credit responses carry the whole block; the debit responses carry `3dSecureResult`
+/// alone, which is why every member is optional.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorldpayraftEcommerceResponseData {
+    /// `3dSecureResult` — how the network graded the cryptogram. Response only.
+    #[serde(rename = "3dSecureResult")]
+    pub three_ds_result: Option<String>,
+    /// `ReturnE-commerceIndicator` — the ECI after any network downgrade. Absent when the
+    /// network left the indicator the acquirer sent alone.
+    #[serde(rename = "ReturnE-commerceIndicator")]
+    pub return_ecommerce_indicator: Option<String>,
+    /// `ReturnUCAFIndicator` — the UCAF indicator after any network downgrade.
+    #[serde(rename = "ReturnUCAFIndicator")]
+    pub return_ucaf_indicator: Option<String>,
+    /// `ReturnEcommerceSecurityLevelIndicator` — the SLI Worldpay presented to the network.
+    #[serde(rename = "ReturnEcommerceSecurityLevelIndicator")]
+    pub return_ecommerce_security_level_indicator: Option<String>,
+    /// `ReturnUCAFAAVData` — the UCAF/AAV value Worldpay presented to the network. A
+    /// cardholder authentication cryptogram, so it stays wrapped and is never persisted.
+    #[serde(rename = "ReturnUCAFAAVData")]
+    pub return_ucaf_aav_data: Option<Secret<String>>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorldpayraftEncryptionTokenData {
     #[serde(rename = "TokenizedPAN")]
@@ -1106,6 +1773,10 @@ pub struct WorldpayraftResponseInner {
     #[serde(rename = "DiscSpecificData")]
     pub disc_specific_data: Option<WorldpayraftDiscResponseData>,
     pub encryption_token_data: Option<WorldpayraftEncryptionTokenData>,
+    /// `E-commerceData` — the 3-D Secure outcome as the network graded it, plus the
+    /// indicators to replay on follow-up messages.
+    #[serde(rename = "E-commerceData")]
+    pub ecommerce_data: Option<WorldpayraftEcommerceResponseData>,
     /// `APITransactionID` — echoed back, left zero-padded to 16 characters.
     #[serde(rename = "APITransactionID")]
     pub api_transaction_id: Option<String>,
@@ -1305,8 +1976,22 @@ impl WorldpayraftResponseInner {
         reference: &WorldpayraftTransactionReference,
     ) -> serde_json::Value {
         let trace = self.reference_trace_numbers.as_ref();
+        let ecommerce = self.ecommerce_data.as_ref();
+        let three_ds_result = ecommerce.and_then(|data| data.three_ds_result.as_deref());
         serde_json::json!({
             "api_transaction_id": reference.api_transaction_id,
+            "ecommerce_indicator": reference.ecommerce_indicator
+                .map(WorldpayraftEcommerceIndicator::as_str),
+            // Verbatim, so a downgraded indicator Worldpay reports in an unrecognised shape
+            // is still visible even though it is not replayed on follow-ups.
+            "return_ecommerce_indicator": ecommerce
+                .and_then(|data| data.return_ecommerce_indicator.clone()),
+            "return_ucaf_indicator": ecommerce
+                .and_then(|data| data.return_ucaf_indicator.clone()),
+            "return_ecommerce_security_level_indicator": ecommerce
+                .and_then(|data| data.return_ecommerce_security_level_indicator.clone()),
+            "three_ds_result": three_ds_result,
+            "three_ds_result_meaning": three_ds_result.and_then(three_ds_result_meaning),
             "local_date_time": reference.local_date_time,
             "original_operation": reference.operation.path(),
             "is_debit": reference.is_debit(),
@@ -1333,14 +2018,19 @@ impl WorldpayraftResponseInner {
 
     /// Rebuild the composite reference from the values that were **sent** plus the trace
     /// numbers Worldpay returned.
+    ///
+    /// `ecommerce_indicator` is what the original request **sent** — RAFT does not echo it,
+    /// and it is required again on every follow-up message.
     fn to_transaction_reference(
         &self,
         operation: WorldpayraftOriginalOperation,
         api_transaction_id: String,
         local_date_time: String,
         authorized_minor_amount: Option<i64>,
+        ecommerce_indicator: Option<WorldpayraftEcommerceIndicator>,
     ) -> WorldpayraftTransactionReference {
         let trace = self.reference_trace_numbers.as_ref();
+        let ecommerce = self.ecommerce_data.as_ref();
         WorldpayraftTransactionReference {
             operation,
             api_transaction_id,
@@ -1352,6 +2042,20 @@ impl WorldpayraftResponseInner {
             retrieval_ref_number: trace
                 .and_then(|t| t.retrieval_ref_number.clone())
                 .and_then(|value| non_empty(value.trim())),
+            ecommerce_indicator,
+            // A downgraded indicator Worldpay reports in a shape this connector does not
+            // recognise is not stored — the follow-up then replays what was actually sent,
+            // which is known to be true — but the raw value is surfaced verbatim in
+            // `connector_metadata` so nothing is lost.
+            return_ecommerce_indicator: ecommerce
+                .and_then(|data| data.return_ecommerce_indicator.as_deref())
+                .and_then(|value| WorldpayraftEcommerceIndicator::try_from(value).ok()),
+            return_ucaf_indicator: ecommerce
+                .and_then(|data| data.return_ucaf_indicator.as_deref())
+                .and_then(non_empty),
+            return_ecommerce_security_level_indicator: ecommerce
+                .and_then(|data| data.return_ecommerce_security_level_indicator.as_deref())
+                .and_then(non_empty),
         }
     }
 }
@@ -1660,6 +2364,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id,
         );
 
+        // RAFT runs no authentication step of its own — it is external-3DS passthrough
+        // only. Whatever result the merchant (or Hyperswitch's own authentication service)
+        // obtained elsewhere arrives as `authentication_data`, and both the indicator and
+        // the cryptogram are derived from it instead of being hardcoded.
+        let ecommerce_data = build_ecommerce_data(
+            router_data.request.authentication_data.as_ref(),
+            WorldpayraftCardBrand::resolve(card),
+            is_debit,
+        )?;
+
         let inner = WorldpayraftCardAuthInner {
             misc_amounts_balances: WorldpayraftAmounts {
                 transaction_amount,
@@ -1678,9 +2392,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 terminal_entry_cap: TERMINAL_ENTRY_CAP_DEFAULT.to_string(),
                 pos_environment,
             },
-            ecommerce_data: WorldpayraftEcommerceData {
-                ecommerce_indicator: ECOMMERCE_INDICATOR_ECOMM_NO_3DS.to_string(),
-            },
+            ecommerce_data,
             proc_flags_indicators,
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id,
@@ -1740,11 +2452,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
+        // RAFT never echoes `E-commerceIndicator`, yet every follow-up message — completion,
+        // refund, reversal — has to carry it again. It is recomputed here from the same
+        // request fields the outbound message was built from, exactly as
+        // `APITransactionID` is, and travels on the composite reference.
+        let card_brand = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(card) => WorldpayraftCardBrand::resolve(card),
+            _ => None,
+        };
+        let ecommerce_indicator = resolve_ecommerce_indicator(
+            item.router_data.request.authentication_data.as_ref(),
+            card_brand,
+        )
+        .change_context(errors::ConnectorError::ResponseHandlingFailed {
+            context: errors::ResponseTransformationErrorContext {
+                http_status_code: Some(item.http_code),
+                additional_context: Some(
+                    "Worldpay RAFT approved the authorization but its E-commerceIndicator could \
+                     no longer be derived, leaving no indicator for the completion, refund or \
+                     reversal to replay"
+                        .to_string(),
+                ),
+            },
+        })?;
+
         let reference = inner.to_transaction_reference(
             WorldpayraftOriginalOperation::from_parts(is_debit, is_auto_capture),
             api_transaction_id,
             get_local_datetime(),
             authorized_minor_amount,
+            Some(ecommerce_indicator),
         );
         let status = if is_auto_capture {
             AttemptStatus::Charged
@@ -1788,6 +2525,11 @@ pub struct WorldpayraftCompletionInner {
     pub misc_amounts_balances: WorldpayraftAmounts,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_trace_numbers: Option<WorldpayraftRequestTraceNumbers>,
+    /// `E-commerceData` — the indicator the original authorization settled under, plus the
+    /// network's `Return*` values. Every e-commerce message must carry the indicator, and
+    /// Worldpay logs the `Return*` members from a follow-up for settlement.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "E-commerceData")]
+    pub ecommerce_data: Option<WorldpayraftFollowUpEcommerceData>,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     /// The **original** authorization's `APITransactionID`, replayed verbatim.
@@ -1916,6 +2658,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 dispensed_amount: None,
             },
             reference_trace_numbers: reference.follow_up_trace_numbers(),
+            ecommerce_data: reference.follow_up_ecommerce_data(),
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id: reference.api_transaction_id.clone(),
             local_date_time: reference.local_date_time.clone(),
@@ -1969,7 +2712,6 @@ impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
                          transaction reference is no longer available"
                             .to_string(),
                     ),
-                    ..Default::default()
                 },
             })?;
 
@@ -2020,6 +2762,11 @@ pub struct WorldpayraftReversalInner {
     /// `RetrievalREFNumber`) received on the original response, replayed here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_trace_numbers: Option<WorldpayraftRequestTraceNumbers>,
+    /// `E-commerceData` — the indicator the original authorization settled under, plus the
+    /// network's `Return*` values. Every e-commerce message must carry the indicator, and
+    /// Worldpay logs the `Return*` members from a follow-up for settlement.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "E-commerceData")]
+    pub ecommerce_data: Option<WorldpayraftFollowUpEcommerceData>,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     /// The **original** transaction's `APITransactionID`, replayed verbatim. This is how
@@ -2223,6 +2970,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 dispensed_amount,
             },
             reference_trace_numbers: reference.follow_up_trace_numbers(),
+            ecommerce_data: reference.follow_up_ecommerce_data(),
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id: reference.api_transaction_id.clone(),
             local_date_time: reference.local_date_time.clone(),
@@ -2309,6 +3057,11 @@ pub struct WorldpayraftRefundInner {
     pub misc_amounts_balances: WorldpayraftAmounts,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_trace_numbers: Option<WorldpayraftRequestTraceNumbers>,
+    /// `E-commerceData` — the indicator the original authorization settled under, plus the
+    /// network's `Return*` values. Every e-commerce message must carry the indicator, and
+    /// Worldpay logs the `Return*` members from a follow-up for settlement.
+    #[serde(skip_serializing_if = "Option::is_none", rename = "E-commerceData")]
+    pub ecommerce_data: Option<WorldpayraftFollowUpEcommerceData>,
     #[serde(rename = "WorldPayMerchantID")]
     pub world_pay_merchant_id: Secret<String>,
     /// The **original** payment's `APITransactionID`, replayed so Worldpay can match the
@@ -2400,6 +3153,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 dispensed_amount: None,
             },
             reference_trace_numbers: reference.follow_up_trace_numbers(),
+            ecommerce_data: reference.follow_up_ecommerce_data(),
             world_pay_merchant_id: auth.merchant_id,
             api_transaction_id: reference.api_transaction_id.clone(),
             local_date_time: reference.local_date_time.clone(),
@@ -2453,7 +3207,6 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
                     "Worldpay RAFT refund could not re-encode its connector transaction reference"
                         .to_string(),
                 ),
-                ..Default::default()
             },
         })?;
         let refund_reference = inner.to_transaction_reference(
@@ -2461,6 +3214,9 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
             reference.api_transaction_id.clone(),
             reference.local_date_time.clone(),
             reference.authorized_minor_amount,
+            // A refund inherits the e-commerce indicator of the payment it reverses; the
+            // refund message itself is not separately authenticated.
+            reference.ecommerce_indicator,
         );
 
         Ok(Self {
@@ -2619,7 +3375,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                              EncryptionTokenData.TokenizedPAN to store as the mandate reference"
                                 .to_string(),
                         ),
-                        ..Default::default()
                     },
                 })
             })?;
@@ -2636,6 +3391,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id,
             ),
             get_local_datetime(),
+            None,
+            // `tokenize` has no `E-commerceData` member at all, so there is no indicator to
+            // record and nothing for a follow-up to replay.
             None,
         );
 
@@ -2999,7 +3757,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 pos_environment: Some(pos_environment),
             },
             ecommerce_data: WorldpayraftEcommerceData {
-                ecommerce_indicator: ECOMMERCE_INDICATOR_ECOMM_NO_3DS.to_string(),
+                ecommerce_indicator: repeat_payment_ecommerce_indicator(mit_category.as_ref()),
+                // A merchant-initiated transaction has no cardholder present to
+                // authenticate, so it carries no 3-D Secure artefacts of its own; the
+                // original CIT's authentication is what the stored credential rests on.
+                three_ds_data: None,
+                three_ds_program_protocol: None,
+                three_ds_directory_server_transaction_id: None,
             },
             proc_flags_indicators: WorldpayraftProcFlagsIndicators {
                 mastercard_advice_code_indicator: Some(WorldpayraftFlag::Yes),
@@ -3067,6 +3831,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             get_local_datetime(),
             Some(item.router_data.request.minor_amount.get_amount_as_i64()),
+            Some(repeat_payment_ecommerce_indicator(
+                item.router_data.request.mit_category.as_ref(),
+            )),
         );
 
         Ok(Self {

@@ -511,9 +511,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,
-        Authenticate,
-        PostAuthenticate,
-        PreAuthenticate,
         PaymentMethodToken,
         PSync,
         RSync,
@@ -524,6 +521,16 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     ],
     not_supported: [
         Accept,
+        // Worldpay Native RAFT performs no authentication step of its own: there is no 3DS
+        // initiation, lookup, challenge, device-data-collection, method-URL or
+        // authentication-result path among the 17 credit or 14 debit endpoints. It is
+        // external-3DS passthrough only — the merchant (or Hyperswitch's own authentication
+        // service) authenticates elsewhere and hands the cryptogram, ECI and DS transaction
+        // id to Authorize inside `E-commerceData`. There is no API to implement these
+        // against, so they are not_supported rather than merely not_implemented.
+        Authenticate,
+        PostAuthenticate,
+        PreAuthenticate,
         DefendDispute,
         IncrementalAuthorization,
         SubmitEvidence,
