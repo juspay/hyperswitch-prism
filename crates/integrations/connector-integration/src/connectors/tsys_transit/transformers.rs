@@ -41,6 +41,7 @@ use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRou
 use crate::types::ResponseRouterData;
 
 const DEFAULT_CANCELLATION_REASON: &str = "POST_AUTH_USER_DECLINE";
+const PARTIAL_TRANSACTION_AMOUNT_PROCESSED: &str = "A0002";
 
 #[derive(Debug, Serialize, Clone, Copy)]
 #[serde(rename_all = "UPPERCASE")]
@@ -2467,12 +2468,12 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
         // (no capture yet; the capture flow will move the approved amount).
         (
             Some(TsysTransitStatus::Pass),
-            Some("A0002"),
+            Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED),
             TsysTransitAuthorizeResponse::SaleResponse(_),
         ) => AttemptStatus::PartialCharged,
         (
             Some(TsysTransitStatus::Pass),
-            Some("A0002"),
+            Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED),
             TsysTransitAuthorizeResponse::AuthResponse(_),
         ) => AttemptStatus::PartiallyAuthorized,
         (Some(TsysTransitStatus::Fail), _, _) => AttemptStatus::Failure,
@@ -2656,38 +2657,48 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-impl From<&TsysTransitTransactionDetails> for AttemptStatus {
-    fn from(item: &TsysTransitTransactionDetails) -> Self {
+    fn get_payment_status_from_psync_response(item: &TsysTransitTransactionDetails, response_code: Option<String>) -> AttemptStatus {
         let transaction_type = item.transaction_type.to_lowercase();
         if transaction_type.contains("auth") && transaction_type.contains("void") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Voided,
+                Some(TsysTransitTransactionStatus::Approved) => AttemptStatus::Voided,
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::VoidFailed,
-                None => Self::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::VoidFailed,
+                None => AttemptStatus::Unspecified,
             }
         } else if transaction_type.contains("sale") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Charged,
+                Some(TsysTransitTransactionStatus::Approved) => {
+                    if response_code.map(|response_code_data| response_code_data.eq(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)).unwrap_or(false) {
+                        AttemptStatus::PartialCharged
+                    } else {
+                        AttemptStatus::Charged
+                    }
+                },
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::Failure,
-                None => Self::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::Failure,
+                None => AttemptStatus::Unspecified,
             }
         } else if transaction_type.contains("auth") {
             match item.transaction_status {
-                Some(TsysTransitTransactionStatus::Approved) => Self::Authorized,
+                Some(TsysTransitTransactionStatus::Approved) => 
+                 if response_code.map(|response_code_data| response_code_data.eq(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)).unwrap_or(false) {
+                        AttemptStatus::PartiallyAuthorized
+                    } else {
+                        AttemptStatus::Authorized
+                    }
+                ,
                 Some(TsysTransitTransactionStatus::Decline)
                 | Some(TsysTransitTransactionStatus::Cancel)
-                | Some(TsysTransitTransactionStatus::Void) => Self::AuthorizationFailed,
-                None => Self::Unspecified,
+                | Some(TsysTransitTransactionStatus::Void) => AttemptStatus::AuthorizationFailed,
+                None => AttemptStatus::Unspecified,
             }
         } else {
-            Self::Unspecified
+            AttemptStatus::Unspecified
         }
     }
-}
 
 
 /// TSYS's transaction-amount strings (e.g.
@@ -2759,7 +2770,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         if let Some(transaction_details) = response.transaction_details.as_ref() {
             // Incase of failure error message is not returned in sync call
             let connector_transaction_id = transaction_details.transaction_i_d.clone();
-            let status = AttemptStatus::from(transaction_details);
+            let status = get_payment_status_from_psync_response(transaction_details, response.response_code.clone());
             let payments_response_data = PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
                 redirection_data: None,
@@ -2883,7 +2894,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn map_capture_status(response: &TsysTransitCaptureResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Charged,
-        (Some(TsysTransitStatus::Pass), Some("A0002")) => AttemptStatus::PartialCharged,
+        (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => AttemptStatus::PartialCharged,
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::CaptureFailed,
         _ => AttemptStatus::CaptureFailed,
     }
@@ -3043,7 +3054,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn map_refund_status(response: &TsysTransitReturnResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
-        (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002" | "A0014")) => RefundStatus::Success,
+        (Some(TsysTransitStatus::Pass), Some("A0000" | PARTIAL_TRANSACTION_AMOUNT_PROCESSED | "A0014")) => RefundStatus::Success,
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
         _ => RefundStatus::Failure,
     }
@@ -3349,7 +3360,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 fn map_void_post_refund_status(response: &TsysTransitVoidPostRefundResponse) -> RefundStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
-        (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002")) => RefundStatus::Success,
+        (Some(TsysTransitStatus::Pass), Some("A0000" | PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => RefundStatus::Success,
         (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
         _ => RefundStatus::Failure,
     }
@@ -3515,7 +3526,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 fn map_void_status(response: &TsysTransitVoidResponse) -> AttemptStatus {
     match (response.status.as_ref(), response.response_code.as_deref()) {
         (Some(TsysTransitStatus::Pass), Some("A0000")) => AttemptStatus::Voided,
-        (Some(TsysTransitStatus::Pass), Some("A0002")) => AttemptStatus::Voided,
+        (Some(TsysTransitStatus::Pass), Some(PARTIAL_TRANSACTION_AMOUNT_PROCESSED)) => AttemptStatus::Voided,
         (Some(TsysTransitStatus::Fail), _) => AttemptStatus::VoidFailed,
         _ => AttemptStatus::VoidFailed,
     }
