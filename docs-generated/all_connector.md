@@ -162,7 +162,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Billwerk](connectors/billwerk.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | ✓ | x | x | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Bluesnap](connectors/bluesnap.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Boost](connectors/boost.md) | ✓ | ⚠ | x | x | x | ? | x | ⚠ | ⚠ | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
-| [Braintree](connectors/braintree.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | x | ? | ✓ | x | ⚠ | ? | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
+| [Braintree](connectors/braintree.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | x | ? | ✓ | x | ⚠ | ? | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Calida](connectors/calida.md) | ✓ | x | x | x | ⚠ | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Cashfree](connectors/cashfree.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [CashtoCode](connectors/cashtocode.md) | ⚠ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
