@@ -741,7 +741,6 @@ impl Payments {
             log_fields: &config.log_fields.outgoing,
         };
 
-        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -750,7 +749,7 @@ impl Payments {
                 None,
                 event_params,
                 token_data,
-                call_connector_action,
+                common_enums::CallConnectorAction::Trigger,
                 test_context,
                 api_tag,
             ),
@@ -1162,7 +1161,7 @@ impl PaymentService for Payments {
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
-                    let consume_or_trigger_flow = connector_integration.get_call_connector_action();
+                    let consume_or_trigger_flow = common_enums::CallConnectorAction::Trigger;
 
                     let response_result = Box::pin(
                         external_services::service::execute_connector_processing_step(
@@ -2612,7 +2611,6 @@ impl PaymentMethod {
             log_fields: &config.log_fields.outgoing,
         };
 
-        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -2621,7 +2619,7 @@ impl PaymentMethod {
                 None,
                 event_params,
                 token_data,
-                call_connector_action,
+                common_enums::CallConnectorAction::Trigger,
                 test_context,
                 api_tag,
             ),
@@ -2759,7 +2757,6 @@ impl PaymentMethod {
             log_fields: &config.log_fields.outgoing,
         };
 
-        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -2768,7 +2765,7 @@ impl PaymentMethod {
                 None,
                 event_params,
                 None,
-                call_connector_action,
+                common_enums::CallConnectorAction::Trigger,
                 test_context,
                 api_tag,
             ),
@@ -2882,7 +2879,6 @@ impl MerchantAuthentication {
         };
 
         // Execute connector processing
-        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -2891,7 +2887,7 @@ impl MerchantAuthentication {
                 None,
                 external_event_params,
                 None,
-                call_connector_action,
+                common_enums::CallConnectorAction::Trigger,
                 test_context,
                 api_tag,
             ),
@@ -3026,7 +3022,6 @@ impl MerchantAuthentication {
             log_fields: &config.log_fields.outgoing,
         };
 
-        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -3035,7 +3030,7 @@ impl MerchantAuthentication {
                 None,
                 external_event_params,
                 None,
-                call_connector_action,
+                common_enums::CallConnectorAction::Trigger,
                 test_context,
                 api_tag,
             ),
@@ -3564,7 +3559,6 @@ impl RecurringPaymentService for RecurringPayments {
             log_fields: &config.log_fields.outgoing,
                     };
 
-                    let call_connector_action = connector_integration.get_call_connector_action();
                     let response = Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
@@ -3573,7 +3567,7 @@ impl RecurringPaymentService for RecurringPayments {
                             None,
                             event_params,
                             None, // token_data - None for non-proxy payments
-                            call_connector_action,
+                            common_enums::CallConnectorAction::Trigger,
                             test_context,
                             api_tag,
                         ),
