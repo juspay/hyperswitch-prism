@@ -13,7 +13,8 @@
     "PaymentMethodAuthenticationService/PostAuthenticate",
     "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/SetupRecurring",
-    "PaymentService/Void"
+    "PaymentService/Void",
+    "EventService/HandleEvent"
   ],
   "unsupported_scenarios": {
     "PaymentMethodAuthenticationService/PreAuthenticate": {

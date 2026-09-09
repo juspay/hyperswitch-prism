@@ -1648,7 +1648,7 @@ fn build_redirection_data(next_action: &Option<AirwallexNextAction>) -> Option<B
 }
 
 // Helper function to get payment status from Airwallex status (following Hyperswitch pattern)
-fn get_payment_status(
+pub(super) fn get_payment_status(
     status: &AirwallexPaymentStatus,
     next_action: &Option<AirwallexNextAction>,
 ) -> AttemptStatus {
@@ -2002,14 +2002,14 @@ pub struct AirwallexRefundResponse {
     pub payment_intent_id: Option<String>,  // Original payment intent ID
     pub payment_attempt_id: Option<String>, // Original payment attempt ID
     pub amount: Option<FloatMajorUnit>,
-    pub currency: Option<Currency>,                 // Currency code
-    pub reason: Option<String>,                     // Refund reason
-    pub status: AirwallexRefundStatus,              // RECEIVED, ACCEPTED, SETTLED, FAILED
-    pub created_at: Option<String>,                 // Creation timestamp
-    pub updated_at: Option<String>,                 // Update timestamp
-    pub acquirer_reference_number: Option<String>,  // Network reference
-    pub failure_details: Option<serde_json::Value>, // Error details if failed
-    pub metadata: Option<serde_json::Value>,        // Additional metadata
+    pub currency: Option<Currency>,                // Currency code
+    pub reason: Option<String>,                    // Refund reason
+    pub status: AirwallexRefundStatus,             // RECEIVED, ACCEPTED, SETTLED, FAILED
+    pub created_at: Option<String>,                // Creation timestamp
+    pub updated_at: Option<String>,                // Update timestamp
+    pub acquirer_reference_number: Option<String>, // Network reference
+    pub failure_details: Option<AirwallexFailureDetails>, // Error details if failed
+    pub metadata: Option<serde_json::Value>,       // Additional metadata
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2019,6 +2019,18 @@ pub enum AirwallexRefundStatus {
     Accepted,
     Settled,
     Failed,
+}
+
+/// Airwallex's `failure_details` object, as carried by a failed Refund and by a failed
+/// PaymentAttempt.
+///
+/// Documented shape is `{code, message, trace_id, details}`. Only `code` and `message` are
+/// consumed — they are the `error_code` / `error_message` a caller can act on — so `trace_id`
+/// and `details` are left unmodelled rather than deserialised and dropped.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AirwallexFailureDetails {
+    pub code: Option<String>,
+    pub message: Option<String>,
 }
 
 // Request transformer for Refund flow

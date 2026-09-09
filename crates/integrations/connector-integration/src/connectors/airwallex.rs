@@ -1,10 +1,15 @@
 pub mod transformers;
+pub mod webhooks;
 
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    crypto::VerifySignature,
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    types::{FloatMajorUnit, StringMajorUnit, StringMinorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -13,12 +18,13 @@ use domain_types::{
         Void,
     },
     connector_types::{
-        ConnectorCustomerData, ConnectorCustomerResponse, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsPreAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        ConnectorCustomerData, ConnectorCustomerResponse, ConnectorWebhookSecrets,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -50,11 +56,16 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const X_API_VERSION: &str = "x-api-version";
+    /// Incoming-webhook headers. Airwallex sends them lowercase and `RequestDetails.headers`
+    /// is looked up verbatim, so these are the exact keys on the wire.
+    pub(crate) const X_SIGNATURE: &str = "x-signature";
+    pub(crate) const X_TIMESTAMP: &str = "x-timestamp";
 }
 
 /// The Airwallex API version every `/pa/*` call is pinned to.
@@ -141,9 +152,190 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+/// Airwallex incoming webhooks.
+///
+/// Not a `ConnectorIntegrationV2` flow — there is no flow marker and no macro entry. The methods
+/// split across the two `EventService` RPCs, and the split is load-bearing:
+///
+/// * `ParseEvent` is **stateless and has no secrets**: [`Self::get_event_type`] and
+///   [`Self::get_webhook_event_reference`] read the body and nothing else.
+/// * `HandleEvent` has the merchant's secrets: [`Self::verify_webhook_source`] and the three
+///   `process_*_webhook` methods.
+///
+/// Airwallex acknowledges with a bare HTTP 200, which is the trait default, so
+/// `get_webhook_api_response` is deliberately not overridden.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Airwallex<T>
 {
+    /// The signed digest, from the `x-signature` header (lowercase hex).
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let signature = request
+            .headers
+            .get(headers::X_SIGNATURE)
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))
+            .attach_printable("missing x-signature header on the incoming Airwallex webhook")?;
+
+        hex::decode(signature.trim())
+            .change_context(WebhookError::WebhookVerificationSecretInvalid)
+            .attach_printable("the Airwallex x-signature header is not valid lowercase hex")
+    }
+
+    /// The signed preimage: the `x-timestamp` header bytes **exactly as received**, concatenated
+    /// with the **raw, unmodified** request body. No separator, timestamp first.
+    ///
+    /// Both halves matter. Re-rendering the timestamp (parsing it to an integer and printing it
+    /// back) or re-serialising the body through `serde_json` changes the bytes that were signed
+    /// and every signature then fails — which is why this runs before any JSON parsing.
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let timestamp = request
+            .headers
+            .get(headers::X_TIMESTAMP)
+            .ok_or_else(|| {
+                error_stack::report!(WebhookError::WebhookMissingRequiredField {
+                    field: "x-timestamp"
+                })
+            })
+            .attach_printable("missing x-timestamp header on the incoming Airwallex webhook")?;
+
+        let mut message = Vec::with_capacity(timestamp.len() + request.body.len());
+        message.extend_from_slice(timestamp.as_bytes());
+        message.extend_from_slice(&request.body);
+        Ok(message)
+    }
+
+    /// HMAC-SHA256 over that preimage, keyed with the per-notification-URL subscription secret.
+    ///
+    /// The secret is one per notification URL, not one per merchant account, so
+    /// `ConnectorWebhookSecrets.secret` is the only place it can come from — there is no
+    /// account-wide fallback to reach for, and a missing secret is reported rather than treated
+    /// as "unsigned, therefore fine". Airwallex's secret is an opaque printable string, so its
+    /// raw UTF-8 bytes are the HMAC key: it is neither hex- nor base64-decoded first.
+    ///
+    /// The comparison is `ring::hmac::verify`, which is constant-time.
+    ///
+    /// Freshness is deliberately **not** checked. Airwallex publishes no tolerance value and
+    /// retries a failed delivery over about three days, so rejecting on age would drop
+    /// legitimate redeliveries.
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let connector_webhook_secrets = connector_webhook_secret
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))
+            .attach_printable(
+                "no webhook subscription secret configured for Airwallex source verification",
+            )?;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        common_utils::crypto::HmacSha256
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("failed to verify the HMAC-SHA256 over the Airwallex webhook")
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
+        // An empty body carries no event. Reporting it as unspecified rather than a decoding
+        // failure keeps a probe or a keep-alive from surfacing as an error.
+        if request.body.is_empty() {
+            return Ok(domain_types::connector_types::EventType::IncomingWebhookEventUnspecified);
+        }
+        Ok(webhooks::parse_webhook_event(&request.body)?
+            .name
+            .event_type())
+    }
+
+    /// Overriding this is not optional: the trait default is `Ok(None)`, which compiles and then
+    /// silently resolves every webhook to a null reference.
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Option<domain_types::connector_types::WebhookResourceReference>,
+        error_stack::Report<WebhookError>,
+    > {
+        if request.body.is_empty() {
+            return Ok(None);
+        }
+        let event = webhooks::parse_webhook_event(&request.body)?;
+        webhooks::webhook_reference(&event)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<
+        domain_types::connector_types::WebhookDetailsResponse,
+        error_stack::Report<WebhookError>,
+    > {
+        let event = webhooks::parse_webhook_event(&request.body)?;
+        webhooks::build_payment_webhook_response(&event, &request.body, self.amount_converter_major)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<
+        domain_types::connector_types::RefundWebhookDetailsResponse,
+        error_stack::Report<WebhookError>,
+    > {
+        let event = webhooks::parse_webhook_event(&request.body)?;
+        webhooks::build_refund_webhook_response(&event, &request.body)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<
+        domain_types::connector_types::DisputeWebhookDetailsResponse,
+        error_stack::Report<WebhookError>,
+    > {
+        let event = webhooks::parse_webhook_event(&request.body)?;
+        webhooks::build_dispute_webhook_response(
+            &event,
+            &request.body,
+            self.amount_converter_major,
+            self.amount_converter_webhooks,
+        )
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let event = webhooks::parse_webhook_event(&request.body)?;
+        Ok(Box::new(event.data.object))
+    }
+
+    /// The field probe calls this to prove webhook handling is wired up, so it has to be a body
+    /// this connector's own parser accepts: a `payment_intent.succeeded` envelope.
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"evt_probe_0000000000000001","name":"payment_intent.succeeded","account_id":"acct_probe","data":{"object":{"id":"int_probe000000000001","merchant_order_id":"probe_order_001","amount":10.00,"currency":"USD","captured_amount":10.00,"status":"SUCCEEDED","created_at":"2026-01-01T00:00:00+0000","updated_at":"2026-01-01T00:00:00+0000"}}}"#
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -314,7 +506,13 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: StringMajorUnit
+        // Outbound request amounts: Airwallex takes major-unit decimal strings.
+        amount_converter: StringMajorUnit,
+        // Inbound webhook amounts: Airwallex sends major-unit decimals (`"amount": 16.66`), so
+        // this is the converter that turns them back into `MinorUnit`.
+        amount_converter_major: FloatMajorUnit,
+        // `DisputeWebhookDetailsResponse.amount` is a minor-unit string; this renders it.
+        amount_converter_webhooks: StringMinorUnit
     ],
     member_functions: {
         /// Build headers with OAuth Bearer token - works for all flow types.

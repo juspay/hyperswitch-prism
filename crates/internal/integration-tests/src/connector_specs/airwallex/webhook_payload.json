@@ -1,0 +1,128 @@
+{
+  "_webhook_config": {
+    "signature_location": "header",
+    "signature_header": "x-signature",
+    "signature_algorithm": "airwallex_hmac_sha256",
+    "signature_encoding": "hex",
+    "webhook_secret_key": "webhook_secret",
+    "secret_format": "raw_utf8",
+    "signed_preimage": "x-timestamp header bytes concatenated with the raw request body, no separator"
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "x-timestamp": "1357872222592"
+        },
+        "body": {
+          "id": "evt_100_2019102201549020043_8321220011893766",
+          "name": "payment_intent.succeeded",
+          "account_id": "acct_BGEVPKSxP9OjzQGbwxVEKA",
+          "data": {
+            "object": {
+              "id": "int_hkpdxmj6wggosga04nr",
+              "request_id": "confirm_test_payment_001",
+              "merchant_order_id": "test_payment_001",
+              "amount": 20.0,
+              "currency": "USD",
+              "captured_amount": 20.0,
+              "status": "SUCCEEDED",
+              "created_at": "2026-01-13T07:32:05+0000",
+              "updated_at": "2026-01-13T07:33:11+0000"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_webhook_intent_succeeded_001"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "x-timestamp": "1357872222592"
+        },
+        "body": {
+          "id": "evt_100_2019102201549020044_8321220011893767",
+          "name": "payment_attempt.authorization_failed",
+          "account_id": "acct_BGEVPKSxP9OjzQGbwxVEKA",
+          "data": {
+            "object": {
+              "id": "att_hkpdcpcvbgh8mw11111_wkgwfs",
+              "payment_intent_id": "int_hkpdxmj6wggosga04nr",
+              "merchant_order_id": "test_payment_001",
+              "amount": 20.0,
+              "currency": "USD",
+              "status": "FAILED",
+              "failure_code": "card_declined",
+              "failure_details": {
+                "code": "card_declined",
+                "message": "The card was declined by the issuer.",
+                "trace_id": "trace_test_001"
+              },
+              "provider_original_response_description": "DO NOT HONOR",
+              "created_at": "2026-01-13T07:32:05+0000",
+              "updated_at": "2026-01-13T07:32:09+0000"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_webhook_attempt_auth_failed_001"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "x-timestamp": "1357872222592"
+        },
+        "body": {
+          "id": "evt_100_2019102201549020045_8321220011893768",
+          "name": "refund.settled",
+          "account_id": "acct_BGEVPKSxP9OjzQGbwxVEKA",
+          "data": {
+            "object": {
+              "id": "rfd_aaaanqn5bgh8mnssssh_ga04nr",
+              "request_id": "refund_test_refund_001",
+              "payment_intent_id": "int_hkpdxmj6wggosga04nr",
+              "payment_attempt_id": "att_hkpdxmj6wggosgaaniy_ga04nr",
+              "amount": 20.0,
+              "currency": "USD",
+              "reason": "Return good",
+              "status": "SETTLED",
+              "created_at": "2026-01-13T07:40:02+0000",
+              "updated_at": "2026-01-13T07:41:02+0000"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_webhook_refund_settled_001"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {
+          "x-timestamp": "1357872222592",
+          "x-signature": "00000000000000000000000000000000000000000000000000000000deadbeef"
+        },
+        "body": {
+          "id": "evt_100_2019102201549020046_8321220011893769",
+          "name": "payment_intent.succeeded",
+          "account_id": "acct_BGEVPKSxP9OjzQGbwxVEKA",
+          "data": {
+            "object": {
+              "id": "int_hkpdxmj6wggosga04nr",
+              "merchant_order_id": "test_payment_001",
+              "amount": 20.0,
+              "currency": "USD",
+              "captured_amount": 20.0,
+              "status": "SUCCEEDED"
+            }
+          }
+        }
+      },
+      "merchant_event_id": "airwallex_webhook_invalid_sig_001"
+    }
+  }
+}

@@ -5,9 +5,9 @@
 // Airwallex — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx airwallex.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "create_server_authentication_token", "get", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
+import { PaymentClient, MerchantAuthenticationClient, EventClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, HttpMethod } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "create_server_authentication_token", "get", "parse_event", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -111,6 +111,31 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
                 "expiresInSeconds": 3600,  // Expiration timestamp (seconds since epoch).
                 "tokenType": "Bearer"  // Token type (e.g., "Bearer", "Basic").
             }
+        }
+    };
+}
+
+function _buildHandleEventRequest(): types.IEventServiceHandleRequest {
+    return {
+        "merchantEventId": "probe_event_001",
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_probe_0000000000000001\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acct_probe\",\"data\":{\"object\":{\"id\":\"int_probe000000000001\",\"merchant_order_id\":\"probe_order_001\",\"amount\":10.00,\"currency\":\"USD\",\"captured_amount\":10.00,\"status\":\"SUCCEEDED\",\"created_at\":\"2026-01-01T00:00:00+0000\",\"updated_at\":\"2026-01-01T00:00:00+0000\"}}}", "utf-8"))  // Body of the HTTP request.
+        }
+    };
+}
+
+function _buildParseEventRequest(): types.IEventServiceParseRequest {
+    return {
+        "requestDetails": {
+            "method": HttpMethod.HTTP_METHOD_POST,  // HTTP method of the request (e.g., GET, POST).
+            "uri": "https://example.com/webhook",  // URI of the request.
+            "headers": {  // Headers of the HTTP request.
+            },
+            "body": new Uint8Array(Buffer.from("{\"id\":\"evt_probe_0000000000000001\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acct_probe\",\"data\":{\"object\":{\"id\":\"int_probe000000000001\",\"merchant_order_id\":\"probe_order_001\",\"amount\":10.00,\"currency\":\"USD\",\"captured_amount\":10.00,\"status\":\"SUCCEEDED\",\"created_at\":\"2026-01-01T00:00:00+0000\",\"updated_at\":\"2026-01-01T00:00:00+0000\"}}}", "utf-8"))  // Body of the HTTP request.
         }
     };
 }
@@ -389,6 +414,24 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     return getResponse;
 }
 
+// Flow: EventService.HandleEvent
+async function handleEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const handleResponse = await eventClient.handleEvent(_buildHandleEventRequest());
+
+    return handleResponse;
+}
+
+// Flow: EventService.ParseEvent
+async function parseEvent(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const eventClient = new EventClient(config);
+
+    const parseResponse = await eventClient.parseEvent(_buildParseEventRequest());
+
+    return parseResponse;
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
@@ -437,7 +480,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, createServerAuthenticationToken, get, postAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, proxyAuthorize, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildCreateServerAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

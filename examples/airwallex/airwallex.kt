@@ -12,12 +12,14 @@ import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.MerchantAuthenticationClient
+import payments.EventClient
 import payments.PaymentMethodAuthenticationClient
 import payments.RefundClient
 import payments.AuthenticationType
 import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
+import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -25,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.AirwallexConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "create_server_authentication_token", "get", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_order", "create_server_authentication_token", "get", "parse_event", "post_authenticate", "proxy_authorize", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -305,6 +307,37 @@ fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Status: ${response.status.name}")
 }
 
+// Flow: EventService.HandleEvent
+fun handleEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceHandleRequest.newBuilder().apply {
+        merchantEventId = "probe_event_001"
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"evt_probe_0000000000000001\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acct_probe\",\"data\":{\"object\":{\"id\":\"int_probe000000000001\",\"merchant_order_id\":\"probe_order_001\",\"amount\":10.00,\"currency\":\"USD\",\"captured_amount\":10.00,\"status\":\"SUCCEEDED\",\"created_at\":\"2026-01-01T00:00:00+0000\",\"updated_at\":\"2026-01-01T00:00:00+0000\"}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.handle_event(request)
+    println("Webhook: type=${response.eventType.name} verified=${response.sourceVerified}")
+}
+
+// Flow: EventService.ParseEvent
+fun parseEvent(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = EventClient(config)
+    val request = EventServiceParseRequest.newBuilder().apply {
+        requestDetailsBuilder.apply {
+            method = HttpMethod.HTTP_METHOD_POST  // HTTP method of the request (e.g., GET, POST).
+            uri = "https://example.com/webhook"  // URI of the request.
+            putAllHeaders(mapOf())  // Headers of the HTTP request.
+            body = com.google.protobuf.ByteString.copyFromUtf8("{\"id\":\"evt_probe_0000000000000001\",\"name\":\"payment_intent.succeeded\",\"account_id\":\"acct_probe\",\"data\":{\"object\":{\"id\":\"int_probe000000000001\",\"merchant_order_id\":\"probe_order_001\",\"amount\":10.00,\"currency\":\"USD\",\"captured_amount\":10.00,\"status\":\"SUCCEEDED\",\"created_at\":\"2026-01-01T00:00:00+0000\",\"updated_at\":\"2026-01-01T00:00:00+0000\"}}}")  // Body of the HTTP request.
+        }
+    }.build()
+    val response = client.parse_event(request)
+    println("Webhook parsed: type=${response.eventType.name}")
+}
+
 // Flow: PaymentMethodAuthenticationService.PostAuthenticate
 fun postAuthenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentMethodAuthenticationClient(config)
@@ -430,11 +463,13 @@ fun main(args: Array<String>) {
         "createOrder" -> createOrder(txnId)
         "createServerAuthenticationToken" -> createServerAuthenticationToken(txnId)
         "get" -> get(txnId)
+        "handleEvent" -> handleEvent(txnId)
+        "parseEvent" -> parseEvent(txnId)
         "postAuthenticate" -> postAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, createServerAuthenticationToken, get, postAuthenticate, proxyAuthorize, refund, refundGet, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createOrder, createServerAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, proxyAuthorize, refund, refundGet, void")
     }
 }
