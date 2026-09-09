@@ -8,11 +8,11 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate,
+        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
@@ -45,6 +45,7 @@ use self::transformers::{
     Shift4PaymentsResponse as Shift4PSyncResponse, Shift4RSyncRequest, Shift4RefundRequest,
     Shift4RefundResponse, Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
     Shift4RepeatPaymentResponse, Shift4SetupMandateRequest, Shift4SetupMandateResponse,
+    Shift4VoidRequest, Shift4VoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
@@ -177,6 +178,12 @@ macros::create_all_prerequisites!(
             request_body: Shift4CaptureRequest,
             response_body: Shift4CaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: Shift4VoidRequest,
+            response_body: Shift4VoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -383,6 +390,50 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Void Flow — POST /refunds
+//
+// Shift4 has NO cancel / void / reverse / release endpoint: `POST
+// /charges/{id}/{cancel,void,reverse,release}` and `POST /voids` all return 404,
+// and `DELETE /charges/{id}` returns 405 (probed against the live sandbox on
+// 2026-09-10). The documented release mechanism is to refund the *uncaptured*
+// charge — `POST /refunds` with only `chargeId`, amount omitted so Shift4
+// releases the full authorization (https://dev.shift4.com/docs/api#refunds).
+// Verified working against api.shift4.com: the charge then reads
+// `captured: false, refunded: true`, which is exactly what the PSync mapping in
+// `get_shift4_attempt_status` reads back as `Voided`.
+//
+// The URL therefore comes from the payments base-url helper (this flow carries
+// `PaymentFlowData`, not `RefundFlowData`) even though the path is `/refunds`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: Json(Shift4VoidRequest),
+    curl_response: Shift4VoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/refunds"))
+        }
+    }
+);
+
 // Refund Flow
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
@@ -564,7 +615,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== EMPTY IMPLEMENTATIONS FOR UNSUPPORTED FLOWS =====
 
-// Void (Not supported by Shift4)
+// Void — implemented via POST /refunds on an uncaptured charge (see the flow
+// block above); Shift4 has no dedicated cancel endpoint.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Shift4<T>
+{
+}
 
 // Order Create
 
@@ -731,7 +787,6 @@ macros::macro_connector_flow_status_impls!(
     ],
     not_supported: [
         VoidPostRefund,
-        Void,
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         VoidPC,

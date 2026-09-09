@@ -4,15 +4,15 @@ use common_utils::{pii, request::Method, types::MinorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate,
+        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
-        MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
         Shift4ClientAuthenticationResponse as Shift4ClientAuthenticationResponseDomain,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -35,6 +35,12 @@ use url::Url;
 // Import the connector's RouterData wrapper type created by the macro
 use super::Shift4RouterData;
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
+
+/// Shift4's refund object has no failure fields, so a declined authorization
+/// release surfaces only as `status: "failed"`. This spells out what actually
+/// happened instead of letting the caller see a bare "declined by shift4".
+const SHIFT4_VOID_DECLINED: &str =
+    "Shift4 declined the authorization release (refund of the uncaptured charge reported `failed`)";
 
 #[derive(Debug, Clone)]
 pub struct Shift4AuthType {
@@ -822,7 +828,8 @@ pub struct Shift4PaymentsResponse {
 ///
 /// Shift4 reports only three charge states, so terminality has to come from
 /// `captured` and, for `pending`, from `flow.nextAction`:
-/// a settled sale is `Charged`, an uncaptured authorization is `Authorized`, and
+/// a settled sale is `Charged`, an uncaptured authorization is `Authorized`, an
+/// uncaptured-but-refunded charge is a released authorization (`Voided`), and
 /// a `pending` charge awaiting a shopper redirect is `AuthenticationPending`
 /// rather than plain `Pending`.
 fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus {
@@ -830,6 +837,12 @@ fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus
         Shift4PaymentStatus::Successful => {
             if response.captured {
                 AttemptStatus::Charged
+            } else if response.refunded {
+                // Shift4 has no cancel endpoint: an authorization is released by
+                // refunding the uncaptured charge, so `!captured && refunded` is
+                // a completed VOID. Without this arm a voided charge keeps
+                // reporting `Authorized` and the caller polls it forever.
+                AttemptStatus::Voided
             } else {
                 AttemptStatus::Authorized
             }
@@ -1184,12 +1197,27 @@ pub struct Shift4RefundResponse {
     pub status: Shift4RefundStatus,
 }
 
+/// Shift4's refund-object status, shared by Refund, RSync and Void (Shift4
+/// releases an authorization by refunding the uncaptured charge, so a void
+/// response *is* a refund object).
+///
+/// The public API reference documents only `successful` and `failed`, but the
+/// official Shift4 SDKs also emit `pending` for an in-flight refund, and
+/// `processing` is the spelling this connector was originally written against.
+/// Both in-flight spellings are accepted so neither can fail deserialization,
+/// and anything Shift4 adds later lands on `Unknown` instead of failing the
+/// whole response parse.
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Shift4RefundStatus {
     Successful,
     Failed,
+    /// In flight. `pending` is what the SDKs emit; `processing` is kept as the
+    /// variant name for compatibility and `pending` is accepted as an alias.
+    #[serde(alias = "pending")]
     Processing,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<ResponseRouterData<Shift4RefundResponse, Self>>
@@ -1204,6 +1232,12 @@ impl TryFrom<ResponseRouterData<Shift4RefundResponse, Self>>
             Shift4RefundStatus::Successful => RefundStatus::Success,
             Shift4RefundStatus::Failed => RefundStatus::Failure,
             Shift4RefundStatus::Processing => RefundStatus::Pending,
+            // Never invent a terminal state for a status Shift4 has not
+            // documented. NOT `RefundStatus::Unknown` — that serializes to the
+            // proto's Unspecified, on which the caller falls back to the
+            // previously stored status, which is silently misleading. `Pending`
+            // keeps RSync polling until Shift4 reports something we understand.
+            Shift4RefundStatus::Unknown => RefundStatus::Pending,
         };
 
         Ok(Self {
@@ -1231,6 +1265,12 @@ impl TryFrom<ResponseRouterData<Shift4RefundResponse, Self>>
             Shift4RefundStatus::Successful => RefundStatus::Success,
             Shift4RefundStatus::Failed => RefundStatus::Failure,
             Shift4RefundStatus::Processing => RefundStatus::Pending,
+            // Never invent a terminal state for a status Shift4 has not
+            // documented. NOT `RefundStatus::Unknown` — that serializes to the
+            // proto's Unspecified, on which the caller falls back to the
+            // previously stored status, which is silently misleading. `Pending`
+            // keeps RSync polling until Shift4 reports something we understand.
+            Shift4RefundStatus::Unknown => RefundStatus::Pending,
         };
 
         Ok(Self {
@@ -1240,6 +1280,127 @@ impl TryFrom<ResponseRouterData<Shift4RefundResponse, Self>>
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== VOID FLOW STRUCTURES =====
+
+/// Shift4 exposes **no** cancel / void / reverse / release endpoint — every such
+/// URL 404s (verified against the live sandbox, 2026-09-10). The documented and
+/// only way to release an open authorization is to refund the uncaptured charge:
+/// `POST /refunds` with just `chargeId`, and **no** `amount`, so Shift4 releases
+/// the full authorized amount (<https://dev.shift4.com/docs/api#refunds>).
+///
+/// `amount` is deliberately absent from this struct: a void always releases the
+/// whole authorization, and sending a partial amount would leave the remainder
+/// authorized while the caller believes the payment was cancelled. Shift4's own
+/// documentation agrees — "Partial refunds are only possible for captured
+/// charge" — so a full release is the only permitted operation here.
+///
+/// `PaymentVoidData::cancellation_reason` is deliberately NOT forwarded either:
+/// `POST /refunds` accepts a `reason`, but only the two literals `fraudulent`
+/// and `expired`. UCS cancellation reasons (e.g. `requested_by_customer`) are
+/// outside that set and Shift4 rejects them, so the field is dropped rather
+/// than mapped onto a wrong value.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shift4VoidRequest {
+    pub charge_id: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        Shift4RouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for Shift4VoidRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: Shift4RouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            charge_id: item.router_data.request.connector_transaction_id.clone(),
+        })
+    }
+}
+
+/// Releasing an authorization returns an ordinary Shift4 *refund* object, byte
+/// for byte the same shape as an ordinary refund — `{id, amount, currency,
+/// charge, status}` — so the void response is that same type. Nothing on the
+/// refund object marks it as a released authorization; the discriminator lives
+/// on the charge (`captured == false && refunded == true`), which is what
+/// `get_shift4_attempt_status` reads on the PSync leg.
+pub type Shift4VoidResponse = Shift4RefundResponse;
+
+impl TryFrom<ResponseRouterData<Shift4VoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(item: ResponseRouterData<Shift4VoidResponse, Self>) -> Result<Self, Self::Error> {
+        // Terminality matters more here than anywhere else: a void that Shift4
+        // explicitly declined is finished, so it maps to `VoidFailed` and never
+        // to `Pending` — a `Pending` void is polled forever by the caller.
+        let status = match item.response.status {
+            Shift4RefundStatus::Successful => AttemptStatus::Voided,
+            Shift4RefundStatus::Failed => AttemptStatus::VoidFailed,
+            Shift4RefundStatus::Processing => AttemptStatus::VoidInitiated,
+            // An undocumented status is "we could not read the outcome", not a
+            // failure — `Unresolved`, never `VoidFailed` and never `Pending`.
+            Shift4RefundStatus::Unknown => AttemptStatus::Unresolved,
+        };
+
+        // The caller's transaction id must stay the CHARGE, not the refund that
+        // released it: a later PSync is `GET /charges/{id}`, and the refund id
+        // (`item.response.id`) addresses a different resource entirely.
+        let charge_id = item.response.charge.clone();
+
+        let response = if matches!(item.response.status, Shift4RefundStatus::Failed) {
+            // A Shift4 refund object carries no failureCode / failureMessage —
+            // `status: "failed"` is the whole signal — so the message is built
+            // here rather than read off the response.
+            Err(domain_types::router_data::ErrorResponse {
+                status_code: item.http_code,
+                code: common_utils::consts::NO_ERROR_CODE.to_string(),
+                message: SHIFT4_VOID_DECLINED.to_string(),
+                reason: Some(format!(
+                    "{SHIFT4_VOID_DECLINED} (charge {charge_id}, refund {})",
+                    item.response.id
+                )),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
+                connector_transaction_id: Some(charge_id.clone()),
+                ..Default::default()
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(charge_id.clone()),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(charge_id),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
             ..item.router_data
         })
     }

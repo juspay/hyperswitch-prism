@@ -9,6 +9,7 @@
     "PaymentService/IncrementalAuthorization",
     "RecurringPaymentService/Charge",
     "PaymentService/Refund",
+    "PaymentService/Void",
     "RefundService/Get",
     "PaymentService/SetupRecurring"
   ]
