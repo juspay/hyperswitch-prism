@@ -148,7 +148,7 @@ def pb2_modules(message_names) -> list[str]:
 # ── Source parsing ───────────────────────────────────────────────────────────
 
 def to_snake_case(name: str) -> str:
-    """'CreateServerAuthenticationToken' -> 'create_server_authentication_token'"""
+    """'CreateAccessToken' -> 'create_access_token'"""
     s = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s).lower()
 

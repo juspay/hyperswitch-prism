@@ -15,7 +15,7 @@ React wrapper around **Adyen Web v6** (`@adyen/adyen-web`). Mounts the Adyen Car
 ```
 Storefront              Medusa (test-project)        UCS / Prism            Adyen
     |                          |                          |                    |
-    |-- initiate session ----->|- createClientAuthToken ->|--- /sessions ----->|
+    |-- initiate session ----->|-- CreateSessionToken --->|--- /sessions ----->|
     |<- data.sessionData ------|<-------------------------|<-- id+sessionData -|
     |                          |                          |                    |
     |== Drop-in card form: customer pays (client-side authorization) =========>|

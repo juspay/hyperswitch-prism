@@ -181,11 +181,13 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
   "request_id_prefix": "0001",
   "request_id_length": 12,
 
-  // Payment methods this connector supports, named as the `payment_method`
-  // oneof variant a scenario populates (`card`, `klarna`, `upi_intent`).
-  // A scenario naming a method runs only if it is listed here; a scenario
-  // naming none always runs. Omit or leave empty to run everything.
-  "supported_payment_methods": ["card"],
+  // Per-suite override of `request_id_source_field` when the connector
+  // reads the reference id from a different proto field in some suites
+  // (e.g. PreAuthenticate / Authenticate often use merchant_order_id
+  // while Authorize uses merchant_transaction_id).
+  "request_id_source_field_per_suite": {
+    "PaymentMethodAuthenticationService/PreAuthenticate": "merchant_order_id"
+  },
 
   // Scenarios this connector cannot support, as suite -> scenario -> reason.
   // They are skipped instead of run and failed. Lives here rather than in
@@ -200,15 +202,24 @@ Per-connector spec. All fields except `connector` and `supported_suites` are opt
 
   // For Get / sync flows: re-poll until status reaches a terminal value
   // or this budget elapses. Set when the sandbox auto-settles after a delay.
-  "sync_poll_until_terminal_seconds": 30
+  "sync_poll_until_terminal_seconds": 30,
+
+  // Per-connector additions to suite_spec's depends_on. Prepended at runtime.
+  // Useful for connectors whose Authorize requires upstream context that
+  // isn't part of the standard global chain.
+  "additional_dependencies": {
+    "PaymentService/Authorize": [
+      {
+        "suite": "PaymentMethodAuthenticationService/PreAuthenticate",
+        "scenario": "threeds_card_pre_authenticate",
+        "context_map": {
+          "authentication_data": "res.authentication_data"
+        }
+      }
+    ]
+  }
 }
 ```
-
-These are the only keys `ConnectorSuiteSpec` (`src/harness/scenario_types.rs`)
-deserializes. It is not `deny_unknown_fields`, so any other key — including a
-plausible-sounding one — is silently dropped at load time and changes nothing.
-Dependencies between suites are declared in the global `suite_spec.json`
-(`depends_on`), never per connector.
 
 ### `connector_specs/<connector>/override.json`
 

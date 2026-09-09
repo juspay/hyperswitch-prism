@@ -14,7 +14,7 @@ Server-side provider logic for **Adyen** via the Hyperswitch Prism connector ser
 ```
 Storefront              Medusa backend               UCS / Prism            Adyen
     |                        |                            |                    |
-    |-- initiate session --->|-- createClientAuthToken -->|--- /sessions ----->|
+    |-- initiate session --->|-- CreateSessionToken ----->|--- /sessions ----->|
     |<- data.sessionData ----|<---------------------------|<-- id+sessionData -|
     |                        |                            |                    |
     |== Drop-in card form: customer pays (client-side authorization) =========>|
@@ -34,7 +34,7 @@ Storefront              Medusa backend               UCS / Prism            Adye
 
 ### Step-by-step
 
-1. **initiatePayment** — calls `createClientAuthenticationToken` on UCS, which creates an Adyen checkout session. Returns `{ id, sessionData }` blob stored in `payment_session.data`.
+1. **initiatePayment** — calls `CreateSessionToken` on UCS, which creates an Adyen checkout session. Returns `{ id, sessionData }` blob stored in `payment_session.data`.
 2. **Drop-in (client)** — the React `AdyenWrapper` mounts Adyen Web v6 with that session. The customer pays entirely client-side.
 3. **Webhook** — Adyen sends `AUTHORISATION` to `/hooks/payment/{provider_id}`. UCS verifies the HMAC signature; `handleWebhook` records the verified outcome (including `pspReference`) in the in-process outcome store.
 4. **authorizePayment** — called when the storefront completes the cart. Polls the outcome store with up to 8 retries × 1.5 s to absorb webhook-delivery latency. Returns `authorized` with the `pspReference` when the outcome arrives.
