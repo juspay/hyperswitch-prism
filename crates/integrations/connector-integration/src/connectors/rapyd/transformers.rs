@@ -1,5 +1,9 @@
 use common_utils::{
-    consts::NO_ERROR_CODE, ext_traits::OptionExt, pii::Email, request::Method, types::MinorUnit,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    ext_traits::OptionExt,
+    pii::Email,
+    request::Method,
+    types::MinorUnit,
     FloatMajorUnit, StringMajorUnit,
 };
 use domain_types::{
@@ -20,7 +24,7 @@ use domain_types::{
     payment_method_data::{
         GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -35,6 +39,19 @@ use url::Url;
 use crate::types::ResponseRouterData;
 
 use super::RapydRouterData;
+
+/// Rapyd's request-signing / authentication reference. Surfaced on
+/// `IntegrationErrorContext::doc_url` so an operator hitting an auth failure is
+/// pointed at the page that explains the `access_key`/`secret_key` pair and the
+/// HMAC preimage, rather than at an opaque `InvalidDataFormat` at the gRPC
+/// boundary.
+pub(super) const RAPYD_AUTH_DOC_URL: &str = "https://docs.rapyd.net/en/authentication.html";
+
+/// Rapyd's master error-code catalogue, including the transport-class codes
+/// (`MISSING_AUTHENTICATION_HEADERS`, `UNAUTHENTICATED_API_CALL`) that this
+/// connector must never report as a card decline.
+pub(super) const RAPYD_ERROR_CODES_DOC_URL: &str =
+    "https://docs.rapyd.net/en/rapyd-error-codes.html";
 
 /// Rapyd digital-wallet `payment_type` values.
 const WALLET_TYPE_GOOGLE_PAY: &str = "google_pay";
@@ -186,26 +203,19 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
-                        Err(ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code),
-                            status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_else(|| {
-                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                            }),
-                            reason: data.failure_message.to_owned(),
-                            attempt_status: None,
-                            connector_transaction_id: Some(data.id.clone()),
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            typed_connector_response: None,
-                            raw_connector_response: None,
-                            raw_connector_request: None,
-                            typed_connector_request: None,
-                        }),
+                        Err(rapyd_error_response(
+                            item.http_code,
+                            classify_rapyd_error(item.http_code, &item.response.status, Some(data)),
+                            &item.response.status,
+                            Some(data),
+                            Some(data.id.clone()),
+                            // A 200 whose body reports a failed payment: the
+                            // attempt is terminal and this is the payment path,
+                            // so the computed `AttemptStatus` is carried through
+                            // rather than left for the http-2xx fallback to
+                            // reconstruct.
+                            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                        )),
                     ),
                     _ => {
                         let redirection_data = build_redirection_data(data, item.http_code)?;
@@ -234,7 +244,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                 resource_id: ResponseId::ConnectorTransactionId(data.id.to_owned()), //transaction_id is also the field but this id is used to initiate a refund
                                 redirection_data: redirection_data.map(Box::new),
                                 mandate_reference,
-                                connector_metadata: build_authentication_metadata(data),
+                                connector_metadata: build_connector_metadata(data),
                                 network_txn_id,
                                 network_txn_link_id: None,
                                 connector_response_reference_id: data
@@ -251,25 +261,14 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
             }
             None => (
                 common_enums::AttemptStatus::Failure,
-                Err(ErrorResponse {
-                    code: item.response.status.error_code,
-                    status_code: item.http_code,
-                    message: item
-                        .response
-                        .status
-                        .status
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.status.message,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                Err(rapyd_error_response(
+                    item.http_code,
+                    classify_rapyd_error(item.http_code, &item.response.status, None),
+                    &item.response.status,
+                    None,
+                    None,
+                    Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                )),
             ),
         };
 
@@ -305,7 +304,17 @@ impl TryFrom<&ConnectorSpecificConfig> for RapydAuthType {
                 secret_key: secret_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Configure this merchant with Rapyd credentials: the connector config must \
+                         be the `Rapyd` variant carrying `access_key` and `secret_key`."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(RAPYD_AUTH_DOC_URL.to_owned()),
+                    additional_context: Some(
+                        "rapyd: connector_config was not the Rapyd variant".to_owned(),
+                    ),
+                },
             })?,
         }
     }
@@ -1374,6 +1383,367 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
+// ---------------------------------------------------------------------------
+// Response-side error classification, AVS/CVV checks, and the GSM triple
+//
+// Rapyd ships THREE distinct failure envelopes and every one of them has to
+// land on the same `ErrorResponse`:
+//
+//   1. status-only  — `{ "status": { error_code, message, ... } }`, no `data`.
+//      This is what the sandbox decline cards return
+//      (<https://docs.rapyd.net/en/card-numbers-for-testing.html>). The card
+//      network code exists ONLY inside the bracket group of `error_code`.
+//   2. status + data — a Create Payment error carries a full payment object
+//      alongside the envelope, with `failure_code`, `failure_message`,
+//      `merchant_advice_code`
+//      (<https://docs.rapyd.net/en/create-payment-error-examples.html>).
+//   3. webhook — no `status` envelope at all; the qualified code lives at
+//      `data.error_code`
+//      (<https://docs.rapyd.net/en/payment-failed-webhook.html>).
+// ---------------------------------------------------------------------------
+
+/// Rapyd's card-network error prefix. The scheme's own decline code rides in a
+/// bracket group after a literal `" - "`, e.g.
+/// `"ERROR_PROCESSING_CARD - [51]"`.
+/// <https://docs.rapyd.net/en/card-network-errors.html>
+const ERROR_PROCESSING_CARD_PREFIX: &str = "ERROR_PROCESSING_CARD";
+
+/// Class (c) — the request never became a payment attempt: bad/absent auth
+/// headers, a signature Rapyd could not verify, a replayed idempotency key, a
+/// Rapyd-side fault, or a rate limit.
+///
+/// None of these is a card decline and none of them proves the attempt did not
+/// go through, so they must never terminally fail a payment and never populate
+/// the GSM fields. `IDEMPOTENCY_ERROR` and `GENERAL_ERROR` in particular mean
+/// "outcome unknown, go and PSync".
+///
+/// <https://docs.rapyd.net/en/rapyd-error-codes.html>,
+/// <https://docs.rapyd.net/en/general-errors.html>
+const RAPYD_TRANSPORT_ERROR_CODES: [&str; 5] = [
+    "MISSING_AUTHENTICATION_HEADERS",
+    "UNAUTHENTICATED_API_CALL",
+    "IDEMPOTENCY_ERROR",
+    "GENERAL_ERROR",
+    "ERROR_REPORTS_RATE_LIMIT_EXCEEDED",
+];
+
+/// Class (a) — the card network, the issuer or the customer refused. These are
+/// genuine declines: they feed GSM and a retry is governed by the Merchant
+/// Advice Code.
+///
+/// Everything Rapyd publishes that is NOT in this list and not in
+/// [`RAPYD_TRANSPORT_ERROR_CODES`] is a class (b) merchant-configuration or
+/// malformed-request rejection — by far the largest family (95 of the 107 codes
+/// on `payment-errors.html`) — which is why class (b) is the residual here
+/// rather than a second exhaustive list that would rot on Rapyd's next release.
+///
+/// <https://docs.rapyd.net/en/payment-errors.html>,
+/// <https://docs.rapyd.net/en/card-transaction-errors.html>,
+/// <https://docs.rapyd.net/en/general-errors.html>
+const RAPYD_ISSUER_DECLINE_ERROR_CODES: [&str; 20] = [
+    "ERROR_3DS_AUTHENTICATION_FAILURE",
+    "ERROR_AUTHENTICATION_PHONE_UNAVAILABLE",
+    "ERROR_CARD_AUTHENTICATION_FAILURE",
+    "ERROR_CARD_CVV_NOT_VALID",
+    "ERROR_CARD_EXPIRED",
+    "ERROR_CARD_INFORMATION_NOT_VALID",
+    "ERROR_CARD_NOT_AUTHENTICATED",
+    "ERROR_CARD_NOT_SUPPORTED_FOR_ECOMMERCE",
+    "ERROR_CREATE_PAYMENT_ADDRESS_VERIFICATION_FAILURE",
+    "ERROR_CREATE_PAYMENT_CUSTOMER_CANCEL",
+    "ERROR_CREATE_PAYMENT_INSUFFICIENT_FUNDS",
+    "ERROR_CREATE_PAYMENT_ODFI_CANCEL",
+    "ERROR_CREATE_PAYMENT_PAD_PROBLEM",
+    "ERROR_CREATE_PAYMENT_SOURCE_UNAVAILABLE",
+    "ERROR_PAYER_UNKNOWN",
+    "ERROR_PAYMENT_METHOD_EXPIRED",
+    "ERROR_SCA_EXEMPTION_DECLINED",
+    "ERROR_TRANSACTION_FAILED",
+    "ERROR_TRANSACTION_REJECTED_BY_CARD_PROCESSOR",
+    "ERROR_TRANSACTION_TYPE_NOT_SUPPORTED",
+];
+
+/// What kind of failure Rapyd is reporting. Drives BOTH whether the GSM fields
+/// are populated and whether the attempt may be marked terminally failed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RapydErrorClass {
+    /// (a) The card network / issuer / customer refused. Feeds GSM.
+    IssuerDecline,
+    /// (b) Rapyd rejected the request before or independently of the network —
+    /// entitlement, capability, malformed field, wrong lifecycle state. The
+    /// operation definitively did not happen, but it is **not** a card decline:
+    /// the GSM fields stay `None` so no smart-retry rule can key on it.
+    MerchantConfiguration,
+    /// (c) Transport / auth / rate limit / Rapyd-side fault. Outcome unknown.
+    Transport,
+}
+
+/// Classifies a Rapyd failure. Ordered cheapest-first; every branch is
+/// derivable from the parsed body alone.
+pub(super) fn classify_rapyd_error(
+    http_status_code: u16,
+    status: &Status,
+    data: Option<&ResponseData>,
+) -> RapydErrorClass {
+    let code = status.error_code.trim();
+
+    // 1. The card network answered and Rapyd forwarded its code verbatim.
+    if code.starts_with(ERROR_PROCESSING_CARD_PREFIX) {
+        return RapydErrorClass::IssuerDecline;
+    }
+
+    // 2. Explicit transport codes.
+    if RAPYD_TRANSPORT_ERROR_CODES.contains(&code) {
+        return RapydErrorClass::Transport;
+    }
+
+    // 3. Rapyd does not document which HTTP status accompanies which error code,
+    //    so the status is never used to *prove* a decline. It is used only to
+    //    WIDEN class (c): an auth/conflict/timeout/rate-limit status is never
+    //    evidence that a card was presented, so treating it as transport can
+    //    only ever prevent a false terminal failure, never cause one.
+    if matches!(http_status_code, 401 | 403 | 408 | 409 | 429) {
+        return RapydErrorClass::Transport;
+    }
+
+    // 4. Named issuer/customer declines that carry no bracketed network code.
+    if RAPYD_ISSUER_DECLINE_ERROR_CODES.contains(&code) {
+        return RapydErrorClass::IssuerDecline;
+    }
+
+    // 5. The emptiness discriminator. When a Create Payment error reached the
+    //    card network every `data.*` error field populates; when Rapyd rejected
+    //    it on merchant configuration they are all `""`/null. Proved by the two
+    //    examples on
+    //    <https://docs.rapyd.net/en/create-payment-error-examples.html>.
+    if data
+        .and_then(|payment| non_empty(payment.failure_code.clone()))
+        .is_some()
+    {
+        return RapydErrorClass::IssuerDecline;
+    }
+
+    RapydErrorClass::MerchantConfiguration
+}
+
+/// The three fields Hyperswitch's Global Status Mapping keys smart-retry rules
+/// on. Populated only for [`RapydErrorClass::IssuerDecline`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RapydNetworkErrorFields {
+    /// `ErrorResponse::network_decline_code` — the BARE scheme code (`"51"`).
+    pub decline_code: Option<String>,
+    /// `ErrorResponse::network_advice_code` — the Merchant Advice Code
+    /// (`"01"`..`"18"`), the only thing Rapyd returns that says whether and
+    /// when to retry.
+    pub advice_code: Option<String>,
+    /// `ErrorResponse::network_error_message` — the network's own short
+    /// decline reason (`"Insufficient Funds"`).
+    pub error_message: Option<String>,
+}
+
+/// Extracts the bracketed card-network code out of a qualified
+/// `"ERROR_PROCESSING_CARD - [65]"` style code.
+///
+/// The token is **alphanumeric, not numeric** — Rapyd's own tables list `OF`,
+/// `TJ`, `5C`, `N7`, `W1`, `XA`, `3X`, `1A`, `6P`, `B1`, `Q1`, `Z1` and `CV`
+/// among others — so it is never parsed as a number.
+/// <https://docs.rapyd.net/en/card-network-errors.html>
+pub(super) fn network_code_from_qualified(code: &str) -> Option<String> {
+    let start = code.find('[')?;
+    let rest = code.get(start + 1..)?;
+    let end = rest.find(']')?;
+    let token = rest.get(..end)?.trim();
+    (!token.is_empty()).then(|| token.to_owned())
+}
+
+/// Normalises Rapyd's three observed `message` / `failure_message` shapes down
+/// to the card network's short reason.
+///
+/// Rapyd's prose says a webhook's `failure_message` is bracketed
+/// (`"[Insufficient Funds]"`) while both published payloads show it bare, and a
+/// REST `status.message` is `"[short] long"`. Taking the bracket group when one
+/// is present, and the whole string otherwise, covers all three without relying
+/// on which of Rapyd's two accounts is right.
+/// <https://docs.rapyd.net/en/card-network-errors.html>
+pub(super) fn rapyd_short_message(message: &str) -> &str {
+    let trimmed = message.trim();
+    if let Some(rest) = trimmed.strip_prefix('[') {
+        if let Some(end) = rest.find(']') {
+            if let Some(short) = rest.get(..end).map(str::trim) {
+                if !short.is_empty() {
+                    return short;
+                }
+            }
+        }
+    }
+    trimmed
+}
+
+/// Builds the GSM triple from whichever failure envelope is at hand.
+///
+/// Returns all-`None` for class (b) and class (c): neither is a card decline,
+/// and a GSM rule that fired on a merchant-configuration rejection would
+/// schedule retries of a request that is guaranteed to fail forever.
+pub(super) fn rapyd_network_error_fields(
+    class: RapydErrorClass,
+    status: &Status,
+    data: Option<&ResponseData>,
+) -> RapydNetworkErrorFields {
+    if class != RapydErrorClass::IssuerDecline {
+        return RapydNetworkErrorFields::default();
+    }
+
+    // Preferred: the bare code Rapyd already split out for us. Fallbacks: the
+    // bracket group of the qualified code on `data`, then on the envelope —
+    // which is all the status-only shape has. All three provably agree.
+    let decline_code = data
+        .and_then(|payment| non_empty(payment.failure_code.clone()))
+        .or_else(|| {
+            data.and_then(|payment| payment.error_code.as_deref())
+                .and_then(network_code_from_qualified)
+        })
+        .or_else(|| network_code_from_qualified(&status.error_code));
+
+    // Nothing else Rapyd returns says whether or when to retry, so there is no
+    // fallback for this one.
+    let advice_code = data.and_then(|payment| non_empty(payment.merchant_advice_code.clone()));
+
+    let error_message = data
+        .and_then(|payment| non_empty(payment.failure_message.clone()))
+        .or_else(|| non_empty(status.message.clone()))
+        .map(|message| rapyd_short_message(&message).to_owned());
+
+    RapydNetworkErrorFields {
+        decline_code,
+        advice_code,
+        error_message,
+    }
+}
+
+/// The single place a Rapyd `ErrorResponse` is built. Every flow funnels
+/// through here so the eight construction sites cannot drift apart.
+///
+/// `attempt_status` is a **caller** decision, deliberately: this function is
+/// flow-agnostic, and the right status is not.
+/// `ConnectorCommon::build_error_response` — and therefore every macro-generated
+/// `get_error_response_v2` — has no idea whether it is serving a payment, a
+/// refund, a capture or a sync, so hardcoding one here would report an HTTP
+/// error on a Refund as a terminal `RefundFailure` (`ForeignFrom<FlowStatus> for
+/// RefundStatus` maps `Payment(_)` straight to `RefundFailure`) and would report
+/// a rejected Capture as a failed *payment*. See the per-flow
+/// `get_error_response_v2` overrides in `rapyd.rs`.
+pub(super) fn rapyd_error_response(
+    http_code: u16,
+    class: RapydErrorClass,
+    status: &Status,
+    data: Option<&ResponseData>,
+    connector_transaction_id: Option<String>,
+    attempt_status: Option<FlowStatus>,
+) -> ErrorResponse {
+    let network = rapyd_network_error_fields(class, status, data);
+
+    // The FULLY-QUALIFIED code belongs in `code`; the bare scheme code has its
+    // own slot in `network_decline_code`. A webhook has no envelope, so
+    // `data.error_code` is the fallback (and `Status::from(ResponseData)`
+    // synthesises `NO_ERROR_CODE`, which must not win).
+    let code = non_empty(Some(status.error_code.clone()))
+        .filter(|value| value != NO_ERROR_CODE)
+        .or_else(|| data.and_then(|payment| non_empty(payment.error_code.clone())))
+        .or_else(|| data.and_then(|payment| non_empty(payment.failure_code.clone())))
+        .unwrap_or_else(|| NO_ERROR_CODE.to_owned());
+
+    // The merchant-facing headline. Rapyd's envelope `status` field is the
+    // literal string "ERROR", which is what this used to surface.
+    let message = data
+        .and_then(|payment| non_empty(payment.failure_message.clone()))
+        .or_else(|| non_empty(status.message.clone()))
+        .map(|value| rapyd_short_message(&value).to_owned())
+        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_owned());
+
+    // `reason` carries Rapyd's own remediation prose: the long form of
+    // `status.message`, plus the Merchant Advice Code description. The MAC
+    // message is retry ADVICE ("Try again later"), never a decline reason, so it
+    // is deliberately kept out of `network_error_message` — routing it there
+    // would make every decline report its reason as "Try again later" and
+    // destroy the GSM signal.
+    let long_message = non_empty(status.message.clone())
+        .or_else(|| data.and_then(|payment| non_empty(payment.failure_message.clone())));
+    let advice_message =
+        data.and_then(|payment| non_empty(payment.merchant_advice_message.clone()));
+    let reason = match (long_message, advice_message) {
+        (Some(long), Some(advice)) => Some(format!("{long} (Rapyd merchant advice: {advice})")),
+        (Some(long), None) => Some(long),
+        (None, Some(advice)) => Some(format!("Rapyd merchant advice: {advice}")),
+        (None, None) => None,
+    };
+
+    ErrorResponse {
+        code,
+        message,
+        reason,
+        status_code: http_code,
+        attempt_status,
+        connector_transaction_id,
+        network_decline_code: network.decline_code,
+        network_advice_code: network.advice_code,
+        network_error_message: network.error_message,
+        ..Default::default()
+    }
+}
+
+/// Result of one of Rapyd's response-side verification checks.
+///
+/// Closed four-value set, documented identically for `acs_check` and
+/// `cvv_check` on every payment page. `#[serde(other)]` for the same reason
+/// `NextAction` carries one: these ride on `payment_method_data`, which backs
+/// Authorize, PSync, Capture, Void, SetupMandate, RepeatPayment and every
+/// payment webhook, so one unparsable value would fail all of them at once.
+///
+/// **Diagnostic only.** A `Fail` here does not by itself mean the payment
+/// failed — the authoritative outcome remains `(status, next_action)`, and the
+/// 3DS authority for this connector remains `authentication_result`.
+/// <https://docs.rapyd.net/en/retrieve-payment.html>
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RapydCheckResult {
+    Pass,
+    Fail,
+    Unavailable,
+    Unchecked,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `$.data.outcome` — Rapyd's risk-assessment result.
+///
+/// Documented on `retrieve-payment.html` but `null` in every published example
+/// on every Rapyd page, so it is parsed and surfaced for diagnostics and is
+/// deliberately **not** an input to the error classification, which uses the
+/// empty-`data.*` discriminator instead.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RapydOutcome {
+    pub network_status: Option<RapydNetworkStatus>,
+    pub risk_level: Option<String>,
+    pub seller_message: Option<String>,
+    #[serde(rename = "type")]
+    pub outcome_type: Option<String>,
+    pub reason: Option<String>,
+}
+
+/// `$.data.outcome.network_status`. Documented closed set, plus the usual
+/// catch-all so a new value cannot fail the whole payment body.
+/// <https://docs.rapyd.net/en/retrieve-payment.html>
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydNetworkStatus {
+    ApprovedByNetwork,
+    DeclinedByNetwork,
+    NotSentToNetwork,
+    ReversedAfterApproval,
+    #[serde(other)]
+    Unknown,
+}
+
 /// Rapyd's `next_action`, the second half of the status pair.
 ///
 /// `next_action` lives on `ResponseData`, which backs Authorize, PSync, Capture,
@@ -1422,6 +1792,33 @@ pub struct ResponseData {
     pub paid: Option<bool>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    /// `$.data.error_code` — the FULLY-QUALIFIED code, e.g.
+    /// `"ERROR_PROCESSING_CARD - [65]"`; `""` when there is no failure.
+    ///
+    /// This is the ONLY place the qualified code appears on a webhook — a
+    /// webhook payload has no `status` envelope at all — so without it a
+    /// `PAYMENT_FAILED` webhook could surface nothing but the bare `"65"`.
+    /// <https://docs.rapyd.net/en/payment-failed-webhook.html>
+    pub error_code: Option<String>,
+    /// `$.data.merchant_advice_code` — the Merchant Advice Code, `"01"`..`"18"`,
+    /// a zero-padded 2-character STRING (`"02"`, never `2`). Feeds
+    /// `ErrorResponse::network_advice_code`; it is the only thing Rapyd returns
+    /// that says whether and when a declined transaction may be retried.
+    ///
+    /// **A non-null value is NOT evidence of a decline**: codes `15` and `16`
+    /// are documented to ride on *successful* payments to flag a non-reloadable
+    /// prepaid or single-use virtual card.
+    /// <https://docs.rapyd.net/en/merchant-advice-codes.html>
+    pub merchant_advice_code: Option<String>,
+    /// `$.data.merchant_advice_message` — free text describing the MAC, e.g.
+    /// `"Try again later"`. Retry ADVICE, not a decline reason: it must never
+    /// be routed into `network_error_message`.
+    pub merchant_advice_message: Option<String>,
+    /// `$.data.outcome` — risk-assessment result. Documented by Rapyd but
+    /// `null` in every published example, so it is surfaced for diagnostics and
+    /// is not an input to any decision. Boxed for the same reason as
+    /// `authentication_result`.
+    pub outcome: Option<Box<RapydOutcome>>,
     /// Saved-card token (`card_*`) — populated when the payment was
     /// created with `save_payment_method: true`. Used as the MIT token
     /// on subsequent charges.
@@ -1431,7 +1828,7 @@ pub struct ResponseData {
     pub payment_method_data: Option<RapydResponsePaymentMethodData>,
     /// 3DS outcome as reported by the issuer/ACS. **Diagnostic only** — it is
     /// deliberately not an input to `get_status`; see the note on
-    /// `build_authentication_metadata`.
+    /// `build_connector_metadata`.
     ///
     /// Boxed because it is absent on every non-3DS payment, and `ResponseData`
     /// is cloned along the whole payment path (and is the largest variant of
@@ -1469,7 +1866,7 @@ pub enum RapydAuthResult {
     #[serde(rename = "A")]
     Authenticated,
     /// Not authenticated. Note this does NOT by itself mean the payment failed —
-    /// see `build_authentication_metadata`.
+    /// see `build_connector_metadata`.
     #[serde(rename = "N")]
     NotAuthenticated,
     /// Redirection pending — the challenge is still outstanding.
@@ -1574,30 +1971,82 @@ pub(super) fn build_redirection_data(
     Ok(parsed.map(|url| RedirectForm::from((url, Method::Get))))
 }
 
-/// Surface the 3DS diagnostics (`authentication_result`, and the external-3DS
-/// echo) as `connector_metadata`.
+/// Rapyd's response-side verification checks, surfaced together under
+/// `connector_metadata.verification_checks`.
 ///
-/// This is **diagnostic only and never an input to `get_status`**. An issuer can
-/// return `result: "N"` under an attempts/liability-shift or an SCA exemption
-/// while Rapyd still closes the payment with `paid: true` — mapping that to
-/// `Failure` would report a false decline on a captured payment. The
+/// These are the merchant's only view of the AVS and CVV outcomes: Rapyd
+/// reports them per attempt and nothing else in `PaymentsResponseData` has a
+/// slot for them.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct RapydVerificationChecks {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_check: Option<RapydCheckResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cvv_check: Option<RapydCheckResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_check: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avs_result: Option<String>,
+}
+
+impl RapydVerificationChecks {
+    fn from_payment_method_data(pmd: &RapydResponsePaymentMethodData) -> Option<Self> {
+        let checks = Self {
+            acs_check: pmd.acs_check,
+            cvv_check: pmd.cvv_check,
+            avs_check: pmd.avs_check.clone(),
+            avs_result: pmd.avs_result.clone(),
+        };
+        // Every one of these is absent on a non-card payment method, and
+        // `payment_method_data` is the same struct across all of them.
+        (!checks.is_empty()).then_some(checks)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.acs_check.is_none()
+            && self.cvv_check.is_none()
+            && self.avs_check.is_none()
+            && self.avs_result.is_none()
+    }
+}
+
+/// Surface the per-attempt diagnostics Rapyd returns — the 3DS result
+/// (`authentication_result` and the external-3DS echo) plus the AVS/CVV/ACS
+/// verification checks — as `connector_metadata`.
+///
+/// All of it is **diagnostic only and never an input to `get_status`**. An
+/// issuer can return `result: "N"` under an attempts/liability-shift or an SCA
+/// exemption while Rapyd still closes the payment with `paid: true`, and a
+/// `cvv_check: "fail"` can likewise accompany an approved payment — mapping
+/// either to `Failure` would report a false decline on a captured payment. The
 /// authoritative outcome stays `(status, next_action)` plus `failure_code`.
-pub(super) fn build_authentication_metadata(data: &ResponseData) -> Option<serde_json::Value> {
+pub(super) fn build_connector_metadata(data: &ResponseData) -> Option<serde_json::Value> {
     #[derive(Serialize)]
-    struct RapydAuthenticationMetadata<'a> {
+    struct RapydConnectorMetadata<'a> {
         #[serde(skip_serializing_if = "Option::is_none")]
         authentication_result: Option<&'a RapydAuthenticationResult>,
         #[serde(skip_serializing_if = "Option::is_none")]
         payment_method_options: Option<&'a RapydResponsePaymentMethodOptions>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        verification_checks: Option<RapydVerificationChecks>,
     }
 
-    if data.authentication_result.is_none() && data.payment_method_options.is_none() {
+    let verification_checks = data
+        .payment_method_data
+        .as_ref()
+        .and_then(RapydVerificationChecks::from_payment_method_data);
+
+    if data.authentication_result.is_none()
+        && data.payment_method_options.is_none()
+        && verification_checks.is_none()
+    {
         return None;
     }
 
-    serde_json::to_value(RapydAuthenticationMetadata {
+    serde_json::to_value(RapydConnectorMetadata {
         authentication_result: data.authentication_result.as_deref(),
         payment_method_options: data.payment_method_options.as_deref(),
+        verification_checks,
     })
     .ok()
 }
@@ -1606,6 +2055,37 @@ pub(super) fn build_authentication_metadata(data: &ResponseData) -> Option<serde
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RapydResponsePaymentMethodData {
     pub network_reference_id: Option<Secret<String>>,
+    /// Access Control Server (3DS) check. Closed set, diagnostic only —
+    /// `authentication_result` stays the 3DS authority for this connector and
+    /// this is a coarser second view of the same event.
+    /// <https://docs.rapyd.net/en/retrieve-payment.html>
+    pub acs_check: Option<RapydCheckResult>,
+    /// Verification of the card's CVV/CVC against the issuer's record. Closed
+    /// set. Diagnostic only: a `Fail` does not by itself mean the payment
+    /// failed — `(status, next_action)` remains authoritative. Rapyd's own
+    /// `PAYMENT_FAILED` example carries `"acs_check": "unavailable"` and
+    /// `"cvv_check": "fail"` in the same payload, so the two are independent.
+    /// <https://docs.rapyd.net/en/retrieve-payment.html>
+    pub cvv_check: Option<RapydCheckResult>,
+    /// Address Verification Service result. **Deliberately an opaque `String`,
+    /// not an enum**: unlike its two table neighbours above, Rapyd documents no
+    /// value set for it on any page, and it appears in zero published JSON
+    /// examples. Inventing the `pass|fail|unavailable|unchecked` set here would
+    /// be fabricating a contract Rapyd has never published.
+    ///
+    /// AVS is off unless the request sets `payment_method_options.avs_required`
+    /// **and** includes an `address` object. The actionable AVS failure signal
+    /// is the top-level `ERROR_CREATE_PAYMENT_ADDRESS_VERIFICATION_FAILURE`
+    /// code, not this field, so nothing gates status on it.
+    /// <https://docs.rapyd.net/en/retrieve-payment.html>,
+    /// <https://docs.rapyd.net/en/card-payments.html>
+    pub avs_check: Option<String>,
+    /// The field Rapyd's one published `avs_required: true` example actually
+    /// returns (value `"X"`), which appears in NO field table on any page.
+    /// Both names are modelled because Rapyd's prose and Rapyd's examples
+    /// disagree about which one is emitted; both are opaque.
+    /// <https://docs.rapyd.net/en/create-payment.html>
+    pub avs_result: Option<String>,
 }
 
 // Capture Request
@@ -1747,20 +2227,36 @@ impl<F, T> TryFrom<ResponseRouterData<RefundResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
-        let (connector_refund_id, refund_status) = match item.response.data {
-            Some(data) => (data.id, common_enums::RefundStatus::from(data.status)),
-            None => (
-                item.response.status.error_code,
-                common_enums::RefundStatus::Failure,
-            ),
-        };
-        Ok(Self {
-            response: Ok(RefundsResponseData {
-                connector_refund_id,
-                refund_status,
+        let response = match item.response.data {
+            Some(data) => Ok(RefundsResponseData {
+                connector_refund_id: data.id,
+                refund_status: common_enums::RefundStatus::from(data.status),
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             }),
+            // A 2xx carrying Rapyd's status-only error envelope. This used to be
+            // reported as `Ok` with the ERROR CODE stuffed into
+            // `connector_refund_id`, which both fabricated a refund id and threw
+            // the reason away — the merchant saw a failed refund with no code
+            // and no message. It is an `ErrorResponse`.
+            //
+            // `FlowStatus::Refund(..)`, never `FlowStatus::Payment(..)`: the
+            // refund error builder in `domain_types` reads `attempt_status`
+            // alone, and `ForeignFrom<FlowStatus> for RefundStatus` maps
+            // `Payment(_)` to `RefundFailure` — so a payment status here would
+            // be silently laundered into a terminal refund failure. The status
+            // carried is the one this arm has always produced.
+            None => Err(rapyd_error_response(
+                item.http_code,
+                classify_rapyd_error(item.http_code, &item.response.status, None),
+                &item.response.status,
+                None,
+                None,
+                Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
+            )),
+        };
+        Ok(Self {
+            response,
             ..item.router_data
         })
     }
@@ -2075,21 +2571,14 @@ impl TryFrom<ResponseRouterData<RapydCreateOrderResponse, Self>>
                 })
             }
             None => Ok(Self {
-                response: Err(ErrorResponse {
-                    code: response.status.error_code,
-                    status_code: item.http_code,
-                    message: response.status.status.unwrap_or_default(),
-                    reason: response.status.message,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(rapyd_error_response(
+                    item.http_code,
+                    classify_rapyd_error(item.http_code, &response.status, None),
+                    &response.status,
+                    None,
+                    None,
+                    Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                )),
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
                     ..item.router_data.resource_common_data
@@ -2321,26 +2810,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
-                        Err(ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code.clone()),
-                            status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_else(|| {
-                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                            }),
-                            reason: data.failure_message.clone(),
-                            attempt_status: None,
-                            connector_transaction_id: Some(data.id.clone()),
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            typed_connector_response: None,
-                            raw_connector_response: None,
-                            raw_connector_request: None,
-                            typed_connector_request: None,
-                        }),
+                        Err(rapyd_error_response(
+                            item.http_code,
+                            classify_rapyd_error(item.http_code, &item.response.status, Some(data)),
+                            &item.response.status,
+                            Some(data),
+                            Some(data.id.clone()),
+                            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                        )),
                     ),
                     _ => {
                         // Surface the 3DS redirect so verification can be completed.
@@ -2369,7 +2846,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
                                 redirection_data: redirection_data.map(Box::new),
                                 mandate_reference,
-                                connector_metadata: build_authentication_metadata(data),
+                                connector_metadata: build_connector_metadata(data),
                                 network_txn_id: None,
                                 network_txn_link_id: None,
                                 connector_response_reference_id: data.merchant_reference_id.clone(),
@@ -2384,26 +2861,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             None => (
                 common_enums::AttemptStatus::Failure,
-                Err(ErrorResponse {
-                    code: item.response.status.error_code.clone(),
-                    status_code: item.http_code,
-                    message: item
-                        .response
-                        .status
-                        .status
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.status.message.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                Err(rapyd_error_response(
+                    item.http_code,
+                    classify_rapyd_error(item.http_code, &item.response.status, None),
+                    &item.response.status,
+                    None,
+                    None,
+                    Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                )),
             ),
         };
 
@@ -2556,29 +3021,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
-                        Err(ErrorResponse {
-                            code: data
-                                .failure_code
-                                .to_owned()
-                                .unwrap_or(item.response.status.error_code.clone()),
-                            status_code: item.http_code,
-                            message: item.response.status.status.clone().unwrap_or_else(|| {
-                                common_utils::consts::NO_ERROR_MESSAGE.to_string()
-                            }),
-                            reason: data.failure_message.to_owned(),
-                            attempt_status: None,
+                        Err(rapyd_error_response(
+                            item.http_code,
+                            classify_rapyd_error(item.http_code, &item.response.status, Some(data)),
+                            &item.response.status,
+                            Some(data),
                             // Preserve the connector's transaction id on
                             // failure so reconciliation / support lookups
                             // can locate the attempt in Rapyd's dashboard.
-                            connector_transaction_id: Some(data.id.clone()),
-                            network_advice_code: None,
-                            network_decline_code: None,
-                            network_error_message: None,
-                            typed_connector_response: None,
-                            raw_connector_response: None,
-                            raw_connector_request: None,
-                            typed_connector_request: None,
-                        }),
+                            Some(data.id.clone()),
+                            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                        )),
                     ),
                     _ => (
                         attempt_status,
@@ -2604,26 +3057,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             None => (
                 common_enums::AttemptStatus::Failure,
-                Err(ErrorResponse {
-                    code: item.response.status.error_code.clone(),
-                    status_code: item.http_code,
-                    message: item
-                        .response
-                        .status
-                        .status
-                        .clone()
-                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: item.response.status.message.clone(),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                Err(rapyd_error_response(
+                    item.http_code,
+                    classify_rapyd_error(item.http_code, &item.response.status, None),
+                    &item.response.status,
+                    None,
+                    None,
+                    Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+                )),
             ),
         };
 
@@ -2779,7 +3220,10 @@ pub struct DisputeResponseData {
 pub enum WebhookData {
     Dispute(DisputeResponseData),
     Refund(RefundResponseData),
-    Payment(ResponseData),
+    /// Boxed: `ResponseData` is by far the largest of the three payloads (it is
+    /// the full payment object), and an unboxed variant would size every
+    /// `WebhookData` — including the two small ones — to match it.
+    Payment(Box<ResponseData>),
 }
 
 impl From<ResponseData> for RapydPaymentsResponse {

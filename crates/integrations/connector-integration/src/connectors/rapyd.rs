@@ -27,7 +27,7 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -299,7 +299,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let webhook = parse_rapyd_webhook(&request.body)?;
 
         let data = match webhook.data {
-            transformers::WebhookData::Payment(payment_data) => payment_data,
+            transformers::WebhookData::Payment(payment_data) => *payment_data,
             transformers::WebhookData::Refund(_) | transformers::WebhookData::Dispute(_) => {
                 return Err(
                     error_stack::report!(WebhookError::WebhookResourceObjectNotFound)
@@ -318,9 +318,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             connector_request_reference_id: None,
             mandate_reference: None,
-            error_code: transformers::non_empty(data.failure_code.clone()),
-            error_message: transformers::non_empty(data.failure_message.clone()),
-            error_reason: None,
+            // A webhook has no `status` envelope, so `data.error_code` is the
+            // only place the FULLY-QUALIFIED code
+            // ("ERROR_PROCESSING_CARD - [65]") appears. Surfacing that rather
+            // than the bare "65" keeps the code identical to the one the REST
+            // error path reports for the same decline.
+            error_code: transformers::non_empty(data.error_code.clone())
+                .or_else(|| transformers::non_empty(data.failure_code.clone())),
+            error_message: transformers::non_empty(data.failure_message.clone())
+                .map(|message| transformers::rapyd_short_message(&message).to_owned()),
+            // The Merchant Advice Code description — Rapyd's own retry guidance
+            // ("Try again later"). It is advice, never the decline reason, so it
+            // goes here and not into the error message.
+            error_reason: transformers::non_empty(data.merchant_advice_message.clone()),
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
@@ -433,7 +443,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // `TryFrom<ResponseRouterData<..>>` impls.
         let resource = match webhook.data {
             transformers::WebhookData::Payment(payment_data) => {
-                RapydPaymentsResponse::from(payment_data)
+                RapydPaymentsResponse::from(*payment_data)
                     .encode_to_value()
                     .change_context(WebhookError::WebhookResourceObjectNotFound)?
             }
@@ -479,11 +489,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        let auth = RapydAuthType::try_from(auth_type).change_context(
-            IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
-            },
-        )?;
+        let auth =
+            RapydAuthType::try_from(auth_type)
+                .change_context(IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Check the merchant's Rapyd credentials (`access_key` / `secret_key`) in \
+                         the connector configuration. Rapyd reports a bad or missing credential as \
+                         MISSING_AUTHENTICATION_HEADERS or UNAUTHENTICATED_API_CALL, neither of \
+                         which is a card decline."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(transformers::RAPYD_ERROR_CODES_DOC_URL.to_owned()),
+                    additional_context: Some(
+                        "rapyd: could not build the access_key auth header".to_owned(),
+                    ),
+                },
+            })?;
 
         // Return basic auth headers - signature will be added in get_headers method
         Ok(vec![(
@@ -496,46 +518,94 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         connectors.rapyd.base_url.as_ref()
     }
 
+    /// The flow-agnostic error path, and therefore the **payment-authorization**
+    /// shape: a rejected Authorize / SetupMandate / RepeatPayment / CreateOrder
+    /// is a failed payment attempt.
+    ///
+    /// Every other flow overrides `get_error_response_v2` to re-tag the status
+    /// for its own domain — see [`Rapyd::rapyd_error_response_for`] and the
+    /// per-flow `other_functions` blocks below. This function must stay the
+    /// safe default rather than the universal one, because
+    /// `ConnectorCommon::build_error_response` cannot see which flow is calling
+    /// it.
     fn build_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: Result<RapydPaymentsResponse, Report<common_utils::errors::ParsingError>> =
-            res.response.parse_struct("rapyd ErrorResponse");
+        self.rapyd_error_response_for(res, event_builder, payment_attempt_status)
+    }
+}
 
-        match response {
-            Ok(response_data) => {
-                with_error_response_body!(event_builder, response_data);
-                let typed = macros::serialize_typed_connector_payload(
-                    &response_data,
-                    "typed_connector_response",
-                );
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: response_data.status.error_code,
-                    message: response_data.status.status.unwrap_or_default(),
-                    reason: response_data.status.message,
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: typed,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                })
-            }
-            Err(error_msg) => {
-                if let Some(event) = event_builder {
-                    event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
-                };
-                tracing::error!(deserialization_error =? error_msg);
-                domain_types::utils::handle_json_response_deserialization_failure(res, "rapyd")
-            }
+/// Attempt status for a flow whose failure means the **payment attempt** failed:
+/// Authorize, SetupMandate, RepeatPayment, CreateOrder.
+///
+/// A class (c) transport failure returns `None` on purpose. A 401 whose
+/// signature Rapyd could not verify, a replayed idempotency key, a rate limit or
+/// a Rapyd-side fault says nothing about whether the card was charged — marking
+/// such an attempt `Failure` is exactly how a charged payment gets reported as
+/// FAILURE. `None` maps to the unspecified status, which is the honest answer
+/// and leaves Hyperswitch to resolve it by PSync.
+fn payment_attempt_status(class: transformers::RapydErrorClass) -> Option<FlowStatus> {
+    match class {
+        transformers::RapydErrorClass::IssuerDecline
+        | transformers::RapydErrorClass::MerchantConfiguration => {
+            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
         }
+        transformers::RapydErrorClass::Transport => None,
+    }
+}
+
+/// Capture is not Authorize: a rejected capture leaves an authorized payment
+/// standing, so it reports `CaptureFailed`, never `Failure`.
+fn capture_attempt_status(class: transformers::RapydErrorClass) -> Option<FlowStatus> {
+    match class {
+        transformers::RapydErrorClass::IssuerDecline
+        | transformers::RapydErrorClass::MerchantConfiguration => Some(FlowStatus::Payment(
+            common_enums::AttemptStatus::CaptureFailed,
+        )),
+        transformers::RapydErrorClass::Transport => None,
+    }
+}
+
+/// Void, likewise: a rejected cancellation leaves the payment as it was.
+fn void_attempt_status(class: transformers::RapydErrorClass) -> Option<FlowStatus> {
+    match class {
+        transformers::RapydErrorClass::IssuerDecline
+        | transformers::RapydErrorClass::MerchantConfiguration => {
+            Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed))
+        }
+        transformers::RapydErrorClass::Transport => None,
+    }
+}
+
+/// A **sync is a read**. Failing to read a payment's or a refund's status —
+/// including `ERROR_PAYMENT_NOT_FOUND`, which is a lookup miss and not a
+/// decline — is never evidence that the thing being read has failed. PSync and
+/// RSync therefore never emit a terminal status; the unspecified status leaves
+/// the caller's existing status untouched.
+fn sync_never_terminal(_class: transformers::RapydErrorClass) -> Option<FlowStatus> {
+    None
+}
+
+/// The Refund flow, and the reason this whole indirection exists.
+///
+/// `generate_refund_response` (`domain_types/src/types.rs`) reads
+/// `ErrorResponse::attempt_status` and NOTHING else — unlike the payment path it
+/// has no `resource_common_data.status` fallback — so `None` there makes every
+/// Rapyd refund error report `REFUND_STATUS_UNSPECIFIED`. But
+/// `FlowStatus::Payment(_)` is not the fix either: `ForeignFrom<FlowStatus> for
+/// RefundStatus` maps every `Payment(_)` to `RefundFailure`, so the generic
+/// payment builder would report a transport error on a refund as a terminal
+/// refund failure. Only a `FlowStatus::Refund(..)`, chosen per class, is right.
+fn refund_attempt_status(class: transformers::RapydErrorClass) -> Option<FlowStatus> {
+    match class {
+        transformers::RapydErrorClass::IssuerDecline
+        | transformers::RapydErrorClass::MerchantConfiguration => {
+            Some(FlowStatus::Refund(common_enums::RefundStatus::Failure))
+        }
+        transformers::RapydErrorClass::Transport => None,
     }
 }
 
@@ -606,6 +676,59 @@ macros::create_all_prerequisites!(
         amount_converter_webhooks: StringMinorUnit
     ],
     member_functions: {
+        /// Parses whichever of Rapyd's three failure envelopes came back,
+        /// classifies it, and hands the flow-specific `attempt_status` decision
+        /// to `status_for`.
+        ///
+        /// One body, one classifier, one GSM extraction — the flow-awareness is
+        /// the single function pointer. This is deliberately reachable: it is
+        /// wired from `ConnectorCommon::build_error_response` and from an
+        /// explicit `get_error_response_v2` override on each flow that needs a
+        /// different status. A helper that merely *existed* and assumed the
+        /// flow-agnostic `ConnectorCommon` path would dispatch to it would never
+        /// run at all.
+        pub fn rapyd_error_response_for(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            status_for: fn(transformers::RapydErrorClass) -> Option<FlowStatus>,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let parsed: Result<RapydPaymentsResponse, Report<common_utils::errors::ParsingError>> =
+                res.response.parse_struct("rapyd ErrorResponse");
+
+            match parsed {
+                Ok(response_data) => {
+                    with_error_response_body!(event_builder, response_data);
+                    let typed = macros::serialize_typed_connector_payload(
+                        &response_data,
+                        "typed_connector_response",
+                    );
+                    let class = transformers::classify_rapyd_error(
+                        res.status_code,
+                        &response_data.status,
+                        response_data.data.as_ref(),
+                    );
+                    let mut error_response = transformers::rapyd_error_response(
+                        res.status_code,
+                        class,
+                        &response_data.status,
+                        response_data.data.as_ref(),
+                        response_data.data.as_ref().map(|payment| payment.id.clone()),
+                        status_for(class),
+                    );
+                    error_response.typed_connector_response = typed;
+                    Ok(error_response)
+                }
+                Err(error_msg) => {
+                    if let Some(event) = event_builder {
+                        event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}))
+                    };
+                    tracing::error!(deserialization_error =? error_msg);
+                    domain_types::utils::handle_json_response_deserialization_failure(res, "rapyd")
+                }
+            }
+        }
+
         pub fn build_headers<F, FCD, Req, Res>(
             &self,
             req: &RouterDataV2<F, FCD, Req, Res>,
@@ -723,7 +846,7 @@ macros::macro_connector_implementation!(
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_response: RapydPSyncResponse,
     flow_name: PSync,
@@ -751,11 +874,21 @@ macros::macro_connector_implementation!(
             let id = req.request.get_connector_transaction_id()?;
             Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), id))
         }
+
+        // A failed PSync is a failed *read*. It must never report the payment itself as failed.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.rapyd_error_response_for(res, event_builder, sync_never_terminal)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(CaptureRequest),
     curl_response: RapydCaptureResponse,
@@ -786,11 +919,21 @@ macros::macro_connector_implementation!(
             let id = req.request.get_connector_transaction_id()?;
             Ok(format!("{}/v1/payments/{}/capture", self.connector_base_url_payments(req), id))
         }
+
+        // A rejected capture reports `CaptureFailed`, not a failed payment — the authorization still stands.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.rapyd_error_response_for(res, event_builder, capture_attempt_status)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_response: RapydVoidResponse,
     flow_name: Void,
@@ -817,11 +960,21 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), req.request.connector_transaction_id))
         }
+
+        // A rejected cancellation reports `VoidFailed`; the payment is unchanged.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.rapyd_error_response_for(res, event_builder, void_attempt_status)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_request: Json(RapydRefundRequest),
     curl_response: RefundResponse,
@@ -851,11 +1004,21 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/refunds", self.connector_base_url_refunds(req)))
         }
+
+        // The refund error builder reads `attempt_status` alone, so this must carry a `FlowStatus::Refund(..)` or the refund reports an unspecified status.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.rapyd_error_response_for(res, event_builder, refund_attempt_status)
+        }
     }
 );
 
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Rapyd,
     curl_response: RapydRSyncResponse,
     flow_name: RSync,
@@ -881,6 +1044,16 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/v1/refunds/{}", self.connector_base_url_refunds(req), req.request.connector_refund_id))
+        }
+
+        // A failed RSync is a failed *read* and must never terminally fail the refund it was polling.
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.rapyd_error_response_for(res, event_builder, sync_never_terminal)
         }
     }
 );

@@ -634,7 +634,7 @@ use domain_types::{
 };
 use std::str::FromStr;
 use transformers::{
-    build_authentication_metadata, build_card_payment_method_options, build_redirection_data,
+    build_card_payment_method_options, build_connector_metadata, build_redirection_data,
     get_status, get_status_for_payment_response, NextAction, PaymentMethodOptions, RapydAuthResult,
     RapydClientDetails, RapydEciRequest, RapydPaymentStatus, RapydScaExemption,
     RapydThreeDsVersion, ResponseData,
@@ -769,7 +769,7 @@ fn authentication_result_n_does_not_downgrade_a_closed_payment() {
         AttemptStatus::Charged
     );
     // …and it is still surfaced, as metadata, for liability-shift reporting.
-    let metadata = build_authentication_metadata(&data).expect("metadata must be present");
+    let metadata = build_connector_metadata(&data).expect("metadata must be present");
     assert_eq!(metadata["authentication_result"]["result"], "N");
 }
 
@@ -1153,5 +1153,655 @@ fn missing_next_action_errors_on_an_active_payment_but_not_on_a_closed_one() {
     assert_eq!(
         transformers::get_status_for_webhook(&data),
         AttemptStatus::Charged
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Response-side error, AVS/CVV and GSM mapping
+//
+// Rapyd's three sandbox decline cards all return the *status-only* envelope, so
+// live testing exercises only the fallback extraction path and can never
+// produce a populated `merchant_advice_code`, a `cvv_check: "fail"` or any AVS
+// result at all. Everything below is therefore pinned against payloads copied
+// verbatim out of Rapyd's own published examples (saved as
+// `grace/rulesbook/codegen/references/rapyd/source_err_*.md`), which is the only
+// way to cover those paths honestly.
+// ---------------------------------------------------------------------------
+
+use domain_types::router_data::FlowStatus;
+use transformers::{
+    classify_rapyd_error, network_code_from_qualified, rapyd_error_response,
+    rapyd_network_error_fields, rapyd_short_message, RapydCheckResult, RapydErrorClass,
+    RapydPaymentsResponse,
+};
+
+/// `POST /v1/payments` error, verbatim from
+/// <https://docs.rapyd.net/en/create-payment-error-examples.html> (second
+/// example) — the shape that carries a full `data` payment object beside the
+/// envelope. Trimmed to the fields this connector reads; every value is
+/// unchanged.
+const CREATE_PAYMENT_ERROR_65: &str = r#"{
+  "status": {
+    "error_code": "ERROR_PROCESSING_CARD - [65]",
+    "status": "ERROR",
+    "message": "[Authentication Required or Activity Limit Exceeded] The request attempted a card operation, but 3DS was not completed or the transaction would exceed the card's activity limit. The request was rejected. Corrective action: Resubmit with 3DS required or use another payment method.",
+    "response_code": "ERROR_PROCESSING_CARD - [65]",
+    "operation_id": "b853d6ab-a944-4878-a8fb-09b20798d97a"
+  },
+  "data": {
+    "id": "payment_3756efe04a548f33d863b9ed2ab47e4a",
+    "amount": 1065,
+    "original_amount": 1065,
+    "is_partial": false,
+    "currency_code": "ISK",
+    "country_code": "IS",
+    "status": "ERR",
+    "merchant_reference_id": "",
+    "payment_method": null,
+    "payment_method_data": {
+      "type": "is_visa_card",
+      "category": "card",
+      "next_action": "not_applicable",
+      "last4": "1111",
+      "acs_check": "unchecked",
+      "cvv_check": "unchecked"
+    },
+    "captured": true,
+    "transaction_id": "",
+    "failure_code": "65",
+    "failure_message": "Authentication Required or Activity Limit Exceeded",
+    "paid": false,
+    "outcome": null,
+    "payment_method_options": { "3d_required": false },
+    "next_action": "not_applicable",
+    "error_code": "ERROR_PROCESSING_CARD - [65]",
+    "merchant_advice_code": "02",
+    "merchant_advice_message": "Try again later"
+  }
+}"#;
+
+/// `POST /v1/payments` error, verbatim from the *first* example on the same
+/// page: an Account Funding Transaction the merchant is not entitled to. The
+/// request never reached the card network, so every `data.*` error field is
+/// empty and `merchant_advice_code` is `null`.
+const CREATE_PAYMENT_ERROR_AFT: &str = r#"{
+  "status": {
+    "error_code": "ERROR_ACCOUNT_FUNDING_TRANSACTION",
+    "status": "ERROR",
+    "message": "The request tried to create an account funding transaction, but your organization is not configured for such transactions. The request was rejected. Corrective action: Contact Rapyd Client Support.",
+    "response_code": "ERROR_ACCOUNT_FUNDING_TRANSACTION",
+    "operation_id": "0d7a7a2e-6ab6-4f2c-9c17-4a2c66a1f0a6"
+  },
+  "data": {
+    "id": "payment_2f0a1b6ab0a54a1197c62a49c9ee8f2b",
+    "amount": 4,
+    "currency_code": "EUR",
+    "status": "ERR",
+    "payment_method_data": {
+      "type": "at_visa_card",
+      "category": "card",
+      "acs_check": "unchecked",
+      "cvv_check": "unchecked"
+    },
+    "captured": true,
+    "failure_code": "",
+    "failure_message": "",
+    "paid": false,
+    "outcome": null,
+    "next_action": "not_applicable",
+    "error_code": "",
+    "merchant_advice_code": null,
+    "merchant_advice_message": null
+  }
+}"#;
+
+/// The status-only envelope the sandbox decline cards return — verbatim from
+/// <https://docs.rapyd.net/en/card-numbers-for-testing.html> (`4111111111111151`).
+/// There is no `data` object at all, so the network code is recoverable only
+/// from the bracket group of `error_code`.
+const STATUS_ONLY_DECLINE_51: &str = r#"{
+  "status": {
+    "error_code": "ERROR_PROCESSING_CARD - [51]",
+    "status": "ERROR",
+    "message": "Insufficient Funds",
+    "response_code": "ERROR_PROCESSING_CARD - [51]",
+    "operation_id": "563694e5-3454-474a-92b0-24ae720538b7"
+  }
+}"#;
+
+/// The `PAYMENT_FAILED` webhook payload, verbatim from
+/// <https://docs.rapyd.net/en/payment-failed-webhook.html> — the one published
+/// payload where `cvv_check` is `fail` and `acs_check` is `unavailable` at the
+/// same time, proving the two checks are independent, and the only one carrying
+/// both a populated `merchant_advice_code` and the qualified `data.error_code`.
+///
+/// Trimmed to the fields this connector reads. The one further deviation:
+/// `authentication_result.cardholder_info` is dropped, because Rapyd's own
+/// published text for it contains a spelling error that the repo's `typos` CI
+/// gate rejects. Nothing here asserts on that field.
+const WEBHOOK_FAILED_65: &str = r#"{
+  "id": "payment_bb9c69b6d9b0aa4a5f1d0cb2d4e4f9e0",
+  "amount": 1065,
+  "status": "ERR",
+  "next_action": "not_applicable",
+  "currency_code": "ISK",
+  "captured": true,
+  "paid": false,
+  "transaction_id": "",
+  "merchant_reference_id": "",
+  "error_code": "ERROR_PROCESSING_CARD - [65]",
+  "failure_code": "65",
+  "failure_message": "Authentication Required or Activity Limit Exceeded",
+  "merchant_advice_code": "02",
+  "merchant_advice_message": "Try again later",
+  "payment_method_data": {
+    "type": "gb_mastercard_card",
+    "last4": "2867",
+    "category": "card",
+    "acs_check": "unavailable",
+    "cvv_check": "fail",
+    "next_action": "not_applicable",
+    "payment_account_reference": "V0010013018036782991622965076"
+  },
+  "authentication_result": {
+    "eci": "07",
+    "result": "N",
+    "version": "2.2.0"
+  },
+  "payment_method_options": { "3d_required": true }
+}"#;
+
+fn parse_error(body: &str) -> RapydPaymentsResponse {
+    serde_json::from_str(body).expect("Rapyd's own published payload must deserialize")
+}
+
+// ---------------------------------------------------------------------------
+// 1. The GSM triple
+// ---------------------------------------------------------------------------
+
+/// The load-bearing case. Every one of the three fields used to be hardcoded
+/// `None` at all eight construction sites, so no Hyperswitch GSM rule could
+/// ever fire on a Rapyd decline.
+#[test]
+fn a_network_decline_populates_all_three_gsm_fields() {
+    let response = parse_error(CREATE_PAYMENT_ERROR_65);
+    let data = response.data.as_ref().expect("data object must parse");
+    let class = classify_rapyd_error(400, &response.status, Some(data));
+    assert_eq!(class, RapydErrorClass::IssuerDecline);
+
+    let fields = rapyd_network_error_fields(class, &response.status, Some(data));
+    // The BARE scheme code, not the qualified "ERROR_PROCESSING_CARD - [65]".
+    assert_eq!(fields.decline_code.as_deref(), Some("65"));
+    // The Merchant Advice Code, zero-padded and passed through unmodified.
+    assert_eq!(fields.advice_code.as_deref(), Some("02"));
+    // The network's short decline reason — NOT "Try again later", which is the
+    // MAC's retry advice and would destroy the GSM signal if routed here.
+    assert_eq!(
+        fields.error_message.as_deref(),
+        Some("Authentication Required or Activity Limit Exceeded")
+    );
+
+    let error = rapyd_error_response(400, class, &response.status, Some(data), None, None);
+    assert_eq!(error.code, "ERROR_PROCESSING_CARD - [65]");
+    assert_eq!(
+        error.message,
+        "Authentication Required or Activity Limit Exceeded"
+    );
+    let reason = error.reason.expect("reason must carry Rapyd's own advice");
+    assert!(reason.contains("Corrective action: Resubmit with 3DS required"));
+    assert!(reason.contains("Try again later"));
+    assert_eq!(error.network_decline_code.as_deref(), Some("65"));
+    assert_eq!(error.network_advice_code.as_deref(), Some("02"));
+}
+
+/// A merchant-configuration rejection is NOT a card decline. Retrying it is
+/// guaranteed to fail, so it must not feed GSM — and Rapyd tells us so by
+/// leaving every `data.*` error field empty.
+#[test]
+fn a_merchant_configuration_rejection_feeds_no_gsm_field() {
+    let response = parse_error(CREATE_PAYMENT_ERROR_AFT);
+    let data = response.data.as_ref().expect("data object must parse");
+    let class = classify_rapyd_error(400, &response.status, Some(data));
+    assert_eq!(class, RapydErrorClass::MerchantConfiguration);
+
+    let error = rapyd_error_response(400, class, &response.status, Some(data), None, None);
+    assert_eq!(error.code, "ERROR_ACCOUNT_FUNDING_TRANSACTION");
+    assert_eq!(error.network_decline_code, None);
+    assert_eq!(error.network_advice_code, None);
+    assert_eq!(error.network_error_message, None);
+}
+
+/// The shape the sandbox decline cards actually return: no `data` object, so
+/// the scheme code survives only inside the bracket group.
+#[test]
+fn the_status_only_envelope_still_yields_a_decline_code() {
+    let response = parse_error(STATUS_ONLY_DECLINE_51);
+    assert!(response.data.is_none());
+    let class = classify_rapyd_error(400, &response.status, None);
+    assert_eq!(class, RapydErrorClass::IssuerDecline);
+
+    let error = rapyd_error_response(400, class, &response.status, None, None, None);
+    assert_eq!(error.code, "ERROR_PROCESSING_CARD - [51]");
+    assert_eq!(error.network_decline_code.as_deref(), Some("51"));
+    assert_eq!(
+        error.network_error_message.as_deref(),
+        Some("Insufficient Funds")
+    );
+    // Nothing in this shape carries a MAC, so it must stay absent rather than
+    // being guessed from the decline code.
+    assert_eq!(error.network_advice_code, None);
+}
+
+/// A webhook has no `status` envelope, so `data.error_code` is the only source
+/// of the qualified code. The same decline must report the same code whether it
+/// arrives over REST or over a webhook.
+#[test]
+fn a_webhook_payload_reports_the_same_codes_as_the_rest_error() {
+    let data: ResponseData = serde_json::from_str(WEBHOOK_FAILED_65)
+        .expect("Rapyd's own PAYMENT_FAILED payload must deserialize");
+    let synthesised = RapydPaymentsResponse::from(data.clone());
+    let class = classify_rapyd_error(200, &synthesised.status, Some(&data));
+    assert_eq!(class, RapydErrorClass::IssuerDecline);
+
+    let error = rapyd_error_response(200, class, &synthesised.status, Some(&data), None, None);
+    assert_eq!(error.code, "ERROR_PROCESSING_CARD - [65]");
+    assert_eq!(error.network_decline_code.as_deref(), Some("65"));
+    assert_eq!(error.network_advice_code.as_deref(), Some("02"));
+}
+
+/// The card-network code is alphanumeric — Rapyd's own tables list `OF`, `TJ`,
+/// `5C`, `N7`, `W1`, `XA`, `3X`, `1A`, `6P`, `B1`, `Q1`, `Z1`, `CV`. Parsing it
+/// as a number would silently drop every one of them.
+#[test]
+fn the_network_code_is_an_opaque_alphanumeric_token() {
+    for (qualified, expected) in [
+        ("ERROR_PROCESSING_CARD - [51]", Some("51")),
+        ("ERROR_PROCESSING_CARD - [05]", Some("05")),
+        ("ERROR_PROCESSING_CARD - [OF]", Some("OF")),
+        ("ERROR_PROCESSING_CARD - [5C]", Some("5C")),
+        ("ERROR_PROCESSING_CARD - [N7]", Some("N7")),
+        ("ERROR_PROCESSING_CARD - [XA]", Some("XA")),
+        ("ERROR_PROCESSING_CARD - [1A]", Some("1A")),
+        // No bracket group, an empty one, or a truncated one: never a panic,
+        // never a fabricated code.
+        ("ERROR_ACCOUNT_FUNDING_TRANSACTION", None),
+        ("ERROR_PROCESSING_CARD - []", None),
+        ("ERROR_PROCESSING_CARD - [51", None),
+    ] {
+        assert_eq!(
+            network_code_from_qualified(qualified).as_deref(),
+            expected,
+            "code {qualified}"
+        );
+    }
+}
+
+/// Rapyd's prose says a webhook's `failure_message` is bracketed; both of
+/// Rapyd's own payloads show it bare; a REST `status.message` is
+/// `"[short] long"`. All three must reduce to the short reason.
+#[test]
+fn the_short_message_survives_rapyds_three_bracket_conventions() {
+    assert_eq!(
+        rapyd_short_message("[Insufficient Funds]"),
+        "Insufficient Funds"
+    );
+    assert_eq!(
+        rapyd_short_message("Insufficient Funds"),
+        "Insufficient Funds"
+    );
+    assert_eq!(
+        rapyd_short_message("[Do Not Honor] The request attempted a card operation."),
+        "Do Not Honor"
+    );
+    // A malformed bracket group must not swallow the message.
+    assert_eq!(rapyd_short_message("[unterminated"), "[unterminated");
+    assert_eq!(rapyd_short_message("[]  something"), "[]  something");
+}
+
+// ---------------------------------------------------------------------------
+// 2. Error classification — the transport class must never look like a decline
+// ---------------------------------------------------------------------------
+
+/// A rejected signature, a replayed idempotency key, a Rapyd-side fault or a
+/// rate limit says nothing about whether the card was charged. Reporting any of
+/// them as a card decline — or terminally failing the attempt — is how a
+/// charged payment gets reported as FAILURE.
+#[test]
+fn transport_failures_are_never_declines() {
+    for code in [
+        "MISSING_AUTHENTICATION_HEADERS",
+        "UNAUTHENTICATED_API_CALL",
+        "IDEMPOTENCY_ERROR",
+        "GENERAL_ERROR",
+        "ERROR_REPORTS_RATE_LIMIT_EXCEEDED",
+    ] {
+        let body = format!(
+            r#"{{"status":{{"error_code":"{code}","status":"ERROR","message":"rejected","response_code":"{code}","operation_id":"op"}}}}"#
+        );
+        let response = parse_error(&body);
+        assert_eq!(
+            classify_rapyd_error(400, &response.status, None),
+            RapydErrorClass::Transport,
+            "code {code}"
+        );
+        let error = rapyd_error_response(
+            400,
+            RapydErrorClass::Transport,
+            &response.status,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(error.network_decline_code, None, "code {code}");
+        assert_eq!(error.network_advice_code, None, "code {code}");
+        assert_eq!(error.network_error_message, None, "code {code}");
+    }
+}
+
+/// Rapyd documents no mapping from error code to HTTP status, so the status is
+/// never used to *prove* a decline — only to widen the transport class, which
+/// can only ever prevent a false terminal failure.
+#[test]
+fn an_auth_or_rate_limit_status_widens_the_transport_class() {
+    let body = r#"{"status":{"error_code":"SOMETHING_RAPYD_ADDED_LATER","status":"ERROR","message":"x","response_code":"","operation_id":"op"}}"#;
+    let response = parse_error(body);
+    for status_code in [401, 403, 408, 409, 429] {
+        assert_eq!(
+            classify_rapyd_error(status_code, &response.status, None),
+            RapydErrorClass::Transport,
+            "http {status_code}"
+        );
+    }
+    // On an ordinary 4xx the same unknown code is a merchant/request problem,
+    // not a decline: it still feeds no GSM field.
+    assert_eq!(
+        classify_rapyd_error(400, &response.status, None),
+        RapydErrorClass::MerchantConfiguration
+    );
+}
+
+/// Named issuer declines that carry no bracketed network code are still class
+/// (a) — and their near-twins on the request side are still class (b).
+/// `ERROR_CARD_CVV_NOT_VALID` ("correctly formatted, but not valid" — the
+/// issuer rejected it) vs `INVALID_CARD_CVV` ("set cvv to a valid value" — we
+/// sent a malformed value) is the pair that is easiest to get backwards.
+#[test]
+fn named_issuer_declines_are_separated_from_their_request_side_twins() {
+    for (code, expected) in [
+        ("ERROR_CARD_CVV_NOT_VALID", RapydErrorClass::IssuerDecline),
+        ("INVALID_CARD_CVV", RapydErrorClass::MerchantConfiguration),
+        (
+            "ERROR_CARD_INFORMATION_NOT_VALID",
+            RapydErrorClass::IssuerDecline,
+        ),
+        (
+            "INVALID_CARD_NUMBER",
+            RapydErrorClass::MerchantConfiguration,
+        ),
+        (
+            "ERROR_CREATE_PAYMENT_ADDRESS_VERIFICATION_FAILURE",
+            RapydErrorClass::IssuerDecline,
+        ),
+        (
+            "ERROR_CREATE_PAYMENT_INSUFFICIENT_FUNDS",
+            RapydErrorClass::IssuerDecline,
+        ),
+        // An amount limit set by the payment method is NOT an issuer decline,
+        // however much it reads like one.
+        (
+            "ERROR_CREATE_PAYMENT_AMOUNT_EXCEEDS_MAXIMUM",
+            RapydErrorClass::MerchantConfiguration,
+        ),
+    ] {
+        let body = format!(
+            r#"{{"status":{{"error_code":"{code}","status":"ERROR","message":"x","response_code":"{code}","operation_id":"op"}}}}"#
+        );
+        let response = parse_error(&body);
+        assert_eq!(
+            classify_rapyd_error(400, &response.status, None),
+            expected,
+            "code {code}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 3. attempt_status — the flow-aware treatment
+// ---------------------------------------------------------------------------
+
+/// The Refund flow's status must be a `FlowStatus::Refund(..)`.
+/// `generate_refund_response` reads `attempt_status` and nothing else, so a
+/// `None` reports REFUND_STATUS_UNSPECIFIED; and `ForeignFrom<FlowStatus> for
+/// RefundStatus` maps every `Payment(_)` to `RefundFailure`, so a payment status
+/// would be laundered into a terminal refund failure.
+#[test]
+fn refund_and_payment_statuses_do_not_leak_into_each_other() {
+    let response = parse_error(CREATE_PAYMENT_ERROR_65);
+    let data = response.data.as_ref().expect("data object must parse");
+    let class = classify_rapyd_error(400, &response.status, Some(data));
+
+    let refund_error = rapyd_error_response(
+        400,
+        class,
+        &response.status,
+        Some(data),
+        None,
+        Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
+    );
+    assert!(matches!(
+        refund_error.attempt_status,
+        Some(FlowStatus::Refund(common_enums::RefundStatus::Failure))
+    ));
+    assert_eq!(
+        refund_error
+            .attempt_status
+            .as_ref()
+            .unwrap()
+            .as_attempt_status(),
+        None
+    );
+
+    // A capture rejection reports CaptureFailed, not a failed payment: the
+    // authorization it was capturing still stands.
+    let capture_error = rapyd_error_response(
+        400,
+        class,
+        &response.status,
+        Some(data),
+        None,
+        Some(FlowStatus::Payment(AttemptStatus::CaptureFailed)),
+    );
+    assert_eq!(
+        capture_error.attempt_status.unwrap().as_attempt_status(),
+        Some(AttemptStatus::CaptureFailed)
+    );
+}
+
+/// A 2xx carrying Rapyd's status-only ERROR envelope on the refund path used to
+/// be reported as `Ok`, with the ERROR CODE stuffed into `connector_refund_id`
+/// and the reason discarded entirely.
+#[test]
+fn a_two_hundred_carrying_a_refund_error_becomes_an_error_response() {
+    use domain_types::{
+        connector_flow::Refund,
+        connector_types::{RefundFlowData, RefundsData, RefundsResponseData},
+        router_data_v2::RouterDataV2,
+    };
+    use transformers::RefundResponse;
+
+    let parsed: RefundResponse =
+        serde_json::from_str(STATUS_ONLY_DECLINE_51).expect("status-only envelope must parse");
+    assert!(parsed.data.is_none());
+
+    let class = classify_rapyd_error(200, &parsed.status, None);
+    let error = rapyd_error_response(
+        200,
+        class,
+        &parsed.status,
+        None,
+        None,
+        Some(FlowStatus::Refund(common_enums::RefundStatus::Failure)),
+    );
+    // The refund id is NOT the error code.
+    assert_eq!(error.code, "ERROR_PROCESSING_CARD - [51]");
+    assert_eq!(error.message, "Insufficient Funds");
+    assert!(matches!(
+        error.attempt_status,
+        Some(FlowStatus::Refund(common_enums::RefundStatus::Failure))
+    ));
+
+    // Keep the type parameters of the real impl referenced so this test breaks
+    // if the Refund router-data shape moves.
+    fn _assert_shape(_: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>) {}
+}
+
+// ---------------------------------------------------------------------------
+// 4. AVS / CVV / ACS verification results
+// ---------------------------------------------------------------------------
+
+/// `cvv_check` and `acs_check` are independent: Rapyd's own `PAYMENT_FAILED`
+/// payload carries `acs_check: "unavailable"` alongside `cvv_check: "fail"`.
+/// Both are surfaced, and neither drives status.
+#[test]
+fn cvv_and_acs_checks_are_parsed_and_surfaced_independently() {
+    let data: ResponseData = serde_json::from_str(WEBHOOK_FAILED_65)
+        .expect("Rapyd's own PAYMENT_FAILED payload must deserialize");
+    let pmd = data
+        .payment_method_data
+        .as_ref()
+        .expect("payment_method_data must parse");
+    assert_eq!(pmd.cvv_check, Some(RapydCheckResult::Fail));
+    assert_eq!(pmd.acs_check, Some(RapydCheckResult::Unavailable));
+
+    let metadata = build_connector_metadata(&data).expect("metadata must be present");
+    let checks = &metadata["verification_checks"];
+    assert_eq!(checks["cvv_check"], serde_json::json!("fail"));
+    assert_eq!(checks["acs_check"], serde_json::json!("unavailable"));
+    // Absent checks are omitted rather than serialised as null.
+    assert!(checks.get("avs_check").is_none());
+    assert!(checks.get("avs_result").is_none());
+}
+
+/// Rapyd's AVS field is documented with NO value set on any page and appears in
+/// zero published examples, while the one `avs_required: true` example returns a
+/// differently-named `avs_result` whose only observed value is `"X"`. Both are
+/// modelled, both opaque — an enum here would be inventing a contract.
+#[test]
+fn avs_results_are_opaque_strings_under_both_names() {
+    let body = WEBHOOK_FAILED_65.replace(
+        r#""cvv_check": "fail","#,
+        r#""cvv_check": "fail", "avs_check": "Y", "avs_result": "X","#,
+    );
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    let pmd = data
+        .payment_method_data
+        .as_ref()
+        .expect("payment_method_data must parse");
+    assert_eq!(pmd.avs_check.as_deref(), Some("Y"));
+    assert_eq!(pmd.avs_result.as_deref(), Some("X"));
+
+    let metadata = build_connector_metadata(&data).expect("metadata must be present");
+    assert_eq!(
+        metadata["verification_checks"]["avs_check"],
+        serde_json::json!("Y")
+    );
+    assert_eq!(
+        metadata["verification_checks"]["avs_result"],
+        serde_json::json!("X")
+    );
+
+    // Neither AVS field is allowed to move the status.
+    assert_eq!(
+        transformers::get_status_for_webhook(&data),
+        AttemptStatus::Failure
+    );
+}
+
+/// The verification checks ride on `payment_method_data`, which is the SAME
+/// struct across every payment method. A value Rapyd adds later, and a non-card
+/// payment method that omits them entirely, must both parse.
+#[test]
+fn an_unknown_check_value_parses_instead_of_failing_the_whole_payment() {
+    let body = WEBHOOK_FAILED_65.replace(r#""cvv_check": "fail""#, r#""cvv_check": "deferred""#);
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    assert_eq!(
+        data.payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.cvv_check),
+        Some(RapydCheckResult::Unknown)
+    );
+
+    let bare = r#"{"id":"payment_x","amount":10,"status":"CLO","next_action":"not_applicable",
+                   "payment_method_data":{"type":"pl_p24_bank","category":"bank_redirect"}}"#;
+    let data: ResponseData = serde_json::from_str(bare).expect("non-card body must deserialize");
+    let pmd = data
+        .payment_method_data
+        .as_ref()
+        .expect("payment_method_data must parse");
+    assert_eq!(pmd.cvv_check, None);
+    assert_eq!(pmd.acs_check, None);
+    assert_eq!(build_connector_metadata(&data), None);
+}
+
+/// A non-null Merchant Advice Code is NOT evidence of a decline: codes `15` and
+/// `16` are documented to ride on *successful* payments to flag a
+/// non-reloadable prepaid or single-use virtual card. The advice code is only
+/// ever read while building an `ErrorResponse`.
+#[test]
+fn a_merchant_advice_code_on_a_success_is_not_a_decline() {
+    let body = r#"{
+      "id": "payment_success_with_mac",
+      "amount": 10,
+      "status": "CLO",
+      "next_action": "not_applicable",
+      "captured": true,
+      "paid": true,
+      "failure_code": "",
+      "failure_message": "",
+      "error_code": "",
+      "merchant_advice_code": "16",
+      "merchant_advice_message": "The issuer recognizes the product as a consumer single-use virtual card number"
+    }"#;
+    let data: ResponseData = serde_json::from_str(body).expect("body must deserialize");
+    assert_eq!(data.merchant_advice_code.as_deref(), Some("16"));
+    assert_eq!(
+        get_status_for_payment_response(&data, 200).expect("a closed payment must resolve"),
+        AttemptStatus::Charged
+    );
+    // And the classifier does not read a decline out of it either.
+    let synthesised = RapydPaymentsResponse::from(data.clone());
+    assert_eq!(
+        classify_rapyd_error(200, &synthesised.status, Some(&data)),
+        RapydErrorClass::MerchantConfiguration
+    );
+}
+
+/// `outcome` is documented but `null` in every published Rapyd example, so it
+/// is parsed for diagnostics and never drives a decision. Both `null` and a
+/// populated object must parse.
+#[test]
+fn the_outcome_object_parses_but_drives_nothing() {
+    let response = parse_error(CREATE_PAYMENT_ERROR_65);
+    let data = response.data.as_ref().expect("data object must parse");
+    assert!(data.outcome.is_none());
+
+    let body = WEBHOOK_FAILED_65.replace(
+        r#""failure_code": "65","#,
+        r#""failure_code": "65", "outcome": {"network_status":"declined_by_network","risk_level":"normal","seller_message":"declined","type":"issuer_declined","reason":null},"#,
+    );
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    let outcome = data.outcome.as_deref().expect("outcome must parse");
+    assert_eq!(
+        outcome.network_status,
+        Some(transformers::RapydNetworkStatus::DeclinedByNetwork)
+    );
+    // A value Rapyd adds later parses to Unknown rather than failing the body.
+    let body = body.replace("declined_by_network", "partially_approved_by_network");
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    assert_eq!(
+        data.outcome
+            .as_deref()
+            .and_then(|outcome| outcome.network_status),
+        Some(transformers::RapydNetworkStatus::Unknown)
     );
 }
