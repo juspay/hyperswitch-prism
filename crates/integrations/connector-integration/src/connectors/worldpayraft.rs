@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
@@ -153,6 +153,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Transport-level failures only.
+    ///
+    /// Worldpay RAFT answers HTTP 200 for approvals, declines and validation errors alike
+    /// and signals the outcome in the body, so a payment decline never reaches this method
+    /// — it is surfaced by the per-flow response transformers instead. A non-2xx here means
+    /// a licence, routing or platform problem, which RAFT returns as an unwrapped
+    /// `{"fault": {...}}` body. A wrapped `{"<operation>response": {...}}` body is still
+    /// accepted, because none of the RAFT error fields live at the JSON root.
     fn build_error_response(
         &self,
         res: Response,
@@ -169,27 +177,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.return_code.unwrap_or_else(|| {
-                response
-                    .response_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string())
-            }),
-            message: response
-                .reason_code
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_response: None,
-            typed_connector_request: None,
-        })
+        Ok(response.to_error_response(res.status_code))
     }
 }
 
@@ -264,19 +252,22 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
+        /// Capture mode is expressed by endpoint choice — RAFT has no `capture=true` field.
+        /// Automatic (and `SequentialAutomatic`) capture goes to the purchase endpoint;
+        /// manual capture goes to the auth-only endpoint and is finalised by a completion.
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            use domain_types::payment_method_data::PaymentMethodData;
             let base_url = self.connector_base_url_payments(req);
-            let is_debit = matches!(
-                &req.request.payment_method_data,
-                PaymentMethodData::Card(c) if c.card_type.as_deref()
-                    .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
-                    .unwrap_or(false)
-            );
-            let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
+            let is_debit = worldpayraft::is_debit_card(&req.request.payment_method_data);
+            let is_auto_capture = worldpayraft::resolve_auto_capture(&req.request)?;
+            let path = match (is_debit, is_auto_capture) {
+                (false, true) => "credit/purchase",
+                (false, false) => "credit/authorization",
+                (true, true) => "debit/purchase",
+                (true, false) => "debit/preauth",
+            };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -325,8 +316,8 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id);
-            let path = if is_debit { "debit/completion" } else { "credit/completion" };
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(&connector_txn_id)?;
+            let path = if reference.is_debit { "debit/completion" } else { "credit/completion" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -365,8 +356,10 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id);
-            let path = if is_debit { "debit/refund" } else { "credit/refund" };
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(
+                &req.request.connector_transaction_id,
+            )?;
+            let path = if reference.is_debit { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -438,12 +431,20 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
+        /// A merchant-initiated transaction is routed by capture mode just like an
+        /// Authorize. RAFT has no MIT-specific endpoint; the MIT signalling lives in
+        /// `ProcFlagsIndicators` and `TerminalData.POSEnvironment`.
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
+            let path = if worldpayraft::resolve_repeat_auto_capture(&req.request)? {
+                "credit/purchase"
+            } else {
+                "credit/authorization"
+            };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
