@@ -9,7 +9,7 @@ use common_utils::{
     ext_traits::ValueExt,
     pii::Email,
     request::MultipartData,
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
@@ -1357,6 +1357,77 @@ pub struct HipayMaintenanceResponse<S> {
     /// HTTP 200 with a failure status and this nested object; `""` when it succeeded.
     #[serde(default, deserialize_with = "deserialize_optional_ignoring_empty")]
     reason: Option<HipayReason>,
+    /// Cumulative amount HiPay has authorized on the transaction, in major units.
+    ///
+    /// HiPay reports a **partial** capture with status `118 Captured` — the very same code
+    /// it returns for a full capture — so the status alone cannot tell the two apart.
+    /// Verified against the stage gateway: a 50.00 EUR authorization captured for 20.00 and
+    /// then a further 5.00 returned `{"status":"118","message":"Captured",
+    /// "authorizedAmount":"50.00","capturedAmount":"25.00"}` both times. `119
+    /// PartiallyCaptured` is reserved for the sync/notification view, never emitted here.
+    /// These two amounts are the only signal on the capture response that distinguishes a
+    /// settled-in-full authorization from a partly settled one.
+    #[serde(
+        rename = "authorizedAmount",
+        default,
+        deserialize_with = "deserialize_optional_ignoring_empty"
+    )]
+    authorized_amount: Option<StringMajorUnit>,
+    /// Cumulative amount captured across every capture on the transaction, in major units.
+    #[serde(
+        rename = "capturedAmount",
+        default,
+        deserialize_with = "deserialize_optional_ignoring_empty"
+    )]
+    captured_amount: Option<StringMajorUnit>,
+    /// Currency of `authorized_amount` / `captured_amount`; needed to read them back into
+    /// minor units. Absent on some maintenance responses, so the flow's own request
+    /// currency is the fallback.
+    #[serde(default, deserialize_with = "deserialize_optional_ignoring_empty")]
+    currency: Option<common_enums::Currency>,
+}
+
+/// How much of the authorization HiPay has settled, as far as the capture response says.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HipayCaptureCoverage {
+    /// `capturedAmount` equals (or exceeds) `authorizedAmount` — the authorization is done.
+    Full,
+    /// `capturedAmount` is strictly below `authorizedAmount`, or HiPay did not report the
+    /// two amounts at all and the coverage cannot be established.
+    PartialOrUnknown,
+}
+
+impl<S> HipayMaintenanceResponse<S> {
+    /// Reads HiPay's cumulative `authorizedAmount` / `capturedAmount` back into minor units
+    /// and reports whether the authorization is fully settled.
+    ///
+    /// The capture contract (`PaymentServiceCaptureRequest`) carries only
+    /// `amount_to_capture`, never the amount originally authorized, and
+    /// `PaymentFlowData::minor_amount_authorized` is a response-reporting field that every
+    /// request-path constructor in `domain_types/src/types.rs` sets to `None`. So the
+    /// comparison has to be driven by the connector's own response, and it is: HiPay
+    /// returns both totals on every capture. When it does not, coverage is *unknown*, and
+    /// an unknown coverage is deliberately treated as partial — reporting `Charged` for a
+    /// capture that only settled part of the authorization overstates what was taken, while
+    /// `PartialCharged` understates it and is recoverable through PSync.
+    fn capture_coverage(&self, fallback_currency: common_enums::Currency) -> HipayCaptureCoverage {
+        let currency = self.currency.unwrap_or(fallback_currency);
+        let to_minor = |amount: &StringMajorUnit| {
+            StringMajorUnitForConnector
+                .convert_back(amount.clone(), currency)
+                .ok()
+        };
+
+        match (
+            self.authorized_amount.as_ref().and_then(to_minor),
+            self.captured_amount.as_ref().and_then(to_minor),
+        ) {
+            (Some(authorized), Some(captured)) if captured >= authorized => {
+                HipayCaptureCoverage::Full
+            }
+            _ => HipayCaptureCoverage::PartialOrUnknown,
+        }
+    }
 }
 
 // Type aliases for different flows - operation-specific types
@@ -1814,6 +1885,22 @@ impl TryFrom<ResponseRouterData<HipayCaptureResponse, Self>>
         // Convert HipayPaymentStatus enum directly to AttemptStatus using From trait
         let status = AttemptStatus::from(item.response.status.clone());
 
+        // HiPay answers a partial capture with `118 Captured`, exactly as it answers a full
+        // one, so the bare status mapping (118 -> Charged) would report a 20.00 capture of a
+        // 50.00 authorization as fully charged. Downgrade to PartialCharged unless the
+        // response's own cumulative totals prove the authorization is settled in full.
+        let status = match (&item.response.status, status) {
+            (HipayPaymentStatus::Captured, AttemptStatus::Charged)
+                if item
+                    .response
+                    .capture_coverage(item.router_data.request.currency)
+                    == HipayCaptureCoverage::PartialOrUnknown =>
+            {
+                AttemptStatus::PartialCharged
+            }
+            (_, status) => status,
+        };
+
         // Check if status indicates failure
         let response = if status == AttemptStatus::Failure || status == AttemptStatus::CaptureFailed
         {
@@ -2072,5 +2159,113 @@ impl GetFormData for HipayVoidRequest {
 impl GetFormData for HipayRefundRequest {
     fn get_form_data(&self) -> MultipartData {
         build_form_from_struct(self).unwrap_or_else(|_| MultipartData::new())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+
+    /// The body the stage gateway returned for the second partial capture (5.00) of a 50.00
+    /// EUR authorization that had already been captured for 20.00. Only the merchant id is
+    /// masked; every other field is verbatim.
+    const PARTIAL_CAPTURE_BODY: &str = r#"{
+        "operation": "capture",
+        "test": "true",
+        "mid": "MERCHANT_ID",
+        "authorizationCode": "154802297",
+        "transactionReference": "800451428667",
+        "dateCreated": "2026-09-09T22:19:03+0000",
+        "dateUpdated": "2026-09-09T22:20:06+0000",
+        "dateAuthorized": "2026-09-09T22:19:13+0000",
+        "status": "118",
+        "message": "Captured",
+        "authorizedAmount": "50.00",
+        "capturedAmount": "25.00",
+        "refundedAmount": "0.00",
+        "decimals": "2",
+        "currency": "EUR"
+    }"#;
+
+    fn capture_response(body: &str) -> HipayCaptureResponse {
+        serde_json::from_str(body).expect("HiPay capture body should deserialize")
+    }
+
+    /// HiPay labels a partial capture `118 Captured`, identical to a full one. Only the
+    /// cumulative amounts separate them, so this pins that the amounts — not the status —
+    /// decide the coverage.
+    #[test]
+    fn partial_capture_is_detected_from_cumulative_amounts() {
+        let response = capture_response(PARTIAL_CAPTURE_BODY);
+
+        assert_eq!(response.status, HipayPaymentStatus::Captured);
+        assert_eq!(
+            AttemptStatus::from(response.status.clone()),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            response.capture_coverage(common_enums::Currency::EUR),
+            HipayCaptureCoverage::PartialOrUnknown
+        );
+    }
+
+    #[test]
+    fn full_capture_is_detected_from_cumulative_amounts() {
+        let response = capture_response(
+            r#"{"status":"118","message":"Captured","transactionReference":"800451428665",
+                "authorizedAmount":"20.00","capturedAmount":"20.00","currency":"EUR"}"#,
+        );
+
+        assert_eq!(
+            response.capture_coverage(common_enums::Currency::EUR),
+            HipayCaptureCoverage::Full
+        );
+    }
+
+    /// A response with no cumulative totals leaves the coverage unknown. Unknown is treated
+    /// as partial on purpose: overstating a capture as fully charged loses money silently,
+    /// understating it is recoverable through PSync.
+    #[test]
+    fn missing_amounts_are_treated_as_partial() {
+        let response = capture_response(
+            r#"{"status":"118","message":"Captured","transactionReference":"800451428665"}"#,
+        );
+
+        assert_eq!(
+            response.capture_coverage(common_enums::Currency::EUR),
+            HipayCaptureCoverage::PartialOrUnknown
+        );
+    }
+
+    /// HiPay omits `currency` on some maintenance responses; the flow's request currency
+    /// then supplies the decimal scale for both totals.
+    #[test]
+    fn request_currency_is_the_fallback_scale() {
+        let response = capture_response(
+            r#"{"status":"118","message":"Captured","transactionReference":"800451428665",
+                "authorizedAmount":"50.00","capturedAmount":"25.00"}"#,
+        );
+
+        assert_eq!(
+            response.capture_coverage(common_enums::Currency::EUR),
+            HipayCaptureCoverage::PartialOrUnknown
+        );
+    }
+
+    /// A zero-decimal currency scales differently; reading "500" as 50000 minor units on
+    /// both sides must still compare equal.
+    #[test]
+    fn zero_decimal_currency_scales_both_totals_alike() {
+        let response = capture_response(
+            r#"{"status":"118","message":"Captured","transactionReference":"800451428665",
+                "authorizedAmount":"500","capturedAmount":"500","currency":"JPY"}"#,
+        );
+
+        assert_eq!(
+            response.capture_coverage(common_enums::Currency::JPY),
+            HipayCaptureCoverage::Full
+        );
     }
 }
