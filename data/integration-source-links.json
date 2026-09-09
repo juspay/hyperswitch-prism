@@ -221,5 +221,24 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "Braintree": [
+    "https://developer.paypal.com/braintree/graphql/guides/making_api_calls/",
+    "https://developer.paypal.com/braintree/graphql/guides/concepts/",
+    "https://developer.paypal.com/braintree/graphql/integration_guides/credit_cards/",
+    "https://developer.paypal.com/braintree/graphql/guides/transactions/",
+    "https://developer.paypal.com/braintree/graphql/guides/payment_methods/",
+    "https://developer.paypal.com/braintree/graphql/guides/node_query/",
+    "https://developer.paypal.com/braintree/graphql/guides/search/",
+    "https://developer.paypal.com/braintree/graphql/guides/testing/",
+    "https://developer.paypal.com/braintree/graphql/reference/",
+    "https://raw.githubusercontent.com/braintree/graphql-api/master/schema.graphql",
+    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale",
+    "https://developer.paypal.com/braintree/docs/reference/general/statuses",
+    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/authorization-responses",
+    "https://developer.paypal.com/braintree/docs/reference/general/validation-errors/all",
+    "https://developer.paypal.com/braintree/docs/reference/general/testing",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/overview",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/parse"
   ]
 }

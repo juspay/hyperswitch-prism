@@ -50,7 +50,12 @@ pub mod constants {
     pub const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
     pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
     pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
-    pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
+    // `reverseTransaction` returns the union `TransactionReversal = Refund | Transaction`:
+    // an unsettled transaction is voided (Transaction branch), a settled one is refunded in
+    // full (Refund branch). Selecting only `... on Transaction` makes the settled case come
+    // back as `"reversal": {}` — the reversal really happened but the response cannot be
+    // deserialized and the new refund id is lost, so both branches must be selected.
+    pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { __typename ...  on Transaction { id legacyId amount { value currencyCode } status } ... on Refund { id legacyId amount { value currencyCode } status } } } }";
     pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
     pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
     pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
@@ -298,6 +303,9 @@ pub struct VaultTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    /// This is the customer-initiated transaction that establishes the stored credential,
+    /// so it must be flagged `RECURRING_FIRST` for the later MIT to be scheme-compliant.
+    payment_initiator: PaymentInitiatorType,
 }
 
 #[derive(Debug, Serialize)]
@@ -314,6 +322,7 @@ pub struct MandateTransactionBody {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentInitiatorType {
     Unscheduled,
+    RecurringFirst,
 }
 
 #[derive(Debug, Serialize)]
@@ -472,7 +481,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(metadata.merchant_config_currency),
         )?;
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
+            // Braintree's `chargeCreditCard` / `authorizeCreditCard` mutations take a
+            // `paymentMethodId`, never raw PAN, so a card authorize always arrives here as
+            // the `PaymentMethodToken` produced by the PaymentMethodToken (tokenizeCreditCard)
+            // flow — that is what `should_do_payment_method_token` requests for
+            // `PaymentMethod::Card`, and what `PaymentService/TokenAuthorize` sends
+            // (`tokenized_authorize_to_base` maps `connector_token` onto this variant).
+            // `Card` is kept on the same arm so the 3DS client-token branch still triggers
+            // and so a raw-card caller gets the explicit "payment_method_token" error from
+            // `CardPaymentRequest` rather than an opaque "payment method not supported".
+            PaymentMethodData::Card(_) | PaymentMethodData::PaymentMethodToken(_) => {
                 if item.router_data.resource_common_data.is_three_ds()
                     && item.router_data.request.authentication_data.is_none()
                 {
@@ -630,7 +648,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -910,7 +927,12 @@ fn create_failure_error_response<T: ToString>(
 pub enum BraintreePaymentStatus {
     Authorized,
     Authorizing,
-    AuthorizedExpired,
+    /// Braintree's SDL spells this `AUTHORIZATION_EXPIRED` (legacy REST:
+    /// `authorization_expired`). The variant used to be `AuthorizedExpired`, which
+    /// `SCREAMING_SNAKE_CASE` renders as `AUTHORIZED_EXPIRED` — a value the gateway never
+    /// sends, so an aged-out authorization failed to deserialize instead of mapping to
+    /// `AuthorizationFailed`.
+    AuthorizationExpired,
     Failed,
     ProcessorDeclined,
     GatewayRejected,
@@ -935,6 +957,21 @@ pub struct AdditionalErrorDetails {
     pub legacy_code: Option<String>,
 }
 
+impl BraintreePaymentStatus {
+    /// The values that are a terminal refusal whichever resource carries them — the shared
+    /// `PaymentStatus` enum types both `Transaction.status` and `Refund.status`.
+    pub fn is_terminal_failure(&self) -> bool {
+        matches!(
+            self,
+            Self::Failed
+                | Self::GatewayRejected
+                | Self::ProcessorDeclined
+                | Self::SettlementDeclined
+                | Self::AuthorizationExpired
+        )
+    }
+}
+
 impl From<BraintreePaymentStatus> for enums::AttemptStatus {
     fn from(item: BraintreePaymentStatus) -> Self {
         match item {
@@ -944,7 +981,7 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SubmittedForSettlement
             | BraintreePaymentStatus::SettlementPending => Self::Charged,
             BraintreePaymentStatus::Authorizing => Self::Authorizing,
-            BraintreePaymentStatus::AuthorizedExpired => Self::AuthorizationFailed,
+            BraintreePaymentStatus::AuthorizationExpired => Self::AuthorizationFailed,
             BraintreePaymentStatus::Failed
             | BraintreePaymentStatus::GatewayRejected
             | BraintreePaymentStatus::ProcessorDeclined
@@ -1276,12 +1313,30 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
 #[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+/// `Refund.status` is typed `PaymentStatus` in the Braintree GraphQL schema — the *same*
+/// 13-member enum as `Transaction.status`, not a refund-specific one. The five
+/// settlement-side values below are the happy path, but a refund can legitimately come back
+/// `SETTLEMENT_DECLINED`, `GATEWAY_REJECTED`, `PROCESSOR_DECLINED` or `VOIDED` (the last when
+/// the refund itself was reversed with `reverseRefund`), and an `AUTHORIZATION_EXPIRED` /
+/// `AUTHORIZED` / `AUTHORIZING` / `SETTLEMENT_CONFIRMED` value is reachable through the
+/// shared enum. Every member is modelled so the response deserializes; `Unknown` catches a
+/// value added upstream after this was written.
 pub enum BraintreeRefundStatus {
     SettlementPending,
     Settling,
     Settled,
     SubmittedForSettlement,
+    SettlementConfirmed,
+    Authorized,
+    Authorizing,
     Failed,
+    GatewayRejected,
+    ProcessorDeclined,
+    SettlementDeclined,
+    AuthorizationExpired,
+    Voided,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<BraintreeRefundStatus> for enums::RefundStatus {
@@ -1291,7 +1346,21 @@ impl From<BraintreeRefundStatus> for enums::RefundStatus {
             | BraintreeRefundStatus::Settling
             | BraintreeRefundStatus::SubmittedForSettlement
             | BraintreeRefundStatus::SettlementPending => Self::Success,
-            BraintreeRefundStatus::Failed => Self::Failure,
+            // Reachable only through the shared PaymentStatus enum: the refund has been
+            // accepted but has not reached a settlement state yet, so keep syncing.
+            BraintreeRefundStatus::SettlementConfirmed
+            | BraintreeRefundStatus::Authorized
+            | BraintreeRefundStatus::Authorizing => Self::Pending,
+            // Terminal refusals. A terminal connector state must map to a terminal UCS state,
+            // otherwise the refund polls forever.
+            BraintreeRefundStatus::Failed
+            | BraintreeRefundStatus::GatewayRejected
+            | BraintreeRefundStatus::ProcessorDeclined
+            | BraintreeRefundStatus::SettlementDeclined
+            | BraintreeRefundStatus::AuthorizationExpired
+            | BraintreeRefundStatus::Voided => Self::Failure,
+            // An unrecognised value must not be guessed into success or failure.
+            BraintreeRefundStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -2254,8 +2323,21 @@ impl<F> TryFrom<ResponseRouterData<BraintreeSessionResponse, Self>>
     }
 }
 
+/// Which arm of the `TransactionReversal = Refund | Transaction` union came back, read from
+/// the `__typename` GraphQL meta-field. An unsettled transaction is voided (`Transaction`);
+/// a settled one is reversed by a new, always-full-amount refund (`Refund`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub enum ReversalKind {
+    Transaction,
+    Refund,
+    #[serde(other)]
+    Unknown,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CancelResponseTransactionBody {
+    #[serde(rename = "__typename")]
+    typename: Option<ReversalKind>,
     id: String,
     status: BraintreePaymentStatus,
 }
@@ -2299,11 +2381,26 @@ impl<F> TryFrom<ResponseRouterData<BraintreeCancelResponse, Self>>
             }),
             BraintreeCancelResponse::CancelResponse(void_response) => {
                 let void_data = void_response.data.reverse_transaction.reversal;
-                let status = enums::AttemptStatus::from(void_data.status.clone());
+                // On the `Refund` arm the transaction had already settled, so Braintree
+                // reversed it with a new full-amount refund rather than a void. The money is
+                // on its way back either way, so the attempt is Voided; the refund's own id
+                // is surfaced as the response reference id so the new resource is traceable.
+                // Its `status` is a refund status and must not be read through the payment
+                // status map, which would report `SUBMITTED_FOR_SETTLEMENT` as `Charged`.
+                let is_refund_arm = void_data.typename == Some(ReversalKind::Refund);
+                let status = if is_refund_arm {
+                    if void_data.status.is_terminal_failure() {
+                        enums::AttemptStatus::VoidFailed
+                    } else {
+                        enums::AttemptStatus::Voided
+                    }
+                } else {
+                    enums::AttemptStatus::from(void_data.status.clone())
+                };
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         void_data.status,
-                        None,
+                        Some(void_data.id),
                         item.http_code,
                     ))
                 } else {
@@ -2314,7 +2411,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeCancelResponse, Self>>
                         connector_metadata: None,
                         network_txn_id: None,
                         network_txn_link_id: None,
-                        connector_response_reference_id: None,
+                        connector_response_reference_id: is_refund_arm.then_some(void_data.id),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
@@ -2603,6 +2700,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id,
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
                 }),
             )
         } else {
@@ -3101,6 +3199,11 @@ fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> S
 #[serde(untagged)]
 pub enum BraintreeRepeatPaymentResponse {
     PaymentsResponse(Box<PaymentsResponse>),
+    /// A manual-capture MIT is sent as `authorizeCreditCard`, so the payload is keyed
+    /// `data.authorizeCreditCard`, not `data.chargeCreditCard`. Without this arm the
+    /// response of every manual-capture repeat payment failed to deserialize even though
+    /// the authorization had succeeded at the gateway.
+    AuthResponse(Box<AuthResponse>),
     ErrorResponse(Box<ErrorResponse>),
 }
 
@@ -3112,53 +3215,61 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<BraintreeRepeatPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        match item.response {
-            BraintreeRepeatPaymentResponse::ErrorResponse(error_response) => Ok(Self {
-                response: build_error_response(&error_response.errors.clone(), item.http_code)
-                    .map_err(|err| *err),
-                ..item.router_data
-            }),
-            BraintreeRepeatPaymentResponse::PaymentsResponse(payment_response) => {
-                let transaction_data = payment_response.data.charge_credit_card.transaction;
-                let status = enums::AttemptStatus::from(transaction_data.status.clone());
-                let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
-                        item.http_code,
-                    ))
-                } else {
-                    Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
-                        redirection_data: None,
-                        mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
-                            Box::new(MandateReference {
-                                connector_mandate_id: Some(pm.id.clone().expose()),
-                                payment_method_id: None,
-                                connector_mandate_request_reference_id: None,
-                                mandate_metadata: None,
-                            })
-                        }),
-                        connector_metadata: None,
-                        network_txn_id: None,
-                        network_txn_link_id: None,
-                        connector_response_reference_id: None,
-                        incremental_authorization_allowed: None,
-                        status_code: item.http_code,
-                        splits: None,
-                        payment_account_reference: None,
-                    })
-                };
-                Ok(Self {
-                    resource_common_data: PaymentFlowData {
-                        status,
-                        ..item.router_data.resource_common_data
-                    },
-                    response,
+        // Auto-capture MITs go through `chargeCreditCard` and manual-capture MITs through
+        // `authorizeCreditCard`; the two payloads differ only in the key under `data` and
+        // carry an identical transaction body.
+        let transaction_data = match item.response {
+            BraintreeRepeatPaymentResponse::ErrorResponse(error_response) => {
+                return Ok(Self {
+                    response: build_error_response(&error_response.errors, item.http_code)
+                        .map_err(|err| *err),
                     ..item.router_data
                 })
             }
-        }
+            BraintreeRepeatPaymentResponse::PaymentsResponse(payment_response) => {
+                payment_response.data.charge_credit_card.transaction
+            }
+            BraintreeRepeatPaymentResponse::AuthResponse(auth_response) => {
+                auth_response.data.authorize_credit_card.transaction
+            }
+        };
+        let status = enums::AttemptStatus::from(transaction_data.status.clone());
+        let response = if domain_types::utils::is_payment_failure(status) {
+            Err(create_failure_error_response(
+                transaction_data.status,
+                Some(transaction_data.id),
+                item.http_code,
+            ))
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                redirection_data: None,
+                mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(pm.id.clone().expose()),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })
+                }),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
+            })
+        };
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            response,
+            ..item.router_data
+        })
     }
 }
 
@@ -3220,6 +3331,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VoidPCResponseTransactionBody {
+    #[serde(rename = "__typename")]
+    typename: Option<ReversalKind>,
     id: String,
     status: BraintreePaymentStatus,
 }
@@ -3263,27 +3376,41 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
             }),
             BraintreeVoidPCResponse::VoidPCResponse(void_pc_response) => {
                 let reversal_data = void_pc_response.data.reverse_transaction.reversal;
-                let post_capture_void_status = match reversal_data.status {
-                    BraintreePaymentStatus::Voided => {
-                        common_enums::PostCaptureVoidStatus::Succeeded
-                    }
-                    BraintreePaymentStatus::Failed
-                    | BraintreePaymentStatus::GatewayRejected
-                    | BraintreePaymentStatus::ProcessorDeclined
-                    | BraintreePaymentStatus::SettlementDeclined
-                    | BraintreePaymentStatus::AuthorizedExpired => {
-                        common_enums::PostCaptureVoidStatus::Failed
-                    }
-                    BraintreePaymentStatus::Authorized
-                    | BraintreePaymentStatus::Authorizing
-                    | BraintreePaymentStatus::Settling
-                    | BraintreePaymentStatus::Settled
-                    | BraintreePaymentStatus::SettlementPending
-                    | BraintreePaymentStatus::SettlementConfirmed
-                    | BraintreePaymentStatus::SubmittedForSettlement => {
-                        common_enums::PostCaptureVoidStatus::Pending
-                    }
-                };
+                // Post-capture is precisely the case where `reverseTransaction` answers on the
+                // `Refund` arm of the union: the capture has settled, so Braintree issues a
+                // new full-amount refund whose `status` is a refund status. Reading it through
+                // the transaction table below would call `SUBMITTED_FOR_SETTLEMENT` "Pending"
+                // and keep polling a reversal that has already been accepted.
+                let post_capture_void_status =
+                    if reversal_data.typename == Some(ReversalKind::Refund) {
+                        if reversal_data.status.is_terminal_failure() {
+                            common_enums::PostCaptureVoidStatus::Failed
+                        } else {
+                            common_enums::PostCaptureVoidStatus::Succeeded
+                        }
+                    } else {
+                        match reversal_data.status {
+                            BraintreePaymentStatus::Voided => {
+                                common_enums::PostCaptureVoidStatus::Succeeded
+                            }
+                            BraintreePaymentStatus::Failed
+                            | BraintreePaymentStatus::GatewayRejected
+                            | BraintreePaymentStatus::ProcessorDeclined
+                            | BraintreePaymentStatus::SettlementDeclined
+                            | BraintreePaymentStatus::AuthorizationExpired => {
+                                common_enums::PostCaptureVoidStatus::Failed
+                            }
+                            BraintreePaymentStatus::Authorized
+                            | BraintreePaymentStatus::Authorizing
+                            | BraintreePaymentStatus::Settling
+                            | BraintreePaymentStatus::Settled
+                            | BraintreePaymentStatus::SettlementPending
+                            | BraintreePaymentStatus::SettlementConfirmed
+                            | BraintreePaymentStatus::SubmittedForSettlement => {
+                                common_enums::PostCaptureVoidStatus::Pending
+                            }
+                        }
+                    };
                 let response = if post_capture_void_status.is_post_capture_void_failure() {
                     Err(create_failure_error_response(
                         reversal_data.status,
@@ -3457,6 +3584,195 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..item.router_data
                 })
             }
+        }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    /// Every member of Braintree's `PaymentStatus` enum, verbatim from the GraphQL SDL
+    /// (`query { __type(name: "PaymentStatus") { enumValues { name } } }`). The wire
+    /// spelling is the contract: `AUTHORIZATION_EXPIRED`, not `AUTHORIZED_EXPIRED`.
+    const PAYMENT_STATUS_SDL_VALUES: [&str; 13] = [
+        "AUTHORIZATION_EXPIRED",
+        "AUTHORIZED",
+        "AUTHORIZING",
+        "FAILED",
+        "GATEWAY_REJECTED",
+        "PROCESSOR_DECLINED",
+        "SETTLED",
+        "SETTLEMENT_CONFIRMED",
+        "SETTLEMENT_DECLINED",
+        "SETTLEMENT_PENDING",
+        "SETTLING",
+        "SUBMITTED_FOR_SETTLEMENT",
+        "VOIDED",
+    ];
+
+    fn payment_status(value: &str) -> BraintreePaymentStatus {
+        serde_json::from_value(serde_json::Value::String(value.to_string()))
+            .expect("Braintree PaymentStatus value must deserialize")
+    }
+
+    fn refund_status(value: &str) -> BraintreeRefundStatus {
+        serde_json::from_value(serde_json::Value::String(value.to_string()))
+            .expect("Braintree Refund status value must deserialize")
+    }
+
+    #[test]
+    fn every_sdl_payment_status_deserializes() {
+        for value in PAYMENT_STATUS_SDL_VALUES {
+            let _ = payment_status(value);
+        }
+    }
+
+    /// Regression guard for the variant rename: the schema value is
+    /// `AUTHORIZATION_EXPIRED` and it must map to a terminal authorization failure, while
+    /// the old misspelling must not be accepted as if it were a real Braintree value.
+    #[test]
+    fn authorization_expired_maps_to_authorization_failed() {
+        assert!(matches!(
+            payment_status("AUTHORIZATION_EXPIRED"),
+            BraintreePaymentStatus::AuthorizationExpired
+        ));
+        assert_eq!(
+            enums::AttemptStatus::from(payment_status("AUTHORIZATION_EXPIRED")),
+            enums::AttemptStatus::AuthorizationFailed
+        );
+        assert!(
+            serde_json::from_value::<BraintreePaymentStatus>(serde_json::json!(
+                "AUTHORIZED_EXPIRED"
+            ))
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn payment_status_attempt_status_map() {
+        for (value, expected) in [
+            ("AUTHORIZED", enums::AttemptStatus::Authorized),
+            ("AUTHORIZING", enums::AttemptStatus::Authorizing),
+            ("SUBMITTED_FOR_SETTLEMENT", enums::AttemptStatus::Charged),
+            ("SETTLING", enums::AttemptStatus::Charged),
+            ("SETTLED", enums::AttemptStatus::Charged),
+            ("SETTLEMENT_CONFIRMED", enums::AttemptStatus::Charged),
+            ("SETTLEMENT_PENDING", enums::AttemptStatus::Charged),
+            ("SETTLEMENT_DECLINED", enums::AttemptStatus::Failure),
+            ("PROCESSOR_DECLINED", enums::AttemptStatus::Failure),
+            ("GATEWAY_REJECTED", enums::AttemptStatus::Failure),
+            ("FAILED", enums::AttemptStatus::Failure),
+            ("VOIDED", enums::AttemptStatus::Voided),
+            (
+                "AUTHORIZATION_EXPIRED",
+                enums::AttemptStatus::AuthorizationFailed,
+            ),
+        ] {
+            assert_eq!(
+                enums::AttemptStatus::from(payment_status(value)),
+                expected,
+                "unexpected AttemptStatus for {value}"
+            );
+        }
+    }
+
+    /// `Refund.status` is typed `PaymentStatus` in the SDL, so every one of the 13 values
+    /// has to deserialize on a refund too — the previous five-member enum failed outright
+    /// on a declined or rejected refund.
+    #[test]
+    fn every_sdl_status_deserializes_as_a_refund_status() {
+        for value in PAYMENT_STATUS_SDL_VALUES {
+            let _ = refund_status(value);
+        }
+    }
+
+    #[test]
+    fn refund_status_map() {
+        for (value, expected) in [
+            ("SUBMITTED_FOR_SETTLEMENT", enums::RefundStatus::Success),
+            ("SETTLING", enums::RefundStatus::Success),
+            ("SETTLED", enums::RefundStatus::Success),
+            ("SETTLEMENT_PENDING", enums::RefundStatus::Success),
+            ("SETTLEMENT_CONFIRMED", enums::RefundStatus::Pending),
+            ("AUTHORIZED", enums::RefundStatus::Pending),
+            ("AUTHORIZING", enums::RefundStatus::Pending),
+            ("FAILED", enums::RefundStatus::Failure),
+            ("GATEWAY_REJECTED", enums::RefundStatus::Failure),
+            ("PROCESSOR_DECLINED", enums::RefundStatus::Failure),
+            ("SETTLEMENT_DECLINED", enums::RefundStatus::Failure),
+            ("AUTHORIZATION_EXPIRED", enums::RefundStatus::Failure),
+            ("VOIDED", enums::RefundStatus::Failure),
+        ] {
+            assert_eq!(
+                enums::RefundStatus::from(refund_status(value)),
+                expected,
+                "unexpected RefundStatus for {value}"
+            );
+        }
+        // An unrecognised upstream value must parse and stay unresolved rather than being
+        // guessed into success or failure.
+        assert_eq!(
+            enums::RefundStatus::from(refund_status("SOME_FUTURE_STATUS")),
+            enums::RefundStatus::Unknown
+        );
+    }
+
+    /// `reverseTransaction` answers with the `TransactionReversal = Refund | Transaction`
+    /// union. Both arms must deserialize, and the arm has to be readable from `__typename`
+    /// so the refund arm is not scored through the transaction status table.
+    #[test]
+    fn reversal_union_branches_deserialize() {
+        let voided: CancelResponseTransactionBody = serde_json::from_value(serde_json::json!({
+            "__typename": "Transaction",
+            "id": "dHJhbnNhY3Rpb25fN3YyZjYyeTY",
+            "legacyId": "7v2f62y6",
+            "status": "VOIDED"
+        }))
+        .expect("Transaction arm must deserialize");
+        assert_eq!(voided.typename, Some(ReversalKind::Transaction));
+
+        let refunded: CancelResponseTransactionBody = serde_json::from_value(serde_json::json!({
+            "__typename": "Refund",
+            "id": "cmVmdW5kXzRnaG5xZ2Fr",
+            "legacyId": "4ghnqgak",
+            "status": "SUBMITTED_FOR_SETTLEMENT"
+        }))
+        .expect("Refund arm must deserialize");
+        assert_eq!(refunded.typename, Some(ReversalKind::Refund));
+        assert!(!refunded.status.is_terminal_failure());
+    }
+
+    #[test]
+    fn terminal_failure_predicate() {
+        for value in [
+            "FAILED",
+            "GATEWAY_REJECTED",
+            "PROCESSOR_DECLINED",
+            "SETTLEMENT_DECLINED",
+            "AUTHORIZATION_EXPIRED",
+        ] {
+            assert!(
+                payment_status(value).is_terminal_failure(),
+                "{value} must be a terminal failure"
+            );
+        }
+        for value in [
+            "AUTHORIZED",
+            "AUTHORIZING",
+            "SUBMITTED_FOR_SETTLEMENT",
+            "SETTLING",
+            "SETTLED",
+            "SETTLEMENT_PENDING",
+            "SETTLEMENT_CONFIRMED",
+            "VOIDED",
+        ] {
+            assert!(
+                !payment_status(value).is_terminal_failure(),
+                "{value} must not be a terminal failure"
+            );
         }
     }
 }
