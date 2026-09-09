@@ -3282,15 +3282,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                                 .request
                                 .connector_transaction_id
                                 .clone(),
-                            connector_refund_id: if router_data
-                                .request
-                                .connector_refund_id
-                                .is_empty()
-                            {
-                                router_data.request.connector_refund_id.clone()
-                            } else {
-                                transaction_details.transaction_i_d.clone()
-                            },
+                            connector_refund_id: router_data.request.connector_refund_id.clone(),
                         }),
                         ..router_data.request.clone()
                     },
