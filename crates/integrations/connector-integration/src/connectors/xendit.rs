@@ -12,11 +12,11 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        RefundsResponseData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -35,6 +35,7 @@ use transformers::{
     XenditPaymentObjectResponse as XenditCaptureResponse,
     XenditPaymentObjectResponse as XenditVoidResponse, XenditPaymentResponse,
     XenditPaymentsCaptureRequest, XenditPaymentsRequest, XenditRefundRequest, XenditResponse,
+    XenditSetupMandateRequest, XenditSetupMandateResponse,
 };
 
 use super::macros;
@@ -92,6 +93,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Xendit<T>
 {
 }
+/// Removing `SetupMandate` from `macro_connector_flow_status_impls!` also removes the marker impl
+/// that macro generated, so it has to be declared explicitly here — the same correction the Void
+/// flow needed.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Xendit<T>
+{
+}
 macros::create_amount_converter_wrapper!(connector_name: Xendit, amount_type: FloatMajorUnit);
 macros::create_all_prerequisites!(
     connector_name:  Xendit,
@@ -118,6 +126,12 @@ macros::create_all_prerequisites!(
             flow: Void,
             response_body: XenditVoidResponse,
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: XenditSetupMandateRequest<T>,
+            response_body: XenditSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -396,6 +410,37 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Xendit,
+    curl_request: Json(XenditSetupMandateRequest),
+    curl_response: XenditSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Zero-amount card verification is the same create-payment-request endpoint Authorize
+            // posts to; `type: VERIFY_PAYMENT_METHOD` in the body is what makes it a verification.
+            // https://docs.xendit.co/docs/card-verification
+            Ok(format!("{}/v3/payment_requests", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Xendit,
     curl_request: Json(XenditRefundRequest),
     curl_response: RefundResponse,
     flow_name: Refund,
@@ -486,7 +531,6 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
         GetConnectorCustomer,
-        SetupMandate,
         PaymentMethodToken,
         PreAuthenticate,
         Authenticate,

@@ -8,11 +8,11 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture},
+    connector_flow::{Authorize, Capture, SetupMandate},
     connector_types::{
         MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -42,6 +42,10 @@ const XENDIT_PAYMENT_REQUEST_DOC_URL: &str =
 /// Void, so the reader lands on the cancel endpoint rather than the create endpoint.
 const XENDIT_CANCEL_PAYMENT_DOC_URL: &str = "https://docs.xendit.co/apidocs/cancel-payment";
 
+/// Surfaced on errors raised while building or reading a SetupMandate. The zero-amount card
+/// verification is documented on its own page rather than on the create-payment-request reference.
+const XENDIT_CARD_VERIFICATION_DOC_URL: &str = "https://docs.xendit.co/docs/card-verification";
+
 // -------------------------------------------------------------------------------------------
 // Payments API v3 request types
 //
@@ -65,6 +69,38 @@ pub enum XenditChannelCode {
 pub enum XenditRequestType {
     Pay,
     PayAndSave,
+    /// Zero-amount card verification: authenticate and vault a card without moving funds. This is
+    /// the SetupMandate shape. The *type* is what makes the request zero-amount — Xendit states
+    /// that `request_amount` and `capture_method` are "ignored if passed", so neither is sent and
+    /// `request_amount: 0` is deliberately never emitted.
+    /// <https://docs.xendit.co/docs/card-verification>
+    VerifyPaymentMethod,
+}
+
+/// `channel_properties.card_on_file_type` — the stored-credential intent flag. It is what turns a
+/// verification into a mandate setup rather than a bare card check, and it is echoed by the later
+/// merchant-initiated charge.
+/// <https://docs.xendit.co/docs/card-verification>,
+/// <https://docs.xendit.co/docs/merchant-initiated-transaction-2>
+///
+/// Request-only: it is never deserialized, so it deliberately carries no `Unknown` variant that
+/// could be serialized back onto the wire.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum XenditCardOnFileType {
+    Recurring,
+    MerchantUnscheduled,
+    CustomerUnscheduled,
+}
+
+/// `channel_properties.transaction_sequence`. A mandate setup is by definition the `INITIAL` leg;
+/// `SUBSEQUENT` belongs to the merchant-initiated charge, which this connector does not implement,
+/// so the value has no variant here rather than an unused one.
+/// <https://docs.xendit.co/docs/merchant-initiated-transaction-2>
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum XenditTransactionSequence {
+    Initial,
 }
 
 /// Top-level `capture_method`. `AUTOMATIC` is Xendit's default.
@@ -152,6 +188,15 @@ pub struct XenditChannelProperties<
     /// https://docs.xendit.co/docs/pay-with-authentication
     #[serde(skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
+    /// Stored-credential intent. Populated by SetupMandate; `None` on a one-off Authorize, which
+    /// stores nothing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_on_file_type: Option<XenditCardOnFileType>,
+    /// `INITIAL` on a SetupMandate. `None` on a one-off Authorize: Xendit documents the field only
+    /// as part of the merchant-initiated credential chain, and a payment that starts no chain has
+    /// no sequence to declare.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_sequence: Option<XenditTransactionSequence>,
 }
 
 /// `POST /v3/payment_requests` body.
@@ -172,6 +217,32 @@ pub struct XenditPaymentsRequest<
     pub currency: Currency,
     pub request_amount: FloatMajorUnit,
     pub capture_method: XenditCaptureMethod,
+    pub channel_code: XenditChannelCode,
+    pub channel_properties: XenditChannelProperties<T>,
+}
+
+/// `POST /v3/payment_requests` body for a zero-amount card verification (SetupMandate).
+///
+/// Same endpoint as Authorize, different shape: this one carries **no `request_amount` and no
+/// `capture_method`**. Xendit states both are "ignored if passed", so the struct has no field for
+/// either — the zero-amount semantic is carried entirely by `type: VERIFY_PAYMENT_METHOD`.
+///
+/// `customer_id` is documented and optional but is deliberately not sent: it names a Xendit
+/// customer object (`cust-…`) created through Xendit's own customer API, and this connector
+/// implements no `CreateConnectorCustomer` flow, so there is no such id to send. Putting a UCS
+/// customer id in that slot would be sending a foreign identifier into a field Xendit resolves
+/// against its own records. `country` is omitted for the same reason it is omitted on Authorize.
+/// <https://docs.xendit.co/docs/card-verification>
+#[derive(Serialize, Debug)]
+pub struct XenditSetupMandateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    /// Xendit requires this to be unique per CARDS-channel request and publishes no idempotency
+    /// header, so it is the only dedupe mechanism the flow has.
+    pub reference_id: Secret<String>,
+    #[serde(rename = "type")]
+    pub request_type: XenditRequestType,
+    pub currency: Currency,
     pub channel_code: XenditChannelCode,
     pub channel_properties: XenditChannelProperties<T>,
 }
@@ -370,6 +441,70 @@ pub struct XenditPaymentResponse {
     #[serde(default)]
     pub actions: Option<Vec<XenditAction>>,
     /// The payment id (`py-…`). v3 captures address the payment, not the payment request.
+    #[serde(default)]
+    pub latest_payment_id: Option<String>,
+    #[serde(default)]
+    pub latest_payment: Option<XenditLatestPayment>,
+}
+
+/// `payment_request.status` when `type = VERIFY_PAYMENT_METHOD` — a **distinct** enum from the
+/// generic payment-request status above. `PENDING` and `VERIFIED` are not members of that one, and
+/// `AUTHORIZED` / `CANCELED` / `SUCCEEDED` / `EXPIRED` / `ACCEPTING_PAYMENTS` never appear here: a
+/// verification moves no funds and "cannot be captured, canceled, or refunded".
+/// <https://docs.xendit.co/docs/card-verification>
+#[derive(Debug, Clone, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum XenditVerificationStatus {
+    /// "Request created; awaiting upstream processor response".
+    Pending,
+    /// "3DS challenge required; cardholder must complete authentication".
+    RequiresAction,
+    /// "Card authenticated and vaulted successfully".
+    Verified,
+    /// "Verification failed due to 3DS failure or issuer decline".
+    Failed,
+    #[serde(untagged)]
+    #[strum(default)]
+    #[strum(to_string = "{0}")]
+    Unknown(String),
+}
+
+/// `POST /v3/payment_requests` response for `type: VERIFY_PAYMENT_METHOD`.
+///
+/// Deliberately a separate struct from `XenditPaymentResponse`: the status enum is different, and
+/// the amount members (`request_amount`, `currency`) are meaningless here — Xendit echoes
+/// `request_amount: 0` for a request that carried no amount, so reading them back would invite an
+/// integrity comparison against a number that never left UCS.
+/// <https://docs.xendit.co/docs/card-verification>
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct XenditSetupMandateResponse {
+    pub payment_request_id: String,
+    pub status: XenditVerificationStatus,
+    /// The durable mandate identifier (`pt-…`). It is the **only** value a later merchant-initiated
+    /// charge accepts — neither `payment_request_id`, `latest_payment_id` nor the card
+    /// `fingerprint` is chargeable.
+    /// <https://docs.xendit.co/docs/subsequent-merchant-initiated-transaction>
+    ///
+    /// Optional because Xendit's documentation does not say whether a verification returns it: the
+    /// payment-request schema declares it optional at top level, but the card-verification page's
+    /// own `VERIFIED` example and its `payment.verified` webhook both omit it, and the sibling
+    /// `PAY_AND_SAVE` flow surfaces it only on a follow-up `GET /v3/payment_requests/{id}`. A
+    /// `VERIFIED` response without it is treated as an error rather than a silent success — see
+    /// `build_missing_mandate_reference_error_response`.
+    #[serde(default)]
+    pub payment_token_id: Option<Secret<String>>,
+    /// Echo of the `reference_id` that was sent. Tolerated as absent: it is only reported back as
+    /// a reference, and losing the whole mandate over a missing echo would be the worse failure.
+    #[serde(default)]
+    pub reference_id: Option<Secret<String>>,
+    #[serde(default)]
+    pub failure_code: Option<XenditFailureCode>,
+    /// Carries `REDIRECT_CUSTOMER` / `WEB_URL` when the verification needs a 3DS challenge; empty
+    /// when `skip_three_ds` was accepted.
+    #[serde(default)]
+    pub actions: Option<Vec<XenditAction>>,
+    /// The zero-amount payment object (`py-…`) behind the verification.
     #[serde(default)]
     pub latest_payment_id: Option<String>,
     #[serde(default)]
@@ -676,6 +811,60 @@ fn get_capture_method<
     }
 }
 
+/// Chooses `channel_properties.card_on_file_type` — the stored-credential intent Xendit records
+/// against the vaulted card, and the value a later merchant-initiated charge has to repeat.
+///
+/// Xendit publishes exactly three values and no default, so the choice is derived rather than
+/// hardcoded. `mit_category` is the domain field that means "what kind of MIT will follow this
+/// setup" and is preferred whenever it is populated; otherwise the session flags decide, because a
+/// credential stored for use while the customer is away is merchant-initiated and one stored for a
+/// later one-click checkout is customer-initiated.
+///
+/// `Resubmission` is rejected rather than mapped: it names a retry of an *already made* MIT, not an
+/// intent a card-on-file setup can declare, and Xendit publishes no equivalent value. Guessing one
+/// would misreport the stored credential to the network.
+/// <https://docs.xendit.co/docs/card-verification>,
+/// <https://docs.xendit.co/docs/merchant-initiated-transaction-2>
+fn get_card_on_file_type(
+    mit_category: Option<common_enums::MitCategory>,
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    off_session: Option<bool>,
+) -> Result<XenditCardOnFileType, error_stack::Report<IntegrationError>> {
+    match mit_category {
+        // An installment plan is a merchant-initiated charge on a fixed schedule, which is what
+        // Xendit's RECURRING describes; it publishes no separate installment value.
+        Some(common_enums::MitCategory::Recurring) | Some(common_enums::MitCategory::Installment) => {
+            Ok(XenditCardOnFileType::Recurring)
+        }
+        Some(common_enums::MitCategory::Unscheduled) => Ok(XenditCardOnFileType::MerchantUnscheduled),
+        Some(common_enums::MitCategory::Resubmission) => Err(IntegrationError::NotSupported {
+            message: "mit_category `Resubmission` on a mandate setup".to_owned(),
+            connector: "xendit",
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Set mit_category to Recurring, Installment or Unscheduled on the setup leg; a resubmission is a retry of an existing merchant-initiated charge, not an intent a new card-on-file can declare."
+                        .to_owned(),
+                ),
+                doc_url: Some(XENDIT_CARD_VERIFICATION_DOC_URL.to_owned()),
+                additional_context: Some(
+                    "Xendit's card_on_file_type accepts only RECURRING, MERCHANT_UNSCHEDULED and CUSTOMER_UNSCHEDULED"
+                        .to_owned(),
+                ),
+            },
+        }
+        .into()),
+        None => Ok(
+            if off_session == Some(true)
+                || setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+            {
+                XenditCardOnFileType::MerchantUnscheduled
+            } else {
+                XenditCardOnFileType::CustomerUnscheduled
+            },
+        ),
+    }
+}
+
 /// Splits the cardholder name into Xendit's `cardholder_first_name` / `cardholder_last_name`.
 ///
 /// The last whitespace-separated token becomes the last name, mirroring
@@ -833,6 +1022,25 @@ impl From<&XenditPaymentStatus> for common_enums::AttemptStatus {
             XenditPaymentStatus::Canceled => Self::Voided,
             XenditPaymentStatus::Failed | XenditPaymentStatus::Expired => Self::Failure,
             XenditPaymentStatus::Unknown(_) => Self::Unspecified,
+        }
+    }
+}
+
+/// The verification flow's own status mapping. It is deliberately separate from the two payment
+/// mappings above: `VERIFIED` is not a member of either payment enum, and reusing one of them would
+/// collapse it onto `Unknown`.
+/// <https://docs.xendit.co/docs/card-verification>
+impl From<&XenditVerificationStatus> for common_enums::AttemptStatus {
+    fn from(status: &XenditVerificationStatus) -> Self {
+        match status {
+            XenditVerificationStatus::Pending => Self::Pending,
+            XenditVerificationStatus::RequiresAction => Self::AuthenticationPending,
+            // The card was authenticated and vaulted. No funds moved and none ever will on this
+            // request, so `Charged` reports a completed setup rather than a settled payment.
+            XenditVerificationStatus::Verified => Self::Charged,
+            XenditVerificationStatus::Failed => Self::Failure,
+            // Leave the caller holding whatever status it already had rather than inventing one.
+            XenditVerificationStatus::Unknown(_) => Self::Unspecified,
         }
     }
 }
@@ -1057,6 +1265,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .billing_descriptor
                     .as_ref()
                     .and_then(|descriptor| descriptor.statement_descriptor.clone()),
+                // Stored-credential flagging belongs to SetupMandate, which is the flow that
+                // vaults the card. A one-off Authorize declares no credential-on-file intent.
+                card_on_file_type: None,
+                transaction_sequence: None,
             },
         })
     }
@@ -1532,6 +1744,288 @@ impl<F> TryFrom<ResponseRouterData<XenditPaymentObjectResponse, Self>>
                 ..router_data.resource_common_data
             },
             response: response_body,
+            ..router_data
+        })
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// SetupMandate — zero-amount card verification (card-on-file setup / CIT leg)
+//
+// `POST /v3/payment_requests` with `type: "VERIFY_PAYMENT_METHOD"`. Same endpoint as Authorize,
+// different body and a different status enum. No amount is sent: Xendit documents `request_amount`
+// and `capture_method` as "ignored if passed", so the zero-amount semantic lives in the type.
+// https://docs.xendit.co/docs/card-verification
+// -------------------------------------------------------------------------------------------
+
+/// Builds the `ErrorResponse` for a verification Xendit reported as `VERIFIED` while naming no
+/// `payment_token_id`.
+///
+/// A mandate setup exists to produce the identifier a later merchant-initiated charge is made
+/// against, and on Xendit that identifier is `payment_token_id` (`pt-…`) and nothing else — the
+/// subsequent-MIT endpoint accepts neither `payment_request_id`, nor `latest_payment_id`, nor the
+/// card `fingerprint`. Returning success with no mandate reference would hand the caller a mandate
+/// it cannot ever charge, so this is reported as a failed setup instead.
+/// <https://docs.xendit.co/docs/subsequent-merchant-initiated-transaction>
+///
+/// **Documented ambiguity, stated rather than guessed:** Xendit does not say where the token
+/// surfaces after a `VERIFY_PAYMENT_METHOD`. The card-verification page's own `VERIFIED` example
+/// and its `payment.verified` webhook both omit it; the payment-request schema declares it as an
+/// optional top-level field; and the sibling `PAY_AND_SAVE` flow exposes it only on a follow-up
+/// `GET /v3/payment_requests/{payment_request_id}`. That follow-up is deliberately **not** issued
+/// here — every flow in this connector is a single HTTP call, and a speculative second call would
+/// be implementing an undocumented contract. The reason text names the GET so an operator can run
+/// it by hand while the question is open with Xendit.
+/// <https://docs.xendit.co/docs/card-verification>, <https://docs.xendit.co/docs/create-a-token>
+///
+/// Xendit declared success, so there is no `failure_code` of its own to quote and the code is the
+/// no-error placeholder rather than a fabricated one.
+fn build_missing_mandate_reference_error_response(
+    payment_request_id: String,
+    status_code: u16,
+) -> ErrorResponse {
+    ErrorResponse {
+        code: NO_ERROR_CODE.to_string(),
+        message: "Xendit verified the card but returned no payment_token_id, so the setup produced no usable mandate"
+            .to_string(),
+        reason: Some(format!(
+            "A subsequent merchant-initiated charge accepts only payment_token_id (pt-...); the payment request id {payment_request_id} cannot be charged against. Read the token with GET /v3/payment_requests/{payment_request_id} and retry the setup, or have Xendit enable card-on-file vaulting for this account. See {XENDIT_CARD_VERIFICATION_DOC_URL}"
+        )),
+        attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
+        connector_transaction_id: Some(payment_request_id),
+        status_code,
+        ..Default::default()
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        XenditRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for XenditSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: XenditRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        let resource_common_data = &item.router_data.resource_common_data;
+
+        // CARDS is the only channel Xendit's verification page names, and it is the only channel
+        // that accepts a raw PAN over the API.
+        let card_data = match &request.payment_method_data {
+            PaymentMethodData::Card(card_data) => card_data.clone(),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("xendit"),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+
+        // Xendit requires `reference_id` to be unique for the CARDS channel and publishes no
+        // idempotency header, so it doubles as the duplicate guard. It is taken from the caller's
+        // stable per-request id, which survives retries, rather than minted per attempt.
+        let reference_id = resource_common_data
+            .get_merchant_request_id()
+            .unwrap_or_else(|_| resource_common_data.connector_request_reference_id.clone());
+
+        let return_url = request.get_router_return_url().change_context(missing_field(
+            "router_return_url",
+            "Xendit runs the verification's 3DS challenge in a browser redirect and requires both a success and a failure return URL.",
+        ))?;
+
+        let (cardholder_first_name, cardholder_last_name) =
+            split_cardholder_name(card_data.get_optional_cardholder_name());
+
+        let card_details = XenditCardDetails {
+            card_number: card_data.card_number.clone(),
+            expiry_month: card_data.get_card_expiry_month_2_digit()?,
+            expiry_year: card_data.get_expiry_year_4_digit(),
+            cvn: (!card_data.card_cvc.peek().is_empty()).then(|| card_data.card_cvc.clone()),
+            cardholder_first_name,
+            cardholder_last_name,
+            cardholder_email: resource_common_data
+                .get_optional_billing_email()
+                .or_else(|| request.email.clone()),
+            cardholder_phone_number: resource_common_data.get_optional_billing_phone_number(),
+        };
+
+        Ok(Self {
+            reference_id: Secret::new(reference_id),
+            request_type: XenditRequestType::VerifyPaymentMethod,
+            currency: request.currency,
+            channel_code: XenditChannelCode::Cards,
+            channel_properties: XenditChannelProperties {
+                card_details,
+                billing_information: build_billing_information(resource_common_data),
+                success_return_url: return_url.clone(),
+                failure_return_url: return_url,
+                skip_three_ds: !resource_common_data.is_three_ds(),
+                // No funds move on a verification, so nothing reaches a cardholder statement and
+                // a soft descriptor has nothing to describe. The verification page carries no
+                // `statement_descriptor` either.
+                statement_descriptor: None,
+                card_on_file_type: Some(get_card_on_file_type(
+                    request.mit_category.clone(),
+                    request.setup_future_usage,
+                    request.off_session,
+                )?),
+                transaction_sequence: Some(XenditTransactionSequence::Initial),
+            },
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<XenditSetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<XenditSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let status = common_enums::AttemptStatus::from(&response.status);
+
+        let authorization_data = response
+            .latest_payment
+            .as_ref()
+            .and_then(|payment| payment.payment_details.as_ref())
+            .and_then(|details| details.authorization_data.as_ref());
+
+        // The payment-request schema declares `payment_token_id` at top level; the embedded payment
+        // is read as a fallback because that is where this connector already finds it on a
+        // `PAY_AND_SAVE` Authorize. Whichever envelope carries it, it is the same `pt-` id.
+        let payment_token_id = response.payment_token_id.clone().or_else(|| {
+            response
+                .latest_payment
+                .as_ref()
+                .and_then(|payment| payment.payment_token_id.clone())
+        });
+
+        let build_transaction_response = |mandate_reference: Option<Box<MandateReference>>| {
+            PaymentsResponseData::TransactionResponse {
+                // Authorize, PSync, Capture and Void all report the payment-request id, so the
+                // setup reports it too and one card never has two references.
+                resource_id: ResponseId::ConnectorTransactionId(
+                    response.payment_request_id.clone(),
+                ),
+                redirection_data: get_redirection_data(response.actions.as_ref()),
+                mandate_reference,
+                // The `py-` id has no domain field of its own and is the only handle a later
+                // `GET /v3/payments/{id}` can use to read this verification's authorization data.
+                connector_metadata: build_connector_metadata(response.latest_payment_id.as_ref()),
+                // Already the single source of truth for the scheme's transaction id; it is
+                // deliberately not copied into `connector_metadata` as well.
+                network_txn_id: authorization_data
+                    .and_then(|data| data.network_transaction_id.clone()),
+                network_txn_link_id: None,
+                connector_response_reference_id: response
+                    .reference_id
+                    .as_ref()
+                    .map(|reference_id| reference_id.peek().to_string()),
+                incremental_authorization_allowed: None,
+                status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
+            }
+        };
+
+        // Every arm is spelled out; a catch-all would silently adopt whatever a new Xendit
+        // verification status happened to sit next to.
+        let (status, response_body) = match &response.status {
+            XenditVerificationStatus::Verified => match &payment_token_id {
+                Some(payment_token_id) => (
+                    status,
+                    Ok(build_transaction_response(Some(Box::new(
+                        MandateReference {
+                            // The id a later merchant-initiated charge is made against.
+                            connector_mandate_id: Some(payment_token_id.peek().to_string()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
+                        },
+                    )))),
+                ),
+                // Verified but unusable: a setup that yields no chargeable id has not set anything
+                // up, so it is reported as a failure rather than as a mandate-less success.
+                None => (
+                    common_enums::AttemptStatus::Failure,
+                    Err(build_missing_mandate_reference_error_response(
+                        response.payment_request_id.clone(),
+                        http_code,
+                    )),
+                ),
+            },
+            // A 2xx body reporting FAILED is an error, not a success. `failure_code` is read from
+            // the payment request first and from the embedded payment as a fallback, because Xendit
+            // populates it on whichever of the two actually failed.
+            XenditVerificationStatus::Failed => {
+                let failure_code = response.failure_code.as_ref().or_else(|| {
+                    response
+                        .latest_payment
+                        .as_ref()
+                        .and_then(|payment| payment.failure_code.as_ref())
+                });
+
+                (
+                    status,
+                    Err(build_failure_error_response(
+                        failure_code,
+                        authorization_data,
+                        Some(response.payment_request_id.clone()),
+                        status,
+                        http_code,
+                    )),
+                )
+            }
+            // Not yet terminal. `REQUIRES_ACTION` carries the 3DS redirect in `actions[]` and the
+            // token, if any, only exists once the cardholder has finished; a missing mandate
+            // reference here is expected and is not the mandate-less success item 36 forbids.
+            XenditVerificationStatus::Pending
+            | XenditVerificationStatus::RequiresAction
+            // An unmodelled status proves neither success nor failure; the caller keeps the status
+            // it already had (`Unspecified`) instead of one this connector invented.
+            | XenditVerificationStatus::Unknown(_) => (status, Ok(build_transaction_response(None))),
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response: build_connector_response(authorization_data),
+                ..router_data.resource_common_data
+            },
+            response: response_body,
+            // `integrity_object` is left as the request built it (`None`). Xendit echoes
+            // `request_amount: 0` for a request that carried no amount at all, so comparing it
+            // against the caller's `minor_amount` would flag a mismatch that means nothing.
             ..router_data
         })
     }
@@ -2042,5 +2536,252 @@ mod tests {
             AttemptStatus::from(&XenditPaymentStatus::Unknown("NEW".to_string())),
             AttemptStatus::Unspecified
         );
+    }
+
+    // ------------------------------------------------------------------------------------
+    // SetupMandate — zero-amount card verification
+    // ------------------------------------------------------------------------------------
+
+    /// The exact response body published on https://docs.xendit.co/docs/card-verification for a
+    /// `VERIFIED`, `skip_three_ds: true` verification. Reproduced verbatim so the test fails if
+    /// the parser ever stops accepting what Xendit actually documents — note that it carries **no**
+    /// `payment_token_id`, which is the whole reason the flow has a missing-mandate error path.
+    const DOCUMENTED_VERIFICATION_RESPONSE: &str = r#"{
+      "payment_request_id": "pr-aa974469-8be9-8527-831a-f363fd8bddcd",
+      "status": "VERIFIED",
+      "type": "VERIFY_PAYMENT_METHOD",
+      "channel_code": "CARDS",
+      "business_id": "69xxxxxx62cfa43",
+      "country": "SG",
+      "reference_id": "verify_card_cust_789",
+      "currency": "SGD",
+      "capture_method": "MANUAL",
+      "request_amount": 0,
+      "created": "2026-07-08T02:18:09.076Z",
+      "updated": "2026-07-08T02:18:09.087Z",
+      "channel_properties": {
+        "card_details": {
+          "masked_card_number": "400000XXXXXX1091",
+          "expiry_month": "09",
+          "expiry_year": "2027",
+          "fingerprint": "6320100aea3d99001aad04b7",
+          "type": "CREDIT",
+          "network": "VISA",
+          "country": "ID",
+          "issuer": "BRI"
+        },
+        "success_return_url": "https://merchant.co/verify/success",
+        "failure_return_url": "https://merchant.co/verify/failure",
+        "skip_three_ds": true
+      },
+      "description": "Card verification",
+      "latest_payment_id": "py-aa974469-8be9-8527-831a-f363fd8bddcd",
+      "actions": []
+    }"#;
+
+    #[test]
+    fn verification_status_maps_every_documented_state() {
+        use common_enums::AttemptStatus;
+
+        assert_eq!(
+            AttemptStatus::from(&XenditVerificationStatus::Pending),
+            AttemptStatus::Pending
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditVerificationStatus::RequiresAction),
+            AttemptStatus::AuthenticationPending
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditVerificationStatus::Verified),
+            AttemptStatus::Charged
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditVerificationStatus::Failed),
+            AttemptStatus::Failure
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditVerificationStatus::Unknown("NEW".to_string())),
+            AttemptStatus::Unspecified
+        );
+    }
+
+    #[test]
+    fn verification_status_parses_values_the_payment_enums_do_not_carry() {
+        // `VERIFIED` is not a member of the generic payment-request enum, so parsing it there
+        // would silently degrade to `Unknown` and the mandate would be reported as unresolved.
+        let verified: XenditVerificationStatus = serde_json::from_str("\"VERIFIED\"").unwrap();
+        assert_eq!(verified, XenditVerificationStatus::Verified);
+        assert_eq!(verified.to_string(), "VERIFIED");
+
+        let as_payment_request_status: XenditPaymentRequestStatus =
+            serde_json::from_str("\"VERIFIED\"").unwrap();
+        assert!(matches!(
+            as_payment_request_status,
+            XenditPaymentRequestStatus::Unknown(_)
+        ));
+
+        let unmodelled: XenditVerificationStatus = serde_json::from_str("\"BRAND_NEW\"").unwrap();
+        assert_eq!(
+            unmodelled,
+            XenditVerificationStatus::Unknown("BRAND_NEW".to_string())
+        );
+    }
+
+    #[test]
+    fn setup_mandate_response_parses_the_documented_verification_example() {
+        let response: XenditSetupMandateResponse =
+            serde_json::from_str(DOCUMENTED_VERIFICATION_RESPONSE).unwrap();
+
+        assert_eq!(
+            response.payment_request_id,
+            "pr-aa974469-8be9-8527-831a-f363fd8bddcd"
+        );
+        assert_eq!(response.status, XenditVerificationStatus::Verified);
+        assert_eq!(
+            response.latest_payment_id.as_deref(),
+            Some("py-aa974469-8be9-8527-831a-f363fd8bddcd")
+        );
+        assert_eq!(
+            response.reference_id.map(|id| id.expose()),
+            Some("verify_card_cust_789".to_string())
+        );
+        // The documented example carries no mandate id at all — this is the gap the flow reports
+        // as an error instead of returning a mandate-less success.
+        assert!(response.payment_token_id.is_none());
+        assert!(response.actions.unwrap().is_empty());
+    }
+
+    #[test]
+    fn setup_mandate_response_reads_payment_token_id_from_either_envelope() {
+        let top_level: XenditSetupMandateResponse = serde_json::from_str(
+            r#"{
+              "payment_request_id": "pr-1",
+              "status": "VERIFIED",
+              "payment_token_id": "pt-56ef1da0-6c92-490a-9ea8-803eaf404ce1"
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(
+            top_level.payment_token_id.map(|id| id.expose()),
+            Some("pt-56ef1da0-6c92-490a-9ea8-803eaf404ce1".to_string())
+        );
+
+        let embedded: XenditSetupMandateResponse = serde_json::from_str(
+            r#"{
+              "payment_request_id": "pr-1",
+              "status": "VERIFIED",
+              "latest_payment": { "payment_token_id": "pt-embedded" }
+            }"#,
+        )
+        .unwrap();
+        assert!(embedded.payment_token_id.is_none());
+        assert_eq!(
+            embedded
+                .latest_payment
+                .and_then(|payment| payment.payment_token_id)
+                .map(|id| id.expose()),
+            Some("pt-embedded".to_string())
+        );
+    }
+
+    #[test]
+    fn card_on_file_type_prefers_mit_category() {
+        use common_enums::MitCategory;
+
+        assert_eq!(
+            get_card_on_file_type(Some(MitCategory::Recurring), None, None).unwrap(),
+            XenditCardOnFileType::Recurring
+        );
+        assert_eq!(
+            get_card_on_file_type(Some(MitCategory::Installment), None, None).unwrap(),
+            XenditCardOnFileType::Recurring
+        );
+        assert_eq!(
+            get_card_on_file_type(Some(MitCategory::Unscheduled), None, None).unwrap(),
+            XenditCardOnFileType::MerchantUnscheduled
+        );
+        // A populated mit_category wins over the session flags.
+        assert_eq!(
+            get_card_on_file_type(Some(MitCategory::Recurring), None, Some(false)).unwrap(),
+            XenditCardOnFileType::Recurring
+        );
+    }
+
+    #[test]
+    fn card_on_file_type_falls_back_to_the_session_flags() {
+        use common_enums::FutureUsage;
+
+        assert_eq!(
+            get_card_on_file_type(None, None, Some(true)).unwrap(),
+            XenditCardOnFileType::MerchantUnscheduled
+        );
+        assert_eq!(
+            get_card_on_file_type(None, Some(FutureUsage::OffSession), None).unwrap(),
+            XenditCardOnFileType::MerchantUnscheduled
+        );
+        assert_eq!(
+            get_card_on_file_type(None, Some(FutureUsage::OnSession), Some(false)).unwrap(),
+            XenditCardOnFileType::CustomerUnscheduled
+        );
+        assert_eq!(
+            get_card_on_file_type(None, None, None).unwrap(),
+            XenditCardOnFileType::CustomerUnscheduled
+        );
+    }
+
+    #[test]
+    fn card_on_file_type_rejects_an_intent_xendit_cannot_express() {
+        // Xendit publishes exactly three card_on_file_type values and none of them means "retry of
+        // an earlier merchant-initiated charge"; mapping it onto one of the three would misreport
+        // the stored credential to the network.
+        let error =
+            get_card_on_file_type(Some(common_enums::MitCategory::Resubmission), None, None)
+                .unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            IntegrationError::NotSupported { .. }
+        ));
+    }
+
+    #[test]
+    fn verification_wire_constants_match_the_documented_spellings() {
+        assert_eq!(
+            serde_json::to_string(&XenditRequestType::VerifyPaymentMethod).unwrap(),
+            "\"VERIFY_PAYMENT_METHOD\""
+        );
+        assert_eq!(
+            serde_json::to_string(&XenditTransactionSequence::Initial).unwrap(),
+            "\"INITIAL\""
+        );
+        assert_eq!(
+            serde_json::to_string(&XenditCardOnFileType::Recurring).unwrap(),
+            "\"RECURRING\""
+        );
+        assert_eq!(
+            serde_json::to_string(&XenditCardOnFileType::MerchantUnscheduled).unwrap(),
+            "\"MERCHANT_UNSCHEDULED\""
+        );
+        assert_eq!(
+            serde_json::to_string(&XenditCardOnFileType::CustomerUnscheduled).unwrap(),
+            "\"CUSTOMER_UNSCHEDULED\""
+        );
+    }
+
+    #[test]
+    fn missing_mandate_reference_is_a_failure_that_names_the_lookup() {
+        let error = build_missing_mandate_reference_error_response("pr-abc".to_string(), 200);
+
+        assert_eq!(error.code, NO_ERROR_CODE);
+        assert_eq!(
+            error.attempt_status,
+            Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
+        );
+        assert_eq!(error.connector_transaction_id.as_deref(), Some("pr-abc"));
+        assert!(error.message.contains("payment_token_id"));
+        // The reason has to be actionable: it names the id that cannot be charged and the call an
+        // operator can make by hand while the documentation gap is open with Xendit.
+        let reason = error.reason.unwrap();
+        assert!(reason.contains("GET /v3/payment_requests/pr-abc"));
+        assert!(reason.contains(XENDIT_CARD_VERIFICATION_DOC_URL));
     }
 }
