@@ -12,7 +12,8 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         ApplePayPaymentData, ApplePayWalletData, Card, CardDetailsForNetworkTransactionId,
-        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        GooglePayWalletData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -150,6 +151,7 @@ pub enum Revolv3PaymentMethodDetails<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardPaymentMethodData<T>),
     Ntid(NtidCreditCardPaymentMethodData),
     ApplePay(ApplePayPaymentMethodData),
+    GooglePay(GooglePayPaymentMethodData),
 }
 
 #[derive(Debug, Serialize)]
@@ -259,6 +261,34 @@ pub struct Revolv3ApplePayDecryptedPackage {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayPaymentMethodData {
+    google_pay: Revolv3GooglePayData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3GooglePayData {
+    google_pay_payment_data_response: Option<Secret<String>>,
+    google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3GooglePayDecryptedPackage {
+    /// Device-specific account number (DPAN) of the card funding the transaction.
+    application_primary_account_number: Secret<String>,
+    /// DPAN expiry in MMYY format.
+    application_expiration_date: Secret<String>,
+    /// Google Pay ECI, at most two characters.
+    electronic_commerce_indicator: Option<String>,
+    /// Optional, unlike the Apple Pay package: Google Pay omits the cryptogram for
+    /// PAN_ONLY tokens, which authenticate on the card credentials alone.
+    online_payment_cryptogram: Option<Secret<String>>,
+    card_brand: Option<Revolv3CardBrand>,
+}
+
+#[derive(Debug, Serialize)]
 pub enum Revolv3CardBrand {
     Visa,
     Mastercard,
@@ -340,6 +370,45 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
             card_brand: Revolv3CardBrand::from_wallet_network(
                 &apple_pay_data.payment_method.network,
             ),
+        })
+    }
+}
+
+impl TryFrom<&GooglePayWalletData> for Revolv3GooglePayDecryptedPackage {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(google_pay_data: &GooglePayWalletData) -> Result<Self, Self::Error> {
+        let decrypted_data = match &google_pay_data.tokenization_data {
+            GpayTokenizationData::Decrypted(decrypted_data) => decrypted_data,
+            GpayTokenizationData::Encrypted(_) => Err(IntegrationError::NotSupported {
+                message: "Google Pay encrypted payment data".to_string(),
+                connector: "revolv3",
+                context: Default::default(),
+            })?,
+        };
+
+        let expiration_year = decrypted_data.get_two_digit_expiry_year().change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.wallet.google_pay.card_exp_year",
+                context: Default::default(),
+            },
+        )?;
+        let application_expiration_date = Secret::new(format!(
+            "{:0>2}{}",
+            decrypted_data.card_exp_month.peek(),
+            expiration_year.peek()
+        ));
+
+        Ok(Self {
+            application_primary_account_number: Secret::new(
+                decrypted_data
+                    .application_primary_account_number
+                    .get_card_no(),
+            ),
+            application_expiration_date,
+            electronic_commerce_indicator: decrypted_data.eci_indicator.clone(),
+            online_payment_cryptogram: decrypted_data.cryptogram.clone(),
+            card_brand: Revolv3CardBrand::from_wallet_network(&google_pay_data.info.card_network),
         })
     }
 }
@@ -441,6 +510,41 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
             network_data,
         })
     }
+
+    pub fn set_google_pay_data(
+        item: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+        google_pay_data: &GooglePayWalletData,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let common_data = &item.resource_common_data;
+        let payment_method_data = Revolv3PaymentMethodData {
+            billing: Revolv3BillingDetails::from_payment_flow_data(common_data),
+            method: Revolv3PaymentMethodDetails::GooglePay(GooglePayPaymentMethodData {
+                google_pay: Revolv3GooglePayData {
+                    google_pay_payment_data_response: None,
+                    google_pay_decrypted_package: Revolv3GooglePayDecryptedPackage::try_from(
+                        google_pay_data,
+                    )?,
+                },
+            }),
+        };
+        let network_data = item
+            .request
+            .is_mandate_payment()
+            .then_some(NetworkProcessingData {
+                processing_type: Some(PaymentProcessingType::InitialRecurring),
+                original_network_transaction_id: None,
+            });
+
+        Ok(Self {
+            payment_method_data,
+            network_data,
+        })
+    }
 }
 
 impl From<common_enums::PaymentChannel> for OrderProcessingChannelType {
@@ -521,6 +625,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_data)) => {
                 PaymentMethodSpecificRequest::set_apple_pay_data(&item.router_data, apple_pay_data)?
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref google_pay_data)) => {
+                PaymentMethodSpecificRequest::set_google_pay_data(
+                    &item.router_data,
+                    google_pay_data,
+                )?
             }
             _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
