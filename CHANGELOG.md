@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.09.1
+
+### Bug Fixes
+
+- **external-services:** Retry once on connection closed before message completed ([#2257](https://github.com/juspay/connector-service/pull/2257)) ([`25df70b`](https://github.com/juspay/connector-service/commit/25df70b7bcaeef9c513d11f44541be75ed3ed201))
+
+**Full Changelog:** [`2026.09.09.0...2026.09.09.1`](https://github.com/juspay/connector-service/compare/2026.09.09.0...2026.09.09.1)
+
+- - -
+
 ## 2026.09.09.0
 
 ### Features
