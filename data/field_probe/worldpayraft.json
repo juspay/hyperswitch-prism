@@ -3,8 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by worldpayraft connector"
       }
     },
     "authorize": {
@@ -487,7 +487,7 @@
     "capture": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber', got \"probe_connector_txn_001\""
+        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber|E-commerceIndicator|ReturnE-commerceIndicator|ReturnUCAFIndicator|ReturnEcommerceSecurityLevelIndicator' (or its original six-segment form), got \"probe_connector_txn_001\""
       }
     },
     "create_client_authentication_token": {
@@ -584,14 +584,14 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by worldpayraft connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: pre_authenticate flow for worldpayraft"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by worldpayraft connector"
       }
     },
     "proxy_authorize": {
@@ -720,7 +720,7 @@
     "refund": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber', got \"probe_connector_txn_001\""
+        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber|E-commerceIndicator|ReturnE-commerceIndicator|ReturnUCAFIndicator|ReturnEcommerceSecurityLevelIndicator' (or its original six-segment form), got \"probe_connector_txn_001\""
       }
     },
     "refund_get": {
@@ -798,7 +798,7 @@
     "void": {
       "default": {
         "status": "error",
-        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber', got \"probe_connector_txn_001\""
+        "error": "Invalid data format: connector_transaction_id. Worldpay RAFT expects the composite reference '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|AuthorizationNumber|RetrievalREFNumber|E-commerceIndicator|ReturnE-commerceIndicator|ReturnUCAFIndicator|ReturnEcommerceSecurityLevelIndicator' (or its original six-segment form), got \"probe_connector_txn_001\""
       }
     }
   }
