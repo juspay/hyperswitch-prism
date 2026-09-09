@@ -255,6 +255,26 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
+    /// Pre-flight check run by the server before a PSync is dispatched to the connector.
+    ///
+    /// Mirrors hyperswitch's direct-integration path, which skips the connector call when
+    /// this fails instead of sending a request the connector cannot serve. The default
+    /// requires a connector transaction id; connectors that sync on other data (for example
+    /// Adyen, which needs `encoded_data`) override it.
+    fn validate_psync_reference_id(
+        &self,
+        data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: AttemptStatus,
+        _connector_meta_data: Option<SecretSerdeValue>,
+    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
+        // `get_connector_transaction_id` already yields `MissingConnectorTransactionID`
+        // for `NoResponseId` / `EncodedData`; nothing to re-wrap here.
+        data.connector_transaction_id
+            .get_connector_transaction_id()
+            .map(|_| ())
+    }
+
     /// Returns true if this connector is in the config set of connectors that require
     /// an external API call for webhook source verification (e.g. PayPal).
     fn requires_external_webhook_verification(
@@ -818,24 +838,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
             }
             .into()),
         }
-    }
-
-    /// fn validate_psync_reference_id
-    fn validate_psync_reference_id(
-        &self,
-        data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: AttemptStatus,
-        _connector_meta_data: Option<SecretSerdeValue>,
-    ) -> CustomResult<(), domain_types::errors::IntegrationError> {
-        data.connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(
-                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                },
-            )
-            .map(|_| ())
     }
 
     /// fn is_webhook_source_verification_mandatory

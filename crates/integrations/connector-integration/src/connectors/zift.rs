@@ -121,6 +121,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Zift<T>
 {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), IntegrationError> {
+        Ok(())
+    }
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Zift, amount_type: StringMinorUnit);
@@ -358,16 +367,6 @@ impl ConnectorValidation for Zift<DefaultPCIHolder> {
             }
             .into()),
         }
-    }
-
-    fn validate_psync_reference_id(
-        &self,
-        _data: &PaymentsSyncData,
-        _is_three_ds: bool,
-        _status: common_enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), IntegrationError> {
-        Ok(())
     }
 }
 

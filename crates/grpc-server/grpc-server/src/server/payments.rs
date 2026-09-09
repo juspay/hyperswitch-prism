@@ -1085,6 +1085,38 @@ impl PaymentService for Payments {
                     ))
                     .to_grpc_error()?;
 
+                    // Connector pre-flight for sync. Hyperswitch's direct path never dispatches a
+                    // PSync the connector cannot serve (Adyen without `encoded_data`, or any
+                    // connector without a connector transaction id); it skips the call and keeps
+                    // the caller's current state. Without this check UCS builds the request
+                    // anyway or, when the connector returns no request, answers with the default
+                    // HE_00 error that callers then persist as a connector failure.
+                    //
+                    // UCS is stateless and cannot echo the caller's status, so the equivalent of
+                    // "skip" here is a no-op reply: gRPC OK, `PAYMENT_STATUS_UNSPECIFIED`, no
+                    // error. Callers already treat an unspecified status as "keep the previous
+                    // status" and write no error for it.
+                    if let Err(validation_error) = connector_data.connector.validate_psync_reference_id(
+                        &payments_sync_data,
+                        matches!(
+                            payment_flow_data.auth_type,
+                            common_enums::AuthenticationType::ThreeDs
+                        ),
+                        payment_flow_data.status,
+                        None,
+                    ) {
+                        info!(
+                            error = ?validation_error,
+                            "PAYMENT_SYNC_FLOW: connector pre-flight rejected the sync; returning a no-op response (status unspecified, no error) without calling the connector"
+                        );
+                        return Ok(tonic::Response::new(PaymentServiceGetResponse {
+                            connector_transaction_id: payload.connector_transaction_id.clone(),
+                            merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                            status: grpc_api_types::payments::PaymentStatus::Unspecified as i32,
+                            error: None,
+                            ..Default::default()
+                        }));
+                    }
                     let should_do_access_token = connector_data
                         .connector
                         .should_do_access_token(Some(payment_flow_data.payment_method));

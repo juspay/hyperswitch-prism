@@ -7731,9 +7731,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             context: IntegrationErrorContext::default(),
         })?;
         let currency = common_enums::Currency::foreign_try_from(amount.currency())?;
-        // Create ResponseId from resource_id
-        let connector_transaction_id =
-            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone());
+        // An empty id from the caller means "no connector transaction id yet". Keep that as
+        // `NoResponseId` so connector-level checks (`validate_psync_reference_id`,
+        // `get_connector_transaction_id`) reject the sync instead of building a request URL
+        // with an empty path segment.
+        let connector_transaction_id = if value.connector_transaction_id.trim().is_empty() {
+            ResponseId::NoResponseId
+        } else {
+            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone())
+        };
 
         let setup_future_usage = match value.setup_future_usage() {
             grpc_payment_types::FutureUsage::Unspecified => None,
