@@ -1,5 +1,33 @@
 # ServerSessionAuthenticationToken Flow Pattern for Connector Implementation
 
+> **Auth mechanism: C — MERCHANT / CREDENTIAL AUTHENTICATION. This is NOT 3DS.**
+>
+> UCS has three separate authentication mechanisms. Conflating them is the single largest
+> codegen risk in this corpus:
+>
+> | # | Mechanism | Flow markers | `resource_common_data` | gRPC service |
+> |---|---|---|---|---|
+> | A | Standalone 3DS trio | `PreAuthenticate` / `Authenticate` / `PostAuthenticate` | `PaymentFlowData` | `PaymentMethodAuthenticationService` |
+> | B | In-payment 3DS | none — folded into `Authorize` | `PaymentFlowData` | `PaymentService.Authorize` |
+> | **C** | **Merchant / credential auth — THIS FILE** | `ServerAuthenticationToken` / `ServerSessionAuthenticationToken` / `ClientAuthenticationToken` | **`MerchantAuthenticationFlowData`** | `MerchantAuthenticationService` |
+>
+> Every mechanism-C flow binds **`MerchantAuthenticationFlowData`**, never `PaymentFlowData`.
+> `MerchantAuthenticationFlowData` lives in `crates/types-traits/domain_types/src/merchant_authentication_flow_data.rs`
+> and its own doc-comment says why: *"This type deliberately omits payment-specific fields
+> (`payment_id`, `attempt_id`, `status`, `payment_method`, `address`, `amount`, etc.) because
+> merchant-authentication flows have no payment identity."*
+>
+> Verify before copying anything below:
+> ```bash
+> rg -n "pub trait (ServerAuthentication|ServerSessionAuthentication|ClientAuthentication):" -A 9 \
+>    crates/types-traits/interfaces/src/connector_types.rs
+> ```
+>
+> External 3DS providers (Netcetera, 3dsecure.io, GPayments, Cardinal, CTP) run entirely inside the
+> Hyperswitch router and never reach UCS. Do not generate UCS flows for that class.
+> `crates/integrations/connector-integration/src/authenticator_connectors/plaid.rs` is bank-account
+> linking, not 3DS — it is a mechanism-C connector (see `pattern_client_authentication_token.md`).
+
 **🎯 GENERIC PATTERN FILE FOR ANY NEW CONNECTOR**
 
 This document provides comprehensive, reusable patterns for implementing the ServerSessionAuthenticationToken flow in **ANY** payment connector within the UCS (Universal Connector Service) system. These patterns are extracted from successful connector implementations (Paytm, Nuvei) and can be consumed by AI to generate consistent, production-ready ServerSessionAuthenticationToken flow code for any payment gateway.
@@ -11,7 +39,7 @@ This document provides comprehensive, reusable patterns for implementing the Ser
 To implement a new connector ServerSessionAuthenticationToken flow using these patterns:
 
 1. **Choose Your Pattern**: Use [Modern Macro-Based Pattern](#modern-macro-based-pattern-recommended) for 95% of connectors
-2. **Enable Session Token Flow**: Implement `ValidationTrait` with `should_do_session_token()` returning `true`
+2. **Enable Session Token Flow**: Implement `ValidationTrait::should_do_session_token(&self, connector_feature_data: Option<&Secret<String>>)` returning `true`
 3. **Replace Placeholders**: Follow the [Placeholder Reference Guide](#placeholder-reference-guide)
 4. **Select Components**: Choose auth type, request format, and amount converter based on your connector's API
 5. **Follow Checklist**: Use the [Integration Checklist](#integration-checklist) to ensure completeness
@@ -22,7 +50,9 @@ To implement a new connector ServerSessionAuthenticationToken flow using these p
 # Replace placeholders:
 {ConnectorName} → NewPayment
 {connector_name} → new_payment
-{AmountType} → StringMinorUnit (if API expects "1000" for $10.00)
+{AmountType} → the unit matching the vendor's wire format: MinorUnit (1250), StringMinorUnit ("1250"),
+#                StringMajorUnit ("12.50"), FloatMajorUnit (12.50), StringTwoDecimalUnit ("12.50", zero-padded).
+#                All five in common_utils/src/types.rs. Do not default to StringMinorUnit.
 {content_type} → "application/json" (if API uses JSON)
 {session_token_endpoint} → "v1/session-token" (your API endpoint)
 ```
@@ -33,13 +63,16 @@ To implement a new connector ServerSessionAuthenticationToken flow using these p
 
 1. [Overview](#overview)
 2. [ServerSessionAuthenticationToken Flow Implementation Analysis](#serversessionauthenticationtoken-flow-implementation-analysis)
-3. [Modern Macro-Based Pattern (Recommended)](#modern-macro-based-pattern-recommended)
-4. [ValidationTrait Implementation](#validationtrait-implementation)
-5. [Request/Response Format Variations](#requestresponse-format-variations)
-6. [Session Token Usage Patterns](#session-token-usage-patterns)
-7. [Error Handling Patterns](#error-handling-patterns)
-8. [Testing Patterns](#testing-patterns)
-9. [Integration Checklist](#integration-checklist)
+   - [Where the session token actually goes](#where-the-session-token-actually-goes)
+3. [Data Types](#data-types)
+4. [Modern Macro-Based Pattern (Recommended)](#modern-macro-based-pattern-recommended)
+5. [ValidationTrait Implementation](#validationtrait-implementation)
+6. [Request/Response Format Variations](#requestresponse-format-variations)
+7. [Session Token Usage Patterns](#session-token-usage-patterns)
+8. [Error Handling Patterns](#error-handling-patterns)
+9. [Testing Patterns](#testing-patterns)
+10. [Integration Checklist](#integration-checklist)
+11. [Change Log](#change-log)
 
 ## Overview
 
@@ -56,7 +89,7 @@ The ServerSessionAuthenticationToken flow is a pre-authorization step that:
 - **ValidationTrait**: Enables the ServerSessionAuthenticationToken flow
 - **Authentication**: Manages API credentials and headers
 - **Error Handling**: Processes and maps error responses
-- **Session Token Storage**: Stores token in PaymentFlowData for later use
+- **Session Token Carrier**: returns the token in `ServerSessionAuthenticationTokenResponseData`; the caller folds it onto the next payment request (see "Where the session token actually goes")
 
 ### Flow Sequence:
 ```
@@ -79,33 +112,155 @@ The ServerSessionAuthenticationToken flow is a pre-authorization step that:
 
 ## ServerSessionAuthenticationToken Flow Implementation Analysis
 
-Based on comprehensive analysis of all 77 connectors in the connector service, here's the implementation status:
+**Re-derive this roster; do not trust a printed one.**
 
-### ✅ Full ServerSessionAuthenticationToken Implementation (2 connectors)
-These connectors have complete ServerSessionAuthenticationToken flow implementations:
+```bash
+rg -l "flow: ServerSessionAuthenticationToken," crates/integrations/connector-integration/src/ \
+  | grep -v /macros.rs
+```
 
-1. **Paytm** - Multi-step payment flow with AES signature encryption
-   - Initiates transaction before authorization
-   - Uses session token in subsequent process transaction call
-   - Complex signature generation with AES-CBC encryption
-   - Supports UPI Intent and UPI Collect flows
+`connectors/macros.rs` is the macro *definition* file and always matches — exclude it. Prefer
+`flow: <marker>,` over `flow_name: <marker>` — the latter misses connectors that hand-write the
+`ConnectorIntegrationV2` impl instead of calling `macro_connector_implementation!`.
 
-2. **Nuvei** - Session-based authentication for card payments
-   - Gets session token before payment authorization
-   - Uses token in payment.do call
-   - Checksum-based authentication
-   - Supports Auth and Sale transaction types
+### Full implementations at HEAD — 5 connectors
 
-### 🔧 Stub/Trait Implementation Only (75 connectors)
-These connectors implement the ServerSessionAuthenticationToken trait but have empty/stub implementations:
-- ACI, Adyen, Airwallex, Authipay, AuthorizeDotNet, Bambora, BamboraAPAC, BankOfAmerica, Barclaycard, Billwerk, Bluesnap, Braintree, Calida, Cashfree, CashtoCode, Celero, Checkout, Cryptopay, Cybersource, Datatrans, Dlocal, Elavon, Fiserv, FiservMEA, Fiuu, Forte, Getnet, Gigadat, GlobalPay, Helcim, Hipay, HyperPG, IataPay, JPMorgan, Loonio, Mifinity, Mollie, Multisafepay, Nexinets, Nexixpay, NMI, Noon, Novalnet, Paybox, Payload, Payme, Paypal, Paysafe, PayU, PhonePe, Placetopay, Powertranz, Rapyd, Razorpay, RazorpayV2, Redsys, Revolut, Shift4, Silverflow, Stax, Stripe, Trustpay, Trustpayments, Tsys, Volt, WellsFargo, Worldpay, WorldpayVantiv, WorldpayXML, Xendit, Zift
+All under `crates/integrations/connector-integration/src/connectors/`:
 
-### 📊 Implementation Statistics
-- **Complete implementations**: 2/77 (3%)
-- **Stub implementations**: 75/77 (97%)
-- **Most common pattern**: POST-based with JSON request body
-- **Most common auth**: Custom signature/checksum-based
-- **Session token usage**: Stored in PaymentFlowData.session_token
+| Connector | Notes |
+|---|---|
+| `authorizedotnet` | Request/response types `AuthorizedotnetSdkSessionTokenRequest` / `...Response`. |
+| `grabpay` | `GrabpayServerSessionAuthenticationTokenRequest` / `...Response`. Also overrides `next_authentication_step` (see the 3DS dispatch note in the flow-implementation guide) — the two mechanisms are independent. |
+| `nuvei` | Session-based authentication for card payments: `getSessionToken.do` before `payment.do`, checksum auth. |
+| `paytm` | Multi-step UPI flow with AES-CBC signature; `initiateTransaction` before `processTransaction`. |
+| `payu` | `PayuSessionTokenRequest` / `PayuSessionTokenResponse`. |
+
+Every other connector carries only the one-line marker impl
+`impl ... connector_types::ServerSessionAuthentication for <Connector><T> {}` to satisfy the
+`ConnectorServiceTrait` bound; the default `ConnectorIntegrationV2` bodies apply.
+
+> **The previous "2 full / 75 stub of 77" roll-call has been deleted rather than refreshed.** It was
+> wrong in both directions: it named `AuthorizeDotNet`, `PayU` and `Revolut` as stubs (two of the
+> three are now full implementations), and it named connectors that no longer exist. Derive the stub
+> set as "every connector not in the table above".
+
+### Where the session token actually goes
+
+This is the correction that matters most. The flow does **not** write
+`PaymentFlowData.session_token` — its `resource_common_data` is `MerchantAuthenticationFlowData`,
+which has no such field. The carrier chain is:
+
+1. The connector's response transformer returns
+   `Ok(ServerSessionAuthenticationTokenResponseData { session_token })` and passes
+   `resource_common_data` through untouched. Exemplar:
+   `impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>` in
+   `crates/integrations/connector-integration/src/connectors/nuvei/transformers.rs` — it sets only
+   `response:` and spreads `..router_data.clone()`.
+2. That becomes gRPC
+   `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse.session_token`
+   (`crates/types-traits/grpc-api-types/proto/services.proto`, rpc
+   `CreateServerSessionAuthenticationToken`).
+3. `crates/internal/composite-service/src/payments.rs` orchestrates the leg: it calls
+   `should_do_session_token(...)` on the connector, and when the payment request has no
+   session token of its own, invokes
+   `merchant_authentication_service.create_server_session_authentication_token(...)`.
+4. `pub fn get_session_token(session_token_from_request, session_token_response)` in
+   `crates/internal/composite-service/src/utils.rs` folds the result onto the outgoing
+   `PaymentServiceAuthorizeRequest.session_token` — **a token supplied on the request wins**; the
+   freshly minted one is only the fallback.
+5. `PaymentFlowData.session_token: Option<String>` is populated from that gRPC field
+   (`crates/types-traits/domain_types/src/types.rs`), and the Authorize transformer reads it via
+   `router_data.resource_common_data.session_token` or `get_session_token()`.
+
+So: **the SSAT transformer writes the response; the Authorize transformer reads `PaymentFlowData`.**
+Those are two different `resource_common_data` types, in two different gRPC calls.
+
+### Other observations
+
+- **Most common pattern**: POST with a JSON request body.
+- **Most common auth**: custom signature / checksum, computed in the transformer.
+- The flow is gated by `ValidationTrait::should_do_session_token` (see below) — without the
+  override it never runs.
+
+## Data Types
+
+Read these from source before writing any transformer — none of the three derives `Default`.
+
+### Flow marker
+
+`pub struct ServerSessionAuthenticationToken;` — `crates/types-traits/domain_types/src/connector_flow.rs`
+(plus its `FlowName::ServerSessionAuthenticationToken` entry in the same file). It is a bare unit
+struct: it declares no associated `Request`/`Response` types, and there is no `ConnectorFlow` trait
+anywhere in the tree.
+
+### Trait binding
+
+```rust
+// crates/types-traits/interfaces/src/connector_types.rs — `pub trait ServerSessionAuthentication`
+pub trait ServerSessionAuthentication:
+    ConnectorIntegrationV2<
+    connector_flow::ServerSessionAuthenticationToken,
+    MerchantAuthenticationFlowData,                      // NOT PaymentFlowData
+    ServerSessionAuthenticationTokenRequestData,
+    ServerSessionAuthenticationTokenResponseData,
+>
+{
+}
+```
+
+`ServerSessionAuthentication` is a supertrait of `ConnectorServiceTrait` (same file), so every
+payment connector needs at least the empty marker impl.
+
+### Request data
+
+```rust
+// crates/types-traits/domain_types/src/connector_types.rs
+//   `pub struct ServerSessionAuthenticationTokenRequestData`
+#[derive(Debug, Clone)]
+pub struct ServerSessionAuthenticationTokenRequestData {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub browser_info: Option<BrowserInformation>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address: Option<payment_address::PaymentAddress>,
+}
+```
+
+Five fields, no `Default`. Its `impl` block carries the accessors you should prefer over manual
+`ok_or`: `get_browser_info()`, `get_customer_id()`, `get_optional_billing()`,
+`get_optional_billing_first_name()`, `get_optional_billing_last_name()`, and the shipping
+equivalents — grep `impl ServerSessionAuthenticationTokenRequestData` for the current list.
+
+### Response data
+
+```rust
+#[derive(Debug, Clone)]
+pub struct ServerSessionAuthenticationTokenResponseData {
+    pub session_token: String,
+}
+```
+
+One field, a plain `String` (not `Secret`, not `Option`). If the connector omits the token, that is
+an error path — do not synthesise an empty string.
+
+### Resource common data
+
+`pub struct MerchantAuthenticationFlowData` —
+`crates/types-traits/domain_types/src/merchant_authentication_flow_data.rs`. Fields: `merchant_id`,
+`connectors`, `connector_request_reference_id`, `test_mode`, `return_url`, `connector_feature_data`,
+`order_details`, `merchant_request_id`, plus five observability fields. One inherent method:
+`get_return_url()`.
+
+Its doc-comment states the design intent: *"This type deliberately omits payment-specific fields
+(`payment_id`, `attempt_id`, `status`, `payment_method`, `address`, `amount`, etc.) because
+merchant-authentication flows have no payment identity."* Note `amount`/`currency` still reach the
+flow — on the **request**, not on `resource_common_data`.
+
+### gRPC surface
+
+`service MerchantAuthenticationService` → `rpc CreateServerSessionAuthenticationToken` in
+`crates/types-traits/grpc-api-types/proto/services.proto`. This is a different service from
+`PaymentService`; the leg is a separate RPC, not a sub-step of Authorize.
 
 ## Modern Macro-Based Pattern (Recommended)
 
@@ -136,23 +291,29 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        // ServerSessionAuthenticationToken binds MerchantAuthenticationFlowData, imported below
+        // from its own module — it is NOT in domain_types::connector_types.
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData,
         SubmitEvidenceData,
     },
     errors::{self, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
+// The event type is `common_utils::events::Event`; `interfaces::events::connector_api_logs::ConnectorEvent`
+// is not the type the connector traits take. Import the module and write `events::Event`,
+// exactly as connectors/travelhub.rs does.
+use common_utils::events;
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    events::connector_api_logs::ConnectorEvent,
 };
 use serde::Serialize;
 use transformers::{
@@ -173,7 +334,7 @@ macros::create_all_prerequisites!(
             flow: ServerSessionAuthenticationToken,
             request_body: {ConnectorName}SessionTokenRequest,
             response_body: {ConnectorName}SessionTokenResponse,
-            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -185,7 +346,11 @@ macros::create_all_prerequisites!(
     ],
     amount_converters: [
         // Choose appropriate amount converter based on connector requirements
-        amount_converter: {AmountUnit} // StringMinorUnit, StringMajorUnit, MinorUnit
+        // Pick the unit that matches the vendor's documented wire format. FIVE exist in
+        // common_utils/src/types.rs: MinorUnit(:170), StringMinorUnit(:305), FloatMajorUnit(:336),
+        // StringMajorUnit(:374), StringTwoDecimalUnit(:443). Do NOT default to StringMinorUnit —
+        // on HEAD the split is StringMajorUnit 24 / FloatMajorUnit 22 / MinorUnit 11 / StringMinorUnit 8.
+        amount_converter: {AmountUnit}
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -196,7 +361,7 @@ macros::create_all_prerequisites!(
                 "Content-Type".to_string(),
                 "{content_type}".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -207,6 +372,17 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.{connector_name}.base_url
         }
+
+        // REQUIRED for ServerSessionAuthenticationToken: its resource_common_data is
+        // MerchantAuthenticationFlowData, so `connector_base_url_payments` does not typecheck
+        // for this flow. Real exemplars: `connector_base_url_merchant_auth` in
+        // crates/integrations/connector-integration/src/connectors/{paytm,nuvei,volt}.rs.
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data.connectors.{connector_name}.base_url.to_string()
+        }
     }
 );
 
@@ -214,7 +390,12 @@ macros::create_all_prerequisites!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for {ConnectorName}<T>
 {
-    fn should_do_session_token(&self) -> bool {
+    // Real signature — takes the connector_feature_data blob so a connector can decide per-merchant.
+    // Verify: `pub trait ValidationTrait` in crates/types-traits/interfaces/src/connector_types.rs.
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true // Enable ServerSessionAuthenticationToken flow
     }
 
@@ -241,7 +422,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -255,7 +436,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
@@ -265,20 +447,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+        // (definition: crates/integrations/connector-integration/src/utils.rs). It expands to
+        // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+        // `set_error_response_body` method on `events::Event`.
+        with_error_response_body!(event_builder, response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+            // (crates/common/common_utils/src/consts.rs). Import them:
+            //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+            // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+            // an empty string in a log is indistinguishable from "the connector sent nothing".
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -290,7 +477,7 @@ macros::macro_connector_implementation!(
     curl_request: Json({ConnectorName}SessionTokenRequest),
     curl_response: {ConnectorName}SessionTokenResponse,
     flow_name: ServerSessionAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerSessionAuthenticationTokenRequestData,
     flow_response: ServerSessionAuthenticationTokenResponseData,
     http_method: Post,
@@ -299,16 +486,16 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let base_url = self.connector_base_url_payments(req);
+            let base_url = self.connector_base_url_merchant_auth(req);
             Ok(format!("{base_url}/{session_token_endpoint}"))
         }
     }
@@ -351,6 +538,7 @@ macros::macro_connector_implementation!(
 ```rust
 // File: crates/integrations/connector-integration/src/connectors/{connector_name}/transformers.rs
 
+// All five unit types live in common_utils::types; import the one matching the vendor's wire format.
 use common_utils::types::{MinorUnit, StringMinorUnit};
 use domain_types::{
     connector_flow::{Authorize, ServerSessionAuthenticationToken},
@@ -359,8 +547,9 @@ use domain_types::{
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, ResponseId,
     },
     errors::{self, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -377,22 +566,29 @@ pub struct {ConnectorName}AuthType {
     // Add other auth fields as needed
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+// Auth is read from `ConnectorSpecificConfig`, NOT from a `connector_auth_type` field —
+// `RouterDataV2` lost `connector_auth_type` on 2026-03-14 (a7a696c3a); the field is now
+// `req.connector_config: ConnectorSpecificConfig` (domain_types/src/router_data_v2.rs).
+// `ConnectorSpecificConfig` has ONE struct variant PER CONNECTOR (domain_types/src/router_data.rs),
+// not generic HeaderKey/BodyKey/SignatureKey variants — add your connector's variant there and
+// match on it. Exemplar: connectors/travelhub/transformers.rs and connectors/volt/transformers.rs.
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = IntegrationError;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
+        // ONE arm per connector: your connector has exactly one `ConnectorSpecificConfig`
+        // variant, so destructure exactly the fields that variant declares. Optional
+        // credentials are `Option<Secret<String>>` *in the variant itself* — do not try to
+        // express "api_key only" vs "api_key + secret" as separate match arms; the second
+        // arm would be unreachable (E0001-class dead code).
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} {
+                api_key,
+                api_secret,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
-                api_secret: None,
-            }),
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
-                api_key: api_key.to_owned(),
-                api_secret: Some(api_secret.to_owned()),
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_owned(),
-                api_secret: Some(key1.to_owned()),
+                api_secret: api_secret.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
         }
@@ -444,7 +640,7 @@ pub enum {ConnectorName}SessionStatus {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         {ConnectorName}RouterData<
-            RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
             T,
         >,
     > for {ConnectorName}SessionTokenRequest
@@ -453,19 +649,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: {ConnectorName}RouterData<
-            RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         // Convert amount if needed
         let amount = item
             .connector
             .amount_converter
             .convert(router_data.request.amount, router_data.request.currency)
-            .change_context(IntegrationError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed { context: Default::default() })?;
 
         Ok(Self {
             merchant_id: auth.api_key,
@@ -479,7 +675,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // Session Token Response Transformation
 impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
-    for RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
+    for RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -489,23 +685,34 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
+        // NOTE — mechanism C: `resource_common_data` here is `MerchantAuthenticationFlowData`.
+        // It has NO `status`, NO `session_token`, NO `access_token`. Never construct it in this
+        // transformer; pass it through with `..router_data.clone()`. Any `PaymentFlowData { .. }`
+        // literal in this impl is a copy-paste from a payment flow and will not compile (E0609 /
+        // E0308). Compare `impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>` in
+        // crates/integrations/connector-integration/src/connectors/nuvei/transformers.rs, which
+        // sets only `response`.
+
         // Check for error status
         if matches!(response.status, {ConnectorName}SessionStatus::Error | {ConnectorName}SessionStatus::Failed) {
+            // In-band 2xx failure: the connector answered 200 with a terminal Error/Failed
+            // status in the body, so `Failure` here is derived from the connector's own status
+            // enum, not from the HTTP code. Never set `Failure` on a path where the body has
+            // not proven the attempt failed. See `domain_types::utils::is_payment_failure`
+            // (domain_types/src/utils.rs).
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(ErrorResponse {
-                    code: response.error_code.clone().unwrap_or_default(),
-                    message: response.error_message.clone().unwrap_or_default(),
+                    code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: response.error_message.clone().unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: response.error_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    // `FlowStatus` is `domain_types::router_data::FlowStatus`:
+                    //     use domain_types::router_data::FlowStatus;
+                    // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+                    // Payout(PayoutStatus). Pick the one matching THIS flow.
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -517,15 +724,12 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "session_token",
-            , context: Default::default() })?;
+                context: Default::default(),
+            })?;
 
-        // Return success with session token stored in PaymentFlowData
+        // Return the token in the RESPONSE. The caller carries it onto the next payment request;
+        // this flow cannot and must not write it onto resource_common_data.
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::Pending,
-                session_token: Some(session_token.clone()),
-                ..router_data.resource_common_data.clone()
-            },
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token,
             }),
@@ -588,7 +792,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         // Extract session token from PaymentFlowData
         let session_token = router_data
@@ -597,14 +801,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "session_token",
-            , context: Default::default() })?;
+                context: Default::default(),
+            })?;
 
         // Convert amount
         let amount = item
             .connector
             .amount_converter
             .convert(router_data.request.amount, router_data.request.currency)
-            .change_context(IntegrationError::AmountConversionFailed)?;
+            .change_context(IntegrationError::AmountConversionFailed { context: Default::default() })?;
 
         // Build payment method
         let payment_method = match &router_data.request.payment_method_data {
@@ -616,7 +821,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     cvc: card_data.card_cvc.clone(),
                 })
             }
-            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
+            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(), Default::default()).into()),
         };
 
         Ok(Self {
@@ -659,13 +864,18 @@ pub struct {ConnectorName}ErrorResponse {
 
 ## ValidationTrait Implementation
 
-**CRITICAL**: To enable the ServerSessionAuthenticationToken flow, you MUST implement the `ValidationTrait` with `should_do_session_token()` returning `true`:
+**CRITICAL**: To enable the ServerSessionAuthenticationToken flow, you MUST override `ValidationTrait::should_do_session_token` to return `true`. The trait default is `false`, so without the override the composite service never issues the leg (`crates/internal/composite-service/src/payments.rs` reads `connector_data.connector.should_do_session_token(payload.connector_feature_data())`). The parameter is **`Option<&hyperswitch_masking::Secret<String>>`**, not `()`:
 
 ```rust
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for {ConnectorName}<T>
 {
-    fn should_do_session_token(&self) -> bool {
+    // Real signature — takes the connector_feature_data blob so a connector can decide per-merchant.
+    // Verify: `pub trait ValidationTrait` in crates/types-traits/interfaces/src/connector_types.rs.
+    fn should_do_session_token(
+        &self,
+        _connector_feature_data: Option<&hyperswitch_masking::Secret<String>>,
+    ) -> bool {
         true // Enable ServerSessionAuthenticationToken flow
     }
 
@@ -767,7 +977,8 @@ let session_token = router_data
     .clone()
     .ok_or(IntegrationError::MissingRequiredField {
         field_name: "session_token",
-    , context: Default::default() })?;
+        context: Default::default(),
+    })?;
 ```
 
 ### Pattern 2: Token in Headers (Alternative)
@@ -805,7 +1016,7 @@ fn get_url(
 
 ```rust
 impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
-    for RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
+    for RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<IntegrationError>;
 
@@ -817,28 +1028,29 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SessionTokenResponse, Self>>
 
         // Handle session token specific errors
         if let Some(error_code) = &response.error_code {
-            let attempt_status = match error_code.as_str() {
-                "INVALID_MERCHANT" => common_enums::AttemptStatus::AuthorizationFailed,
-                "RATE_LIMIT_EXCEEDED" => common_enums::AttemptStatus::Pending,
-                "SESSION_EXPIRED" => common_enums::AttemptStatus::Failure,
-                _ => common_enums::AttemptStatus::Failure,
+            // Map only the codes this connector documents. An unrecognised code must NOT be
+            // forced to a terminal status: `ErrorResponse.attempt_status` is
+            // `Option<FlowStatus>` (router_data.rs) and stays `None` when unknown.
+            // Exemplars: connectors/noon.rs, connectors/flywire.rs.
+            let mapped_status = match error_code.as_str() {
+                "INVALID_MERCHANT" => Some(common_enums::AttemptStatus::AuthorizationFailed),
+                "RATE_LIMIT_EXCEEDED" => Some(common_enums::AttemptStatus::Pending),
+                "SESSION_EXPIRED" => Some(common_enums::AttemptStatus::Failure),
+                _ => None,
             };
 
+            // No `resource_common_data:` override — `MerchantAuthenticationFlowData` has no
+            // `status` field to set. The mapped status travels only on `ErrorResponse.attempt_status`,
+            // which the caller applies to the payment attempt.
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: attempt_status,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(ErrorResponse {
                     code: error_code.clone(),
-                    message: response.error_message.clone().unwrap_or_default(),
+                    message: response.error_message.clone().unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: response.error_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(attempt_status),
+                    attempt_status: mapped_status.map(FlowStatus::Payment),
                     connector_transaction_id: None,
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -880,19 +1092,18 @@ mod session_token_tests {
         let router_data = create_test_session_token_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
         let result = RouterDataV2::try_from(response_router_data);
         assert!(result.is_ok());
 
+        // Assert on the RESPONSE, not on resource_common_data — `MerchantAuthenticationFlowData`
+        // has no `session_token` field.
         let router_data_result = result.unwrap();
-        assert!(router_data_result.resource_common_data.session_token.is_some());
-        assert_eq!(
-            router_data_result.resource_common_data.session_token.unwrap(),
-            "test_session_token_123"
-        );
+        let response = router_data_result.response.expect("expected Ok response");
+        assert_eq!(response.session_token, "test_session_token_123");
     }
 
     #[test]
@@ -907,7 +1118,7 @@ mod session_token_tests {
         let router_data = create_test_session_token_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 400,
         };
 
@@ -918,22 +1129,42 @@ mod session_token_tests {
         assert!(router_data_result.response.is_err());
     }
 
-    fn create_test_session_token_router_data() -> RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData> {
-        // Create test router data structure
+    fn create_test_session_token_router_data() -> RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData> {
+        // NOTE: neither `RouterDataV2`, `MerchantAuthenticationFlowData` nor
+        // `ServerSessionAuthenticationTokenRequestData` derives `Default` — `..Default::default()`
+        // does NOT compile here. Every field must be named. Read the two structs before writing
+        // this fixture:
+        //   crates/types-traits/domain_types/src/merchant_authentication_flow_data.rs
+        //   crates/types-traits/domain_types/src/connector_types.rs
+        //     (`pub struct ServerSessionAuthenticationTokenRequestData`)
         RouterDataV2 {
-            resource_common_data: PaymentFlowData {
+            flow: std::marker::PhantomData,
+            resource_common_data: MerchantAuthenticationFlowData {
+                merchant_id: /* common_utils::id_type::MerchantId */ test_merchant_id(),
+                connectors: std::sync::Arc::new(test_connectors()),
                 connector_request_reference_id: "test_order_123".to_string(),
-                ..Default::default()
+                test_mode: Some(true),
+                return_url: None,
+                connector_feature_data: None,
+                order_details: None,
+                merchant_request_id: None,
+                raw_connector_response: None,
+                typed_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+                connector_response_headers: None,
             },
+            connector_config: test_connector_config(),
             request: ServerSessionAuthenticationTokenRequestData {
                 amount: MinorUnit::new(1000),
                 currency: common_enums::Currency::USD,
-                ..Default::default()
+                browser_info: None,
+                customer_id: None,
+                address: None,
             },
             response: Ok(ServerSessionAuthenticationTokenResponseData {
-                session_token: "".to_string(),
+                session_token: String::new(),
             }),
-            ..Default::default()
         }
     }
 }
@@ -962,7 +1193,7 @@ mod session_token_tests {
   - [ ] Add `ServerSessionAuthenticationToken` to connector_flow imports
   - [ ] Add `ServerSessionAuthenticationTokenRequestData` and `ServerSessionAuthenticationTokenResponseData` to connector_types imports
   - [ ] Import session token request/response types from transformers
-  - [ ] Implement `ValidationTrait` with `should_do_session_token()` returning `true`
+  - [ ] Override `ValidationTrait::should_do_session_token(&self, Option<&Secret<String>>)` to return `true`
   - [ ] Add ServerSessionAuthenticationToken flow to `macros::create_all_prerequisites!`
   - [ ] Implement ServerSessionAuthenticationToken flow with `macros::macro_connector_implementation!`
   - [ ] Add Source Verification stub for ServerSessionAuthenticationToken flow
@@ -975,7 +1206,7 @@ mod session_token_tests {
   - [ ] Create session status enumeration
   - [ ] Implement session token request transformation (`TryFrom`)
   - [ ] Implement session token response transformation (`TryFrom`)
-  - [ ] Store session token in `PaymentFlowData.session_token`
+  - [ ] Return the token in `ServerSessionAuthenticationTokenResponseData` — do NOT construct a `resource_common_data` literal (`MerchantAuthenticationFlowData` has no `session_token`)
   - [ ] Extract and use session token in Authorize flow
 
 ### Testing Checklist
@@ -984,7 +1215,7 @@ mod session_token_tests {
   - [ ] Test session token request transformation
   - [ ] Test session token response transformation (success)
   - [ ] Test session token response transformation (failure)
-  - [ ] Test session token storage in PaymentFlowData
+  - [ ] Assert the token on `router_data.response`, not on `resource_common_data`
   - [ ] Test session token retrieval in Authorize flow
   - [ ] Test error response handling
 
@@ -1014,7 +1245,7 @@ mod session_token_tests {
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Nuvei`, `PayPal`, `NewPayment` | **Always required** - Used in struct names |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `nuvei`, `paypal`, `new_payment` | **Always required** - Used in config keys |
-| `{AmountType}` | Amount type based on connector API | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Choose based on API** |
+| `{AmountType}` | Amount type based on connector API | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Read the vendor spec and match its wire format** — no safe default |
 | `{content_type}` | Request content type | `"application/json"`, `"application/x-www-form-urlencoded"` | **Based on API format** |
 | `{session_token_endpoint}` | Session token API endpoint | `"v1/session-token"`, `"getSessionToken.do"` | **From API docs** |
 | `{authorize_endpoint}` | Authorization API endpoint | `"v1/payments"`, `"payment.do"` | **From API docs** |
@@ -1046,9 +1277,9 @@ mod session_token_tests {
 
 ## Best Practices
 
-1. **Enable via ValidationTrait**: Always implement `ValidationTrait` with `should_do_session_token()` returning `true` to enable the flow
+1. **Enable via ValidationTrait**: Always override `should_do_session_token(&self, connector_feature_data: Option<&Secret<String>>)` to return `true` — the trait default is `false` and the flow is otherwise never dispatched
 
-2. **Store Token in PaymentFlowData**: Store the session token in `PaymentFlowData.session_token` so it's available to subsequent flows
+2. **Return the Token, Don't Store It**: the SSAT transformer sets only `response: Ok(ServerSessionAuthenticationTokenResponseData { session_token })`. The composite service (`composite-service/src/utils.rs::get_session_token`) folds it onto the next payment request, where it lands on `PaymentFlowData.session_token` for the Authorize transformer to read
 
 3. **Handle Missing Token**: In Authorize flow, always check for the session token and return a clear error if missing
 
@@ -1060,10 +1291,16 @@ mod session_token_tests {
 
 ### Common Pitfalls to Avoid
 
-- **Missing ValidationTrait**: Without implementing `should_do_session_token()`, the flow will never be executed
-- **Not Storing Token**: Forgetting to store the token in `PaymentFlowData.session_token`
+- **Missing ValidationTrait**: without the `should_do_session_token` override the flow is never dispatched; and note the parameter is `Option<&Secret<String>>` — a zero-arg override does not compile
+- **Trying to Store the Token**: writing `resource_common_data: PaymentFlowData { session_token: ..., .. }` in this flow. That is a copy-paste from a payment flow and does not compile — this flow's `resource_common_data` is `MerchantAuthenticationFlowData`
 - **Not Using Token**: Authorize flow not extracting and using the session token
 - **Wrong Status Mapping**: Session token responses should typically map to `Pending` status, not `Charged`
 - **Error Propagation**: Not properly propagating session token errors to prevent authorization attempts
 
 This pattern document provides a comprehensive template for implementing ServerSessionAuthenticationToken flows in payment connectors, ensuring consistency and completeness across all implementations.
+
+## Change Log
+
+| Version | Date | Change |
+|---|---|---|
+| 2.0.0 | 2026-09-07 | Mechanism-C correction pass against HEAD. **`PaymentFlowData` → `MerchantAuthenticationFlowData` at every site in this flow's generics and macro blocks** (~13 sites); the SSAT `resource_common_data` cannot hold a session token, so the "store the token in `PaymentFlowData.session_token`" instruction — repeated in the overview, the response transformer, the checklist, the best practices and the pitfalls — was replaced with the real carrier chain (response → gRPC `CreateServerSessionAuthenticationToken` → `composite-service/src/utils.rs::get_session_token` → `PaymentServiceAuthorizeRequest.session_token` → `PaymentFlowData.session_token`, request value winning over the minted one). Corrected `should_do_session_token` to take `Option<&Secret<String>>`. Added a Data Types section with the real `ServerSessionAuthenticationTokenRequestData` (5 fields) / `ServerSessionAuthenticationTokenResponseData` (1 field) and the `ServerSessionAuthentication` trait binding. Fixed the unit-test fixture, which used `..Default::default()` on three structs that derive no `Default`. Roster re-derived live: **5** registrations (`authorizedotnet`, `grabpay`, `nuvei`, `paytm`, `payu`), replacing "2 of 77"; the stale 75-name stub roll-call was deleted rather than refreshed. SSAT `get_url` switched from `connector_base_url_payments` to `connector_base_url_merchant_auth`. All numeric `file.rs:NNN` citations re-anchored to symbol names. |

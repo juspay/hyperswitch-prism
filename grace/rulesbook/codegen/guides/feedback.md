@@ -1980,11 +1980,12 @@ let auth_header = match auth {
     }
 };
 
-// Or for more complex auth
-let auth = ConnectorAuthType::BodyKey {
-    api_key: router_data.connector_auth_type.api_key.clone(),
-    key1: router_data.connector_auth_type.key1.clone(),
-};
+// Or for more complex auth. NOTE: `RouterDataV2` lost `connector_auth_type`
+// on 2026-03-14 (a7a696c3a). Auth now comes from `connector_config`, and each
+// connector converts it through its own AuthType:
+let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
+let api_key = auth.api_key;
+let key1 = auth.key1;
 ```
 
 **Why This Matters:**
@@ -2007,7 +2008,7 @@ Wrong authentication causes:
    - `HeaderKey { api_key }` - API key in header
    - `BodyKey { api_key, key1 }` - Multiple keys
    - `SignatureKey { ... }` - Signature-based auth
-3. Extract auth from `router_data.connector_auth_type`
+3. Extract auth from `router_data.connector_config` via `{ConnectorName}AuthType::try_from`
 4. Use `.peek()` to access secret values safely
 5. Build headers/body with extracted credentials
 6. Remove any hardcoded credentials

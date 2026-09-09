@@ -98,7 +98,7 @@ match &router_data.request.payment_method_data {
     PaymentMethodData::CardRedirect(ref card_redirect_data) => {
         // map CardRedirectData variants to the connector's native payment-method tag
     }
-    _ => Err(IntegrationError::not_implemented("payment_method").into()),
+    _ => Err(IntegrationError::not_implemented("payment_method", Default::default()).into()),
 }
 ```
 
@@ -112,7 +112,7 @@ Concrete examples:
 
 | Connector | HTTP Method | Content Type | URL Pattern | Request Type Reuse | Notes |
 |-----------|-------------|--------------|-------------|--------------------|-------|
-| Adyen | POST | application/json | `/v68/payments` (`base_url` + `"/payments"`) | Reuses `AdyenPaymentRequest<T>` — shared with Card, Wallet, BankRedirect, BankDebit flows on this connector. See `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:2918-2955`. | Only connector at the pinned SHA that has a non-stub `TryFrom<&CardRedirectData>` impl for real variants. Supports `Knet`, `Benefit`, `MomoAtm`. Stubs out `CardRedirect` generic with `IntegrationError::not_implemented("payment_method")` at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`. |
+| Adyen | POST | application/json | `/v68/payments` (`base_url` + `"/payments"`) | Reuses `AdyenPaymentRequest<T>` — shared with Card, Wallet, BankRedirect, BankDebit flows on this connector. See `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:2918-2955`. | Only connector at the pinned SHA that has a non-stub `TryFrom<&CardRedirectData>` impl for real variants. Supports `Knet`, `Benefit`, `MomoAtm`. Stubs out `CardRedirect` generic with `IntegrationError::not_implemented("payment_method", Default::default())` at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`. |
 
 ### Stub Implementations
 
@@ -185,7 +185,7 @@ Nuvei has no references to `CardRedirect` at the pinned SHA (grep of `src/connec
 
 - **Region:** Generic / unclassified card-redirect flow.
 - **Status:** Unimplemented across all connectors at the pinned SHA. This is the catch-all variant and every `TryFrom<&CardRedirectData>` impl in the tree returns `IntegrationError::not_implemented` for it:
-  - Adyen: `CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented("payment_method").into())` at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`.
+  - Adyen: `CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented("payment_method", Default::default()).into())` at `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`.
   - Stripe: combined not-implemented arm at `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1479-1482`.
   - PayPal: combined not-implemented arm at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:1164-1167`.
   - MultiSafepay: matched only at the top-level `Type` dispatcher (`crates/integrations/connector-integration/src/connectors/multisafepay/transformers.rs:79`); no per-variant code path.
@@ -213,7 +213,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Benefit {} => Ok(Self::Benefit),
             CardRedirectData::MomoAtm {} => Ok(Self::MomoAtm),
             CardRedirectData::CardRedirect {} => {
-                Err(IntegrationError::not_implemented("payment_method").into())
+                Err(IntegrationError::not_implemented("payment_method", Default::default()).into())
             }
         }
     }
@@ -247,6 +247,7 @@ PaymentMethodData::CardRedirect(cardredirect_data) => match cardredirect_data {
     | CardRedirectData::MomoAtm {}
     | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
         get_unimplemented_payment_method_error_message("stripe"),
+        Default::default(),
     )
     .into()),
 },
@@ -340,6 +341,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | CardRedirectData::MomoAtm {}
             | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
+                Default::default(),
             )
             .into()),
         }
@@ -395,7 +397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ### 4. Swallowing the generic `CardRedirect {}` variant
 
 - **Problem:** Implementer adds cases for `Knet`, `Benefit`, `MomoAtm` and forgets `CardRedirect {}`, producing a non-exhaustive match compile error.
-- **Solution:** Explicitly return `IntegrationError::not_implemented(...)` for `CardRedirectData::CardRedirect {}` until a dedicated scheme emerges — mirror `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`.
+- **Solution:** Explicitly return `IntegrationError::not_implemented(message, context)` for `CardRedirectData::CardRedirect {}` until a dedicated scheme emerges — mirror `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1831-1833`.
 
 ### 5. Expecting synchronous settlement
 
@@ -405,7 +407,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 ### 6. Using `ConnectorError` in new code
 
 - **Problem:** Copying an older snippet that references monolithic `ConnectorError`. Per the spec's banned-types list, that type is retired (PR #765).
-- **Solution:** Use `IntegrationError` for request-side failures (`IntegrationError::not_implemented`, `IntegrationError::RequestEncodingFailed`, `IntegrationError::MissingRequiredField`) and `ConnectorResponseTransformationError` for response-parse failures.
+- **Solution:** Use `IntegrationError` for request-side failures (`IntegrationError::not_implemented`, `IntegrationError::RequestEncodingFailed`, `IntegrationError::MissingRequiredField`) and `ConnectorError` for response-parse failures (`ConnectorError::response_deserialization_failed(status)` / `::response_handling_failed(status)`, or the struct-variant form with a `context: ResponseTransformationErrorContext`).
 
 ## Cross-References
 

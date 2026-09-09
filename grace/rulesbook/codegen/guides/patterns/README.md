@@ -2,44 +2,187 @@
 
 This directory contains comprehensive implementation patterns for each payment flow in the UCS (Universal Connector Service) system. Each pattern file provides complete, reusable templates that can be consumed by AI to generate consistent, production-ready connector code.
 
-## 🆕 New Structure (2025)
+## 📂 Directory Layout
 
-Patterns are now organized hierarchically for better discoverability and modular workflows:
+Flow patterns are **flat files** in this directory. Payment-method patterns for the
+Authorize flow live under `authorize/{payment_method}/`. There is no `flows/`
+subdirectory.
 
 ```
 guides/patterns/
-├── README.md                    # This file
-├── flow_macro_guide.md          # Shared macro patterns
-├── macro_patterns_reference.md  # Complete macro reference
-└── flows/                       # Flow-specific patterns
-    ├── README.md                # Flow patterns index
-    ├── authorize/               # Authorization flow with payment methods
-    │   ├── pattern_authorize.md # Core authorize pattern
-    │   ├── card.md              # Card payments
-    │   ├── wallet.md            # Digital wallets (Apple Pay, Google Pay)
-    │   ├── bank_transfer.md     # Bank transfers
-    │   ├── bank_debit.md        # Bank debits
-    │   ├── bank_redirect.md     # Bank redirects (iDEAL, etc.)
-    │   ├── upi.md               # UPI payments
-    │   ├── bnpl.md              # Buy Now Pay Later
-    │   ├── crypto.md            # Cryptocurrency
-    │   ├── gift_card.md         # Gift cards
-    │   ├── mobile_payment.md    # Mobile payments
-    │   └── reward.md            # Reward points
-    ├── capture/                 # Capture flow
-    ├── refund/                  # Refund flow
-    ├── void/                    # Void flow
-    ├── psync/                   # Payment sync
-    ├── rsync/                   # Refund sync
-    ├── setup_mandate/           # Mandate setup
-    ├── repeat_payment/          # Repeat payments
-    ├── IncomingWebhook/         # Webhook handling
-    └── ... (other advanced flows)
+├── README.md                        # This file
+├── PATTERN_AUTHORING_SPEC.md        # How to write / update a pattern file
+├── flow_macro_guide.md              # Shared macro patterns
+├── macro_patterns_reference.md      # Complete macro reference
+├── pattern_authorize.md             # One flat file per flow
+├── pattern_capture.md
+├── pattern_psync.md
+├── pattern_void.md
+├── pattern_void_pc.md
+├── pattern_refund.md
+├── pattern_rsync.md
+├── pattern_preauthenticate.md       # 3DS trio (Mechanism 1)
+├── pattern_authenticate.md
+├── pattern_postauthenticate.md
+├── pattern_authentication_dispatch.md   # next_authentication_step - mandatory with the trio
+├── pattern_server_authentication_token.md          # merchant/credential auth (Mechanism 3)
+├── pattern_server_session_authentication_token.md
+├── pattern_client_authentication_token.md
+├── ...                              # see the tables below for the full list
+└── authorize/                       # Payment-method patterns for Authorize
+    ├── README.md
+    ├── card/
+    │   ├── pattern_authorize_card.md
+    │   └── pattern_authorize_card_ntid.md
+    ├── wallet/
+    │   ├── pattern_authorize_wallet.md
+    │   └── pattern_authorize_wallet_ntid.md
+    ├── card_redirect/
+    ├── bank_transfer/
+    ├── bank_debit/
+    ├── bank_redirect/
+    ├── open_banking/
+    ├── payment_method_token/
+    ├── network_token/
+    ├── mandate_payment/
+    ├── real_time_payment/
+    ├── upi/
+    ├── bnpl/
+    ├── crypto/
+    ├── gift_card/
+    ├── mobile_payment/
+    ├── reward/
+    └── voucher/
 ```
 
-### Legacy Patterns (Being Migrated)
+## 🔐 The Three Auth Mechanisms — Read This Before Any Auth Flow
 
-The flat pattern files in this directory are being migrated to the new `flows/` structure. During migration, both locations are valid, but new implementations should use the `flows/` directory.
+"Authentication" means **three unrelated things** in UCS, plus a fourth category
+that is not authentication at all. Conflating them is the single largest source
+of broken generated code: each has its own flow markers, its own
+`resource_common_data` type, and its own gRPC service. Identify which row you
+are in **before** opening a pattern file.
+
+| # | Mechanism | Flow markers (`connector_flow.rs`) | `resource_common_data` | gRPC service (`services.proto`) | Pattern file(s) |
+|---|-----------|------------------------------------|------------------------|---------------------------------|-----------------|
+| **1** | **Standalone 3DS trio** — cardholder authentication run as its own leg(s) before Authorize | `PreAuthenticate` / `Authenticate` / `PostAuthenticate` | **`PaymentFlowData`** | `PaymentMethodAuthenticationService` (rpcs `PreAuthenticate` / `Authenticate` / `PostAuthenticate`) | [`pattern_preauthenticate.md`](./pattern_preauthenticate.md), [`pattern_authenticate.md`](./pattern_authenticate.md), [`pattern_postauthenticate.md`](./pattern_postauthenticate.md) **+ [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md) (mandatory)** |
+| **2** | **In-payment 3DS** — 3DS folded into the Authorize call itself | *(none — no separate marker exists)* | `PaymentFlowData` | `PaymentService.Authorize` | [`pattern_authorize.md`](./pattern_authorize.md) |
+| **3** | **Merchant / credential auth** — OAuth tokens, wallet sessions, client-SDK tokens. Authenticates **the merchant to the connector**, never the cardholder | `ServerAuthenticationToken` / `ServerSessionAuthenticationToken` / `ClientAuthenticationToken` | **`MerchantAuthenticationFlowData`** | `MerchantAuthenticationService` (rpcs `CreateServerAuthenticationToken` / `CreateServerSessionAuthenticationToken` / `CreateClientAuthenticationToken`) | [`pattern_server_authentication_token.md`](./pattern_server_authentication_token.md) (canonical), [`pattern_server_session_authentication_token.md`](./pattern_server_session_authentication_token.md), [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) |
+| **4** | **Authenticator connectors — NOT 3DS.** Bank-account linking / account verification. Lives in `src/authenticator_connectors/`, a **sibling** of `connectors/`, not a subdirectory of it. Sole member: `plaid` | Reuses `ClientAuthenticationToken`, plus `PaymentMethodToken` and `GetPaymentMethod` | `MerchantAuthenticationFlowData` for `ClientAuthenticationToken`; `PaymentFlowData` for the other two | `MerchantAuthenticationService` for the token leg | *No dedicated pattern.* Read `authenticator_connectors/plaid.rs` |
+
+> **The `resource_common_data` split is the trap.** Mechanism 1 uses
+> `PaymentFlowData`; Mechanism 3 uses `MerchantAuthenticationFlowData`. They are
+> **not** interchangeable. `MerchantAuthenticationFlowData`
+> (`crates/types-traits/domain_types/src/merchant_authentication_flow_data.rs`)
+> deliberately omits every payment field — no amount, no payment-method data, no
+> address. It carries only merchant identity, resolved `connectors` base URLs,
+> `connector_request_reference_id`, `test_mode`, `return_url`,
+> `connector_feature_data`, `order_details`, `merchant_request_id`, plus the
+> standard raw/typed connector request-response observability fields
+> (`raw_connector_response`, `typed_connector_response`, `raw_connector_request`,
+> `typed_connector_request`, `connector_response_headers`). If a pattern file
+> tells you to put `PaymentFlowData` on a `*AuthenticationToken` flow, that
+> pattern file is wrong — check `connector_types.rs` and fix it.
+
+**Ground truth for the six trait bindings** — all in
+`crates/types-traits/interfaces/src/connector_types.rs`, each a supertrait
+binding over `ConnectorIntegrationV2<Flow, ResourceCommonData, Request, Response>`:
+
+```rust
+pub trait PaymentPreAuthenticateV2<T: PaymentMethodDataTypes>:  ConnectorIntegrationV2<connector_flow::PreAuthenticate,  PaymentFlowData, PaymentsPreAuthenticateData<T>,  PaymentsResponseData> {}
+pub trait PaymentAuthenticateV2<T: PaymentMethodDataTypes>:     ConnectorIntegrationV2<connector_flow::Authenticate,     PaymentFlowData, PaymentsAuthenticateData<T>,     PaymentsResponseData> {}
+pub trait PaymentPostAuthenticateV2<T: PaymentMethodDataTypes>: ConnectorIntegrationV2<connector_flow::PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData> {}
+
+pub trait ServerAuthentication:        ConnectorIntegrationV2<connector_flow::ServerAuthenticationToken,        MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData,        ServerAuthenticationTokenResponseData> {}
+pub trait ServerSessionAuthentication: ConnectorIntegrationV2<connector_flow::ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData> {}
+pub trait ClientAuthentication:        ConnectorIntegrationV2<connector_flow::ClientAuthenticationToken,        MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData,        PaymentsResponseData> {} // note the asymmetric response type
+```
+
+There is **no** `trait ConnectorFlow` with associated `type Request` / `type
+Response` anywhere in this repo. If a pattern file teaches that shape, it is
+describing a trait that does not exist — the real mechanism is the
+`ConnectorIntegrationV2` supertrait binding shown above.
+
+### Mechanism 1 does not run unless you also override the dispatcher
+
+Implementing the trio is **not** enough to make it execute. `ValidationTrait` in
+`crates/types-traits/interfaces/src/connector_types.rs` carries:
+
+```rust
+pub enum AuthenticationStep { PreAuthenticate, Authenticate, PostAuthenticate, Authorize }
+pub enum RedirectState { InitialRequest, RedirectWithParams, RedirectWithoutParams }
+
+// default method on ValidationTrait:
+fn next_authentication_step(
+    &self,
+    _auth_type: common_enums::AuthenticationType,
+    _payment_method: PaymentMethod,
+    _redirect_state: RedirectState,
+    _completed_step: Option<AuthenticationStep>,
+) -> AuthenticationStep {
+    AuthenticationStep::Authorize   // default: SKIP every 3DS leg
+}
+```
+
+The loop that consumes it is `process_composite_authorize` in
+`crates/internal/composite-service/src/payments.rs`; it walks the
+`AuthenticationStep` arms and halts on `AuthenticationStep::Authorize`.
+
+**Consequence:** a generated connector that implements `PreAuthenticate` /
+`Authenticate` / `PostAuthenticate` but never overrides
+`next_authentication_step` will compile, pass review, and its 3DS legs will be
+**unreachable at runtime**. `connectors/barclaycard.rs` is the canonical
+full-trio override. Enumerate the live overrides with:
+
+```bash
+grep -ln "fn next_authentication_step" \
+  crates/integrations/connector-integration/src/connectors/*.rs
+```
+
+This dispatcher is what [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md)
+covers. If that file is not present in your checkout, read the two sources named
+above directly — the override is still mandatory.
+
+### External 3DS providers do not route through UCS
+
+The Hyperswitch **router** keeps its own `authentication_connectors` category
+for external 3DS / EMV3DS providers. **With the single exception called out in
+carve-out 1 below, that class runs inside the router and never touches UCS** —
+there is no UCS connector to generate for it. There is no file under
+`crates/integrations/connector-integration/src/connectors/` for 3dsecure.io,
+Gpayments, Cardinal or Click-to-Pay / CTP. Those names **do** appear as variants
+of the proto `Connector` enum (`GPAYMENTS`, `THREEDSECUREIO`, `CTP_MASTERCARD`,
+`CTP_VISA` in `crates/types-traits/grpc-api-types/proto/payment.proto`) — that
+enum mirrors the full Hyperswitch connector list, so a variant there is **not**
+evidence that UCS implements the connector.
+
+Do **not** create a UCS connector, a `superposition.toml` entry, or a
+`connector_specs` entry for a router-side authentication connector.
+
+Two carve-outs, both real:
+
+1. **Netcetera is the one name from that class with a real UCS connector.**
+   `connectors/netcetera.rs` exists and is **authentication-only**: it implements
+   the standalone 3DS trio plus a **stub `Authorize`** that returns
+   `NotImplemented` before any HTTP call, present purely to satisfy the
+   `ConnectorServiceTrait` bound. It is registered in the **payment** registry
+   (`pub mod netcetera;` in `connectors.rs`), *not* in
+   `authenticator_connectors.rs` — Mechanism 4 is a different category. It also
+   overrides `next_authentication_step`. Treat it as the reference shape for an
+   authentication-only connector, not as licence to port every external 3DS
+   vendor into UCS.
+
+2. **The external-vault-proxy (VGS) variant keeps 3DS on the UCS side.** For
+   merchants proxying card data through VGS / Basis Theory / Spreedly,
+   `PaymentService.ProxyAuthorize` and `ProxySetupRecurring` take vault-aliased
+   card data, and the PROXIED PAYMENT METHODS block in `services.proto` states
+   that the 3DS flows (`PreAuthenticate`, `Authenticate`, `PostAuthenticate`)
+   **are** available there, because the vault proxy substitutes the alias with
+   the real PAN before forwarding to the 3DS server. Contrast the TOKENIZED
+   PAYMENT METHODS block immediately above it: on `TokenAuthorize`, 3DS flows are
+   **not** available, because a PSP token cannot be handed to an external 3DS
+   directory server — for 3DS on stored tokens the proto directs you to
+   `connector_feature_data` and connector-side delegated authentication.
 
 ## 📚 Available Patterns
 
@@ -47,12 +190,12 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 
 | Flow | Pattern File | Status | Description |
 |------|--------------|--------|-------------|
-| **Authorize** | [`flows/authorize/pattern_authorize.md`](./flows/authorize/pattern_authorize.md) | ✅ Complete | Complete authorization flow patterns |
-| **Capture** | [`flows/capture/pattern_capture.md`](./flows/capture/pattern_capture.md) | ✅ Complete | Payment capture flow patterns |
-| **PSync** | [`flows/psync/pattern_psync.md`](./flows/psync/pattern_psync.md) | ✅ Complete | Payment status synchronization |
-| **Void** | [`flows/void/pattern_void.md`](./flows/void/pattern_void.md) | ✅ Complete | Void/cancel authorization |
-| **Refund** | [`flows/refund/pattern_refund.md`](./flows/refund/pattern_refund.md) | ✅ Complete | Full and partial refunds |
-| **RSync** | [`flows/rsync/pattern_rsync.md`](./flows/rsync/pattern_rsync.md) | ✅ Complete | Refund status synchronization |
+| **Authorize** | [`pattern_authorize.md`](./pattern_authorize.md) | ✅ Complete | Complete authorization flow patterns |
+| **Capture** | [`pattern_capture.md`](./pattern_capture.md) | ✅ Complete | Payment capture flow patterns |
+| **PSync** | [`pattern_psync.md`](./pattern_psync.md) | ✅ Complete | Payment status synchronization |
+| **Void** | [`pattern_void.md`](./pattern_void.md) | ✅ Complete | Void/cancel authorization |
+| **Refund** | [`pattern_refund.md`](./pattern_refund.md) | ✅ Complete | Full and partial refunds |
+| **RSync** | [`pattern_rsync.md`](./pattern_rsync.md) | ✅ Complete | Refund status synchronization |
 
 ### Advanced Flows
 
@@ -65,9 +208,9 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 | **MandateRevoke** | [`pattern_mandate_revoke.md`](./pattern_mandate_revoke.md) | ✅ Complete | Cancel stored mandates |
 | **PaymentMethodToken** | [`pattern_payment_method_token.md`](./pattern_payment_method_token.md) | ✅ Complete | Payment method tokenization |
 | **CreateOrder** | [`pattern_createorder.md`](./pattern_createorder.md) | ✅ Complete | Multi-step payment initiation |
-| **SessionToken** (FlowName-only) / **ServerSessionAuthenticationToken** | [`pattern_server_session_authentication_token.md`](./pattern_server_session_authentication_token.md) | ✅ Complete | Wallet-session bootstrap (Apple Pay / Google Pay / PayPal) |
-| **ServerAuthenticationToken** | [`pattern_server_authentication_token.md`](./pattern_server_authentication_token.md) | ✅ Complete | OAuth / access-token acquisition. Canonical source for the `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`, and `ClientAuthenticationToken` flow markers (see the "Mapping to connector_flow.rs token markers" section). |
-| **ClientAuthenticationToken** | [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) | ✅ Complete | Client-side auth-token flow marker companion pattern |
+| **SessionToken** (FlowName-only) / **ServerSessionAuthenticationToken** | [`pattern_server_session_authentication_token.md`](./pattern_server_session_authentication_token.md) | ✅ Complete | **Mechanism 3** (`MerchantAuthenticationFlowData`, `MerchantAuthenticationService`). Wallet-session bootstrap (Apple Pay / Google Pay / PayPal) |
+| **ServerAuthenticationToken** | [`pattern_server_authentication_token.md`](./pattern_server_authentication_token.md) | ✅ Complete | **Mechanism 3** (`MerchantAuthenticationFlowData`, `MerchantAuthenticationService`). OAuth / access-token acquisition. Canonical source for the `ServerSessionAuthenticationToken`, `ServerAuthenticationToken`, and `ClientAuthenticationToken` flow markers (see the "Mapping to connector_flow.rs token markers" section). |
+| **ClientAuthenticationToken** | [`pattern_client_authentication_token.md`](./pattern_client_authentication_token.md) | ✅ Complete | **Mechanism 3** (`MerchantAuthenticationFlowData`, `MerchantAuthenticationService`; note the asymmetric `PaymentsResponseData` response). Client-side auth-token flow marker companion pattern |
 | **CreateConnectorCustomer** | [`pattern_create_connector_customer.md`](./pattern_create_connector_customer.md) | ✅ Complete | Create customer on connector side before payment |
 | **IncrementalAuthorization** | [`pattern_IncrementalAuthorization_flow.md`](./pattern_IncrementalAuthorization_flow.md) | ✅ Complete | Incremental authorization on existing auth |
 | **VoidPC** | [`pattern_void_pc.md`](./pattern_void_pc.md) | ✅ Complete | Void pre-capture / pre-confirm |
@@ -76,13 +219,38 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 | **SubmitEvidence** | [`pattern_submit_evidence.md`](./pattern_submit_evidence.md) | ✅ Complete | Submit dispute evidence |
 | **DSync** | [`pattern_dsync.md`](./pattern_dsync.md) | ✅ Complete | Dispute status sync |
 
-### Authentication Flows (3DS / EMV3DS)
+> The three `*AuthenticationToken` rows above are **Mechanism 3** — merchant /
+> credential authentication. They use `MerchantAuthenticationFlowData`, **not**
+> `PaymentFlowData`, and they authenticate the merchant to the connector, never
+> the cardholder. Do not confuse them with the 3DS trio in the next section.
+
+### Authentication Flows (3DS / EMV3DS) — Mechanism 1 only
+
+> These are **Mechanism 1** (standalone 3DS trio) from
+> "[The Three Auth Mechanisms](#-the-three-auth-mechanisms--read-this-before-any-auth-flow)"
+> above: `resource_common_data: PaymentFlowData`, served by
+> `PaymentMethodAuthenticationService`. They are **not** the
+> `*AuthenticationToken` flows — those are Mechanism 3, use
+> `MerchantAuthenticationFlowData`, and are listed under Advanced Flows.
 
 | Flow | Pattern File | Status | Description |
 |------|--------------|--------|-------------|
 | **PreAuthenticate** | [`pattern_preauthenticate.md`](./pattern_preauthenticate.md) | ✅ Complete | 3DS pre-authentication / version lookup |
 | **Authenticate** | [`pattern_authenticate.md`](./pattern_authenticate.md) | ✅ Complete | 3DS authentication / challenge |
 | **PostAuthenticate** | [`pattern_postauthenticate.md`](./pattern_postauthenticate.md) | ✅ Complete | 3DS post-authentication result retrieval |
+| **Authentication dispatch** — `next_authentication_step` *(no flow marker; a `ValidationTrait` method)* | [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md) | ⚠️ **Mandatory companion** | How the trio is actually scheduled. **Without this override the three flows above compile but never execute** — the default returns `AuthenticationStep::Authorize`, skipping every 3DS leg. |
+
+Derive the live roster of connectors implementing each leg — the counts in
+individual pattern files go stale quickly:
+
+```bash
+grep -n "flow_name: PreAuthenticate\|flow_name: Authenticate,\|flow_name: PostAuthenticate" \
+  crates/integrations/connector-integration/src/connectors/*.rs
+```
+
+`connectors/netcetera.rs` is the authentication-only connector (the trio plus a
+stub `Authorize` returning `NotImplemented`); it is registered in the **payment**
+registry, not `authenticator_connectors.rs`.
 
 ### Payout Flows
 
@@ -99,9 +267,10 @@ The flat pattern files in this directory are being migrated to the new `flows/` 
 
 ### Payment Method Patterns (Authorize Flow)
 
-Every `PaymentMethodData` variant from
+Almost every `PaymentMethodData` variant from
 `crates/types-traits/domain_types/src/payment_method_data.rs` has a dedicated
 pattern directory. The table below lists the canonical pattern per variant.
+(`CardWithNoCvc` has no pattern file yet - follow the generic card pattern.)
 
 | Payment Method Variant | Pattern File | Supported Flows |
 |------------------------|--------------|-----------------|
@@ -121,7 +290,7 @@ pattern directory. The table below lists the canonical pattern per variant.
 | **Upi** | [`authorize/upi/pattern_authorize_upi.md`](./authorize/upi/pattern_authorize_upi.md) | Authorize, Refund |
 | **Voucher** | [`authorize/voucher/pattern_authorize_voucher.md`](./authorize/voucher/pattern_authorize_voucher.md) | Authorize |
 | **GiftCard** | [`authorize/gift_card/pattern_authorize_gift_card.md`](./authorize/gift_card/pattern_authorize_gift_card.md) | Authorize |
-| **CardToken** | [`authorize/card_token/pattern_authorize_card_token.md`](./authorize/card_token/pattern_authorize_card_token.md) | Authorize |
+| **PaymentMethodToken** | [`authorize/payment_method_token/pattern_authorize_payment_method_token.md`](./authorize/payment_method_token/pattern_authorize_payment_method_token.md) | Authorize |
 | **OpenBanking** | [`authorize/open_banking/pattern_authorize_open_banking.md`](./authorize/open_banking/pattern_authorize_open_banking.md) | Authorize |
 | **NetworkToken** | [`authorize/network_token/pattern_authorize_network_token.md`](./authorize/network_token/pattern_authorize_network_token.md) | Authorize |
 | **MobilePayment** | [`authorize/mobile_payment/pattern_authorize_mobile_payment.md`](./authorize/mobile_payment/pattern_authorize_mobile_payment.md) | Authorize, Refund |
@@ -288,7 +457,9 @@ All pattern files maintain:
 - [`../../README.md`](../../README.md) - GRACE-UCS overview and usage
 
 ### Pattern Reference
-- [`flows/README.md`](./flows/README.md) - Flow patterns index
+- [`PATTERN_AUTHORING_SPEC.md`](./PATTERN_AUTHORING_SPEC.md) - How to write / update a pattern file
+- [`authorize/README.md`](./authorize/README.md) - Payment-method pattern index for Authorize
+- [`pattern_authentication_dispatch.md`](./pattern_authentication_dispatch.md) - `next_authentication_step` dispatch; required alongside the 3DS trio
 - [`flow_macro_guide.md`](./flow_macro_guide.md) - Macro usage reference
 - [`macro_patterns_reference.md`](./macro_patterns_reference.md) - Complete macro documentation
 
