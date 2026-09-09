@@ -4163,11 +4163,15 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
   // Authentication Details
   optional AuthenticationData authentication_data = 6;
 
-  optional SecretString metadata = 7; // Additional metadata for the connector
-  optional SecretString connector_feature_data =
-      8; // Connector-specific metadata for the transaction
+  // Connector-specific passthrough. Must NOT carry 3DS values; use fields
+  // 17-24. Reading 3DS values from here is deprecated and will be removed
+  // after 2026-09-23. Sending any of fields 17-24 switches the request to
+  // the typed contract and these blobs are no longer read for 3DS values.
+  optional SecretString metadata = 7;
+  optional SecretString connector_feature_data = 8;
 
-  // URLs for Redirection
+  // URLs for Redirection. For 3DS this is the browser challenge return URL
+  // (EMVCo notificationURL / threeDSRequestorURL).
   optional string return_url = 9;
   optional string continue_redirection_url = 10;
 
@@ -4183,7 +4187,8 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
   // Capture Settings
   optional CaptureMethod capture_method = 14;
 
-  // URL for webhook notifications
+  // URL for webhook notifications. For 3DS this is the server-to-server
+  // results (RReq) push target.
   optional string webhook_url = 15;
 
   // Domain-specific data (e.g. student fields for tuition payments)
@@ -5968,7 +5973,9 @@ message PaydotcomConfig {
 
 // Netcetera 3DS Server. Transport auth is mTLS; the certificate pair is
 // optional because an external vault (e.g. VGS) may terminate TLS on the
-// outbound route instead.
+// outbound route instead. Supersedes endpoint_prefix,
+// merchant_configuration_id and three_ds_requestor_id/name in the
+// connector_feature_data blob (deprecated, removed after 2026-09-23).
 message NetceteraConfig {
   optional SecretString certificate = 1;
   optional SecretString private_key = 2;

@@ -470,13 +470,12 @@ pub struct MerchantData {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub struct NetceteraMeta {
-    // DEPRECATED transport: acquirer_*, merchant name/mcc/country, notification URLs and
-    // force_3ds_challenge now arrive on typed `PaymentsAuthenticateData` fields
-    // (`acquirer_details`, `merchant_details`, `router_return_url`, `webhook_url`,
-    // `three_ds_requestor_challenge_indicator`). They are read from this blob only as a
-    // fallback when the typed field is absent. Account-level values (endpoint_prefix,
-    // merchant_configuration_id, three_ds_requestor_id/name) now belong in
-    // `ConnectorSpecificConfig::Netcetera`; this blob is the fallback for those too.
+    // DEPRECATED transport (remove after 2026-09-23). Transaction-level values (acquirer_*,
+    // merchant name/mcc/country, notification URLs, force_3ds_challenge) now arrive on typed
+    // `PaymentsAuthenticateData` fields; account-level values (endpoint_prefix,
+    // merchant_configuration_id, three_ds_requestor_id/name) on `ConnectorSpecificConfig::Netcetera`.
+    // This blob is read only for callers on the legacy contract (no typed 3DS field sent and
+    // `NoKey` connector config), and then exactly as before.
     pub acquirer_bin: Option<String>,
     pub acquirer_merchant_id: Option<String>,
     pub acquirer_country_code: Option<String>,
@@ -514,6 +513,21 @@ impl NetceteraMeta {
             acquirer_bin: self.acquirer_bin.clone(),
             acquirer_merchant_id: self.acquirer_merchant_id.clone(),
             acquirer_country_code: self.acquirer_country_code.clone(),
+        }
+    }
+
+    /// Build the EMVCo `merchant` object from the per-merchant config (legacy transport).
+    /// `notification_url` is the caller's return URL; the blob value wins when present.
+    pub fn to_merchant_data(&self, notification_url: Option<url::Url>) -> MerchantData {
+        MerchantData {
+            merchant_configuration_id: self.merchant_configuration_id.clone(),
+            mcc: self.mcc.clone(),
+            merchant_country_code: self.merchant_country_code.clone(),
+            merchant_name: self.merchant_name.clone(),
+            notification_url: self.notification_url.clone().or(notification_url),
+            three_ds_requestor_id: self.three_ds_requestor_id.clone(),
+            three_ds_requestor_name: self.three_ds_requestor_name.clone(),
+            results_response_notification_url: self.results_response_notification_url.clone(),
         }
     }
 }

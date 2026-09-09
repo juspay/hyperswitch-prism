@@ -18984,11 +18984,32 @@ impl<
                     ))),
                 });
 
-        // Typed 3DS fields win; the JSON-in-`metadata` transport is a deprecated fallback.
-        let legacy_sdk_metadata = value
-            .metadata
-            .as_ref()
-            .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok());
+        // Contract selection: a caller that sends any typed 3DS field (17-24) is on the typed
+        // contract and `metadata` is never consulted for 3DS values. A caller that sends none is
+        // a legacy caller and gets the pre-typed behaviour unchanged.
+        // DEPRECATED (remove after 2026-09-23): the legacy JSON-in-`metadata` transport.
+        let uses_typed_contract = value.merchant_details.is_some()
+            || value.acquirer_details.is_some()
+            || value.device_channel.is_some()
+            || value.sdk_information.is_some()
+            || value.three_ds_requestor_challenge_indicator.is_some()
+            || value.three_ds_requestor_authentication_indicator.is_some()
+            || value.message_category.is_some()
+            || value.threeds_completion_indicator.is_some();
+        let legacy_sdk_metadata = if uses_typed_contract {
+            None
+        } else {
+            value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+        };
+        if legacy_sdk_metadata.is_some() {
+            tracing::warn!(
+                netcetera_legacy_3ds_transport = true,
+                "3DS device_channel / sdk_information read from the deprecated metadata JSON"
+            );
+        }
 
         Ok(Self {
             payment_method_data,
@@ -19105,10 +19126,10 @@ impl<
     }
 }
 
-/// DEPRECATED transport for `device_channel` / `sdk_information`: callers that predate the typed
-/// `PaymentMethodAuthenticationServiceAuthenticateRequest.device_channel` / `sdk_information`
-/// fields serialised them as JSON inside the opaque `metadata` string. Read only as a fallback
-/// when the typed fields are absent. Remove once all callers send the typed fields.
+/// DEPRECATED transport (remove after 2026-09-23) for `device_channel` / `sdk_information`:
+/// callers that predate the typed `PaymentMethodAuthenticationServiceAuthenticateRequest`
+/// fields serialised them as JSON inside the opaque `metadata` string. Read only when the
+/// request carries none of the typed 3DS fields.
 #[derive(serde::Deserialize)]
 struct AuthenticateSdkMetadata {
     device_channel: Option<connector_types::DeviceChannel>,

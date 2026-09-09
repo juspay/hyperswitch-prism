@@ -2471,6 +2471,21 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
+    /// True when the caller sent any of the typed 3DS request fields
+    /// (`PaymentMethodAuthenticationServiceAuthenticateRequest` fields 17-24). Legacy callers
+    /// carry those values as JSON inside `metadata` / `connector_feature_data` and send none of
+    /// them. Connectors must pick exactly one transport from this flag and never mix the two.
+    pub fn uses_typed_three_ds_contract(&self) -> bool {
+        self.merchant_details.is_some()
+            || self.acquirer_details.is_some()
+            || self.device_channel.is_some()
+            || self.sdk_information.is_some()
+            || self.three_ds_requestor_challenge_indicator.is_some()
+            || self.three_ds_requestor_authentication_indicator.is_some()
+            || self.message_category.is_some()
+            || self.threeds_completion_indicator.is_some()
+    }
+
     pub fn is_auto_capture(&self) -> Result<bool, Error> {
         match self.capture_method {
             Some(common_enums::CaptureMethod::Automatic)
