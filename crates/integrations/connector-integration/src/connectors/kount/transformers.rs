@@ -15,7 +15,7 @@ use domain_types::{
     },
     mandates::MandateAmountData,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_address::{e123_phone_number, Address},
+    payment_address::Address,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -1280,9 +1280,7 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
         .email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = addr.phone.as_ref().and_then(|phone| {
-        e123_phone_number(phone.country_code.as_deref(), phone.number.as_ref()?.peek())
-    });
+    let phone_number = addr.get_e123_phone_number();
     if name.is_none()
         && kount_address.is_none()
         && email_address.is_none()
@@ -1315,12 +1313,7 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
         .customer_email
         .as_ref()
         .map(|email| Secret::new(email.peek().to_string()));
-    let phone_number = customer.customer_phone_number.as_ref().and_then(|phone| {
-        e123_phone_number(
-            customer.customer_phone_country_code.as_deref(),
-            phone.peek(),
-        )
-    });
+    let phone_number = customer.get_e123_phone_number();
     if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
         return None;
     }

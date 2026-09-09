@@ -153,6 +153,12 @@ impl Address {
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_last_name())
     }
+
+    /// Phone number in E.123 international format (`+<country><number>`).
+    /// `None` when the address has no phone or no number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.phone.as_ref()?.get_e123_phone_number()
+    }
 }
 
 // used by customers also, could be moved outside
@@ -386,6 +392,13 @@ impl PhoneDetails {
             number.peek()
         )))
     }
+
+    /// Phone number in E.123 international format (`+<country><number>`),
+    /// derived from this phone's number and country code. Fails soft:
+    /// `None` only when there's no number to format.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        e123_phone_number(self.country_code.as_deref(), self.number.as_ref()?.peek())
+    }
 }
 
 /// Format a phone number in E.123 international notation (`+<country><number>`).
@@ -402,7 +415,10 @@ impl PhoneDetails {
 /// the zero is wrong for the countries that keep it (Italy, notably), and a
 /// separate country-code field implies callers send the national significant
 /// number rather than the dialling form.
-pub fn e123_phone_number(country_code: Option<&str>, number: &str) -> Option<Secret<String>> {
+pub(crate) fn e123_phone_number(
+    country_code: Option<&str>,
+    number: &str,
+) -> Option<Secret<String>> {
     let number = number.trim();
     if number.is_empty() {
         return None;
