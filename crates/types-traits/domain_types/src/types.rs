@@ -424,6 +424,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
@@ -893,6 +894,7 @@ impl Connectors {
         };
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
+            FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
         }
         Ok(patched)
     }
