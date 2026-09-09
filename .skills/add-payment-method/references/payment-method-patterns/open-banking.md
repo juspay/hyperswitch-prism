@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/open_banking/pattern_authorize_open_banking.md

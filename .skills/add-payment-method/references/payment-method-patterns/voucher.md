@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/voucher/pattern_authorize_voucher.md
