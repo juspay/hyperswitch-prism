@@ -880,6 +880,8 @@ pub struct TsysTransitCaptureResponse {
     pub transaction_id: Option<String>,
     #[serde(rename = "responseMessage", default)]
     pub response_message: Option<String>,
+    #[serde(rename = "transactionAmount", default)]
+    pub transaction_amount: Option<StringMajorUnit>,
 }
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "ReturnResponse")]
@@ -2782,6 +2784,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
 
         let status = map_capture_status(response);
 
+
         if matches!(status, AttemptStatus::CaptureFailed) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -2825,6 +2828,23 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
                 })?,
         };
 
+        let is_settled = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        );
+        let minor_amount_captured = is_settled
+            .then(|| {
+                response.transaction_amount.as_ref().and_then(|amount| {
+                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                        amount.clone(),
+                        router_data.request.currency,
+                    )
+                    .ok()
+                })
+            })
+            .flatten();
+        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+        
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
             redirection_data: None,
@@ -2842,6 +2862,8 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured,
+                minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -3930,6 +3952,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
+        let is_settled = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        );
+
+        let minor_amount_captured = is_settled
+            .then(|| {
+                body.processed_amount.as_ref().and_then(|amount| {
+                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                        amount.clone(),
+                        router_data.request.currency,
+                    )
+                    .ok()
+                })
+            })
+            .flatten();
+
+        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
@@ -3948,6 +3989,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured,
+                minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
