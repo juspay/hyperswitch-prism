@@ -263,8 +263,30 @@ impl Service {
             self.customer_service,
             self.payment_method_authentication_service,
         );
-        let router = crate::http::create_router(app_state)
-            .layer(logging_layer)
+        let router = crate::http::create_router(app_state).layer(logging_layer);
+        // HTTP ingress record/replay boundary. NB: `Router::layer` wraps outside-in (the
+        // LAST layer added is OUTERMOST), so listing deja here — after the trace layer,
+        // before request-id — places it outer→inner as: config-override → propagate →
+        // SetRequestId → deja → Trace → handler. That keeps it inside SetRequestId (the
+        // buffered request always carries x-request-id, so the generated id is part of
+        // the recording). Trade-off vs the gRPC chain: requests rejected by the
+        // config-override middleware die outside this layer and are not recorded.
+        // Inert until a boot hook is installed; feature-off this binding disappears.
+        // The sampler exists exactly when the process records: record mode gets the
+        // Superposition-backed policy (or its logged no-source state), every other
+        // mode gets `None` and never consults one.
+        #[cfg(feature = "deja")]
+        let deja_sampler = crate::deja::process_is_record_mode().then(|| {
+            let sampler: Arc<dyn crate::deja::sampler::RequestRecordingSampler> = Arc::new(
+                crate::deja::sampler::SuperpositionRecordingSampler::from_config(&base_config),
+            );
+            sampler
+        });
+        #[cfg(feature = "deja")]
+        let router = router.layer(crate::deja::http_layer::DejaHttpIngressLayer::new(
+            deja_sampler,
+        ));
+        let router = router
             .layer(request_id_layer)
             .layer(propagate_request_id_layer)
             .layer(config_override_layer);
@@ -315,10 +337,26 @@ impl Service {
         );
         let config_override_layer = RequestExtensionsLayer::new(base_config.clone());
 
-        Server::builder()
+        let server_builder = Server::builder()
             .layer(logging_layer)
             .layer(request_id_layer)
-            .layer(propagate_request_id_layer)
+            .layer(propagate_request_id_layer);
+        // gRPC ingress record/replay boundary. Spliced inside SetRequestId (the request
+        // always carries x-request-id) and outside config-override (a rejected request
+        // still yields one event). Inert until a boot hook is installed; feature-off this
+        // binding disappears entirely and the layer chain is unchanged.
+        // Same sampler rule as the HTTP chain: present exactly in record mode.
+        #[cfg(feature = "deja")]
+        let deja_sampler = crate::deja::process_is_record_mode().then(|| {
+            let sampler: Arc<dyn crate::deja::sampler::RequestRecordingSampler> = Arc::new(
+                crate::deja::sampler::SuperpositionRecordingSampler::from_config(&base_config),
+            );
+            sampler
+        });
+        #[cfg(feature = "deja")]
+        let server_builder =
+            server_builder.layer(crate::deja::layer::DejaIngressLayer::new(deja_sampler));
+        server_builder
             .layer(config_override_layer)
             .layer(metrics_layer)
             .add_service(reflection_service)

@@ -138,7 +138,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"737\",\"cvv_indicator\":\"PRESENT\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"737\",\"cvv_indicator\":\"PRESENT\"}}}"
         }
       },
       "CashappQr": {
@@ -158,8 +158,8 @@
         "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -170,8 +170,8 @@
         "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -225,7 +225,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"eps\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"eps\"}}}"
         }
       },
       "FamilyMart": {
@@ -272,12 +272,12 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"giropay\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"giropay\"}}}"
         }
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -332,7 +332,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"payment_token\":{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"payment_token\":{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}}}}"
         }
       },
       "GooglePayDecrypted": {
@@ -387,7 +387,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"token\":\"4111111111111111\",\"token_format\":\"CARD_TOKEN\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cryptogram\":\"AAAAAA==\",\"eci\":\"05\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"digital_wallet\":{\"provider\":\"PAY_BY_GOOGLE\",\"token\":\"4111111111111111\",\"token_format\":\"CARD_TOKEN\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cryptogram\":\"AAAAAA==\",\"eci\":\"05\"}}}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -430,7 +430,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"ideal\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"ideal\"}}}"
         }
       },
       "Indomaret": {
@@ -498,8 +498,8 @@
         "error": "This feature is not implemented: Payment method not supported. GlobalPay Authorize supports Card, BankRedirect (EPS/iDEAL/Giropay), Wallet (PaypalRedirect/GooglePay), and PaymentMethodToken; received an unsupported payment method type"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -542,8 +542,8 @@
         "error": "This feature is not implemented: Bank redirect payment method not supported. GlobalPay Authorize supports EPS, iDEAL, and Giropay bank redirects; received an unsupported variant"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -607,7 +607,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"paypal\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"apm\":{\"provider\":\"paypal\"}}}"
         }
       },
       "PaypalSdk": {
@@ -615,12 +615,12 @@
         "error": "This feature is not implemented: Wallet payment method not supported. GlobalPay Authorize supports PaypalRedirect and GooglePay wallets; received an unsupported wallet variant"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -894,7 +894,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+        }
       }
     },
     "incremental_authorization": {
@@ -905,7 +920,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"TRN_probe_001\",\"status\":\"CAPTURED\",\"type\":\"SALE\",\"amount\":\"1099\"}"
+        }
       }
     },
     "payment_method_eligibility": {
@@ -915,8 +944,44 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: post_authenticate flow for globalpay"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "connector_order_reference_id": "probe_order_ref_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apis.sandbox.globalpay.com/ucp/transactions/probe_order_ref_001/confirmation",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-gp-version": "2021-03-22"
+          },
+          "body": "{}"
+        }
       }
     },
     "pre_authenticate": {
@@ -967,7 +1032,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"30\",\"cvv\":\"{{$card_cvc}}\",\"cvv_indicator\":\"PRESENT\"}}}"
         }
       }
     },
@@ -1231,7 +1296,7 @@
             "via": "HyperSwitch",
             "x-gp-version": "2021-03-22"
           },
-          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_tokenized_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"payment_method\":{\"entry_mode\":\"ECOM\",\"id\":\"pm_1AbcXyzStripeTestToken\"}}"
+          "body": "{\"account_name\":\"probe_account_name\",\"type\":\"SALE\",\"channel\":\"CNP\",\"amount\":\"1000\",\"currency\":\"USD\",\"reference\":\"probe_tokenized_txn_001\",\"country\":\"US\",\"capture_mode\":\"AUTO\",\"notifications\":{\"cancel_url\":\"https://example.com/return\",\"return_url\":\"https://example.com/return\",\"status_url\":null},\"payment_method\":{\"entry_mode\":\"ECOM\",\"id\":\"pm_1AbcXyzStripeTestToken\"}}"
         }
       }
     },

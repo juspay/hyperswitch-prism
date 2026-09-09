@@ -504,3 +504,5 @@ grace/*.log
 # (created as $ROOT_DIR/.connector_backup_$(date +%s); removed on success).
 # Untracked, they would also trip that script's own clean-tree precondition.
 /.connector_backup_*/
+docs/qwikcilver.postman_collection.json
+
