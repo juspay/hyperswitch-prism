@@ -109,8 +109,6 @@ connector = { position = 2, schema = { type = "string", enum = ["glomopay", "str
 [[overrides]]
 _context_ = { environment = "development" }
 common_environment = "development"
-# Deja: the local rig keeps recording exactly as before the sampler landed.
-deja_record = true
 log_kafka_enabled = true
 lineage_enabled = true
 events_transformations_gateway = "connector"
