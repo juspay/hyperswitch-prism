@@ -16,7 +16,6 @@ use std::str::FromStr;
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
-    "capture",
     "get",
     "proxy_authorize",
     "refund",
@@ -69,28 +68,12 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         address: Some(PaymentAddress {
             // Address Information.
             billing_address: Some(Address {
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
-                phone_number: Some(Secret::new("4155552671".to_string())),
-                phone_country_code: Some("+1".to_string()),
                 ..Default::default()
             }),
             ..Default::default()
         }),
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
-        ..Default::default()
-    }
-}
-
-pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCaptureRequest {
-    PaymentServiceCaptureRequest {
-        merchant_capture_id: Some("probe_capture_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        amount_to_capture: Some(Money {
-            // Capture Details.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
         ..Default::default()
     }
 }
@@ -127,9 +110,6 @@ pub fn build_proxy_authorize_request() -> PaymentServiceProxyAuthorizeRequest {
         }),
         address: Some(PaymentAddress {
             billing_address: Some(Address {
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
-                phone_number: Some(Secret::new("4155552671".to_string())),
-                phone_country_code: Some("+1".to_string()),
                 ..Default::default()
             }),
             ..Default::default()
@@ -187,53 +167,6 @@ pub async fn process_checkout_autocapture(
     Ok(format!(
         "Payment: {:?} — {}",
         authorize_response.status(),
-        authorize_response
-            .connector_transaction_id
-            .as_deref()
-            .unwrap_or("")
-    ))
-}
-
-// Scenario: Card Payment (Authorize + Capture)
-// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-#[allow(dead_code)]
-pub async fn process_checkout_card(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    // Step 1: Authorize — reserve funds on the payment method
-    let authorize_response = client
-        .authorize(build_authorize_request("MANUAL"), &HashMap::new(), None)
-        .await?;
-
-    match authorize_response.status() {
-        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed => {
-            return Err(format!("Payment failed: {:?}", authorize_response.error).into())
-        }
-        PaymentStatus::Pending => return Ok("pending — awaiting webhook".to_string()),
-        _ => {}
-    }
-
-    // Step 2: Capture — settle the reserved funds
-    let capture_response = client
-        .capture(
-            build_capture_request(
-                authorize_response
-                    .connector_transaction_id
-                    .as_deref()
-                    .unwrap_or(""),
-            ),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-
-    if capture_response.status() == PaymentStatus::Failure {
-        return Err(format!("Capture failed: {:?}", capture_response.error).into());
-    }
-
-    Ok(format!(
-        "Payment completed: {}",
         authorize_response
             .connector_transaction_id
             .as_deref()
@@ -340,22 +273,6 @@ pub async fn process_authorize(
     }
 }
 
-// Flow: PaymentService.Capture
-#[allow(dead_code)]
-pub async fn process_capture(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .capture(
-            build_capture_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -405,16 +322,14 @@ async fn main() {
         .unwrap_or_else(|| "process_checkout_autocapture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
-        "process_checkout_card" => process_checkout_card(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
-        "process_capture" => process_capture(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_get_payment, process_authorize, process_capture, process_get, process_proxy_authorize, process_refund_get", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_get, process_proxy_authorize, process_refund_get", flow);
             return;
         }
     };
