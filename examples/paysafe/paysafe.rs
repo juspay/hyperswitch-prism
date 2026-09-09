@@ -75,7 +75,7 @@ pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthent
             }),
             ..Default::default()
         }),
-        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
+        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         ..Default::default()
     }
 }

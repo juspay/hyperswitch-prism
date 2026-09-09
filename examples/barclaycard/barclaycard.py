@@ -59,7 +59,7 @@ def _build_authenticate_request():
                 country_alpha2_code=payment_methods_pb2.CountryAlpha2.Value("US"),
             ),
         ),
-        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         continue_redirection_url="https://example.com/3ds-continue",
         redirection_response=payment_pb2.RedirectionResponse(  # Redirection Information after DDC step.
             params="probe_redirect_params",

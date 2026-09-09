@@ -721,6 +721,16 @@ impl
             capture_method: item.capture_method,
             webhook_url: item.webhook_url.clone(),
             domain_data: item.domain_data.clone(),
+            // Typed 3DS request fields are not yet surfaced on CompositeAuthorizeRequest; the
+            // composite path keeps the legacy metadata / connector_feature_data transport.
+            merchant_details: None,
+            acquirer_details: None,
+            device_channel: None,
+            sdk_information: None,
+            three_ds_requestor_challenge_indicator: None,
+            three_ds_requestor_authentication_indicator: None,
+            message_category: None,
+            threeds_completion_indicator: None,
         }
     }
 }

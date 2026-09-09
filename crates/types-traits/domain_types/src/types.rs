@@ -1059,6 +1059,220 @@ impl ForeignTryFrom<grpc_api_types::payments::CaptureMethod> for CaptureMethod {
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::DeviceChannel> for connector_types::DeviceChannel {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::DeviceChannel,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::DeviceChannel::App => Ok(Self::App),
+            grpc_api_types::payments::DeviceChannel::Browser => Ok(Self::Browser),
+            grpc_api_types::payments::DeviceChannel::ThreeRi => Ok(Self::ThreeRi),
+            grpc_api_types::payments::DeviceChannel::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "device_channel",
+                    context: IntegrationErrorContext::default(),
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ThreeDsRequestorChallengeIndicator>
+    for connector_types::ThreeDsRequestorChallengeIndicator
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ThreeDsRequestorChallengeIndicator,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payments::ThreeDsRequestorChallengeIndicator as G;
+        match value {
+            G::NoPreference => Ok(Self::NoPreference),
+            G::NoChallengeRequested => Ok(Self::NoChallengeRequested),
+            G::ChallengeRequested => Ok(Self::ChallengeRequested),
+            G::ChallengeMandated => Ok(Self::ChallengeMandated),
+            G::NoChallengeTra => Ok(Self::NoChallengeTransactionalRiskAnalysis),
+            G::NoChallengeDataShareOnly => Ok(Self::NoChallengeDataShareOnly),
+            G::NoChallengeScaAlreadyPerformed => Ok(Self::NoChallengeScaAlreadyPerformed),
+            G::NoChallengeWhitelistExemption => Ok(Self::NoChallengeWhitelistExemption),
+            G::ChallengeWhitelistPrompt => Ok(Self::ChallengeWhitelistPrompt),
+            G::Unspecified => Err(IntegrationError::InvalidDataFormat {
+                field_name: "three_ds_requestor_challenge_indicator",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ThreeDsRequestorAuthenticationIndicator>
+    for connector_types::ThreeDsRequestorAuthenticationIndicator
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ThreeDsRequestorAuthenticationIndicator,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        use grpc_api_types::payments::ThreeDsRequestorAuthenticationIndicator as G;
+        match value {
+            G::Payment => Ok(Self::Payment),
+            G::Recurring => Ok(Self::Recurring),
+            G::Installment => Ok(Self::Installment),
+            G::AddCard => Ok(Self::AddCard),
+            G::MaintainCard => Ok(Self::MaintainCard),
+            G::CardholderVerification => Ok(Self::CardholderVerification),
+            G::Unspecified => Err(IntegrationError::InvalidDataFormat {
+                field_name: "three_ds_requestor_authentication_indicator",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ThreeDsMessageCategory>
+    for connector_types::ThreeDsMessageCategory
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ThreeDsMessageCategory,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::ThreeDsMessageCategory::PaymentAuthentication => {
+                Ok(Self::PaymentAuthentication)
+            }
+            grpc_api_types::payments::ThreeDsMessageCategory::NonPaymentAuthentication => {
+                Ok(Self::NonPaymentAuthentication)
+            }
+            grpc_api_types::payments::ThreeDsMessageCategory::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "message_category",
+                    context: IntegrationErrorContext::default(),
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkType> for connector_types::SdkType {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ThreeDsSdkType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::ThreeDsSdkType::Default => Ok(Self::DefaultSdk),
+            grpc_api_types::payments::ThreeDsSdkType::Split => Ok(Self::SplitSdk),
+            grpc_api_types::payments::ThreeDsSdkType::Limited => Ok(Self::LimitedSdk),
+            grpc_api_types::payments::ThreeDsSdkType::Browser => Ok(Self::BrowserSdk),
+            grpc_api_types::payments::ThreeDsSdkType::Shell => Ok(Self::ShellSdk),
+            grpc_api_types::payments::ThreeDsSdkType::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "sdk_information.sdk_type",
+                    context: IntegrationErrorContext::default(),
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ThreeDsSdkInformation>
+    for connector_types::SdkInformation
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ThreeDsSdkInformation,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let sdk_type = value
+            .sdk_type
+            .map(|_| value.sdk_type())
+            .map(connector_types::SdkType::foreign_try_from)
+            .transpose()?;
+        let sdk_ephem_pub_key = value
+            .sdk_ephem_pub_key
+            .map(|jwk| {
+                HashMap::from([
+                    ("kty".to_string(), jwk.kty),
+                    ("crv".to_string(), jwk.crv),
+                    ("x".to_string(), jwk.x),
+                    ("y".to_string(), jwk.y),
+                ])
+            })
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "sdk_information.sdk_ephem_pub_key",
+                context: IntegrationErrorContext::default(),
+            })?;
+        let sdk_max_timeout = u8::try_from(value.sdk_max_timeout).change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "sdk_information.sdk_max_timeout",
+                context: IntegrationErrorContext::default(),
+            },
+        )?;
+        Ok(Self {
+            sdk_app_id: value.sdk_app_id,
+            sdk_enc_data: value
+                .sdk_enc_data
+                .map(|data| data.expose())
+                .unwrap_or_default(),
+            sdk_ephem_pub_key,
+            sdk_trans_id: value.sdk_trans_id,
+            sdk_reference_number: value.sdk_reference_number,
+            sdk_max_timeout,
+            sdk_type,
+            device_details: value
+                .device_details
+                .map(|details| connector_types::DeviceDetails {
+                    device_type: details.device_type,
+                    device_brand: details.device_brand,
+                    device_os: details.device_os,
+                    device_display: details.device_display,
+                }),
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::AcquirerDetails>
+    for connector_types::AcquirerDetails
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::AcquirerDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let acquirer_country_code = value
+            .acquirer_country_code
+            .map(|_| convert_optional_country_alpha2(value.acquirer_country_code()))
+            .transpose()?
+            .flatten();
+        Ok(Self {
+            acquirer_bin: value.acquirer_bin,
+            acquirer_merchant_id: value.acquirer_merchant_id,
+            acquirer_country_code,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::MerchantDetails>
+    for connector_types::MerchantDetails
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::MerchantDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_country_code = value
+            .merchant_country_code
+            .map(|_| convert_optional_country_alpha2(value.merchant_country_code()))
+            .transpose()?
+            .flatten();
+        Ok(Self {
+            merchant_id: value.merchant_id,
+            merchant_category_code: value.merchant_category_code,
+            merchant_name: value.merchant_name,
+            merchant_country_code,
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::ThreeDsCompletionIndicator>
     for connector_types::ThreeDsCompletionIndicator
 {
@@ -18770,6 +18984,33 @@ impl<
                     ))),
                 });
 
+        // Contract selection: a caller that sends any typed 3DS field (17-24) is on the typed
+        // contract and `metadata` is never consulted for 3DS values. A caller that sends none is
+        // a legacy caller and gets the pre-typed behaviour unchanged.
+        // DEPRECATED (remove after 2026-09-23): the legacy JSON-in-`metadata` transport.
+        let uses_typed_contract = value.merchant_details.is_some()
+            || value.acquirer_details.is_some()
+            || value.device_channel.is_some()
+            || value.sdk_information.is_some()
+            || value.three_ds_requestor_challenge_indicator.is_some()
+            || value.three_ds_requestor_authentication_indicator.is_some()
+            || value.message_category.is_some()
+            || value.threeds_completion_indicator.is_some();
+        let legacy_sdk_metadata = if uses_typed_contract {
+            None
+        } else {
+            value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+        };
+        if legacy_sdk_metadata.is_some() {
+            tracing::warn!(
+                netcetera_legacy_3ds_transport = true,
+                "3DS device_channel / sdk_information read from the deprecated metadata JSON"
+            );
+        }
+
         Ok(Self {
             payment_method_data,
             amount: amount.amount,
@@ -18823,20 +19064,72 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
-            sdk_information: value
-                .metadata
-                .as_ref()
-                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
-                .and_then(|m| m.sdk_information),
-            device_channel: value
-                .metadata
-                .as_ref()
-                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
-                .and_then(|m| m.device_channel),
+            sdk_information: match value.sdk_information {
+                Some(sdk) => Some(connector_types::SdkInformation::foreign_try_from(sdk)?),
+                None => legacy_sdk_metadata
+                    .as_ref()
+                    .and_then(|m| m.sdk_information.clone()),
+            },
+            device_channel: match value.device_channel {
+                Some(raw) => Some(connector_types::DeviceChannel::foreign_try_from(
+                    grpc_api_types::payments::DeviceChannel::try_from(raw).unwrap_or_default(),
+                )?),
+                None => legacy_sdk_metadata.as_ref().and_then(|m| m.device_channel),
+            },
+            merchant_details: value
+                .merchant_details
+                .map(connector_types::MerchantDetails::foreign_try_from)
+                .transpose()?,
+            acquirer_details: value
+                .acquirer_details
+                .map(connector_types::AcquirerDetails::foreign_try_from)
+                .transpose()?,
+            three_ds_requestor_challenge_indicator: value
+                .three_ds_requestor_challenge_indicator
+                .map(|raw| {
+                    connector_types::ThreeDsRequestorChallengeIndicator::foreign_try_from(
+                        grpc_api_types::payments::ThreeDsRequestorChallengeIndicator::try_from(raw)
+                            .unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
+            three_ds_requestor_authentication_indicator: value
+                .three_ds_requestor_authentication_indicator
+                .map(|raw| {
+                    connector_types::ThreeDsRequestorAuthenticationIndicator::foreign_try_from(
+                        grpc_api_types::payments::ThreeDsRequestorAuthenticationIndicator::try_from(
+                            raw,
+                        )
+                        .unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
+            message_category: value
+                .message_category
+                .map(|raw| {
+                    connector_types::ThreeDsMessageCategory::foreign_try_from(
+                        grpc_api_types::payments::ThreeDsMessageCategory::try_from(raw)
+                            .unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
+            threeds_completion_indicator: value
+                .threeds_completion_indicator
+                .map(|raw| {
+                    connector_types::ThreeDsCompletionIndicator::foreign_try_from(
+                        grpc_api_types::payments::ThreeDsCompletionIndicator::try_from(raw)
+                            .unwrap_or_default(),
+                    )
+                })
+                .transpose()?,
         })
     }
 }
 
+/// DEPRECATED transport (remove after 2026-09-23) for `device_channel` / `sdk_information`:
+/// callers that predate the typed `PaymentMethodAuthenticationServiceAuthenticateRequest`
+/// fields serialised them as JSON inside the opaque `metadata` string. Read only when the
+/// request carries none of the typed 3DS fields.
 #[derive(serde::Deserialize)]
 struct AuthenticateSdkMetadata {
     device_channel: Option<connector_types::DeviceChannel>,

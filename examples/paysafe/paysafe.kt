@@ -108,7 +108,7 @@ fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
             billingAddressBuilder.apply {
             }
         }
-        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
     }.build()
     val response = client.authenticate(request)
     println("Status: ${response.status.name}")
