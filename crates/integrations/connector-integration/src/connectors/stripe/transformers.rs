@@ -631,6 +631,10 @@ pub enum StripePaymentMethodData<
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 > {
     CardToken(StripeCardToken<T>),
+    // Same as CardToken but without a CVC -- used when tokenizing a card-on-file for
+    // network-transaction-id-authenticated (merchant-initiated) reuse, where no cardholder is
+    // present to supply one.
+    NtidCardToken(StripeNtidCardToken),
     CardTokenPayment(StripeCardTokenPayment),
     Card(StripeCardData<T>),
     CardNetworkTransactionId(StripeCardNetworkTransactionIdData),
@@ -674,6 +678,24 @@ pub struct StripeCardToken<T: PaymentMethodDataTypes + Debug + Sync + Send + 'st
     pub token_card_exp_year: Secret<String>,
     #[serde(rename = "card[cvc]")]
     pub token_card_cvc: Secret<String>,
+    #[serde(flatten)]
+    pub billing: StripeBillingAddressCardToken,
+}
+
+// Same as StripeCardToken but with no CVC field -- for tokenizing a network-transaction-id
+// card-on-file, where the card details come from CardDetailsForNetworkTransactionId (which has
+// no CVC, matching how CardNetworkTransactionId handles the same domain type for Authorize).
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Eq, PartialEq, Serialize)]
+pub struct StripeNtidCardToken {
+    #[serde(rename = "type")]
+    pub payment_method_type: Option<StripePaymentMethodType>,
+    #[serde(rename = "card[number]")]
+    pub token_card_number: CardNumber,
+    #[serde(rename = "card[exp_month]")]
+    pub token_card_exp_month: Secret<String>,
+    #[serde(rename = "card[exp_year]")]
+    pub token_card_exp_year: Secret<String>,
     #[serde(flatten)]
     pub billing: StripeBillingAddressCardToken,
 }
@@ -1028,6 +1050,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::PayU
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Skrill
+            | common_enums::PaymentMethodType::Neteller
             | common_enums::PaymentMethodType::Paysera
             | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
@@ -1342,7 +1365,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
-        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::Skrill(_)
+        | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
@@ -1462,6 +1486,26 @@ fn create_stripe_payment_method<
                 payment_request_details.billing_address,
             ))
         }
+        // Merchant-initiated / off-session card-on-file payment authenticated by network
+        // transaction ID rather than CVC -- no cardholder is present, so (matching the existing
+        // RepeatPayment handling of the same domain type) no 3DS challenge is requested either.
+        PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok((
+            StripePaymentMethodData::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
+                payment_method_data_type: StripePaymentMethodType::Card,
+                payment_method_data_card_number: card_details.card_number.clone(),
+                payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
+                payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
+                payment_method_data_card_cvc: None,
+                payment_method_auth_type: None,
+                payment_method_data_card_preferred_network: card_details
+                    .card_network
+                    .clone()
+                    .and_then(get_stripe_card_network),
+                request_overcapture: None,
+            }),
+            Some(StripePaymentMethodType::Card),
+            payment_request_details.billing_address,
+        )),
         PaymentMethodData::PayLater(pay_later_data) => {
             let stripe_pm_type = StripePaymentMethodType::try_from(pay_later_data)?;
 
@@ -1661,8 +1705,7 @@ fn create_stripe_payment_method<
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
             Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -1843,7 +1886,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
@@ -5342,6 +5386,25 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     None,
                 ))?)
             }
+            // Merchant-initiated / off-session card-on-file mandate setup authenticated by
+            // network transaction ID rather than CVC -- no cardholder is present, so (matching
+            // the existing RepeatPayment handling of the same domain type) no 3DS challenge is
+            // requested either.
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => Ok(
+                Self::CardNetworkTransactionId(StripeCardNetworkTransactionIdData {
+                    payment_method_data_type: StripePaymentMethodType::Card,
+                    payment_method_data_card_number: card_details.card_number.clone(),
+                    payment_method_data_card_exp_month: card_details.card_exp_month.clone(),
+                    payment_method_data_card_exp_year: card_details.card_exp_year.clone(),
+                    payment_method_data_card_cvc: None,
+                    payment_method_auth_type: None,
+                    payment_method_data_card_preferred_network: card_details
+                        .card_network
+                        .clone()
+                        .and_then(get_stripe_card_network),
+                    request_overcapture: None,
+                }),
+            ),
             PaymentMethodData::PayLater(_) => Ok(Self::PayLater(StripePayLaterData {
                 payment_method_data_type: pm_type,
             })),
@@ -5437,8 +5500,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
@@ -6111,6 +6173,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     token_card_exp_month: card_details.card_exp_month.clone(),
                     token_card_exp_year: card_details.card_exp_year.clone(),
                     token_card_cvc: card_details.card_cvc.clone(),
+                    billing: billing_address,
+                })
+            }
+            // Tokenizing a network-transaction-id card-on-file for later merchant-initiated
+            // reuse -- no CVC is available (or needed) for this domain type.
+            PaymentMethodData::CardDetailsForNetworkTransactionId(card_details) => {
+                StripePaymentMethodData::NtidCardToken(StripeNtidCardToken {
+                    payment_method_type: Some(StripePaymentMethodType::Card),
+                    token_card_number: card_details.card_number.clone(),
+                    token_card_exp_month: card_details.card_exp_month.clone(),
+                    token_card_exp_year: card_details.card_exp_year.clone(),
                     billing: billing_address,
                 })
             }

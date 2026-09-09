@@ -910,7 +910,6 @@ where
                         .record("request.method", tracing::field::display(method));
 
                     let masked_headers = request.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
@@ -920,7 +919,6 @@ where
                         .typed_connector_request_value
                         .clone()
                         .unwrap_or_else(|| mask_connector_request(&request.body));
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
@@ -1147,14 +1145,12 @@ where
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
 
                     let masked_headers = record.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
                     )]);
 
                     let masked_request = mask_connector_request(&record.payload);
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = publish_connector_record(record)
@@ -1388,6 +1384,7 @@ pub async fn call_connector_api(
     header_proxy_name: Option<&str>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
+    let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
     let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
 
@@ -1534,21 +1531,23 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let send_request = async {
-        request.send().await.map_err(|error| {
-            let api_error = match error {
-                error if error.is_timeout() => ApiClientError::RequestTimeoutReceived,
-                _ => ApiClientError::RequestNotSent(error.to_string()),
-            };
-            info_log(
-                "REQUEST_FAILURE",
-                &json!("Unable to send request to connector."),
-            );
-            report!(api_error)
-        })
-    };
+    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
 
-    let response = send_request.await;
+    if retried {
+        #[cfg(feature = "otel")]
+        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
+        tracing::info!(
+            connector = %connector_host,
+            "Auto-retried request due to connection closed before message completed"
+        );
+    }
+
+    if response.is_err() {
+        info_log(
+            "REQUEST_FAILURE",
+            &json!("Unable to send request to connector."),
+        );
+    }
 
     handle_response(response).await
 }

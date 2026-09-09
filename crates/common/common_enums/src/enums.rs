@@ -1544,6 +1544,7 @@ pub enum PaymentMethodType {
     SepaGuaranteedDebit,
     IndonesianBankTransfer,
     Skrill,
+    Neteller,
     Paysera,
     Paymaya,
     QwikcilverWallet,
