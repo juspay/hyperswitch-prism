@@ -212,6 +212,7 @@ pub enum SurchargeConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum FrmConnectorEnum {
     Kount,
+    Nsure,
 }
 
 /// Enum representing connectors that support authenticator flows (account linking, identity verification)
@@ -338,6 +339,7 @@ impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
             AuthType::Kount(_) => Ok(Self::Kount),
+            AuthType::Nsure(_) => Ok(Self::Nsure),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -2479,6 +2481,7 @@ pub struct PaymentsPostAuthenticateData<T: PaymentMethodDataTypes> {
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
+    pub connector_order_reference_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
@@ -5923,6 +5926,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
+            AuthType::Nsure(_) => Ok(Self::Frm(FrmConnectorEnum::Nsure)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
