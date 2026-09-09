@@ -71,16 +71,25 @@ fn resolve_netcetera_base_url(
         return Ok(base_url.to_string());
     }
 
-    // Typed connector config first (same mechanism as `AdyenConfig.endpoint_prefix`).
+    // Typed connector config (same mechanism as `AdyenConfig.endpoint_prefix`). A caller on the
+    // typed config never has the blob consulted: a missing prefix is a config error.
     if let ConnectorSpecificConfig::Netcetera {
-        endpoint_prefix: Some(endpoint_prefix),
-        ..
+        endpoint_prefix, ..
     } = connector_config
     {
-        return Ok(base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, endpoint_prefix));
+        return endpoint_prefix
+            .as_deref()
+            .map(|prefix| base_url.replace(MERCHANT_ENDPOINT_PREFIX_TEMPLATE, prefix))
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidConnectorConfig {
+                    config: "netcetera.endpoint_prefix",
+                    context: Default::default(),
+                })
+            });
     }
 
-    // DEPRECATED fallback: `endpoint_prefix` inside the `connector_feature_data` blob.
+    // DEPRECATED (remove after 2026-09-23): legacy `NoKey` callers carry `endpoint_prefix`
+    // inside the `connector_feature_data` blob.
 
     let netcetera_meta: netcetera_types::NetceteraMeta = connector_feature_data
         .map(|data| crate::utils::to_connector_meta_from_secret(Some(data)))

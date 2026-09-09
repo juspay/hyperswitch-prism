@@ -385,48 +385,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .and_then(|browser| browser.ip_address);
 
-        // Per-merchant NON-auth config (acquirer / merchant objects) sourced from the merchant's
-        // Netcetera account, riding the request on `connector_feature_data` and deserialized into
-        // `NetceteraMeta` (same mechanism axisbank / nexinets use). Absent => objects omitted and
-        // the 3DS Server falls back to its stored merchant config. See `NetceteraMeta` for the
-        // router-side contract.
-        let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
-            match common_data.connector_feature_data {
-                Some(_) => Some(crate::utils::to_connector_meta_from_secret(
-                    common_data.connector_feature_data.clone(),
-                )?),
-                None => None,
-            };
+        // Contract selection: exactly one transport, never mixed. See `MerchantSideObjects`.
+        let merchant_side = if request.uses_typed_three_ds_contract() {
+            build_merchant_side_from_typed(request, common_data, &item.router_data.connector_config)
+        } else {
+            // DEPRECATED (remove after 2026-09-23): legacy callers carry the acquirer / merchant
+            // objects in the `connector_feature_data` blob (`NetceteraMeta`). Absent => objects
+            // omitted and the 3DS Server falls back to its stored merchant config.
+            let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
+                match common_data.connector_feature_data {
+                    Some(_) => Some(crate::utils::to_connector_meta_from_secret(
+                        common_data.connector_feature_data.clone(),
+                    )?),
+                    None => None,
+                };
+            tracing::warn!(
+                netcetera_legacy_3ds_transport = true,
+                "Netcetera AReq built from the deprecated connector_feature_data blob"
+            );
+            build_merchant_side_from_legacy_blob(netcetera_meta.as_ref(), common_data)
+        };
+        let MerchantSideObjects {
+            acquirer,
+            merchant,
+            three_ds_requestor_url,
+            challenge_indicator,
+        } = merchant_side;
 
-        // Account-level identity from the typed connector config, falling back to the
-        // deprecated `NetceteraMeta` blob.
-        let (cfg_merchant_configuration_id, cfg_three_ds_requestor_id, cfg_three_ds_requestor_name) =
-            match &item.router_data.connector_config {
-                domain_types::router_data::ConnectorSpecificConfig::Netcetera {
-                    merchant_configuration_id,
-                    three_ds_requestor_id,
-                    three_ds_requestor_name,
-                    ..
-                } => (
-                    merchant_configuration_id.clone(),
-                    three_ds_requestor_id.clone(),
-                    three_ds_requestor_name.clone(),
-                ),
-                _ => (None, None, None),
-            };
-
-        // Requestor challenge preference: typed field first; deprecated fallback maps the
-        // legacy `force_3ds_challenge = true` to EMVCo 04 (challenge mandated).
-        let challenge_indicator = request
-            .three_ds_requestor_challenge_indicator
-            .map(netcetera_types::ThreeDSRequestorChallengeIndicator::from)
-            .or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.force_3ds_challenge)
-                    .filter(|force| *force)
-                    .map(|_| netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate)
-            });
         let authentication_indicator = request
             .three_ds_requestor_authentication_indicator
             .map(netcetera_types::ThreeDSRequestorAuthenticationIndicator::from)
@@ -514,93 +499,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             context: Default::default(),
         })?;
 
-        // Acquirer object: typed `acquirer_details` first, deprecated blob fallback.
-        let acquirer = request
-            .acquirer_details
-            .as_ref()
-            .map(netcetera_types::AcquirerData::from)
-            .or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .map(netcetera_types::NetceteraMeta::to_acquirer_data)
-            });
-
-        // Browser CRes return URL (EMVCo notificationURL): the request's return_url is the
-        // single source of truth; the deprecated blob `notification_url` is the fallback.
-        let return_url = common_data
-            .return_url
-            .as_ref()
-            .and_then(|u| url::Url::parse(u).ok())
-            .or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.notification_url.clone())
-            });
-        // RReq push target (resultsResponseNotificationUrl): the request's webhook_url, with the
-        // deprecated blob value as fallback.
-        let results_response_notification_url = request
-            .webhook_url
-            .as_ref()
-            .and_then(|u| url::Url::parse(u).ok())
-            .or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.results_response_notification_url.clone())
-            });
-
-        // Merchant object: typed `merchant_details` + connector config first, blob fallback.
-        let merchant_details = request.merchant_details.as_ref();
-        let merchant_data = netcetera_types::MerchantData {
-            merchant_configuration_id: cfg_merchant_configuration_id.or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.merchant_configuration_id.clone())
-            }),
-            mcc: merchant_details
-                .and_then(|m| m.merchant_category_code)
-                .map(|mcc| format!("{mcc:04}"))
-                .or_else(|| netcetera_meta.as_ref().and_then(|m| m.mcc.clone())),
-            // EMVCo merchantCountryCode is ISO 3166-1 numeric.
-            merchant_country_code: merchant_details
-                .and_then(|m| m.merchant_country_code)
-                .map(|country| format!("{:03}", common_enums::CountryAlpha2::to_numeric(country)))
-                .or_else(|| {
-                    netcetera_meta
-                        .as_ref()
-                        .and_then(|m| m.merchant_country_code.clone())
-                }),
-            merchant_name: merchant_details
-                .and_then(|m| m.merchant_name.clone())
-                .or_else(|| {
-                    netcetera_meta
-                        .as_ref()
-                        .and_then(|m| m.merchant_name.clone())
-                }),
-            notification_url: return_url.clone(),
-            three_ds_requestor_id: cfg_three_ds_requestor_id.or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.three_ds_requestor_id.clone())
-            }),
-            three_ds_requestor_name: cfg_three_ds_requestor_name.or_else(|| {
-                netcetera_meta
-                    .as_ref()
-                    .and_then(|m| m.three_ds_requestor_name.clone())
-            }),
-            results_response_notification_url,
-        };
-        // Omit the object entirely when nothing is set so the 3DS Server falls back to its
-        // stored merchant configuration, as before.
-        let merchant = (merchant_data.merchant_configuration_id.is_some()
-            || merchant_data.mcc.is_some()
-            || merchant_data.merchant_country_code.is_some()
-            || merchant_data.merchant_name.is_some()
-            || merchant_data.notification_url.is_some()
-            || merchant_data.three_ds_requestor_id.is_some()
-            || merchant_data.three_ds_requestor_name.is_some()
-            || merchant_data.results_response_notification_url.is_some())
-        .then_some(merchant_data);
-
         Ok(Self {
             preferred_protocol_version: message_version,
             enforce_preferred_protocol_version: Some(is_app),
@@ -623,7 +521,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             three_ds_requestor: Some(three_ds_requestor),
             three_ds_server_trans_id,
-            three_ds_requestor_url: return_url,
+            three_ds_requestor_url,
             cardholder_account,
             cardholder: Some(cardholder),
             purchase,
@@ -633,6 +531,114 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             sdk_information,
             device_render_options,
         })
+    }
+}
+
+/// AReq objects whose source depends on which contract the caller is on.
+struct MerchantSideObjects {
+    acquirer: Option<netcetera_types::AcquirerData>,
+    merchant: Option<netcetera_types::MerchantData>,
+    /// EMVCo `threeDSRequestorURL` / merchant `notificationURL` (browser CRes return URL).
+    three_ds_requestor_url: Option<url::Url>,
+    challenge_indicator: Option<netcetera_types::ThreeDSRequestorChallengeIndicator>,
+}
+
+/// Typed contract: values come only from the typed request fields, `return_url`,
+/// `webhook_url` and `ConnectorSpecificConfig::Netcetera`. The blob is never consulted.
+fn build_merchant_side_from_typed<T: PaymentMethodDataTypes>(
+    request: &PaymentsAuthenticateData<T>,
+    common_data: &PaymentFlowData,
+    connector_config: &domain_types::router_data::ConnectorSpecificConfig,
+) -> MerchantSideObjects {
+    let (merchant_configuration_id, three_ds_requestor_id, three_ds_requestor_name) =
+        match connector_config {
+            domain_types::router_data::ConnectorSpecificConfig::Netcetera {
+                merchant_configuration_id,
+                three_ds_requestor_id,
+                three_ds_requestor_name,
+                ..
+            } => (
+                merchant_configuration_id.clone(),
+                three_ds_requestor_id.clone(),
+                three_ds_requestor_name.clone(),
+            ),
+            _ => (None, None, None),
+        };
+
+    let return_url = common_data
+        .return_url
+        .as_ref()
+        .and_then(|u| url::Url::parse(u).ok());
+    let results_response_notification_url = request
+        .webhook_url
+        .as_ref()
+        .and_then(|u| url::Url::parse(u).ok());
+
+    let merchant_details = request.merchant_details.as_ref();
+    let merchant_data = netcetera_types::MerchantData {
+        merchant_configuration_id,
+        mcc: merchant_details
+            .and_then(|m| m.merchant_category_code)
+            .map(|mcc| format!("{mcc:04}")),
+        // EMVCo merchantCountryCode is ISO 3166-1 numeric.
+        merchant_country_code: merchant_details
+            .and_then(|m| m.merchant_country_code)
+            .map(|country| format!("{:03}", common_enums::CountryAlpha2::to_numeric(country))),
+        merchant_name: merchant_details.and_then(|m| m.merchant_name.clone()),
+        notification_url: return_url.clone(),
+        three_ds_requestor_id,
+        three_ds_requestor_name,
+        results_response_notification_url,
+    };
+    // Omit the object entirely when nothing is set so the 3DS Server falls back to its stored
+    // merchant configuration.
+    let merchant = (merchant_data.merchant_configuration_id.is_some()
+        || merchant_data.mcc.is_some()
+        || merchant_data.merchant_country_code.is_some()
+        || merchant_data.merchant_name.is_some()
+        || merchant_data.notification_url.is_some()
+        || merchant_data.three_ds_requestor_id.is_some()
+        || merchant_data.three_ds_requestor_name.is_some()
+        || merchant_data.results_response_notification_url.is_some())
+    .then_some(merchant_data);
+
+    MerchantSideObjects {
+        acquirer: request
+            .acquirer_details
+            .as_ref()
+            .map(netcetera_types::AcquirerData::from),
+        merchant,
+        three_ds_requestor_url: return_url,
+        challenge_indicator: request
+            .three_ds_requestor_challenge_indicator
+            .map(netcetera_types::ThreeDSRequestorChallengeIndicator::from),
+    }
+}
+
+/// DEPRECATED (remove after 2026-09-23). Legacy contract: byte-for-byte the pre-typed
+/// behaviour, sourced from the `connector_feature_data` blob (`NetceteraMeta`), including the
+/// blob `notification_url` taking precedence over the request's `return_url` and
+/// `force_3ds_challenge = true` mapping to challenge indicator 04.
+fn build_merchant_side_from_legacy_blob(
+    netcetera_meta: Option<&netcetera_types::NetceteraMeta>,
+    common_data: &PaymentFlowData,
+) -> MerchantSideObjects {
+    let return_url = common_data
+        .return_url
+        .as_ref()
+        .and_then(|u| url::Url::parse(u).ok());
+    MerchantSideObjects {
+        acquirer: netcetera_meta.map(netcetera_types::NetceteraMeta::to_acquirer_data),
+        merchant: netcetera_meta.map(|meta| meta.to_merchant_data(return_url.clone())),
+        three_ds_requestor_url: netcetera_meta
+            .and_then(|m| m.notification_url.clone())
+            .or(return_url),
+        challenge_indicator: netcetera_meta
+            .and_then(|m| m.force_3ds_challenge)
+            .filter(|force| *force)
+            .map(|_| {
+                netcetera_types::ThreeDSRequestorChallengeIndicator::ChallengeRequestedMandate
+            }),
     }
 }
 
