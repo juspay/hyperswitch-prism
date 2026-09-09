@@ -148,8 +148,8 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -160,8 +160,8 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -196,8 +196,8 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -284,8 +284,8 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -328,8 +328,8 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -364,12 +364,12 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -472,6 +472,10 @@
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
       "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
+      },
+      "Webpay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported by globalpayments_heartland"
       },
@@ -704,7 +708,7 @@
             "soapaction": "\"http://Hps.Exchange.PosGateway/PosGatewayService/DoTransaction\"",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><PosRequest xmlns=\"http://Hps.Exchange.PosGateway\"><Ver1.0><Header><SecretAPIKey>probe_key</SecretAPIKey><DeveloperID>002914</DeveloperID><VersionNbr>3333</VersionNbr></Header><Transaction><CreditReturn><Block1><AllowDup>Y</AllowDup><Amt>10.00</Amt><GatewayTxnId>probe_connector_txn_001</GatewayTxnId></Block1></CreditReturn></Transaction></Ver1.0></PosRequest></soap:Body></soap:Envelope>"
+          "body": "<?xml version=\"1.0\" encoding=\"utf-8\"?><soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body><PosRequest xmlns=\"http://Hps.Exchange.PosGateway\"><Ver1.0><Header><SecretAPIKey>probe_key</SecretAPIKey><DeveloperID>002914</DeveloperID><VersionNbr>3333</VersionNbr></Header><Transaction><CreditReturn><Block1><Amt>10.00</Amt><GatewayTxnId>probe_connector_txn_001</GatewayTxnId></Block1></CreditReturn></Transaction></Ver1.0></PosRequest></soap:Body></soap:Envelope>"
         }
       }
     },
