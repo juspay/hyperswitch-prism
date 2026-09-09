@@ -48,7 +48,7 @@ function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceA
             "billingAddress": {
             }
         },
-        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
+        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection. For 3DS this is the browser challenge return URL (EMVCo notificationURL / threeDSRequestorURL).
         "continueRedirectionUrl": "https://example.com/3ds-continue",
         "redirectionResponse": {  // Redirection Information after DDC step.
             "params": "probe_redirect_params",
