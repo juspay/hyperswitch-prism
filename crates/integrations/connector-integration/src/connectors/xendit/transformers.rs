@@ -10,9 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture},
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -37,6 +37,10 @@ use crate::{
 /// Surfaced as `IntegrationErrorContext::doc_url` on every locally-raised, user-visible error.
 const XENDIT_PAYMENT_REQUEST_DOC_URL: &str =
     "https://docs.xendit.co/apidocs/create-payment-request";
+
+/// Surfaced as `IntegrationErrorContext::doc_url` on errors raised while building or reading a
+/// Void, so the reader lands on the cancel endpoint rather than the create endpoint.
+const XENDIT_CANCEL_PAYMENT_DOC_URL: &str = "https://docs.xendit.co/apidocs/cancel-payment";
 
 // -------------------------------------------------------------------------------------------
 // Payments API v3 request types
@@ -175,6 +179,42 @@ pub struct XenditPaymentsRequest<
 // -------------------------------------------------------------------------------------------
 // Payments API v3 response types
 // -------------------------------------------------------------------------------------------
+
+/// Deserializes an optional major-unit amount that Xendit spells inconsistently.
+///
+/// `request_amount` arrives as a JSON number on the get-payment example
+/// (<https://docs.xendit.co/apidocs/get-payment>) and as a quoted string (`"1999.01"`) on the
+/// cancel-payment example (<https://docs.xendit.co/apidocs/cancel-payment>). `FloatMajorUnit`
+/// derives `Deserialize`, so it accepts the number spelling only; without this the whole void
+/// response would be rejected over a field the flow does not even need. A non-numeric string is
+/// still an error — it is a wire contract break, not a spelling difference.
+fn deserialize_optional_float_major_unit<'de, D>(
+    deserializer: D,
+) -> Result<Option<FloatMajorUnit>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum NumberOrString {
+        Number(f64),
+        String(String),
+    }
+
+    match Option::<NumberOrString>::deserialize(deserializer)? {
+        None => Ok(None),
+        Some(NumberOrString::Number(amount)) => Ok(Some(FloatMajorUnit(amount))),
+        Some(NumberOrString::String(amount)) => amount
+            .trim()
+            .parse::<f64>()
+            .map(|amount| Some(FloatMajorUnit(amount)))
+            .map_err(|_| {
+                serde::de::Error::custom(format!(
+                    "xendit request_amount `{amount}` is neither a number nor a numeric string"
+                ))
+            }),
+    }
+}
 
 /// `payment_request.status`.
 /// https://docs.xendit.co/apidocs/get-payment-request
@@ -336,9 +376,15 @@ pub struct XenditPaymentResponse {
     pub latest_payment: Option<XenditLatestPayment>,
 }
 
-/// `POST /v3/payments/{payment_id}/capture` response — the full payment schema.
+/// The v3 Payment object, `Payments_API_PaymentSchema`.
+///
+/// One struct for two endpoints: Xendit documents the cancel response as the *same* schema the
+/// capture response uses, and only `status` differs (`SUCCEEDED` vs `CANCELED`). `captures` is
+/// simply absent on a cancel, which the `Option` already covers.
+/// <https://docs.xendit.co/apidocs/capture-payment> ,
+/// <https://docs.xendit.co/apidocs/cancel-payment>
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct XenditCaptureResponse {
+pub struct XenditPaymentObjectResponse {
     pub payment_id: String,
     pub status: XenditPaymentStatus,
     pub currency: Currency,
@@ -346,7 +392,9 @@ pub struct XenditCaptureResponse {
     pub payment_request_id: Option<String>,
     #[serde(default)]
     pub reference_id: Option<Secret<String>>,
-    #[serde(default)]
+    /// Quoted on the cancel example and unquoted on the get-payment example, hence the tolerant
+    /// deserializer.
+    #[serde(default, deserialize_with = "deserialize_optional_float_major_unit")]
     pub request_amount: Option<FloatMajorUnit>,
     #[serde(default)]
     pub failure_code: Option<XenditFailureCode>,
@@ -708,18 +756,31 @@ fn reject_external_authentication_data<
     Ok(())
 }
 
-/// Reads the payment id (`py-…`) that the v3 capture endpoint addresses.
+/// The `py-` prefix every v3 payment id carries. `pr-` marks a payment *request* id, which the
+/// `/v3/payments/{id}/…` endpoints do not accept.
+/// <https://docs.xendit.co/apidocs/cancel-payment>
+const XENDIT_PAYMENT_ID_PREFIX: &str = "py-";
+
+/// Reads the payment id (`py-…`) that the v3 `/v3/payments/{payment_id}/…` endpoints address.
 ///
-/// Preference order: the `latest_payment_id` Authorize persisted into `connector_metadata` and
-/// the caller echoed back on `connector_feature_data`; then the connector transaction id itself,
-/// but only when it is already a payment id, since Authorize normally reports the payment-request
-/// id (`pr-…`) there and the capture endpoint would 404 on it.
-pub fn get_capture_payment_id(
-    request: &PaymentsCaptureData,
+/// Both Capture and Void need it and neither can derive it. Authorize reports the *payment
+/// request* id (`pr-…`) as its `resource_id` — every other Xendit flow in this connector (PSync,
+/// Refund) addresses that id — so the stored connector transaction id is normally the wrong one
+/// here, and Xendit answers a `pr-…` in the `py-…` slot with 404 `DATA_NOT_FOUND`.
+///
+/// Preference order: the `latest_payment_id` that Authorize (or Capture) persisted into
+/// `connector_metadata` and the caller echoed back on `connector_feature_data`; then the
+/// connector transaction id itself, but only when it already carries the payment prefix.
+///
+/// `connector_transaction_id` is taken as a closure rather than a value because Capture holds it
+/// in a `ResponseId` that can legitimately be absent: demanding it eagerly would turn a request
+/// the metadata already answered into a failure.
+pub fn resolve_payment_id(
+    connector_feature_data: Option<&pii::SecretSerdeValue>,
+    connector_transaction_id: impl FnOnce() -> Result<String, error_stack::Report<IntegrationError>>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
-    let from_metadata = request
-        .connector_feature_data
-        .clone()
+    let from_metadata = connector_feature_data
+        .cloned()
         .and_then(|metadata| {
             serde_json::from_value::<XenditConnectorMetadata>(metadata.expose()).ok()
         })
@@ -729,14 +790,14 @@ pub fn get_capture_payment_id(
         return Ok(payment_id);
     }
 
-    let connector_transaction_id = request.get_connector_transaction_id()?;
-    if connector_transaction_id.starts_with("py-") {
+    let connector_transaction_id = connector_transaction_id()?;
+    if connector_transaction_id.starts_with(XENDIT_PAYMENT_ID_PREFIX) {
         return Ok(connector_transaction_id);
     }
 
     Err(missing_field(
         "connector_feature_data.latest_payment_id",
-        "Echo the connector_metadata returned by Authorize back on the capture request: Xendit's v3 capture endpoint addresses the payment id (py-...), not the payment request id (pr-...).",
+        "Echo the connector_metadata returned by Authorize back on the capture/void request: Xendit's v3 capture and cancel endpoints address the payment id (py-...), not the payment request id (pr-...).",
     )
     .into())
 }
@@ -1228,12 +1289,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
+impl<F> TryFrom<ResponseRouterData<XenditPaymentObjectResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<XenditCaptureResponse, Self>,
+        item: ResponseRouterData<XenditPaymentObjectResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -1327,6 +1388,141 @@ impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
             common_enums::AttemptStatus::CaptureFailed
         } else {
             status
+        };
+
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response: build_connector_response(authorization_data),
+                ..router_data.resource_common_data
+            },
+            response: response_body,
+            ..router_data
+        })
+    }
+}
+
+// -------------------------------------------------------------------------------------------
+// Void — cancel an uncaptured card authorization
+//
+// `POST /v3/payments/{payment_id}/cancel`. The endpoint documents no request-body schema at all,
+// so this flow has no request struct and its macro invocation carries no `curl_request`; the
+// response is the same v3 Payment object the capture endpoint returns.
+// https://docs.xendit.co/apidocs/cancel-payment
+// -------------------------------------------------------------------------------------------
+
+/// Builds the `ErrorResponse` for a 200 cancel response whose payment did not end up `CANCELED`.
+///
+/// Xendit documents `CANCELED` as the only status that confirms a void, and documents every other
+/// starting state as a 400 `INELIGIBLE_TRANSACTION_STATUS` — so a 200 carrying some other status
+/// has no `error_code` of its own to quote. The payment's own status is reported rather than
+/// fabricating a code Xendit never sent. The authorization is untouched in that case, so the
+/// caller is told the *void* failed and keeps whatever payment status it had stored.
+/// <https://docs.xendit.co/apidocs/cancel-payment>
+fn build_void_not_confirmed_error_response(
+    status: &XenditPaymentStatus,
+    connector_transaction_id: Option<String>,
+    status_code: u16,
+) -> ErrorResponse {
+    ErrorResponse {
+        code: NO_ERROR_CODE.to_string(),
+        message: format!(
+            "Xendit did not cancel the payment: it is in status {status}, and only CANCELED confirms a void"
+        ),
+        reason: Some(format!(
+            "Void is only applicable for payments in AUTHORIZED status; see {XENDIT_CANCEL_PAYMENT_DOC_URL}"
+        )),
+        attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
+        connector_transaction_id,
+        status_code,
+        ..Default::default()
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<XenditPaymentObjectResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<XenditPaymentObjectResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = item;
+
+        let authorization_data = response
+            .payment_details
+            .as_ref()
+            .and_then(|details| details.authorization_data.as_ref());
+
+        // Authorize, PSync and Capture all report the payment-request id, so a void has to report
+        // it too or the caller ends up holding two different references to one payment. The cancel
+        // response echoes `payment_request_id`; if it were ever absent, the id the caller voided
+        // against is that same payment-request id.
+        let connector_transaction_id = response
+            .payment_request_id
+            .clone()
+            .unwrap_or_else(|| router_data.request.connector_transaction_id.clone());
+
+        let transaction_response = PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+            redirection_data: None,
+            mandate_reference: None,
+            // Keep the `py-` id available: it is the only id a later `GET /v3/payments/{id}` can
+            // use to re-confirm the cancellation, and Xendit publishes no cancellation webhook.
+            connector_metadata: build_connector_metadata(Some(&response.payment_id)),
+            network_txn_id: authorization_data.and_then(|data| data.network_transaction_id.clone()),
+            network_txn_link_id: None,
+            connector_response_reference_id: response
+                .reference_id
+                .as_ref()
+                .map(|reference_id| reference_id.peek().to_string()),
+            incremental_authorization_allowed: None,
+            status_code: http_code,
+            splits: None,
+            payment_account_reference: None,
+        };
+
+        // Every arm is spelled out: a catch-all here would silently adopt whatever a new Xendit
+        // status happened to fall next to.
+        let (status, response_body) = match &response.status {
+            XenditPaymentStatus::Canceled => (
+                common_enums::AttemptStatus::Voided,
+                Ok(transaction_response),
+            ),
+            // Xendit declared the payment failed. The hold is gone either way, but the void is
+            // what the caller asked for, so it is the void that is reported failed.
+            XenditPaymentStatus::Failed => (
+                common_enums::AttemptStatus::VoidFailed,
+                Err(build_failure_error_response(
+                    response.failure_code.as_ref(),
+                    authorization_data,
+                    Some(connector_transaction_id.clone()),
+                    common_enums::AttemptStatus::VoidFailed,
+                    http_code,
+                )),
+            ),
+            // The payment survived the cancel attempt: still held, still processing, already
+            // captured, or already expired. None of those is a void.
+            XenditPaymentStatus::Authorized
+            | XenditPaymentStatus::Pending
+            | XenditPaymentStatus::Succeeded
+            | XenditPaymentStatus::Expired => (
+                common_enums::AttemptStatus::VoidFailed,
+                Err(build_void_not_confirmed_error_response(
+                    &response.status,
+                    Some(connector_transaction_id.clone()),
+                    http_code,
+                )),
+            ),
+            // An unmodelled status proves neither success nor failure; leave the caller holding
+            // the status it already had rather than inventing one.
+            XenditPaymentStatus::Unknown(_) => (
+                common_enums::AttemptStatus::Unspecified,
+                Ok(transaction_response),
+            ),
         };
 
         Ok(Self {
@@ -1690,5 +1886,161 @@ mod tests {
             ..Default::default()
         }
         .is_empty());
+    }
+
+    #[test]
+    fn resolve_payment_id_prefers_the_echoed_metadata() {
+        let metadata = pii::SecretSerdeValue::new(serde_json::json!({
+            "latest_payment_id": "py-1402feb0-bb79-47ae-9d1e-e69394d3949c"
+        }));
+
+        // The closure must not be consulted at all once the metadata answered: Capture's
+        // connector transaction id can legitimately be absent.
+        let payment_id = resolve_payment_id(Some(&metadata), || {
+            panic!("connector_transaction_id must not be read when metadata carries the payment id")
+        })
+        .unwrap();
+
+        assert_eq!(payment_id, "py-1402feb0-bb79-47ae-9d1e-e69394d3949c");
+    }
+
+    #[test]
+    fn resolve_payment_id_rejects_a_payment_request_id() {
+        // `pr-…` is the payment *request* id every other Xendit flow uses. Sending it to
+        // /v3/payments/{id}/cancel would 404, so it must be refused locally instead.
+        let error = resolve_payment_id(None, || {
+            Ok("pr-8877c08a-740d-4153-9816-3d744ed197a5".to_string())
+        })
+        .unwrap_err();
+
+        match error.current_context() {
+            IntegrationError::MissingRequiredField { field_name, .. } => {
+                assert_eq!(*field_name, "connector_feature_data.latest_payment_id");
+            }
+            other => panic!("expected a missing-field error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_payment_id_accepts_a_payment_id_transaction_id() {
+        let payment_id = resolve_payment_id(None, || {
+            Ok("py-1402feb0-bb79-47ae-9d1e-e69394d3949c".to_string())
+        })
+        .unwrap();
+        assert_eq!(payment_id, "py-1402feb0-bb79-47ae-9d1e-e69394d3949c");
+
+        // Metadata present but carrying no payment id falls through to the same check.
+        let empty = pii::SecretSerdeValue::new(serde_json::json!({ "latest_payment_id": null }));
+        let payment_id = resolve_payment_id(Some(&empty), || {
+            Ok("py-1402feb0-bb79-47ae-9d1e-e69394d3949c".to_string())
+        })
+        .unwrap();
+        assert_eq!(payment_id, "py-1402feb0-bb79-47ae-9d1e-e69394d3949c");
+    }
+
+    #[test]
+    fn cancel_response_parses_the_documented_example() {
+        // Verbatim from https://docs.xendit.co/apidocs/cancel-payment — note `request_amount`
+        // is quoted here and unquoted on the get-payment example.
+        let raw = r#"{
+            "payment_id": "py-1402feb0-bb79-47ae-9d1e-e69394d3949c",
+            "business_id": "5f27a14a9bf05c73dd040bc8",
+            "reference_id": "90392f42-d98a-49ef-a7f3-abcezas123",
+            "payment_request_id": "pr-1102feb0-bb79-47ae-9d1e-e69394d3949c",
+            "type": "PAY",
+            "country": "ID",
+            "currency": "IDR",
+            "request_amount": "1999.01",
+            "capture_method": "AUTOMATIC",
+            "channel_code": "CARDS",
+            "status": "CANCELED"
+        }"#;
+
+        let parsed: XenditPaymentObjectResponse = serde_json::from_str(raw).unwrap();
+        assert_eq!(parsed.payment_id, "py-1402feb0-bb79-47ae-9d1e-e69394d3949c");
+        assert_eq!(
+            parsed.payment_request_id.as_deref(),
+            Some("pr-1102feb0-bb79-47ae-9d1e-e69394d3949c")
+        );
+        assert_eq!(parsed.request_amount, Some(FloatMajorUnit(1999.01)));
+        assert_eq!(
+            common_enums::AttemptStatus::from(&parsed.status),
+            common_enums::AttemptStatus::Voided
+        );
+    }
+
+    #[test]
+    fn request_amount_accepts_both_spellings_and_rejects_junk() {
+        #[derive(Deserialize)]
+        struct Wrapper {
+            #[serde(default, deserialize_with = "deserialize_optional_float_major_unit")]
+            request_amount: Option<FloatMajorUnit>,
+        }
+
+        let quoted: Wrapper = serde_json::from_str(r#"{"request_amount": "1999.01"}"#).unwrap();
+        assert_eq!(quoted.request_amount, Some(FloatMajorUnit(1999.01)));
+
+        let unquoted: Wrapper = serde_json::from_str(r#"{"request_amount": 1999.01}"#).unwrap();
+        assert_eq!(unquoted.request_amount, Some(FloatMajorUnit(1999.01)));
+
+        let absent: Wrapper = serde_json::from_str("{}").unwrap();
+        assert!(absent.request_amount.is_none());
+
+        let null: Wrapper = serde_json::from_str(r#"{"request_amount": null}"#).unwrap();
+        assert!(null.request_amount.is_none());
+
+        assert!(serde_json::from_str::<Wrapper>(r#"{"request_amount": "free"}"#).is_err());
+    }
+
+    #[test]
+    fn a_payment_that_survived_the_cancel_reports_void_failed() {
+        let error = build_void_not_confirmed_error_response(
+            &XenditPaymentStatus::Succeeded,
+            Some("pr-1102feb0-bb79-47ae-9d1e-e69394d3949c".to_string()),
+            200,
+        );
+
+        assert_eq!(
+            error.attempt_status,
+            Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed))
+        );
+        assert!(error.message.contains("SUCCEEDED"));
+        assert_eq!(
+            error.connector_transaction_id.as_deref(),
+            Some("pr-1102feb0-bb79-47ae-9d1e-e69394d3949c")
+        );
+
+        // A declined void carries Xendit's own code, still as VoidFailed rather than a generic
+        // payment failure.
+        let declined = build_failure_error_response(
+            Some(&XenditFailureCode::DeclinedByIssuer),
+            None,
+            Some("pr-1102feb0-bb79-47ae-9d1e-e69394d3949c".to_string()),
+            common_enums::AttemptStatus::VoidFailed,
+            200,
+        );
+        assert_eq!(declined.code, "DECLINED_BY_ISSUER");
+        assert_eq!(
+            declined.attempt_status,
+            Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed))
+        );
+    }
+
+    #[test]
+    fn payment_status_maps_cancelled_and_unmodelled_states() {
+        use common_enums::AttemptStatus;
+
+        assert_eq!(
+            AttemptStatus::from(&XenditPaymentStatus::Canceled),
+            AttemptStatus::Voided
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditPaymentStatus::Authorized),
+            AttemptStatus::Authorized
+        );
+        assert_eq!(
+            AttemptStatus::from(&XenditPaymentStatus::Unknown("NEW".to_string())),
+            AttemptStatus::Unspecified
+        );
     }
 }

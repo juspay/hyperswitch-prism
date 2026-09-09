@@ -229,6 +229,9 @@
     "https://docs.xendit.co/apidocs/get-payment-request",
     "https://docs.xendit.co/apidocs/get-payment",
     "https://docs.xendit.co/apidocs/capture-payment",
+    "https://docs.xendit.co/apidocs/cancel-payment",
+    "https://docs.xendit.co/apidocs/cancel-payment-request",
+    "https://docs.xendit.co/docs/cards-cancel-a-payment",
     "https://docs.xendit.co/apidocs/create-payment-token",
     "https://docs.xendit.co/apidocs/payment-webhook-notification",
     "https://docs.xendit.co/apidocs/create-session",
@@ -240,6 +243,7 @@
     "https://docs.xendit.co/docs/pay-with-authentication",
     "https://docs.xendit.co/docs/merchant-initiated-transaction-1",
     "https://docs.xendit.co/docs/cards-capturing-a-card-payment",
-    "https://docs.xendit.co/docs/cards-simulate-card-scenarios"
+    "https://docs.xendit.co/docs/cards-simulate-card-scenarios",
+    "https://docs.xendit.co/docs/authorize-and-capture"
   ]
 }
