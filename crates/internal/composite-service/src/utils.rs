@@ -151,14 +151,6 @@ pub fn grpc_connector_from_connector_variant(connector: &ConnectorVariant) -> i3
     i32::from(grpc_connector)
 }
 
-pub fn grpc_connector_from_connector_enum(connector: &ConnectorEnum) -> i32 {
-    let grpc_connector_name = connector.to_string().to_ascii_uppercase();
-    let grpc_connector =
-        grpc_api_types::payments::Connector::from_str_name(grpc_connector_name.as_str())
-            .unwrap_or(grpc_api_types::payments::Connector::Unspecified);
-    i32::from(grpc_connector)
-}
-
 pub fn get_connector_customer_id(
     connector_customer_id_from_request: Option<String>,
     create_connector_customer_response: Option<&CustomerServiceCreateResponse>,
