@@ -33,10 +33,6 @@ use super::{
 };
 use crate::{types::ResponseRouterData, utils};
 
-/// Worldpay's `AuthorisationId` is the issuer approval code, not a scheme
-/// network transaction id. Surface it as the connector-response `auth_code`
-/// (mirroring the hyperswitch direct path); it must never go into
-/// `network_txn_id`, which is reserved for the scheme transaction identifier.
 fn get_worldpayxml_auth_code(
     payment: &responses::WorldpayxmlPayment,
     payment_method_type: Option<common_enums::PaymentMethodType>,
