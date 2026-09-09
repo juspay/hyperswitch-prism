@@ -4,11 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    errors::CustomResult,
-    events,
-    ext_traits::ByteSliceExt,
-    types::StringMajorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, Void},
@@ -22,6 +18,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
+    utils,
 };
 use hyperswitch_masking::Maskable;
 use interfaces::{
@@ -166,31 +163,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                     None,
                 ))
             }
-            Err(_) => {
-                // Body is not the documented `{"Transaction": {...}}` envelope
-                // (e.g. WAF/CDN served HTML, or the gateway returned an empty
-                // body). We have no connector-supplied code/message to surface;
-                // keep the raw body preview as `reason` for debugging.
-                let body_preview = String::from_utf8_lossy(&res.response)
-                    .chars()
-                    .take(300)
-                    .collect::<String>();
-                with_error_response_body!(event_builder, body_preview);
-                Ok(ErrorResponse {
-                    status_code: res.status_code,
-                    code: NO_ERROR_CODE.to_string(),
-                    message: NO_ERROR_MESSAGE.to_string(),
-                    reason: Some(body_preview),
-                    attempt_status: None,
-                    connector_transaction_id: None,
-                    network_advice_code: None,
-                    network_decline_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                })
+            Err(error_msg) => {
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({
+                        "error": "Error response parsing failed",
+                        "status_code": res.status_code,
+                    }));
+                }
+                tracing::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "etisalat")
             }
         }
     }

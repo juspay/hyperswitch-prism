@@ -634,16 +634,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EtisalatMoney {
-    #[serde(default)]
     pub value: Option<String>,
-    #[serde(default)]
     pub printable: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct EtisalatPayer {
-    #[serde(default)]
     pub information: Option<String>,
 }
 
@@ -651,39 +648,25 @@ pub struct EtisalatPayer {
 #[serde(rename_all = "PascalCase")]
 pub struct EtisalatTransactionBody {
     pub response_code: String,
-    #[serde(default)]
     pub response_class: Option<String>,
-    #[serde(default)]
     pub response_description: Option<String>,
-    #[serde(default)]
     pub response_class_description: Option<String>,
-    #[serde(default, rename = "TransactionID")]
+    #[serde(rename = "TransactionID")]
     pub transaction_id: Option<String>,
-    #[serde(default)]
     pub approval_code: Option<String>,
-    #[serde(default, rename = "OrderID")]
+    #[serde(rename = "OrderID")]
     pub order_id: Option<String>,
-    #[serde(default)]
     pub amount: Option<EtisalatMoney>,
-    #[serde(default)]
     pub balance: Option<EtisalatMoney>,
-    #[serde(default)]
     pub fees: Option<EtisalatMoney>,
-    #[serde(default)]
     pub card_number: Option<String>,
-    #[serde(default)]
     pub card_token: Option<Secret<String>>,
-    #[serde(default)]
     pub card_brand: Option<String>,
-    #[serde(default)]
     pub card_type: Option<String>,
-    #[serde(default)]
     pub language: Option<String>,
-    #[serde(default)]
     pub account: Option<String>,
-    #[serde(default, rename = "UniqueID")]
+    #[serde(rename = "UniqueID")]
     pub unique_id: Option<String>,
-    #[serde(default)]
     pub payer: Option<EtisalatPayer>,
 }
 
@@ -993,13 +976,23 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
         };
 
         let response = if body.is_success() {
-            // Etisalat does not return a distinct refund id; fall back to the
-            // UniqueID (per-call unique reference) or the original txn id.
-            let refund_id = body
-                .unique_id
-                .clone()
-                .or_else(|| body.transaction_id.clone())
-                .unwrap_or_else(|| item.router_data.request.connector_transaction_id.clone());
+            // EPG mints no refund-specific id. UniqueID is the per-call UUID
+            // (unique per refund attempt) and per doc §8 is a common response
+            // field, so its absence is a spec violation — fail hard to catch
+            // gateway drift and prevent collision from falling back to the
+            // shared original TransactionID.
+            let refund_id = body.unique_id.clone().ok_or_else(|| {
+                Report::new(ConnectorError::ResponseDeserializationFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Etisalat refund success response did not include a \
+                             Transaction.UniqueID."
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?;
             Ok(RefundsResponseData {
                 connector_refund_id: refund_id,
                 refund_status,
