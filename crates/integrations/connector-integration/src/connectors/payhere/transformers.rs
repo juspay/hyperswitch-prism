@@ -101,17 +101,7 @@ pub struct PayhereServerAuthenticationTokenResponse {
 }
 
 impl
-    TryFrom<
-        ResponseRouterData<
-            PayhereServerAuthenticationTokenResponse,
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<PayhereServerAuthenticationTokenResponse, Self>>
     for RouterDataV2<
         ServerAuthenticationToken,
         MerchantAuthenticationFlowData,
@@ -121,15 +111,7 @@ impl
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            PayhereServerAuthenticationTokenResponse,
-            RouterDataV2<
-                ServerAuthenticationToken,
-                MerchantAuthenticationFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
+        item: ResponseRouterData<PayhereServerAuthenticationTokenResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;
         router_data.response = Ok(ServerAuthenticationTokenResponseData {
@@ -440,17 +422,7 @@ pub struct PayherePaymentData {
 }
 
 impl
-    TryFrom<
-        ResponseRouterData<
-            PayhereSyncResponse,
-            RouterDataV2<
-                domain_types::connector_flow::PSync,
-                PaymentFlowData,
-                PaymentsSyncData,
-                PaymentsResponseData,
-            >,
-        >,
-    >
+    TryFrom<ResponseRouterData<PayhereSyncResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::PSync,
         PaymentFlowData,
@@ -460,15 +432,7 @@ impl
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<
-            PayhereSyncResponse,
-            RouterDataV2<
-                domain_types::connector_flow::PSync,
-                PaymentFlowData,
-                PaymentsSyncData,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<PayhereSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;
 
