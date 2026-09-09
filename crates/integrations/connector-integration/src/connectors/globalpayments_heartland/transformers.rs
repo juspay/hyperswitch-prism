@@ -50,8 +50,13 @@ use crate::types::ResponseRouterData;
 const DEVELOPER_ID: &str = "002914";
 /// Ditto — pinned alongside `DeveloperID`.
 const VERSION_NBR: &str = "3333";
-/// **Required.** Without it Portico rejects a repeated same-amount transaction as a
-/// duplicate instead of approving it.
+/// Sent on **authorizations only**. Without it Portico rejects a repeated same-amount
+/// authorization as a duplicate instead of approving it, which blocks legitimate repeat
+/// purchases. It is deliberately NOT sent on refunds, where that same duplicate check is the
+/// only protection against paying out twice -- see `GlobalpaymentsHeartlandRefundBlock1`.
+///
+/// Whether merchants should control this per request or per account is worth revisiting;
+/// today it is pinned for the authorization path only.
 const ALLOW_DUP: &str = "Y";
 /// Card-not-present e-commerce: the card is not physically present …
 const CARD_PRESENT: &str = "N";
@@ -1127,8 +1132,14 @@ impl TryFrom<ResponseRouterData<GlobalpaymentsHeartlandVoidResponse, Self>> for 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename = "Block1")]
 pub struct GlobalpaymentsHeartlandRefundBlock1 {
-    #[serde(rename = "AllowDup")]
-    pub allow_dup: &'static str,
+    // No `AllowDup` here, deliberately. Sending `Y` disables Portico's duplicate check, which
+    // is the gateway-side guard against paying a refund out twice -- a retry after a timeout
+    // would otherwise be accepted as a second, genuine refund. Omitting the element leaves the
+    // check on: verified against the cert gateway, where a repeated identical `CreditReturn`
+    // is rejected with "Transaction was rejected because it is a duplicate."
+    //
+    // Portico exposes no `ClientTxnId` on this Block1, so its duplicate check is the only
+    // idempotency mechanism the refund flow has.
     #[serde(rename = "Amt")]
     pub amt: StringMajorUnit,
     #[serde(rename = "GatewayTxnId")]
@@ -1187,7 +1198,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             header: GlobalpaymentsHeartlandRequestHeader::new(auth.secret_api_key),
             transaction: GlobalpaymentsHeartlandCreditReturn {
                 block1: GlobalpaymentsHeartlandRefundBlock1 {
-                    allow_dup: ALLOW_DUP,
                     amt,
                     gateway_txn_id,
                 },
