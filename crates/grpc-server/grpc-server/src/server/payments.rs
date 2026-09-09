@@ -1105,8 +1105,16 @@ impl PaymentService for Payments {
                         payment_flow_data.status,
                         None,
                     ) {
-                        info!(
-                            error = ?validation_error,
+                        // Log with the same fields `IntoGrpcStatus` would emit, while the
+                        // report's frames (connector-supplied context) are still attached;
+                        // this reply is never converted to a gRPC status, so it would
+                        // otherwise go unlogged.
+                        let report = validation_error.to_grpc_error();
+                        let context = report.current_context();
+                        tracing::warn!(
+                            error = ?report,
+                            error_code = %context.error_code(),
+                            http_status_code = ?context.http_status_code(),
                             "PAYMENT_SYNC_FLOW: connector pre-flight rejected the sync; returning a no-op response (status unspecified, no error) without calling the connector"
                         );
                         return Ok(tonic::Response::new(PaymentServiceGetResponse {
