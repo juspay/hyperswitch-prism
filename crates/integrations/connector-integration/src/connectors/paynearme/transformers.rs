@@ -128,7 +128,7 @@ impl TryFrom<&ConnectorSpecificConfig> for PaynearmeAuthType {
 
 /// Current Unix epoch **seconds**, as the decimal string PayNearMe expects.
 fn current_timestamp() -> String {
-    time::OffsetDateTime::now_utc().unix_timestamp().to_string()
+    common_utils::date_time::now_unix_timestamp().to_string()
 }
 
 /// Build the `string_to_sign` from an already-serialised request body.
