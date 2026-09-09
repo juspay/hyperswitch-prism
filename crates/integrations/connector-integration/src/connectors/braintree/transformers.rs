@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::XmlExt,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit},
 };
 use domain_types::{
     connector_flow::{
@@ -14,20 +14,21 @@ use domain_types::{
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
-        ApplepayClientAuthenticationResponse, ClientAuthenticationTokenData,
+        ApplepayClientAuthenticationResponse, BillingDescriptor, ClientAuthenticationTokenData,
         ClientAuthenticationTokenRequestData, GooglePaySessionResponse,
         GpayAllowedMethodsParameters, GpayAllowedPaymentMethods, GpayClientAuthenticationResponse,
         GpayMerchantInfo, GpayShippingAddressParameters, GpayTokenParameters,
-        GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        GpayTokenizationSpecification, GpayTransactionInfo, L2L3Data, MandateReference,
+        NextActionCall, PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
         PaypalClientAuthenticationResponse, PaypalTransactionInfo, RefundFlowData, RefundSyncData,
         RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SdkNextAction,
         SecretInfoToInitiateSdk, SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
+    payment_address::{Address, AddressDetails, OrderDetailsWithAmount, PhoneDetails},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -39,7 +40,7 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;
-use tracing::info;
+use tracing::{info, warn};
 
 pub const BRAINTREE_CONNECTOR_NAME: &str = "braintree";
 
@@ -120,6 +121,11 @@ pub struct WalletTransactionBody {
     customer_details: Option<CustomerBody>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vault_payment_method_after_transacting: Option<TransactionTiming>,
+    /// Wallets go out on `chargePaymentMethod` / `authorizePaymentMethod`, which still take a
+    /// full `TransactionInput` — so every transaction-level enrichment field is available
+    /// here. Only the billing address is not: those two inputs have no `options` member.
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
 #[derive(Debug, Serialize)]
@@ -292,6 +298,8 @@ pub struct RegularTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
 #[derive(Debug, Serialize)]
@@ -306,6 +314,8 @@ pub struct VaultTransactionBody {
     /// This is the customer-initiated transaction that establishes the stored credential,
     /// so it must be flagged `RECURRING_FIRST` for the later MIT to be scheme-compliant.
     payment_initiator: PaymentInitiatorType,
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
 #[derive(Debug, Serialize)]
@@ -519,6 +529,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone();
                 let merchant_account_id = metadata.merchant_account_id.clone();
                 let is_auto_capture = item.router_data.request.is_auto_capture();
+                let enrichment = TransactionEnrichment::build(EnrichmentInputs {
+                    amount_converter: item.connector.amount_converter,
+                    l2_l3_data: item.router_data.resource_common_data.l2_l3_data.as_deref(),
+                    order_details: item.router_data.resource_common_data.order_details.as_ref(),
+                    shipping: item
+                        .router_data
+                        .resource_common_data
+                        .get_optional_shipping(),
+                    billing_descriptor: item.router_data.request.billing_descriptor.as_ref(),
+                    surcharge_amount: item
+                        .router_data
+                        .request
+                        .surcharge_amount
+                        .as_ref()
+                        .map(|surcharge| surcharge.amount),
+                    shipping_cost: item.router_data.request.shipping_cost,
+                    amount: item.router_data.request.minor_amount,
+                    currency: item.router_data.request.currency,
+                })?;
 
                 match wallet_data {
                     WalletData::GooglePayThirdPartySdk(ref req_wallet) => {
@@ -544,6 +573,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         order_id: order_id.clone(),
                                         customer_details: None,
                                         vault_payment_method_after_transacting: None,
+                                        enrichment: enrichment.clone(),
                                     },
                                 },
                             },
@@ -599,6 +629,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         order_id: order_id.clone(),
                                         customer_details,
                                         vault_payment_method_after_transacting,
+                                        enrichment: enrichment.clone(),
                                     },
                                 },
                             },
@@ -621,6 +652,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         order_id: order_id.clone(),
                                         customer_details: None,
                                         vault_payment_method_after_transacting: None,
+                                        enrichment: enrichment.clone(),
                                     },
                                 },
                             },
@@ -2656,9 +2688,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     pass_through: Some(convert_external_three_ds_data(auth_data)),
                 });
 
-        let options = three_ds_data.map(|three_ds| CreditCardTransactionOptions {
-            three_d_secure_authentication: Some(three_ds),
-        });
+        // `options.billingAddress` is the only enrichment field that does NOT live on
+        // `TransactionInput`; see `CreditCardTransactionOptions`.
+        let billing_address = item
+            .router_data
+            .resource_common_data
+            .get_optional_billing()
+            .and_then(|billing| {
+                build_address_input(billing.address.as_ref(), billing.phone.as_ref())
+            });
+        let options = (three_ds_data.is_some() || billing_address.is_some()).then_some(
+            CreditCardTransactionOptions {
+                three_d_secure_authentication: three_ds_data,
+                billing_address,
+            },
+        );
         let reference_id = Some(
             item.router_data
                 .resource_common_data
@@ -2680,6 +2724,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
+        let enrichment = TransactionEnrichment::build(EnrichmentInputs {
+            amount_converter: item.connector.amount_converter,
+            l2_l3_data: item.router_data.resource_common_data.l2_l3_data.as_deref(),
+            order_details: item.router_data.resource_common_data.order_details.as_ref(),
+            shipping: item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping(),
+            billing_descriptor: item.router_data.request.billing_descriptor.as_ref(),
+            surcharge_amount: item
+                .router_data
+                .request
+                .surcharge_amount
+                .as_ref()
+                .map(|surcharge| surcharge.amount),
+            shipping_cost: item.router_data.request.shipping_cost,
+            amount: item.router_data.request.minor_amount,
+            currency: item.router_data.request.currency,
+        })?;
         let (query, transaction_body) = if item.router_data.request.is_mandate_payment() {
             (
                 if item.router_data.request.is_auto_capture() {
@@ -2701,6 +2764,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|email| CustomerBody { email }),
                     order_id,
                     payment_initiator: PaymentInitiatorType::RecurringFirst,
+                    enrichment,
                 }),
             )
         } else {
@@ -2721,6 +2785,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id,
+                    enrichment,
                 }),
             )
         };
@@ -3137,6 +3202,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct CreditCardTransactionOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_d_secure_authentication: Option<ThreeDSecureAuthenticationInput>,
+    /// `billingAddress` sits on `CreditCardTransactionOptionsInput`, **not** on
+    /// `TransactionInput`. `ChargePaymentMethodInput` / `AuthorizePaymentMethodInput` (the
+    /// wallet and MIT mutations) have no `options` member at all, so a per-attempt billing
+    /// address can only ever be sent on the credit-card mutations; elsewhere AVS runs against
+    /// the address stored on the vaulted payment method.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<BraintreeAddressInput>,
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -3588,6 +3660,612 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// ---------------------------------------------------------------------------------------
+// Request-side data enrichment for the Braintree GraphQL transaction input
+// ---------------------------------------------------------------------------------------
+//
+// Everything below decorates `TransactionInput` (and, for the billing address only,
+// `CreditCardTransactionOptionsInput`) beyond `amount` / `paymentMethodId`. Field names,
+// types and nullability come from the Braintree SDL
+// (`grace/rulesbook/codegen/references/braintree/source_10.md`).
+//
+// Placement is the part that is easy to get wrong, because the fields are split across two
+// sibling objects and the split is not the intuitive one:
+//   * `billingAddress`  lives ONLY on `CreditCardTransactionOptionsInput` (`input.options`).
+//   * `shipping`, `tax`, `descriptor`, `lineItems`, `purchaseOrderNumber`, `discountAmount`,
+//     `surchargeAmount` and `merchantAccountId` live on `TransactionInput`.
+//   * `ChargePaymentMethodInput` / `AuthorizePaymentMethodInput` (the wallet mutations) have
+//     no `options` member at all, so a per-attempt billing address cannot be sent on the
+//     wallet path — for those, AVS runs against whatever address is on the vaulted payment
+//     method.
+//   * `merchantAccountId` is NOT accepted on either capture input; a capture always settles
+//     against the authorization's merchant account.
+//
+// Every field is `Option` + `skip_serializing_if`, so a request carrying no enrichment data
+// serialises byte-for-byte as it did before this change.
+
+/// `lineItems[].name` — "Maximum 35 characters".
+const L3_NAME_MAX_LEN: usize = 35;
+/// `lineItems[].unitOfMeasure` / `.productCode` / `.commodityCode` — "Maximum 12 characters".
+const L3_CODE_MAX_LEN: usize = 12;
+/// `lineItems[].description` — "Item description. Maximum 127 characters".
+const L3_DESCRIPTION_MAX_LEN: usize = 127;
+/// `purchaseOrderNumber` — "Up to 12 ASCII characters for AIB and 17 ASCII characters for all
+/// other processors."
+const PURCHASE_ORDER_NUMBER_MAX_LEN: usize = 17;
+/// `TransactionInput.lineItems` — "Up to 249 line items may be specified."
+const MAX_LINE_ITEMS: usize = 249;
+
+/// Level 3 free-text fields (`lineItems[].name`, `.unitOfMeasure`, `.productCode`,
+/// `.commodityCode`) are documented as accepting only `a-z`, `A-Z`, `0-9`, `'`, `.`, `-` and
+/// spaces. Merchant-supplied product text routinely carries `&`, `/`, commas and non-ASCII,
+/// so sanitise first and truncate second — truncating first would spend the character budget
+/// on characters that are about to be removed.
+fn sanitize_l3_text(value: &str, max_len: usize) -> Option<String> {
+    let sanitized = value
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric() || matches!(ch, ' ' | '\'' | '.' | '-'))
+        .collect::<String>();
+    let truncated = sanitized
+        .trim()
+        .chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim_end()
+        .to_string();
+    (!truncated.is_empty()).then_some(truncated)
+}
+
+/// Plain character-count truncation for the fields with a length limit but no documented
+/// charset restriction (`lineItems[].description`).
+fn truncate_text(value: &str, max_len: usize) -> Option<String> {
+    let truncated = value.chars().take(max_len).collect::<String>();
+    (!truncated.is_empty()).then_some(truncated)
+}
+
+/// `purchaseOrderNumber` is documented as ASCII only. Take the 17-character limit that
+/// applies to every processor other than AIB.
+fn sanitize_purchase_order_number(value: &str) -> Option<String> {
+    let sanitized = value
+        .chars()
+        .filter(char::is_ascii_graphic)
+        .take(PURCHASE_ORDER_NUMBER_MAX_LEN)
+        .collect::<String>();
+    (!sanitized.is_empty()).then_some(sanitized)
+}
+
+/// `AddressInput.countryCode` is `scalar CountryCode`, whose wire format is chosen by the
+/// `Braintree-Version` request header rather than by the field:
+///   * `Braintree-Version >= 2021-02-01` → ISO 3166-1 **alpha-2** (`US`)
+///   * `Braintree-Version <  2021-02-01` → ISO 3166-1 **alpha-3** (`USA`)
+///
+/// UCS pins `BRAINTREE_VERSION_VALUE = "2019-01-01"` (see `braintree.rs`), which is before
+/// the cutoff, so every country has to be widened from the alpha-2 UCS stores to alpha-3
+/// here. Emitting the raw alpha-2 under the pinned version is a silent-wrong-value bug:
+/// Braintree either rejects the country outright or quietly degrades AVS and Level 3
+/// qualification. Bumping the version header instead would change schema behaviour for every
+/// Braintree flow and is deliberately out of scope (tech spec UNDECIDED #8, option (a)).
+fn to_braintree_country_code(country: enums::CountryAlpha2) -> enums::CountryAlpha3 {
+    enums::CountryAlpha2::from_alpha2_to_alpha3(country)
+}
+
+/// Every money field on these inputs is a **major-unit decimal string**, while every UCS
+/// Level 2/3 amount is `MinorUnit`. The conversion always goes through the connector's own
+/// `amount_converter` (`StringMajorUnit`, declared in `braintree.rs`) — never
+/// `MinorUnit::to_string()`, which would send `"1234"` where `"12.34"` was meant, a 100x
+/// overcharge Braintree cannot detect because `"1234"` is itself a valid `Amount`.
+fn convert_major(
+    amount_converter: &(dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<StringMajorUnit, Report<IntegrationError>> {
+    amount_converter.convert(amount, currency).change_context(
+        IntegrationError::AmountConversionFailed {
+            context: IntegrationErrorContext {
+                suggested_action: Some(
+                    "Check that the Level 2/3 amount and the payment currency are consistent"
+                        .to_string(),
+                ),
+                doc_url: None,
+                additional_context: Some(
+                    "Braintree requires every Level 2/3 amount as a major-unit decimal string"
+                        .to_string(),
+                ),
+            },
+        },
+    )
+}
+
+fn convert_optional_major(
+    amount_converter: &(dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    amount: Option<MinorUnit>,
+    currency: enums::Currency,
+) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
+    amount
+        .map(|amount| convert_major(amount_converter, amount, currency))
+        .transpose()
+}
+
+/// `input PhoneInput` — both members are non-null in the SDL, so the pair is all-or-nothing.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreePhoneInput {
+    country_phone_code: Secret<String>,
+    phone_number: Secret<String>,
+}
+
+/// `input AddressInput`. Every member is optional.
+///
+/// The SDL carries four alias pairs for the same concepts — `streetAddress`/`addressLine1`,
+/// `extendedAddress`/`addressLine2`, `locality`/`adminArea2`, `region`/`adminArea1` — and it
+/// does not say what happens when both members of a pair are sent. This struct commits to the
+/// legacy set and never emits the PayPal-style aliases.
+///
+/// `AddressDetails.line3` has no counterpart on `AddressInput` (there is no line-3 field) and
+/// is dropped; email is not an address field on Braintree and is carried on
+/// `TransactionInput.customerDetails` instead.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeAddressInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    street_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extended_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    region: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country_code: Option<enums::CountryAlpha3>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<BraintreePhoneInput>,
+}
+
+impl BraintreeAddressInput {
+    fn is_empty(&self) -> bool {
+        self.first_name.is_none()
+            && self.last_name.is_none()
+            && self.street_address.is_none()
+            && self.extended_address.is_none()
+            && self.locality.is_none()
+            && self.region.is_none()
+            && self.postal_code.is_none()
+            && self.country_code.is_none()
+            && self.phone.is_none()
+    }
+}
+
+/// Builds an `AddressInput` from the UCS address pair. Returns `None` rather than an empty
+/// object, because Braintree distinguishes "absent" from "present and empty".
+fn build_address_input(
+    address: Option<&AddressDetails>,
+    phone: Option<&PhoneDetails>,
+) -> Option<BraintreeAddressInput> {
+    let phone = phone.and_then(|phone| {
+        match (phone.number.clone(), phone.country_code.clone()) {
+            (Some(number), Some(country_code)) => Some(BraintreePhoneInput {
+                // Braintree wants the bare E.164 calling code; UCS stores it with the
+                // leading `+`.
+                country_phone_code: Secret::new(country_code.trim_start_matches('+').to_string()),
+                phone_number: number,
+            }),
+            // `countryPhoneCode` and `phoneNumber` are both non-null, so a half-populated
+            // phone is dropped instead of being partially sent.
+            _ => None,
+        }
+    });
+    let built = BraintreeAddressInput {
+        first_name: address.and_then(|address| address.first_name.clone()),
+        last_name: address.and_then(|address| address.last_name.clone()),
+        street_address: address.and_then(|address| address.line1.clone()),
+        extended_address: address.and_then(|address| address.line2.clone()),
+        locality: address.and_then(|address| address.city.clone()),
+        region: address.and_then(|address| address.state.clone()),
+        postal_code: address.and_then(|address| address.zip.clone()),
+        country_code: address
+            .and_then(|address| address.country)
+            .map(to_braintree_country_code),
+        phone,
+    };
+    (!built.is_empty()).then_some(built)
+}
+
+/// `input TransactionShippingInput`.
+///
+/// `shippingMethod` is deliberately absent: the SDL enum `TransactionShippingMethod` has
+/// exactly seven members and no `OTHER`/`UNKNOWN` fallback, and UCS has no field that maps
+/// onto it, so there is nothing to send and nothing to coerce.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionShippingInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_address: Option<BraintreeAddressInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ships_from_postal_code: Option<Secret<String>>,
+}
+
+impl TransactionShippingInput {
+    fn is_empty(&self) -> bool {
+        self.shipping_address.is_none()
+            && self.shipping_amount.is_none()
+            && self.shipping_tax_amount.is_none()
+            && self.ships_from_postal_code.is_none()
+    }
+}
+
+/// `input TransactionTaxInput` — two members, and the amount is named `taxAmount`, not
+/// `amount`. `taxAmount` is required for Level 2 unless `taxExempt` is true.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionTaxInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_exempt: Option<bool>,
+}
+
+impl TransactionTaxInput {
+    fn is_empty(&self) -> bool {
+        self.tax_amount.is_none() && self.tax_exempt.is_none()
+    }
+}
+
+/// `input TransactionDescriptorInput`.
+///
+/// `url` is absent because `BillingDescriptor` has no URL field — there is no UCS source, and
+/// inventing one would trip validation code 92206 (`url` must be 13 characters or shorter).
+/// `BillingDescriptor.city`, `.statement_descriptor`, `.statement_descriptor_suffix` and
+/// `.reference` likewise have no counterpart on this input and are dropped (tech spec
+/// UNDECIDED #10, option (a)). The two mapped values are passed through verbatim: Braintree's
+/// documented descriptor form is `<company prefix>*<product descriptor>`, so a
+/// letters-and-digits sanitiser would destroy the separator; format violations come back as
+/// validation codes 92201 / 92204 and are surfaced to the caller.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionDescriptorInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
+}
+
+/// `enum TransactionLineItemType`. The SDL members are `DEBIT` and `CREDIT`; a sale line is
+/// `DEBIT` (validation code 97308 fires on a sale carrying `CREDIT`). Only the sale direction
+/// is ever produced here, so `CREDIT` is not modelled.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionLineItemType {
+    Debit,
+}
+
+/// `input TransactionLineItemInput`. `name`, `kind`, `quantity`, `unitAmount` and
+/// `totalAmount` are non-null.
+///
+/// `unitTaxAmount` and `upc` are deliberately unmapped: UCS has no per-unit tax field (and
+/// deriving one by division would break the reconciliation rule through rounding), and
+/// `LineItemUpcInput.upcType` is non-null with no UCS source, so a UPC cannot be sent from
+/// domain data alone.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionLineItemInput {
+    name: String,
+    kind: TransactionLineItemType,
+    quantity: String,
+    unit_amount: StringMajorUnit,
+    total_amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discount_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    product_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commodity_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+}
+
+/// Builds one `TransactionLineItemInput`, returning the line total in `MinorUnit` alongside it
+/// so the caller can run the Level 3 reconciliation on exact integers.
+///
+/// `Ok(None)` means the line cannot be represented (its name did not survive Level 3
+/// sanitisation) and the whole `lineItems` array must be dropped — a Level 3 line item without
+/// a `name` is not sendable, and inventing a placeholder name would be fabricating merchant
+/// data.
+fn build_line_item(
+    amount_converter: &(dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    detail: &OrderDetailsWithAmount,
+    currency: enums::Currency,
+) -> Result<Option<(TransactionLineItemInput, MinorUnit)>, Report<IntegrationError>> {
+    let Some(name) = sanitize_l3_text(&detail.product_name, L3_NAME_MAX_LEN) else {
+        return Ok(None);
+    };
+    let quantity = i64::from(detail.quantity);
+    // `totalAmount` is `String!` — non-null and required for Level 3 — but the gRPC proto
+    // carries no `total_amount` field for a line item and the proto -> domain conversion
+    // hardcodes `total_amount: None`, so it has to be derived whenever the caller does not
+    // supply it. Derive it in MinorUnit *before* the major-unit conversion: multiplying an
+    // already-rounded decimal string would reintroduce the rounding error the reconciliation
+    // rule exists to catch.
+    let total_amount_minor = match detail.total_amount {
+        Some(total_amount) => total_amount,
+        None => MinorUnit::new(
+            detail
+                .amount
+                .get_amount_as_i64()
+                .checked_mul(quantity)
+                .ok_or_else(|| IntegrationError::InvalidDataFormat {
+                    field_name: "order_details.amount",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Lower order_details.quantity or order_details.amount, or send order_details.total_amount explicitly"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Braintree requires lineItems[].totalAmount; UCS derives it as quantity x unit amount when the caller omits order_details.total_amount, and the product overflowed a 64-bit minor-unit amount"
+                                .to_string(),
+                        ),
+                    },
+                })?,
+        ),
+    };
+    let line_item = TransactionLineItemInput {
+        name,
+        kind: TransactionLineItemType::Debit,
+        quantity: quantity.to_string(),
+        unit_amount: convert_major(amount_converter, detail.amount, currency)?,
+        total_amount: convert_major(amount_converter, total_amount_minor, currency)?,
+        tax_amount: convert_optional_major(amount_converter, detail.total_tax_amount, currency)?,
+        // UCS calls this a *unit* discount while Braintree's line-item `discountAmount` is the
+        // discount on the whole line; the two coincide at quantity 1. The value is passed
+        // through unscaled rather than multiplied by quantity, because scaling it would be an
+        // assumption the caller never made (tech spec UNDECIDED #12).
+        discount_amount: convert_optional_major(
+            amount_converter,
+            detail.unit_discount_amount,
+            currency,
+        )?,
+        unit_of_measure: detail
+            .unit_of_measure
+            .as_deref()
+            .and_then(|value| sanitize_l3_text(value, L3_CODE_MAX_LEN)),
+        product_code: detail
+            .product_id
+            .as_deref()
+            .or(detail.sku.as_deref())
+            .or(detail.upc.as_deref())
+            .and_then(|value| sanitize_l3_text(value, L3_CODE_MAX_LEN)),
+        commodity_code: detail
+            .commodity_code
+            .as_deref()
+            .and_then(|value| sanitize_l3_text(value, L3_CODE_MAX_LEN)),
+        description: detail
+            .description
+            .as_deref()
+            .and_then(|value| truncate_text(value, L3_DESCRIPTION_MAX_LEN)),
+    };
+    Ok(Some((line_item, total_amount_minor)))
+}
+
+/// The enrichment half of `input TransactionInput`, flattened into each transaction body so
+/// the existing, live-validated fields keep their exact serialised shape.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionEnrichment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    purchase_order_number: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<TransactionDescriptorInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax: Option<TransactionTaxInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discount_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surcharge_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping: Option<TransactionShippingInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_items: Option<Vec<TransactionLineItemInput>>,
+}
+
+/// Everything `TransactionEnrichment::build` reads, gathered so the builder stays a pure
+/// function of domain data and can be unit-tested without a `RouterDataV2`.
+pub struct EnrichmentInputs<'a> {
+    /// The connector's own `StringMajorUnit` converter, threaded in so this stays a pure
+    /// function of domain data and stays unit-testable.
+    pub amount_converter: &'a (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
+    pub l2_l3_data: Option<&'a L2L3Data>,
+    pub order_details: Option<&'a Vec<OrderDetailsWithAmount>>,
+    pub shipping: Option<&'a Address>,
+    pub billing_descriptor: Option<&'a BillingDescriptor>,
+    pub surcharge_amount: Option<MinorUnit>,
+    pub shipping_cost: Option<MinorUnit>,
+    pub amount: MinorUnit,
+    pub currency: enums::Currency,
+}
+
+impl TransactionEnrichment {
+    fn build(inputs: EnrichmentInputs<'_>) -> Result<Self, Report<IntegrationError>> {
+        let EnrichmentInputs {
+            amount_converter,
+            l2_l3_data,
+            order_details,
+            shipping,
+            billing_descriptor,
+            surcharge_amount,
+            shipping_cost,
+            amount,
+            currency,
+        } = inputs;
+
+        let merchant_order_reference_id =
+            l2_l3_data.and_then(L2L3Data::get_merchant_order_reference_id);
+        let purchase_order_number = merchant_order_reference_id
+            .as_deref()
+            .and_then(sanitize_purchase_order_number);
+
+        let descriptor = billing_descriptor.and_then(|billing_descriptor| {
+            let descriptor = TransactionDescriptorInput {
+                name: billing_descriptor.name.clone(),
+                phone: billing_descriptor.phone.clone(),
+            };
+            // Never send `descriptor: {}` — an empty object can trip validation code 92204.
+            (descriptor.name.is_some() || descriptor.phone.is_some()).then_some(descriptor)
+        });
+
+        let tax_amount_minor = l2_l3_data.and_then(L2L3Data::get_order_tax_amount);
+        let tax_exempt = l2_l3_data
+            .and_then(L2L3Data::get_tax_status)
+            .map(|tax_status| matches!(tax_status, enums::TaxStatus::Exempt));
+        let tax = {
+            let tax = TransactionTaxInput {
+                tax_amount: convert_optional_major(amount_converter, tax_amount_minor, currency)?,
+                tax_exempt,
+            };
+            (!tax.is_empty()).then_some(tax)
+        };
+
+        let discount_amount_minor = l2_l3_data.and_then(L2L3Data::get_discount_amount);
+
+        let l2_l3_shipping_details = l2_l3_data.and_then(|data| data.shipping_details.clone());
+        let shipping_address_details = shipping
+            .and_then(|shipping| shipping.address.clone())
+            .or(l2_l3_shipping_details);
+        let shipping_amount_minor = l2_l3_data
+            .and_then(L2L3Data::get_shipping_cost)
+            .or(shipping_cost);
+        let shipping_tax_amount_minor = l2_l3_data.and_then(L2L3Data::get_shipping_amount_tax);
+        let shipping_block = {
+            let shipping_block = TransactionShippingInput {
+                shipping_address: build_address_input(
+                    shipping_address_details.as_ref(),
+                    shipping.and_then(|shipping| shipping.phone.as_ref()),
+                ),
+                shipping_amount: convert_optional_major(
+                    amount_converter,
+                    shipping_amount_minor,
+                    currency,
+                )?,
+                shipping_tax_amount: convert_optional_major(
+                    amount_converter,
+                    shipping_tax_amount_minor,
+                    currency,
+                )?,
+                // `origin_zip` is the only UCS field that models the *source* postcode.
+                ships_from_postal_code: l2_l3_data
+                    .and_then(L2L3Data::get_shipping_origin_zip)
+                    .or_else(|| {
+                        shipping_address_details
+                            .as_ref()
+                            .and_then(|details| details.origin_zip.clone())
+                    }),
+            };
+            (!shipping_block.is_empty()).then_some(shipping_block)
+        };
+
+        let order_details = l2_l3_data
+            .and_then(L2L3Data::get_order_details)
+            .or_else(|| order_details.cloned());
+        let (line_items, line_items_total_minor) = match order_details {
+            Some(order_details) if !order_details.is_empty() => {
+                let mut items = Vec::new();
+                let mut total = 0_i64;
+                let mut usable = true;
+                for detail in order_details.iter().take(MAX_LINE_ITEMS) {
+                    match build_line_item(amount_converter, detail, currency)? {
+                        Some((line_item, line_total)) => {
+                            total = total.saturating_add(line_total.get_amount_as_i64());
+                            items.push(line_item);
+                        }
+                        None => {
+                            usable = false;
+                            break;
+                        }
+                    }
+                }
+                if usable && !items.is_empty() {
+                    (Some(items), Some(total))
+                } else {
+                    warn!(
+                        "BRAINTREE: dropping lineItems - a product name did not survive Level 3 sanitisation"
+                    );
+                    (None, None)
+                }
+            }
+            // Never send `lineItems: []` — an empty array is not the same as omitting it.
+            _ => (None, None),
+        };
+
+        let mut enrichment = Self {
+            purchase_order_number,
+            descriptor,
+            tax,
+            discount_amount: convert_optional_major(
+                amount_converter,
+                discount_amount_minor,
+                currency,
+            )?,
+            surcharge_amount: convert_optional_major(amount_converter, surcharge_amount, currency)?,
+            shipping: shipping_block,
+            line_items,
+        };
+
+        // Level 3 reconciliation rule. Braintree rejects — or silently drops to Level 1 — a
+        // transaction whose breakdown does not balance:
+        //
+        //   amount = SUM(lineItem.totalAmount) + tax.taxAmount + shipping.shippingAmount
+        //            + shipping.shippingTaxAmount - discountAmount
+        //
+        // The breakdown *describes* `amount`; it never adds to what the payment method is
+        // charged, so `amount` is never recomputed from it. `surchargeAmount` is not part of
+        // the formula. The check runs on exact `MinorUnit` integers, and only when line items
+        // are present: without them there is no sum to reconcile and a bare Level 2
+        // `tax.taxAmount` is legitimate on its own. When it does not balance the monetary
+        // breakdown is dropped rather than sent unbalanced, keeping the non-monetary Level
+        // 2/3 fields (purchase order number, addresses, ships-from postcode, descriptor).
+        if let Some(line_items_total_minor) = line_items_total_minor {
+            let reconciled = line_items_total_minor
+                .saturating_add(tax_amount_minor.map_or(0, MinorUnit::get_amount_as_i64))
+                .saturating_add(shipping_amount_minor.map_or(0, MinorUnit::get_amount_as_i64))
+                .saturating_add(shipping_tax_amount_minor.map_or(0, MinorUnit::get_amount_as_i64))
+                .saturating_sub(discount_amount_minor.map_or(0, MinorUnit::get_amount_as_i64));
+            if reconciled != amount.get_amount_as_i64() {
+                warn!(
+                    reconciled_total = reconciled,
+                    transaction_amount = amount.get_amount_as_i64(),
+                    "BRAINTREE: Level 2/3 breakdown does not reconcile with the transaction amount - omitting the monetary breakdown"
+                );
+                enrichment.line_items = None;
+                enrichment.discount_amount = None;
+                if let Some(tax) = enrichment.tax.as_mut() {
+                    tax.tax_amount = None;
+                }
+                if let Some(shipping) = enrichment.shipping.as_mut() {
+                    shipping.shipping_amount = None;
+                    shipping.shipping_tax_amount = None;
+                }
+                enrichment.tax = enrichment.tax.filter(|tax| !tax.is_empty());
+                enrichment.shipping = enrichment.shipping.filter(|shipping| !shipping.is_empty());
+            }
+        }
+
+        Ok(enrichment)
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
@@ -3774,5 +4452,449 @@ mod tests {
                 "{value} must not be a terminal failure"
             );
         }
+    }
+
+    // -----------------------------------------------------------------------------------
+    // Request-side data enrichment
+    // -----------------------------------------------------------------------------------
+
+    use common_utils::types::StringMajorUnitForConnector;
+    use domain_types::connector_types::{OrderInfo, TaxInfo};
+
+    /// The same `StringMajorUnit` converter `braintree.rs` declares as the connector's
+    /// `amount_converter`.
+    const AMOUNT_CONVERTER: &StringMajorUnitForConnector = &StringMajorUnitForConnector;
+
+    fn order_detail(product_name: &str, quantity: u16, unit_minor: i64) -> OrderDetailsWithAmount {
+        OrderDetailsWithAmount {
+            product_name: product_name.to_string(),
+            quantity,
+            amount: MinorUnit::new(unit_minor),
+            ..Default::default()
+        }
+    }
+
+    fn l2_l3(order_info: Option<OrderInfo>, tax_info: Option<TaxInfo>) -> L2L3Data {
+        L2L3Data {
+            order_info,
+            tax_info,
+            ..Default::default()
+        }
+    }
+
+    fn order_info(
+        order_details: Option<Vec<OrderDetailsWithAmount>>,
+        merchant_order_reference_id: Option<String>,
+        discount_amount: Option<i64>,
+        shipping_cost: Option<i64>,
+    ) -> OrderInfo {
+        OrderInfo {
+            order_date: None,
+            order_details,
+            merchant_order_reference_id,
+            discount_amount: discount_amount.map(MinorUnit::new),
+            shipping_cost: shipping_cost.map(MinorUnit::new),
+            duty_amount: None,
+        }
+    }
+
+    fn tax_info(
+        order_tax_amount: Option<i64>,
+        shipping_amount_tax: Option<i64>,
+        tax_status: Option<enums::TaxStatus>,
+    ) -> TaxInfo {
+        TaxInfo {
+            tax_status,
+            customer_tax_registration_id: None,
+            merchant_tax_registration_id: None,
+            shipping_amount_tax: shipping_amount_tax.map(MinorUnit::new),
+            order_tax_amount: order_tax_amount.map(MinorUnit::new),
+        }
+    }
+
+    fn enrichment_inputs<'a>(
+        l2_l3_data: Option<&'a L2L3Data>,
+        shipping: Option<&'a Address>,
+        billing_descriptor: Option<&'a BillingDescriptor>,
+        amount_minor: i64,
+    ) -> EnrichmentInputs<'a> {
+        EnrichmentInputs {
+            amount_converter: AMOUNT_CONVERTER,
+            l2_l3_data,
+            order_details: None,
+            shipping,
+            billing_descriptor,
+            surcharge_amount: None,
+            shipping_cost: None,
+            amount: MinorUnit::new(amount_minor),
+            currency: enums::Currency::USD,
+        }
+    }
+
+    fn to_json(value: &impl Serialize) -> serde_json::Value {
+        serde_json::to_value(value).expect("enrichment must serialize")
+    }
+
+    /// `Braintree-Version` is pinned to `2019-01-01`, which is *before* the 2021-02-01 cutoff
+    /// at which `scalar CountryCode` switched to alpha-2. Every address country must therefore
+    /// go out as ISO 3166-1 alpha-3 — the exact silent-wrong-value bug this conversion exists
+    /// to prevent.
+    #[test]
+    fn address_country_code_is_alpha3_at_the_pinned_braintree_version() {
+        assert_eq!(
+            crate::connectors::braintree::BRAINTREE_VERSION_VALUE,
+            "2019-01-01"
+        );
+        for (alpha2, alpha3) in [
+            (enums::CountryAlpha2::US, "USA"),
+            (enums::CountryAlpha2::GB, "GBR"),
+            (enums::CountryAlpha2::DE, "DEU"),
+            (enums::CountryAlpha2::IN, "IND"),
+        ] {
+            let address = AddressDetails {
+                country: Some(alpha2),
+                ..Default::default()
+            };
+            let built = build_address_input(Some(&address), None)
+                .expect("an address carrying a country is not empty");
+            assert_eq!(
+                to_json(&built),
+                serde_json::json!({ "countryCode": alpha3 })
+            );
+        }
+    }
+
+    /// `PhoneInput.countryPhoneCode` and `.phoneNumber` are both non-null, so a half-populated
+    /// phone must be dropped rather than partially sent, and the `+` UCS stores must be
+    /// stripped.
+    #[test]
+    fn address_phone_is_all_or_nothing_and_strips_the_plus() {
+        let complete = PhoneDetails {
+            number: Some(Secret::new("3125551212".to_string())),
+            country_code: Some("+1".to_string()),
+        };
+        let built = build_address_input(None, Some(&complete)).expect("a full phone is not empty");
+        assert_eq!(
+            to_json(&built),
+            serde_json::json!({ "phone": { "countryPhoneCode": "1", "phoneNumber": "3125551212" } })
+        );
+
+        for partial in [
+            PhoneDetails {
+                number: Some(Secret::new("3125551212".to_string())),
+                country_code: None,
+            },
+            PhoneDetails {
+                number: None,
+                country_code: Some("+1".to_string()),
+            },
+        ] {
+            assert!(build_address_input(None, Some(&partial)).is_none());
+        }
+    }
+
+    /// Exactly one member of each `AddressInput` alias pair may be sent; this connector commits
+    /// to the legacy set, so the PayPal-style aliases must never appear.
+    #[test]
+    fn address_uses_only_the_legacy_alias_set() {
+        let address = AddressDetails {
+            city: Some(Secret::new("Chicago".to_string())),
+            country: Some(enums::CountryAlpha2::US),
+            line1: Some(Secret::new("1 E Main St".to_string())),
+            line2: Some(Secret::new("Suite 403".to_string())),
+            line3: Some(Secret::new("dropped".to_string())),
+            zip: Some(Secret::new("60622".to_string())),
+            state: Some(Secret::new("IL".to_string())),
+            first_name: Some(Secret::new("Jane".to_string())),
+            last_name: Some(Secret::new("Doe".to_string())),
+            origin_zip: None,
+        };
+        let built = to_json(&build_address_input(Some(&address), None).expect("not empty"));
+        assert_eq!(
+            built,
+            serde_json::json!({
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "streetAddress": "1 E Main St",
+                "extendedAddress": "Suite 403",
+                "locality": "Chicago",
+                "region": "IL",
+                "postalCode": "60622",
+                "countryCode": "USA"
+            })
+        );
+        for alias in ["addressLine1", "addressLine2", "adminArea1", "adminArea2"] {
+            assert!(built.get(alias).is_none(), "{alias} must not be emitted");
+        }
+    }
+
+    /// Every Braintree money field is a major-unit decimal string; the UCS side is `MinorUnit`.
+    #[test]
+    fn minor_unit_amounts_convert_to_major_unit_strings() {
+        for (minor, expected) in [(1_i64, "0.01"), (1234, "12.34"), (2603, "26.03")] {
+            assert_eq!(
+                to_json(
+                    &convert_major(
+                        AMOUNT_CONVERTER,
+                        MinorUnit::new(minor),
+                        enums::Currency::USD
+                    )
+                    .expect("conversion must succeed")
+                ),
+                serde_json::json!(expected)
+            );
+        }
+    }
+
+    /// `lineItems[].totalAmount` is `String!` and required for Level 3, but the proto has no
+    /// `total_amount` and the proto -> domain conversion hardcodes `None`. It must therefore be
+    /// derived as quantity x unit amount, in MinorUnit, and `total_amount` must win when the
+    /// caller does supply it.
+    #[test]
+    fn line_item_total_amount_is_derived_when_absent_and_honoured_when_present() {
+        let derived = order_detail("Blue Widget", 3, 999);
+        let (line_item, total) = build_line_item(AMOUNT_CONVERTER, &derived, enums::Currency::USD)
+            .expect("line item builds")
+            .expect("line item is representable");
+        assert_eq!(total, MinorUnit::new(2997));
+        assert_eq!(
+            to_json(&line_item),
+            serde_json::json!({
+                "name": "Blue Widget",
+                "kind": "DEBIT",
+                "quantity": "3",
+                "unitAmount": "9.99",
+                "totalAmount": "29.97"
+            })
+        );
+
+        let supplied = OrderDetailsWithAmount {
+            total_amount: Some(MinorUnit::new(1898)),
+            ..order_detail("Blue Widget", 2, 999)
+        };
+        let (line_item, total) = build_line_item(AMOUNT_CONVERTER, &supplied, enums::Currency::USD)
+            .expect("line item builds")
+            .expect("line item is representable");
+        assert_eq!(total, MinorUnit::new(1898));
+        assert_eq!(
+            to_json(&line_item).get("totalAmount"),
+            Some(&serde_json::json!("18.98"))
+        );
+    }
+
+    /// Level 3 text fields accept only `a-z`, `A-Z`, `0-9`, `'`, `.`, `-` and spaces, and the
+    /// sanitisation has to happen before the length truncation.
+    #[test]
+    fn line_item_text_is_sanitised_then_truncated() {
+        assert_eq!(
+            sanitize_l3_text("Café & Crème / Deluxe", L3_NAME_MAX_LEN).as_deref(),
+            Some("Caf  Crme  Deluxe")
+        );
+        assert_eq!(sanitize_l3_text("&&&///", L3_NAME_MAX_LEN), None);
+        assert_eq!(
+            sanitize_l3_text("ABCDEFGHIJKLMNOPQRSTUVWXYZ", L3_CODE_MAX_LEN).as_deref(),
+            Some("ABCDEFGHIJKL")
+        );
+        // ASCII-only, 17 characters, for `purchaseOrderNumber`.
+        assert_eq!(
+            sanitize_purchase_order_number("PO-2026-0042").as_deref(),
+            Some("PO-2026-0042")
+        );
+        assert_eq!(
+            sanitize_purchase_order_number("PO-2026-0042-EXTRA-TAIL").as_deref(),
+            Some("PO-2026-0042-EXTR")
+        );
+    }
+
+    /// A line whose name does not survive sanitisation cannot be sent as Level 3, and no
+    /// placeholder name may be invented — the whole array is dropped instead.
+    #[test]
+    fn unrepresentable_line_item_drops_the_whole_array() {
+        let data = l2_l3(
+            Some(order_info(
+                Some(vec![order_detail("&&&", 1, 1000)]),
+                None,
+                None,
+                None,
+            )),
+            None,
+        );
+        let enrichment =
+            TransactionEnrichment::build(enrichment_inputs(Some(&data), None, None, 1000))
+                .expect("build must succeed");
+        assert_eq!(to_json(&enrichment), serde_json::json!({}));
+    }
+
+    /// The full Level 2/3 mapping, on a body that satisfies the reconciliation rule:
+    ///   19.98 (line items) + 1.66 (tax) + 4.99 (shipping) + 0.40 (shipping tax)
+    ///   - 1.00 (discount) = 26.03 = amount
+    #[test]
+    fn full_l2_l3_mapping_reconciles_and_serializes() {
+        let line = OrderDetailsWithAmount {
+            total_tax_amount: Some(MinorUnit::new(166)),
+            unit_of_measure: Some("EA".to_string()),
+            product_id: Some("WIDGET-BLU".to_string()),
+            commodity_code: Some("44121700".to_string()),
+            description: Some("Blue widget, medium".to_string()),
+            ..order_detail("Blue Widget", 2, 999)
+        };
+        let data = L2L3Data {
+            shipping_details: None,
+            ..l2_l3(
+                Some(order_info(
+                    Some(vec![line]),
+                    Some("PO-2026-0042".to_string()),
+                    Some(100),
+                    Some(499),
+                )),
+                Some(tax_info(
+                    Some(166),
+                    Some(40),
+                    Some(enums::TaxStatus::Taxable),
+                )),
+            )
+        };
+        let shipping = Address {
+            address: Some(AddressDetails {
+                city: Some(Secret::new("Chicago".to_string())),
+                country: Some(enums::CountryAlpha2::US),
+                line1: Some(Secret::new("500 W Madison St".to_string())),
+                zip: Some(Secret::new("60661".to_string())),
+                state: Some(Secret::new("IL".to_string())),
+                origin_zip: Some(Secret::new("60622".to_string())),
+                ..Default::default()
+            }),
+            phone: None,
+            email: None,
+        };
+        let descriptor = BillingDescriptor {
+            name: Some(Secret::new("ACME*WIDGETS".to_string())),
+            city: None,
+            phone: Some(Secret::new("3125551212".to_string())),
+            statement_descriptor: None,
+            statement_descriptor_suffix: None,
+            reference: None,
+        };
+        let enrichment = TransactionEnrichment::build(enrichment_inputs(
+            Some(&data),
+            Some(&shipping),
+            Some(&descriptor),
+            2603,
+        ))
+        .expect("build must succeed");
+
+        assert_eq!(
+            to_json(&enrichment),
+            serde_json::json!({
+                "purchaseOrderNumber": "PO-2026-0042",
+                "descriptor": { "name": "ACME*WIDGETS", "phone": "3125551212" },
+                "tax": { "taxAmount": "1.66", "taxExempt": false },
+                "discountAmount": "1.00",
+                "shipping": {
+                    "shippingAddress": {
+                        "streetAddress": "500 W Madison St",
+                        "locality": "Chicago",
+                        "region": "IL",
+                        "postalCode": "60661",
+                        "countryCode": "USA"
+                    },
+                    "shippingAmount": "4.99",
+                    "shippingTaxAmount": "0.40",
+                    "shipsFromPostalCode": "60622"
+                },
+                "lineItems": [{
+                    "name": "Blue Widget",
+                    "kind": "DEBIT",
+                    "quantity": "2",
+                    "unitAmount": "9.99",
+                    "totalAmount": "19.98",
+                    "taxAmount": "1.66",
+                    "unitOfMeasure": "EA",
+                    "productCode": "WIDGET-BLU",
+                    "commodityCode": "44121700",
+                    "description": "Blue widget, medium"
+                }]
+            })
+        );
+    }
+
+    /// The reconciliation rule is a hard Braintree requirement, and the classic way to break it
+    /// is to subtract the same discount twice — once per line, once at transaction level. An
+    /// unbalanced breakdown must be dropped rather than sent, keeping the non-monetary fields.
+    #[test]
+    fn unbalanced_l3_breakdown_drops_only_the_monetary_fields() {
+        let data = l2_l3(
+            Some(order_info(
+                Some(vec![order_detail("Blue Widget", 2, 999)]),
+                Some("PO-1".to_string()),
+                Some(100),
+                Some(499),
+            )),
+            Some(tax_info(
+                Some(166),
+                Some(40),
+                Some(enums::TaxStatus::Exempt),
+            )),
+        );
+        // 19.98 + 1.66 + 4.99 + 0.40 - 1.00 = 26.03, but the transaction is for 30.00.
+        let enrichment =
+            TransactionEnrichment::build(enrichment_inputs(Some(&data), None, None, 3000))
+                .expect("build must succeed");
+        assert_eq!(
+            to_json(&enrichment),
+            serde_json::json!({
+                "purchaseOrderNumber": "PO-1",
+                "tax": { "taxExempt": true }
+            })
+        );
+    }
+
+    /// Level 2 on its own — a bare `tax.taxAmount` with no line items — carries no sum to
+    /// reconcile and must survive untouched.
+    #[test]
+    fn level_two_only_is_not_reconciled() {
+        let data = l2_l3(
+            Some(order_info(None, Some("PO-2".to_string()), None, None)),
+            Some(tax_info(Some(166), None, Some(enums::TaxStatus::Taxable))),
+        );
+        let enrichment =
+            TransactionEnrichment::build(enrichment_inputs(Some(&data), None, None, 2603))
+                .expect("build must succeed");
+        assert_eq!(
+            to_json(&enrichment),
+            serde_json::json!({
+                "purchaseOrderNumber": "PO-2",
+                "tax": { "taxAmount": "1.66", "taxExempt": false }
+            })
+        );
+    }
+
+    /// Regression guard for the already-validated flows: with no enrichment data the flattened
+    /// block must add nothing at all to the serialized transaction body, and neither `tax: {}`,
+    /// `shipping: {}`, `descriptor: {}` nor `lineItems: []` may ever be emitted.
+    #[test]
+    fn empty_enrichment_serializes_to_nothing() {
+        let enrichment = TransactionEnrichment::build(enrichment_inputs(None, None, None, 1000))
+            .expect("build must succeed");
+        assert_eq!(to_json(&enrichment), serde_json::json!({}));
+
+        let body = RegularTransactionBody {
+            amount: convert_major(AMOUNT_CONVERTER, MinorUnit::new(1000), enums::Currency::USD)
+                .expect("conversion must succeed"),
+            merchant_account_id: Secret::new("juspay".to_string()),
+            channel: constants::CHANNEL_CODE.to_string(),
+            customer_details: None,
+            order_id: "ref_1".to_string(),
+            enrichment,
+        };
+        assert_eq!(
+            to_json(&body),
+            serde_json::json!({
+                "amount": "10.00",
+                "merchantAccountId": "juspay",
+                "channel": constants::CHANNEL_CODE,
+                "orderId": "ref_1"
+            })
+        );
     }
 }
