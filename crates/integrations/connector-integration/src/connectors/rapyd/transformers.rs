@@ -182,12 +182,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status = get_status(
-                    data.status.to_owned(),
-                    data.next_action
-                        .to_owned()
-                        .unwrap_or(NextAction::NotApplicable),
-                );
+                let attempt_status = get_status_for_payment_response(data, item.http_code)?;
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
@@ -213,22 +208,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                         }),
                     ),
                     _ => {
-                        let redirection_url = data
-                            .redirect_url
-                            .as_ref()
-                            .filter(|redirect_str| !redirect_str.is_empty())
-                            .map(|url| {
-                                Url::parse(url).change_context(
-                                    crate::utils::response_handling_fail_for_connector(
-                                        item.http_code,
-                                        "rapyd",
-                                    ),
-                                )
-                            })
-                            .transpose()?;
-
-                        let redirection_data =
-                            redirection_url.map(|url| RedirectForm::from((url, Method::Get)));
+                        let redirection_data = build_redirection_data(data, item.http_code)?;
 
                         // The saved-card token Rapyd returns on a CIT save is the
                         // mandate reference for later MIT replays. Rapyd charges
@@ -254,7 +234,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                 resource_id: ResponseId::ConnectorTransactionId(data.id.to_owned()), //transaction_id is also the field but this id is used to initiate a refund
                                 redirection_data: redirection_data.map(Box::new),
                                 mandate_reference,
-                                connector_metadata: None,
+                                connector_metadata: build_authentication_metadata(data),
                                 network_txn_id,
                                 network_txn_link_id: None,
                                 connector_response_reference_id: data
@@ -363,6 +343,16 @@ pub struct RapydPaymentsRequest<
     /// emitted on the current MIT path.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initiation_type: Option<RapydInitiationType>,
+    /// Browser/device context for a 3DS challenge. Omitted entirely when the
+    /// request carried no usable browser information, and on the external-3DS
+    /// pass-through path (there is no challenge for an ACS to risk-assess).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_details: Option<RapydClientDetails>,
+    /// Rapyd documents this as required for Visa 3DS. Sent when the request
+    /// carries an email; never hard-required, so a non-3DS payment that always
+    /// worked without one keeps working.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt_email: Option<Email>,
 }
 
 /// Rapyd customer reference: either a raw id string (`cus_*`) for MIT
@@ -398,10 +388,364 @@ pub enum RapydPaymentMethodData<
     PaymentMethod(Box<PaymentMethod<T>>),
 }
 
+/// Rapyd `payment_method_options` on `POST /v1/payments`.
+///
+/// Two mutually exclusive 3DS modes ride on this one object:
+///
+/// * **Mode A — Rapyd-hosted 3DS.** `3d_required: true` asks Rapyd to run the
+///   challenge itself and hand back a `redirect_url`.
+/// * **Mode B — external 3DS pass-through.** The merchant already authenticated
+///   the cardholder with its own 3DS server / MPI, so the cryptogram
+///   (`cavv` + `eci` + `3d_version` + `ds_trans_id`) is handed to Rapyd inline and
+///   Rapyd authorises without a challenge. `3d_required` is sent as `false` on
+///   this path — asking Rapyd to run its own challenge as well would defeat the
+///   point of pass-through.
+///
+/// Every Mode B field is `skip_serializing_if = "Option::is_none"`, so a
+/// non-3DS or Mode A request serialises exactly the body this connector shipped
+/// before external 3DS existed.
+///
+/// Deliberately absent:
+/// * `xid` — Rapyd documents it (Base64, "required for VISA 1.0"), but our
+///   `AuthenticationData` carries no XID. `ds_trans_id` is a *different*
+///   identifier and must NOT be substituted into `xid`: Rapyd has both slots
+///   (unlike Datatrans, which has only one and therefore does substitute).
+/// * `tavv` — a network-token cryptogram, not a 3DS one. Different producer,
+///   different flow; never populate it from `cavv`.
+///
+/// Reference: <https://docs.rapyd.net/en/get-payment-method-required-fields.html>
 #[derive(Debug, Serialize)]
 pub struct PaymentMethodOptions {
+    /// Ask Rapyd to run its own 3DS challenge. Rapyd's machine-readable
+    /// required-fields schema types this `boolean` and every documented request
+    /// example sends a JSON boolean, so a boolean is what we send. (Two prose
+    /// doc pages annotate it `string|boolean`; the defensiveness for that lives
+    /// on the response side — see `RapydResponsePaymentMethodOptions`.)
     #[serde(rename = "3d_required")]
     pub three_ds: bool,
+
+    // ---- Mode B: external 3DS pass-through. All omitted on Mode A / no-3DS. ----
+    #[serde(rename = "3d_version", skip_serializing_if = "Option::is_none")]
+    pub three_ds_version: Option<RapydThreeDsVersion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<RapydEciRequest>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_trans_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sca_exemption: Option<RapydScaExemption>,
+}
+
+impl PaymentMethodOptions {
+    /// Mode A / no-3DS: only the `3d_required` switch, derived from the request's
+    /// `auth_type`. Never a constant.
+    pub(super) fn rapyd_hosted(three_ds: bool) -> Self {
+        Self {
+            three_ds,
+            three_ds_version: None,
+            cavv: None,
+            eci: None,
+            ds_trans_id: None,
+            sca_exemption: None,
+        }
+    }
+}
+
+/// Request-side `3d_version`. Rapyd validates against the regex
+/// `(1.0.2|2.1.0|2.2.0)` — only these three strings are accepted, so the closed
+/// set is modelled as an enum rather than a stringified `SemanticVersion`.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+pub enum RapydThreeDsVersion {
+    #[serde(rename = "1.0.2")]
+    V1_0_2,
+    #[serde(rename = "2.1.0")]
+    V2_1_0,
+    #[serde(rename = "2.2.0")]
+    V2_2_0,
+}
+
+impl RapydThreeDsVersion {
+    /// Map our `SemanticVersion` onto Rapyd's three accepted strings. Anything
+    /// else (e.g. `2.3.0`) is an error, never a raw string in the body — Rapyd
+    /// would reject the whole payment.
+    fn from_semantic_version(
+        version: &common_utils::types::SemanticVersion,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        match version.to_string().as_str() {
+            "1.0.2" => Ok(Self::V1_0_2),
+            "2.1.0" => Ok(Self::V2_1_0),
+            "2.2.0" => Ok(Self::V2_2_0),
+            other => Err(IntegrationError::NotSupported {
+                message: format!("3DS protocol version {other}"),
+                connector: "rapyd",
+                context: crate::utils::integration_ctx(
+                    format!("Rapyd accepts only 3DS versions 1.0.2, 2.1.0 and 2.2.0 in payment_method_options.3d_version; the authentication supplied {other}"),
+                    "Re-run the external 3DS authentication with a protocol version Rapyd supports, or route this payment through Rapyd-hosted 3DS.",
+                ),
+            })?,
+        }
+    }
+
+    /// True for the 3DS 2.x protocol versions, which is when Rapyd documents
+    /// `ds_trans_id` as required for Mastercard.
+    fn is_two_x(self) -> bool {
+        matches!(self, Self::V2_1_0 | Self::V2_2_0)
+    }
+}
+
+/// Request-side ECI. Regex from Rapyd's required-fields schema:
+/// `(01|02|05|06|07|08)`. Deliberately a *different* set from the response-side
+/// values Rapyd documents (`05/02`, `06/01`, `07/00`) — the two sides of the
+/// wire do not agree, so they are not modelled by one enum.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+pub enum RapydEciRequest {
+    #[serde(rename = "01")]
+    E01,
+    #[serde(rename = "02")]
+    E02,
+    #[serde(rename = "05")]
+    E05,
+    #[serde(rename = "06")]
+    E06,
+    #[serde(rename = "07")]
+    E07,
+    #[serde(rename = "08")]
+    E08,
+}
+
+impl RapydEciRequest {
+    fn from_authentication_eci(eci: &str) -> Result<Self, error_stack::Report<IntegrationError>> {
+        match eci.trim() {
+            "01" | "1" => Ok(Self::E01),
+            "02" | "2" => Ok(Self::E02),
+            "05" | "5" => Ok(Self::E05),
+            "06" | "6" => Ok(Self::E06),
+            "07" | "7" => Ok(Self::E07),
+            "08" | "8" => Ok(Self::E08),
+            other => Err(IntegrationError::NotSupported {
+                message: format!("3DS ECI value {other}"),
+                connector: "rapyd",
+                context: crate::utils::integration_ctx(
+                    format!("Rapyd validates payment_method_options.eci against (01|02|05|06|07|08); the authentication supplied {other}"),
+                    "Send the ECI exactly as the card network returned it (two digits), or omit the external authentication data and use Rapyd-hosted 3DS.",
+                ),
+            })?,
+        }
+    }
+}
+
+/// Request-side `sca_exemption`. Rapyd's regex is
+/// `(low_value|transaction_risk_analysis|authentication_outage|secure_corporate_payments)`.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RapydScaExemption {
+    LowValue,
+    TransactionRiskAnalysis,
+    AuthenticationOutage,
+    SecureCorporatePayments,
+}
+
+impl RapydScaExemption {
+    /// Partial map. Our `ExemptionIndicator` carries variants Rapyd has no value
+    /// for; those return `None` so the field is omitted entirely rather than
+    /// substituted with a near-neighbour or an empty string.
+    fn from_exemption_indicator(indicator: &common_enums::ExemptionIndicator) -> Option<Self> {
+        match indicator {
+            common_enums::ExemptionIndicator::LowValue => Some(Self::LowValue),
+            common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+                Some(Self::TransactionRiskAnalysis)
+            }
+            common_enums::ExemptionIndicator::ThreeDsOutage => Some(Self::AuthenticationOutage),
+            common_enums::ExemptionIndicator::SecureCorporatePayment => {
+                Some(Self::SecureCorporatePayments)
+            }
+            common_enums::ExemptionIndicator::TrustedListing
+            | common_enums::ExemptionIndicator::ScaDelegation
+            | common_enums::ExemptionIndicator::OutOfScaScope
+            | common_enums::ExemptionIndicator::LowRiskProgram
+            | common_enums::ExemptionIndicator::RecurringOperation
+            | common_enums::ExemptionIndicator::Other => None,
+        }
+    }
+}
+
+/// Build `payment_method_options` for a card Authorize.
+///
+/// The three-way selection, all of it derived from the request — never from a
+/// constant, a config flag or connector metadata:
+///
+/// | condition | mode | body |
+/// |---|---|---|
+/// | `authentication_data.is_some()` | B | `3d_required: false` + the cryptogram |
+/// | else `auth_type == ThreeDs`     | A | `3d_required: true` |
+/// | else                            | N | `3d_required: false` |
+///
+/// Mode B wins over `auth_type`: if the merchant already authenticated the
+/// cardholder we must not also ask Rapyd to challenge them.
+///
+/// Note that Rapyd may return a `3d_verification` next-action even on modes B
+/// and N (PSD2/SCA and issuer discretion) — the response handler is therefore
+/// mode-agnostic and never gates redirect handling on what the request asked for.
+pub(super) fn build_card_payment_method_options(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+    wants_rapyd_hosted_three_ds: bool,
+    card_network: Option<&common_enums::CardNetwork>,
+) -> Result<PaymentMethodOptions, error_stack::Report<IntegrationError>> {
+    let Some(auth) = authentication_data else {
+        return Ok(PaymentMethodOptions::rapyd_hosted(
+            wants_rapyd_hosted_three_ds,
+        ));
+    };
+
+    // `trans_status` has no Rapyd target field and is never serialised. It is
+    // used only as a local guard: a cryptogram from an authentication that did
+    // not succeed (or that is still mid-challenge) carries no liability shift,
+    // and sending it would have Rapyd reject the payment at the network.
+    match auth.trans_status {
+        // `Y` authenticated, `A` attempted — both carry a usable liability shift.
+        Some(common_enums::TransactionStatus::Success)
+        | Some(common_enums::TransactionStatus::NotVerified)
+        // Absent: older 3DS servers do not always populate it; the cryptogram
+        // itself is the load-bearing artefact and is required below.
+        | None => {}
+        Some(ref other) => Err(IntegrationError::NotSupported {
+            message: format!("external 3DS pass-through with transaction status {other:?}"),
+            connector: "rapyd",
+            context: crate::utils::integration_ctx(
+                format!("Rapyd's external-3DS pass-through expects an authenticated (Y) or attempted (A) 3DS result; the authentication reported {other:?}"),
+                "Do not send the cryptogram for a failed, rejected or still-challenging authentication — re-authenticate the cardholder, or fall back to Rapyd-hosted 3DS.",
+            ),
+        })?,
+    }
+
+    let cavv = auth
+        .cavv
+        .clone()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.cavv",
+                context: crate::utils::integration_ctx(
+                    "Rapyd's external 3DS pass-through is identified by the cavv cryptogram in payment_method_options; without it the request is an ordinary non-authenticated payment",
+                    "Send the CAVV returned by your 3DS server, or omit authentication_data entirely and let Rapyd run the challenge.",
+                ),
+            })
+        })?;
+
+    let three_ds_version = auth
+        .message_version
+        .as_ref()
+        .map(RapydThreeDsVersion::from_semantic_version)
+        .transpose()?;
+    let eci = auth
+        .eci
+        .as_deref()
+        .map(RapydEciRequest::from_authentication_eci)
+        .transpose()?;
+
+    // Rapyd: "ds_trans_id — Directory Server Transaction ID. Required for
+    // Mastercard 2.0". Fail here rather than send a body Rapyd will decline.
+    let is_mastercard = matches!(card_network, Some(common_enums::CardNetwork::Mastercard));
+    if is_mastercard
+        && three_ds_version.is_some_and(RapydThreeDsVersion::is_two_x)
+        && auth.ds_trans_id.is_none()
+    {
+        Err(IntegrationError::MissingRequiredField {
+            field_name: "authentication_data.ds_trans_id",
+            context: crate::utils::integration_ctx(
+                "Rapyd requires payment_method_options.ds_trans_id for Mastercard 3DS 2.x external authentication",
+                "Send the Directory Server Transaction ID from the 3DS authentication response.",
+            ),
+        })?;
+    }
+
+    Ok(PaymentMethodOptions {
+        // Mode B suppresses Rapyd's own challenge; the cardholder is already
+        // authenticated.
+        three_ds: false,
+        three_ds_version,
+        cavv: Some(cavv),
+        eci,
+        ds_trans_id: auth.ds_trans_id.clone(),
+        sca_exemption: auth
+            .exemption_indicator
+            .as_ref()
+            .and_then(RapydScaExemption::from_exemption_indicator),
+    })
+}
+
+/// Rapyd `client_details` — the browser/device context an ACS risk-assesses a
+/// 3DS challenge with. Sourced entirely from `BrowserInformation`; every field
+/// is optional and omitted when absent, and the whole object is omitted when no
+/// browser information reached us. Deliberately NOT hard-required: the connector
+/// shipped without it, and hard-failing would regress live merchants.
+///
+/// In production, Visa and Mastercard 3DS are expected to decline without
+/// `ip_address`, and Visa additionally without `screen_height` / `screen_width`.
+#[derive(Debug, Serialize)]
+pub struct RapydClientDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<Secret<String, common_utils::pii::IpAddress>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accept_header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_color_depth: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub java_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub java_script_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    /// Minutes from UTC, passed through from `BrowserInformation::time_zone`
+    /// unchanged. Rapyd documents "UTC offset in minutes" without stating
+    /// whether it follows the JavaScript `getTimezoneOffset()` sign convention,
+    /// so negating it speculatively would be a guess; it is a risk-scoring
+    /// input, not a correctness gate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time_zone_offset: Option<i32>,
+}
+
+/// Rapyd's documented `screen_color_depth` values. A browser reporting anything
+/// else has the field omitted rather than sent and rejected.
+const RAPYD_SCREEN_COLOR_DEPTHS: [u8; 8] = [1, 4, 8, 15, 16, 24, 32, 48];
+
+impl RapydClientDetails {
+    /// `None` when the browser payload carries nothing Rapyd can use, so the
+    /// whole `client_details` object is dropped rather than serialised as `{}`.
+    pub(super) fn from_browser_info(
+        browser_info: &domain_types::router_request_types::BrowserInformation,
+    ) -> Option<Self> {
+        let details = Self {
+            ip_address: browser_info.get_ip_address().ok(),
+            accept_header: browser_info.accept_header.clone(),
+            screen_height: browser_info.screen_height,
+            screen_width: browser_info.screen_width,
+            screen_color_depth: browser_info
+                .color_depth
+                .filter(|depth| RAPYD_SCREEN_COLOR_DEPTHS.contains(depth)),
+            java_enabled: browser_info.java_enabled,
+            java_script_enabled: browser_info.java_script_enabled,
+            language: browser_info.language.clone(),
+            time_zone_offset: browser_info.time_zone,
+        };
+        details.is_populated().then_some(details)
+    }
+
+    fn is_populated(&self) -> bool {
+        self.ip_address.is_some()
+            || self.accept_header.is_some()
+            || self.screen_height.is_some()
+            || self.screen_width.is_some()
+            || self.screen_color_depth.is_some()
+            || self.java_enabled.is_some()
+            || self.java_script_enabled.is_some()
+            || self.language.is_some()
+            || self.time_zone_offset.is_some()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -568,19 +912,45 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
             })?;
 
-        // Capture intent applies to every payment method; the `three_ds`
-        // option is card-only (wallets carry their own authentication).
+        // Capture intent applies to every payment method; `payment_method_options`
+        // is card-only (wallets carry their own authentication).
         let capture = Some(item.router_data.request.is_auto_capture());
-        let payment_method_options = matches!(
+        let is_card = matches!(
             item.router_data.resource_common_data.payment_method,
             common_enums::PaymentMethod::Card
-        )
-        .then(|| PaymentMethodOptions {
-            three_ds: matches!(
-                item.router_data.resource_common_data.auth_type,
-                common_enums::AuthenticationType::ThreeDs
-            ),
-        });
+        );
+        // The 3DS decision comes from the request and nowhere else: external
+        // authentication data if the merchant supplied it, otherwise the
+        // caller's `auth_type`.
+        let external_three_ds = item.router_data.request.authentication_data.as_ref();
+        let wants_rapyd_hosted_three_ds = matches!(
+            item.router_data.resource_common_data.auth_type,
+            common_enums::AuthenticationType::ThreeDs
+        );
+        let card_network = match item.router_data.request.payment_method_data {
+            PaymentMethodData::Card(ref ccard) => ccard.card_network.as_ref(),
+            _ => None,
+        };
+        let payment_method_options = is_card
+            .then(|| {
+                build_card_payment_method_options(
+                    external_three_ds,
+                    wants_rapyd_hosted_three_ds,
+                    card_network,
+                )
+            })
+            .transpose()?;
+        // Browser data exists so an ACS can risk-assess a challenge. There is no
+        // challenge on the external pass-through path, so it is omitted there.
+        let client_details = if is_card && external_three_ds.is_none() {
+            item.router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(RapydClientDetails::from_browser_info)
+        } else {
+            None
+        };
         let payment_method = match item.router_data.request.payment_method_data {
             PaymentMethodData::Card(ref ccard) => {
                 Some(RapydPaymentMethodData::PaymentMethod(Box::new(
@@ -590,6 +960,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         // `in_amex_card`, not plain `in_visa_card`), so the correct
                         // per-network/funding mapping is deferred; sandbox is lenient
                         // about the card BIN.
+                        //
+                        // KNOWN LIMITATION, and it gates external 3DS: which
+                        // `payment_method_options` a type accepts is decided
+                        // per-type by `GET /v1/payment_methods/{type}/required_fields`.
+                        // `in_amex_card` advertises none of the external-3DS
+                        // options, so a Mode B request against it is rejected with
+                        // `UNKNOWN_PAYMENT_METHOD_FIELD - [CAVV]` /
+                        // `- [3D_VERSION]` (reproduced against the sandbox).
+                        // Rapyd-hosted 3DS (Mode A) is unaffected and works on this
+                        // type. Deriving the type — from card network + billing
+                        // country, from merchant metadata, or from a runtime
+                        // `GET /v1/payment_methods/country` lookup — is tracked as
+                        // an open question in the 3DS technical specification and is
+                        // deliberately out of scope here rather than silently
+                        // guessed.
                         pm_type: RapydPaymentMethodType::InAmexCard,
                         fields: Some(PaymentFields {
                             number: ccard.card_number.to_owned(),
@@ -870,6 +1255,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             customer,
             save_payment_method,
             initiation_type: None,
+            client_details,
+            receipt_email: item.router_data.request.email.clone(),
         })
     }
 }
@@ -898,16 +1285,28 @@ pub enum RapydPaymentStatus {
     Unknown,
 }
 
-fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> common_enums::AttemptStatus {
+pub(super) fn get_status(
+    status: RapydPaymentStatus,
+    next_action: NextAction,
+) -> common_enums::AttemptStatus {
     match (status, next_action) {
         (RapydPaymentStatus::Closed, _) => common_enums::AttemptStatus::Charged,
         (
             RapydPaymentStatus::Active,
             NextAction::ThreedsVerification | NextAction::PendingConfirmation,
         ) => common_enums::AttemptStatus::AuthenticationPending,
-        (RapydPaymentStatus::Active, NextAction::PendingCapture | NextAction::NotApplicable) => {
-            common_enums::AttemptStatus::Authorized
-        }
+        // Authorised, capture outstanding. `pending_offline_capture` has the same
+        // semantics as `pending_capture` — it waits on us, not on the connector,
+        // so it must not be `Pending`.
+        (
+            RapydPaymentStatus::Active,
+            NextAction::PendingCapture
+            | NextAction::NotApplicable
+            | NextAction::PendingOfflineCapture,
+        ) => common_enums::AttemptStatus::Authorized,
+        // An unrecognised next-action on a live payment is not a licence to
+        // guess "authorized" — leave it non-terminal for PSync to resolve.
+        (RapydPaymentStatus::Active, NextAction::Unknown) => common_enums::AttemptStatus::Pending,
         (
             RapydPaymentStatus::CanceledByClientOrBank
             | RapydPaymentStatus::Expired
@@ -920,6 +1319,44 @@ fn get_status(status: RapydPaymentStatus, next_action: NextAction) -> common_enu
         // pending so PSync resolves it rather than guessing an outcome.
         (RapydPaymentStatus::Unknown, _) => common_enums::AttemptStatus::Pending,
     }
+}
+
+/// Status for a **payment API** response (Authorize / PSync / Capture / Void /
+/// SetupMandate / RepeatPayment).
+///
+/// `next_action` is `Option` only because Rapyd's reduced `PAYMENT_FAILED`
+/// webhook payload omits it. On an API response the field is always present,
+/// and on a live (`ACT`) payment it is the half of the status pair that decides
+/// between "authorised, awaiting capture" and "3DS challenge outstanding" —
+/// defaulting it there would silently report a 3DS-pending attempt as
+/// `Authorized` and strand the challenge. So a missing `next_action` on an
+/// `ACT` payment is an error.
+///
+/// Terminal statuses (`CLO`, `ERR`, `CAN`, `EXP`, `REV`, `NEW`) do not consult
+/// `next_action` at all and keep the permissive default, so this rule can never
+/// fail a payment Rapyd already closed. The webhook path keeps the permissive
+/// default throughout — see `get_status_for_webhook`.
+pub(super) fn get_status_for_payment_response(
+    data: &ResponseData,
+    http_code: u16,
+) -> Result<common_enums::AttemptStatus, error_stack::Report<ConnectorError>> {
+    let next_action = match data.next_action.to_owned() {
+        Some(next_action) => next_action,
+        None if matches!(data.status, RapydPaymentStatus::Active) => {
+            return Err(error_stack::report!(
+                crate::utils::unexpected_response_fail(
+                    http_code,
+                    format!(
+                    "rapyd returned status=ACT for payment {} with no next_action; whether the \
+                     payment is awaiting a 3DS challenge or awaiting capture is undeterminable",
+                    data.id
+                ),
+                )
+            ))
+        }
+        None => NextAction::NotApplicable,
+    };
+    Ok(get_status(data.status.to_owned(), next_action))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -937,6 +1374,12 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
+/// Rapyd's `next_action`, the second half of the status pair.
+///
+/// `next_action` lives on `ResponseData`, which backs Authorize, PSync, Capture,
+/// Void, SetupMandate, RepeatPayment **and** every incoming payment webhook — so
+/// a value this enum cannot parse fails all of them at once. Hence both the full
+/// documented set and a `#[serde(other)]` catch-all.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum NextAction {
     #[serde(rename = "3d_verification")]
@@ -947,6 +1390,16 @@ pub enum NextAction {
     NotApplicable,
     #[serde(rename = "pending_confirmation")]
     PendingConfirmation,
+    /// Authorised, awaiting an offline capture. Documented by Rapyd but absent
+    /// from this enum until now, which turned a valid 200 into a parse failure.
+    #[serde(rename = "pending_offline_capture")]
+    PendingOfflineCapture,
+    /// Any `next_action` Rapyd adds after this integration was written. Present
+    /// so a new upstream value parses instead of failing the whole response
+    /// body; it is mapped explicitly in `get_status`, never folded into
+    /// `NotApplicable` (which would read as `Authorized`).
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -976,6 +1429,177 @@ pub struct ResponseData {
     /// Nested payment-method data; carries `network_reference_id`, the
     /// network transaction id surfaced as `network_txn_id` for recurring.
     pub payment_method_data: Option<RapydResponsePaymentMethodData>,
+    /// 3DS outcome as reported by the issuer/ACS. **Diagnostic only** — it is
+    /// deliberately not an input to `get_status`; see the note on
+    /// `build_authentication_metadata`.
+    ///
+    /// Boxed because it is absent on every non-3DS payment, and `ResponseData`
+    /// is cloned along the whole payment path (and is the largest variant of
+    /// `WebhookData`).
+    pub authentication_result: Option<Box<RapydAuthenticationResult>>,
+    /// Echoed back on the external-3DS pass-through path — the signal that Rapyd
+    /// accepted the supplied cryptogram instead of running its own challenge.
+    /// Boxed for the same reason as `authentication_result`.
+    pub payment_method_options: Option<Box<RapydResponsePaymentMethodOptions>>,
+}
+
+/// Rapyd's `authentication_result` object. Every field is optional: `eci` and
+/// `cardholder_info` come back `null` while a challenge is outstanding, and the
+/// whole object is absent on a non-3DS payment.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydAuthenticationResult {
+    pub result: Option<RapydAuthResult>,
+    /// 3DS protocol version as Rapyd reports it (e.g. `"2.2.0"`). Left a string:
+    /// this is the open response side, not the closed request set that
+    /// `RapydThreeDsVersion` models.
+    pub version: Option<String>,
+    /// Response-side ECI. Rapyd documents `05/02`, `06/01`, `07/00` here, which
+    /// is a different set from the values it validates on the request, so this
+    /// side stays permissive.
+    pub eci: Option<String>,
+    /// Free-text issuer message (max 128 chars).
+    pub cardholder_info: Option<String>,
+}
+
+/// `authentication_result.result`. Closed set per Rapyd, plus a catch-all so an
+/// unrecognised code parses to `Unknown` rather than being guessed into `A`/`N`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RapydAuthResult {
+    /// Authenticated.
+    #[serde(rename = "A")]
+    Authenticated,
+    /// Not authenticated. Note this does NOT by itself mean the payment failed —
+    /// see `build_authentication_metadata`.
+    #[serde(rename = "N")]
+    NotAuthenticated,
+    /// Redirection pending — the challenge is still outstanding.
+    #[serde(rename = "R")]
+    RedirectionPending,
+    /// Unsupported.
+    #[serde(rename = "U")]
+    Unsupported,
+    #[serde(other)]
+    Unknown,
+}
+
+/// The `payment_method_options` Rapyd echoes back on the external-3DS path.
+///
+/// `cavv` is deliberately **not** deserialized: it is a cardholder
+/// authentication cryptogram, and capturing the echo would only carry it into
+/// connector metadata and logs for no operational benefit. Presence of the other
+/// echoed fields is discriminator enough.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RapydResponsePaymentMethodOptions {
+    /// Rapyd's own docs disagree on whether this is a JSON boolean or a string.
+    /// We always *send* a boolean (that is what Rapyd's machine-readable schema
+    /// says and what every documented example uses), but we accept either on the
+    /// way back so a string echo cannot fail the whole response body.
+    #[serde(
+        rename = "3d_required",
+        default,
+        deserialize_with = "deserialize_optional_bool_or_string"
+    )]
+    pub three_ds: Option<bool>,
+    #[serde(rename = "3d_version")]
+    pub three_ds_version: Option<String>,
+    pub eci: Option<String>,
+    pub ds_trans_id: Option<String>,
+}
+
+/// Accept `true` / `false` as either a JSON boolean or a JSON string.
+/// An unrecognised string yields `None` rather than an error — this field is
+/// informational, and failing on it would fail the whole payment response.
+fn deserialize_optional_bool_or_string<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum BoolOrString {
+        Bool(bool),
+        Str(String),
+    }
+
+    Ok(match Option::<BoolOrString>::deserialize(deserializer)? {
+        None => None,
+        Some(BoolOrString::Bool(value)) => Some(value),
+        Some(BoolOrString::Str(value)) => match value.trim().to_ascii_lowercase().as_str() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        },
+    })
+}
+
+/// Build the redirect form from the payment object.
+///
+/// Rapyd puts `redirect_url` at the **top level** of the payment object and can
+/// return it on any card Authorize — including one that asked for no 3DS at all
+/// (PSD2/SCA and plain issuer discretion), and one that supplied external
+/// authentication data. It is therefore read unconditionally and never gated on
+/// what the request asked for.
+///
+/// A `3d_verification` next-action with no usable `redirect_url` is a hard
+/// failure rather than a pending attempt: the cardholder would have nowhere to
+/// authenticate, so the attempt would sit in `AuthenticationPending` and poll
+/// until Rapyd's 15-minute window expired.
+pub(super) fn build_redirection_data(
+    data: &ResponseData,
+    http_code: u16,
+) -> Result<Option<RedirectForm>, error_stack::Report<ConnectorError>> {
+    let redirect_url = data
+        .redirect_url
+        .as_ref()
+        .filter(|url| !url.trim().is_empty());
+
+    if redirect_url.is_none() && data.next_action.as_ref() == Some(&NextAction::ThreedsVerification)
+    {
+        return Err(error_stack::report!(crate::utils::unexpected_response_fail(
+            http_code,
+            format!(
+                "rapyd returned next_action=3d_verification for payment {} without a redirect_url; the cardholder has no way to complete the 3DS challenge",
+                data.id
+            ),
+        )));
+    }
+
+    let parsed = redirect_url
+        .map(|url| {
+            Url::parse(url).change_context(crate::utils::response_handling_fail_for_connector(
+                http_code, "rapyd",
+            ))
+        })
+        .transpose()?;
+
+    Ok(parsed.map(|url| RedirectForm::from((url, Method::Get))))
+}
+
+/// Surface the 3DS diagnostics (`authentication_result`, and the external-3DS
+/// echo) as `connector_metadata`.
+///
+/// This is **diagnostic only and never an input to `get_status`**. An issuer can
+/// return `result: "N"` under an attempts/liability-shift or an SCA exemption
+/// while Rapyd still closes the payment with `paid: true` — mapping that to
+/// `Failure` would report a false decline on a captured payment. The
+/// authoritative outcome stays `(status, next_action)` plus `failure_code`.
+pub(super) fn build_authentication_metadata(data: &ResponseData) -> Option<serde_json::Value> {
+    #[derive(Serialize)]
+    struct RapydAuthenticationMetadata<'a> {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        authentication_result: Option<&'a RapydAuthenticationResult>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        payment_method_options: Option<&'a RapydResponsePaymentMethodOptions>,
+    }
+
+    if data.authentication_result.is_none() && data.payment_method_options.is_none() {
+        return None;
+    }
+
+    serde_json::to_value(RapydAuthenticationMetadata {
+        authentication_result: data.authentication_result.as_deref(),
+        payment_method_options: data.payment_method_options.as_deref(),
+    })
+    .ok()
 }
 
 /// Subset of Rapyd's response `payment_method_data` object.
@@ -1605,9 +2229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
-        });
+        let payment_method_options = Some(PaymentMethodOptions::rapyd_hosted(three_ds_enabled));
 
         // Rapyd REQUIRES a customer to save a payment method. We pass an
         // inline `{name, email}` object so Rapyd creates `cus_*` in the
@@ -1669,6 +2291,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             customer: Some(RapydCustomerRef::Inline(inline_customer)),
             save_payment_method: Some(true),
             initiation_type: None,
+            client_details: router_data
+                .request
+                .browser_info
+                .as_ref()
+                .and_then(RapydClientDetails::from_browser_info),
+            receipt_email: request.email.clone(),
         })
     }
 }
@@ -1689,12 +2317,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status = get_status(
-                    data.status.to_owned(),
-                    data.next_action
-                        .to_owned()
-                        .unwrap_or(NextAction::NotApplicable),
-                );
+                let attempt_status = get_status_for_payment_response(data, item.http_code)?;
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,
@@ -1721,20 +2344,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     _ => {
                         // Surface the 3DS redirect so verification can be completed.
-                        let redirection_data = data
-                            .redirect_url
-                            .as_ref()
-                            .filter(|url| !url.is_empty())
-                            .map(|url| {
-                                Url::parse(url).change_context(
-                                    crate::utils::response_handling_fail_for_connector(
-                                        item.http_code,
-                                        "rapyd",
-                                    ),
-                                )
-                            })
-                            .transpose()?
-                            .map(|url| RedirectForm::from((url, Method::Get)));
+                        let redirection_data = build_redirection_data(data, item.http_code)?;
                         // The saved card token is the mandate reference used on
                         // MIT replays; Rapyd charges it without a customer id.
                         let mandate_reference = data.payment_method.as_ref().map(|card| {
@@ -1759,7 +2369,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 resource_id: ResponseId::ConnectorTransactionId(data.id.clone()),
                                 redirection_data: redirection_data.map(Box::new),
                                 mandate_reference,
-                                connector_metadata: None,
+                                connector_metadata: build_authentication_metadata(data),
                                 network_txn_id: None,
                                 network_txn_link_id: None,
                                 connector_response_reference_id: data.merchant_reference_id.clone(),
@@ -1890,9 +2500,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.resource_common_data.auth_type,
             common_enums::AuthenticationType::ThreeDs
         );
-        let payment_method_options = Some(PaymentMethodOptions {
-            three_ds: three_ds_enabled,
-        });
+        let payment_method_options = Some(PaymentMethodOptions::rapyd_hosted(three_ds_enabled));
 
         // On Charge, return_url arrives on `request.router_return_url`;
         // `PaymentFlowData.return_url` is hardcoded to None for this flow.
@@ -1925,6 +2533,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             customer: None,
             save_payment_method: None,
             initiation_type: Some(RapydInitiationType::Recurring),
+            // MIT replay: no cardholder browser is present and Rapyd bypasses
+            // 3DS on the stored credential.
+            client_details: None,
+            receipt_email: None,
         })
     }
 }
@@ -1940,12 +2552,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let (status, response) = match &item.response.data {
             Some(data) => {
-                let attempt_status = get_status(
-                    data.status.to_owned(),
-                    data.next_action
-                        .to_owned()
-                        .unwrap_or(NextAction::NotApplicable),
-                );
+                let attempt_status = get_status_for_payment_response(data, item.http_code)?;
                 match attempt_status {
                     common_enums::AttemptStatus::Failure => (
                         common_enums::AttemptStatus::Failure,

@@ -9,7 +9,12 @@
 //!    variants in declaration order and silently falls through, so the variant
 //!    each real Rapyd body selects is asserted explicitly.
 
-#![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing
+)]
 
 use std::collections::HashMap;
 
@@ -352,11 +357,8 @@ fn payment_body_selects_the_payment_variant() {
     match webhook.data {
         transformers::WebhookData::Payment(data) => {
             assert_eq!(data.id, "payment_0b645b1ee17a5c3ce79e20ff5524966f");
-            assert_eq!(data.status, transformers::RapydPaymentStatus::Closed);
-            assert_eq!(
-                data.next_action,
-                Some(transformers::NextAction::NotApplicable)
-            );
+            assert_eq!(data.status, RapydPaymentStatus::Closed);
+            assert_eq!(data.next_action, Some(NextAction::NotApplicable));
         }
         other => panic!("expected WebhookData::Payment, got {other:?}"),
     }
@@ -369,12 +371,12 @@ fn reduced_payment_failed_body_still_selects_the_payment_variant() {
     match webhook.data {
         transformers::WebhookData::Payment(data) => {
             assert_eq!(data.id, "payment_02e5ecc4b7e0395148e8eba68ad63120");
-            assert_eq!(data.status, transformers::RapydPaymentStatus::Error);
+            assert_eq!(data.status, RapydPaymentStatus::Error);
             assert_eq!(data.next_action, None);
             assert_eq!(data.transaction_id, None);
             assert_eq!(
                 transformers::get_status_for_webhook(&data),
-                common_enums::AttemptStatus::Failure
+                AttemptStatus::Failure
             );
         }
         other => panic!("expected WebhookData::Payment, got {other:?}"),
@@ -483,7 +485,7 @@ fn process_payment_webhook_maps_status_and_identifiers() {
         .process_payment_webhook(request_with_body(PAYMENT_COMPLETED_BODY), None, None, None)
         .expect("payment webhook must process");
 
-    assert_eq!(response.status, common_enums::AttemptStatus::Charged);
+    assert_eq!(response.status, AttemptStatus::Charged);
     assert_eq!(
         response.connector_response_reference_id.as_deref(),
         Some("order_1234")
@@ -604,4 +606,552 @@ fn event_references_use_the_right_id_slots() {
         }
         other => panic!("expected a dispute reference, got {other:?}"),
     }
+}
+
+// ---------------------------------------------------------------------------
+// 3DS on Authorize
+//
+// Rapyd has no standalone 3DS endpoint — both 3DS modes ride on
+// `POST /v1/payments`, so everything worth pinning down here is transformer
+// behaviour rather than a new flow:
+//
+// 1. `next_action` deserialization. It sits on `ResponseData`, which backs
+//    Authorize, PSync, Capture, Void, SetupMandate, RepeatPayment *and* every
+//    incoming payment webhook, so one unparsable value used to fail all of
+//    them at once.
+// 2. The external-3DS (Mode B) request mapping — which of our
+//    `AuthenticationData` fields reach `payment_method_options`, which are
+//    dropped, and which inputs are refused outright.
+// 3. The silent-hang hole: `3d_verification` with no `redirect_url`.
+// ---------------------------------------------------------------------------
+
+use common_enums::{AttemptStatus, CardNetwork, ExemptionIndicator, TransactionStatus};
+use common_utils::{request::Method, types::SemanticVersion};
+use domain_types::{
+    errors::ConnectorError,
+    router_request_types::{AuthenticationData, BrowserInformation},
+    router_response_types::RedirectForm,
+};
+use std::str::FromStr;
+use transformers::{
+    build_authentication_metadata, build_card_payment_method_options, build_redirection_data,
+    get_status, get_status_for_payment_response, NextAction, PaymentMethodOptions, RapydAuthResult,
+    RapydClientDetails, RapydEciRequest, RapydPaymentStatus, RapydScaExemption,
+    RapydThreeDsVersion, ResponseData,
+};
+
+/// A Mode-A (Rapyd-hosted) 3DS-pending payment object, as Rapyd's own sandbox
+/// documentation prints it.
+const THREE_DS_PENDING_BODY: &str = r#"{
+    "id": "payment_3ds_pending",
+    "amount": 0,
+    "original_amount": 1050,
+    "currency_code": "USD",
+    "status": "ACT",
+    "next_action": "3d_verification",
+    "redirect_url": "https://sandboxcheckout.rapyd.net/3ds-payment?token=payment_3ds_pending",
+    "payment_method": null,
+    "authentication_result": {
+        "eci": null,
+        "result": "R",
+        "version": "2.2.0",
+        "cardholder_info": null
+    },
+    "paid": false,
+    "captured": true
+}"#;
+
+fn authentication_data() -> AuthenticationData {
+    AuthenticationData {
+        trans_status: Some(TransactionStatus::Success),
+        eci: Some("05".to_string()),
+        cavv: Some(Secret::new("AAABBJg0VhI0VniQEjRWAAAAAAA=".to_string())),
+        ucaf_collection_indicator: None,
+        threeds_server_transaction_id: Some("threeds-server-txn".to_string()),
+        message_version: Some(SemanticVersion::from_str("2.2.0").expect("valid version")),
+        ds_trans_id: Some("f38e6948-5388-41a6-bca4-b49723c19437".to_string()),
+        acs_transaction_id: Some("acs-txn".to_string()),
+        transaction_id: Some("txn".to_string()),
+        network_params: None,
+        exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+fn options_json(options: &PaymentMethodOptions) -> serde_json::Value {
+    serde_json::to_value(options).expect("payment_method_options must serialize")
+}
+
+// ---------------------------------------------------------------------------
+// 1. next_action deserialization
+// ---------------------------------------------------------------------------
+
+/// The defect this change fixes: `pending_offline_capture` is a documented
+/// Rapyd value that used to make the WHOLE payment object fail to deserialize,
+/// turning a valid 200 into a parse error on Authorize, PSync and webhooks.
+#[test]
+fn next_action_pending_offline_capture_deserializes_and_is_authorized() {
+    let body = THREE_DS_PENDING_BODY.replace("3d_verification", "pending_offline_capture");
+    let data: ResponseData =
+        serde_json::from_str(&body).expect("pending_offline_capture must deserialize");
+
+    assert_eq!(data.next_action, Some(NextAction::PendingOfflineCapture));
+    // Same semantics as `pending_capture`: it waits on us, not on Rapyd.
+    assert_eq!(
+        get_status(
+            RapydPaymentStatus::Active,
+            NextAction::PendingOfflineCapture
+        ),
+        AttemptStatus::Authorized
+    );
+}
+
+/// A `next_action` Rapyd adds in the future must parse to `Unknown` rather than
+/// fail the body — and must NOT be folded into `not_applicable`, which reads as
+/// `Authorized`.
+#[test]
+fn next_action_unknown_value_parses_and_stays_non_terminal() {
+    let body = THREE_DS_PENDING_BODY.replace("3d_verification", "some_future_rapyd_action");
+    let data: ResponseData =
+        serde_json::from_str(&body).expect("an unknown next_action must not fail the body");
+
+    assert_eq!(data.next_action, Some(NextAction::Unknown));
+    assert_eq!(
+        get_status(RapydPaymentStatus::Active, NextAction::Unknown),
+        AttemptStatus::Pending
+    );
+}
+
+/// `ACT` + `3d_verification` is precisely "challenge outstanding". Rapyd's own
+/// `ERROR_CAPTURE_PAYMENT_3DS_INCOMPLETE` confirms Capture cannot advance it, so
+/// it must not read as `Authorized`.
+#[test]
+fn three_ds_pending_maps_to_authentication_pending() {
+    let data: ResponseData =
+        serde_json::from_str(THREE_DS_PENDING_BODY).expect("3DS-pending body must deserialize");
+
+    assert_eq!(
+        get_status(
+            data.status.clone(),
+            data.next_action.clone().expect("next_action present")
+        ),
+        AttemptStatus::AuthenticationPending
+    );
+}
+
+/// An issuer can report `result: "N"` under a liability shift while Rapyd still
+/// closes the payment as paid. `authentication_result` is diagnostic only and
+/// must never downgrade a `CLO`.
+#[test]
+fn authentication_result_n_does_not_downgrade_a_closed_payment() {
+    let body = THREE_DS_PENDING_BODY
+        .replace(r#""status": "ACT""#, r#""status": "CLO""#)
+        .replace(r#""result": "R""#, r#""result": "N""#)
+        .replace(r#""paid": false"#, r#""paid": true"#);
+    let data: ResponseData = serde_json::from_str(&body).expect("closed body must deserialize");
+
+    assert_eq!(
+        data.authentication_result
+            .as_deref()
+            .and_then(|result| result.result),
+        Some(RapydAuthResult::NotAuthenticated)
+    );
+    assert_eq!(
+        get_status(
+            data.status.clone(),
+            data.next_action.clone().expect("next_action present")
+        ),
+        AttemptStatus::Charged
+    );
+    // …and it is still surfaced, as metadata, for liability-shift reporting.
+    let metadata = build_authentication_metadata(&data).expect("metadata must be present");
+    assert_eq!(metadata["authentication_result"]["result"], "N");
+}
+
+/// An unrecognised `authentication_result.result` must parse to `Unknown`
+/// instead of being guessed into `A`/`N`.
+#[test]
+fn authentication_result_unknown_code_parses() {
+    let body = THREE_DS_PENDING_BODY.replace(r#""result": "R""#, r#""result": "Z""#);
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    assert_eq!(
+        data.authentication_result
+            .as_deref()
+            .and_then(|result| result.result),
+        Some(RapydAuthResult::Unknown)
+    );
+}
+
+/// Rapyd's docs type the echoed `3d_required` as boolean on one page and
+/// `string|boolean` on another. Either encoding must parse; neither may fail the
+/// whole payment object.
+#[test]
+fn echoed_three_ds_required_accepts_bool_or_string() {
+    for (encoded, expected) in [("true", Some(true)), (r#""true""#, Some(true))] {
+        let body = format!(
+            r#"{{"id":"p","amount":250,"status":"ACT","next_action":"pending_capture",
+                 "payment_method_options":{{"3d_required":{encoded},"eci":"05",
+                 "3d_version":"2.2.0","ds_trans_id":"ds-1"}}}}"#
+        );
+        let data: ResponseData = serde_json::from_str(&body).expect("echo must deserialize");
+        let echo = data
+            .payment_method_options
+            .as_ref()
+            .expect("echo must be present");
+        assert_eq!(echo.three_ds, expected);
+        assert_eq!(echo.eci.as_deref(), Some("05"));
+        assert_eq!(echo.three_ds_version.as_deref(), Some("2.2.0"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 2. External 3DS (Mode B) request mapping
+// ---------------------------------------------------------------------------
+
+/// The four fields Rapyd accepts — and nothing else. Notably `3d_required` goes
+/// out as `false` (we already authenticated, Rapyd must not challenge again),
+/// and `ds_trans_id` is NOT substituted into `xid`: Rapyd has both slots, so the
+/// Datatrans-style substitution would be wrong here.
+#[test]
+fn external_three_ds_maps_only_the_four_supported_fields() {
+    let auth = authentication_data();
+    let options = build_card_payment_method_options(Some(&auth), true, Some(&CardNetwork::Visa))
+        .expect("external 3DS mapping must succeed");
+    let json = options_json(&options);
+
+    assert_eq!(json["3d_required"], serde_json::json!(false));
+    assert_eq!(json["cavv"], "AAABBJg0VhI0VniQEjRWAAAAAAA=");
+    assert_eq!(json["eci"], "05");
+    assert_eq!(json["3d_version"], "2.2.0");
+    assert_eq!(json["ds_trans_id"], "f38e6948-5388-41a6-bca4-b49723c19437");
+
+    // Nothing else may appear: `xid` and `tavv` have no source field, and every
+    // remaining `AuthenticationData` member has no Rapyd target at all.
+    for absent in [
+        "xid",
+        "tavv",
+        "cvv",
+        "sca_exemption",
+        "trans_status",
+        "threeds_server_transaction_id",
+        "acs_transaction_id",
+        "transaction_id",
+        "ucaf_collection_indicator",
+    ] {
+        assert!(
+            json.get(absent).is_none(),
+            "payment_method_options must not carry `{absent}`"
+        );
+    }
+    assert_eq!(
+        options.three_ds_version,
+        Some(RapydThreeDsVersion::V2_2_0),
+        "the version must go through the closed enum, not a raw string"
+    );
+    assert_eq!(options.eci, Some(RapydEciRequest::E05));
+}
+
+/// Mode B takes precedence over `auth_type`, and Mode A / no-3DS bodies must be
+/// byte-for-byte what this connector sent before external 3DS existed.
+#[test]
+fn rapyd_hosted_and_no_three_ds_bodies_are_unchanged() {
+    let hosted = options_json(
+        &build_card_payment_method_options(None, true, Some(&CardNetwork::Visa))
+            .expect("mode A must build"),
+    );
+    assert_eq!(hosted, serde_json::json!({ "3d_required": true }));
+
+    let plain = options_json(
+        &build_card_payment_method_options(None, false, Some(&CardNetwork::Visa))
+            .expect("mode N must build"),
+    );
+    assert_eq!(plain, serde_json::json!({ "3d_required": false }));
+
+    assert_eq!(
+        options_json(&PaymentMethodOptions::rapyd_hosted(true)),
+        serde_json::json!({ "3d_required": true })
+    );
+}
+
+/// A pass-through with no cryptogram is not an external 3DS at all.
+#[test]
+fn external_three_ds_without_cavv_is_rejected() {
+    let auth = AuthenticationData {
+        cavv: None,
+        ..authentication_data()
+    };
+    let error = build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+        .expect_err("a missing CAVV must not produce a silently non-authenticated payment");
+    assert!(
+        format!("{error:?}").contains("authentication_data.cavv"),
+        "error must name the missing field, got: {error:?}"
+    );
+}
+
+/// Rapyd accepts exactly `1.0.2`, `2.1.0` and `2.2.0`. Anything else is a clean
+/// local error, never a malformed body Rapyd rejects at the network.
+#[test]
+fn external_three_ds_rejects_an_unsupported_protocol_version() {
+    let auth = AuthenticationData {
+        message_version: Some(SemanticVersion::from_str("2.3.0").expect("valid semver")),
+        ..authentication_data()
+    };
+    let error = build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+        .expect_err("2.3.0 is outside Rapyd's accepted set");
+    assert!(
+        format!("{error:?}").contains("2.3.0"),
+        "error must name the offending version, got: {error:?}"
+    );
+}
+
+/// The request-side ECI regex is `(01|02|05|06|07|08)`; a value outside it must
+/// not be stringified into the body.
+#[test]
+fn external_three_ds_rejects_an_out_of_set_eci() {
+    let auth = AuthenticationData {
+        eci: Some("99".to_string()),
+        ..authentication_data()
+    };
+    let _ = build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+        .expect_err("ECI 99 is outside Rapyd's accepted set");
+}
+
+/// "ds_trans_id — required for Mastercard 2.0".
+#[test]
+fn external_three_ds_requires_ds_trans_id_for_mastercard_two_x() {
+    let auth = AuthenticationData {
+        ds_trans_id: None,
+        ..authentication_data()
+    };
+    let error =
+        build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Mastercard))
+            .expect_err("Mastercard 2.x needs the directory-server transaction id");
+    assert!(
+        format!("{error:?}").contains("ds_trans_id"),
+        "error must name the missing field, got: {error:?}"
+    );
+
+    // Visa has no such requirement.
+    build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+        .expect("Visa 2.x without ds_trans_id is fine");
+}
+
+/// `trans_status` has no Rapyd target field, so it is used purely as a local
+/// guard: a cryptogram from an authentication that did not succeed carries no
+/// liability shift and must not be sent.
+#[test]
+fn external_three_ds_guards_on_trans_status() {
+    for allowed in [TransactionStatus::Success, TransactionStatus::NotVerified] {
+        let auth = AuthenticationData {
+            trans_status: Some(allowed),
+            ..authentication_data()
+        };
+        build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+            .expect("Y and A both carry a usable liability shift");
+    }
+
+    for refused in [
+        TransactionStatus::Failure,
+        TransactionStatus::Rejected,
+        TransactionStatus::ChallengeRequired,
+        TransactionStatus::VerificationNotPerformed,
+    ] {
+        let auth = AuthenticationData {
+            trans_status: Some(refused),
+            ..authentication_data()
+        };
+        let _ = build_card_payment_method_options(Some(&auth), false, Some(&CardNetwork::Visa))
+            .expect_err("a non-authenticated 3DS result must not be passed through");
+    }
+}
+
+/// Our `ExemptionIndicator` is wider than Rapyd's four values. Where there is no
+/// equivalent the field is omitted entirely — never approximated, never sent as
+/// an empty string.
+#[test]
+fn sca_exemption_is_mapped_or_omitted_but_never_approximated() {
+    let mapped = [
+        (ExemptionIndicator::LowValue, RapydScaExemption::LowValue),
+        (
+            ExemptionIndicator::TransactionRiskAssessment,
+            RapydScaExemption::TransactionRiskAnalysis,
+        ),
+        (
+            ExemptionIndicator::ThreeDsOutage,
+            RapydScaExemption::AuthenticationOutage,
+        ),
+        (
+            ExemptionIndicator::SecureCorporatePayment,
+            RapydScaExemption::SecureCorporatePayments,
+        ),
+    ];
+    for (ours, theirs) in mapped {
+        let auth = AuthenticationData {
+            exemption_indicator: Some(ours),
+            ..authentication_data()
+        };
+        let options = build_card_payment_method_options(Some(&auth), false, None)
+            .expect("mapping must succeed");
+        assert_eq!(options.sca_exemption, Some(theirs));
+    }
+
+    for unmappable in [
+        ExemptionIndicator::TrustedListing,
+        ExemptionIndicator::ScaDelegation,
+        ExemptionIndicator::OutOfScaScope,
+        ExemptionIndicator::LowRiskProgram,
+        ExemptionIndicator::RecurringOperation,
+        ExemptionIndicator::Other,
+    ] {
+        let auth = AuthenticationData {
+            exemption_indicator: Some(unmappable),
+            ..authentication_data()
+        };
+        let options = build_card_payment_method_options(Some(&auth), false, None)
+            .expect("mapping must succeed");
+        assert_eq!(options.sca_exemption, None);
+        assert!(options_json(&options).get("sca_exemption").is_none());
+    }
+}
+
+/// `client_details` is best-effort: whatever the browser reported is forwarded,
+/// an out-of-set colour depth is dropped rather than rejected, and an empty
+/// browser payload produces no object at all (rather than `{}`).
+#[test]
+fn client_details_are_best_effort() {
+    let browser = BrowserInformation {
+        screen_height: Some(1080),
+        screen_width: Some(1920),
+        color_depth: Some(31), // not in Rapyd's set {1,4,8,15,16,24,32,48}
+        accept_header: Some("text/html".to_string()),
+        language: Some("en-US".to_string()),
+        time_zone: Some(-330),
+        ..Default::default()
+    };
+    let details = RapydClientDetails::from_browser_info(&browser).expect("must be populated");
+    let json = serde_json::to_value(&details).expect("client_details must serialize");
+    assert_eq!(json["screen_height"], 1080);
+    assert_eq!(json["screen_width"], 1920);
+    assert_eq!(json["accept_header"], "text/html");
+    // Passed through unchanged — Rapyd does not state a sign convention.
+    assert_eq!(json["time_zone_offset"], -330);
+    assert!(json.get("screen_color_depth").is_none());
+    assert!(json.get("ip_address").is_none());
+
+    assert!(RapydClientDetails::from_browser_info(&BrowserInformation::default()).is_none());
+}
+
+// ---------------------------------------------------------------------------
+// 3. The silent-hang hole
+// ---------------------------------------------------------------------------
+
+/// `ACT` + `3d_verification` + no `redirect_url` used to produce
+/// `AuthenticationPending` with `redirection_data: None` — an attempt the
+/// cardholder can never authenticate, which then polls until Rapyd's 15-minute
+/// window expires. It must fail loudly instead.
+#[test]
+fn three_ds_verification_without_a_redirect_url_fails_loudly() {
+    for absent in [r#""redirect_url": null"#, r#""redirect_url": """#] {
+        let body = THREE_DS_PENDING_BODY.replace(
+            r#""redirect_url": "https://sandboxcheckout.rapyd.net/3ds-payment?token=payment_3ds_pending""#,
+            absent,
+        );
+        let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+        let error = build_redirection_data(&data, 200)
+            .expect_err("a 3DS challenge with nowhere to go must not be reported as pending");
+        match error.current_context() {
+            ConnectorError::UnexpectedResponseError { context } => {
+                let detail = context
+                    .additional_context
+                    .as_deref()
+                    .expect("the failure must say why");
+                assert!(
+                    detail.contains("3d_verification") && detail.contains("redirect_url"),
+                    "error must explain the cause, got: {detail}"
+                );
+            }
+            other => panic!("expected an unexpected-response error, got {other:?}"),
+        }
+    }
+}
+
+/// The happy path: a top-level `redirect_url` becomes a GET redirect form.
+#[test]
+fn three_ds_redirect_url_is_read_from_the_top_level_of_the_payment_object() {
+    let data: ResponseData =
+        serde_json::from_str(THREE_DS_PENDING_BODY).expect("body must deserialize");
+    let redirect = build_redirection_data(&data, 200)
+        .expect("a well-formed 3DS response must build a redirect")
+        .expect("redirect must be present");
+    match redirect {
+        RedirectForm::Form {
+            endpoint,
+            method,
+            form_fields,
+        } => {
+            assert_eq!(endpoint, "https://sandboxcheckout.rapyd.net/3ds-payment");
+            // An HTTP GET to a Rapyd-hosted page: no form POST, and the query
+            // string Rapyd handed back is preserved as the redirect's fields.
+            assert_eq!(method, Method::Get);
+            assert_eq!(
+                form_fields.get("token").map(String::as_str),
+                Some("payment_3ds_pending")
+            );
+        }
+        other => panic!("expected a form redirect, got {other:?}"),
+    }
+}
+
+/// The override caveat: Rapyd may return a challenge even when we asked for
+/// `3d_required: false` (PSD2/SCA, issuer discretion). Redirect handling is
+/// therefore mode-agnostic — it never consults what the request asked for.
+#[test]
+fn redirect_is_honoured_even_when_no_three_ds_was_requested() {
+    let body = THREE_DS_PENDING_BODY.replace(
+        r#""authentication_result": {"#,
+        r#""payment_method_options": {"3d_required": false},
+           "authentication_result": {"#,
+    );
+    let data: ResponseData = serde_json::from_str(&body).expect("body must deserialize");
+    assert_eq!(
+        data.payment_method_options
+            .as_ref()
+            .and_then(|options| options.three_ds),
+        Some(false)
+    );
+    assert!(build_redirection_data(&data, 200)
+        .expect("redirect must still be built")
+        .is_some());
+}
+
+/// `next_action` is optional only because Rapyd's reduced `PAYMENT_FAILED`
+/// webhook payload omits it. On the payment API path, defaulting it on a live
+/// (`ACT`) payment would report a 3DS-pending attempt as `Authorized`; a
+/// terminal payment does not consult it at all and must keep working.
+#[test]
+fn missing_next_action_errors_on_an_active_payment_but_not_on_a_closed_one() {
+    let active = THREE_DS_PENDING_BODY.replace(r#""next_action": "3d_verification","#, "");
+    let data: ResponseData = serde_json::from_str(&active).expect("body must deserialize");
+    assert!(data.next_action.is_none());
+    let _ = get_status_for_payment_response(&data, 200)
+        .expect_err("an ACT payment with no next_action is undeterminable");
+
+    let closed = active.replace(r#""status": "ACT""#, r#""status": "CLO""#);
+    let data: ResponseData = serde_json::from_str(&closed).expect("body must deserialize");
+    assert_eq!(
+        get_status_for_payment_response(&data, 200).expect("a closed payment must still resolve"),
+        AttemptStatus::Charged
+    );
+
+    // The webhook helper keeps the permissive default — `PAYMENT_FAILED` bodies
+    // legitimately omit `next_action`.
+    assert_eq!(
+        transformers::get_status_for_webhook(&data),
+        AttemptStatus::Charged
+    );
 }
