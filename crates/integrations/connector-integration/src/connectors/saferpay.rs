@@ -656,8 +656,105 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Saferpay's Transaction interface exposes no signed webhook — only unauthenticated,
-// bodyless `NotifyUrl` GET pings — so there is nothing to consume or verify here.
+// Saferpay ships no consumable webhook, so this impl stays empty and every
+// `IncomingWebhook` method keeps its trait default. `get_event_type` /
+// `process_*_webhook` therefore return `WebhooksNotImplemented`, which is the
+// intended fail-closed answer: overriding them to hand back
+// `IncomingWebhookEventUnspecified` + `Ok(None)` would advertise webhook support
+// that does not exist, both to the caller and to the capability probe.
+//
+// This was re-verified against live sources rather than inherited from the tech
+// spec, which is stale on other points.
+//
+// 1. There is no webhook, event-subscription or push product at all.
+//    The complete published specification <https://saferpay.github.io/jsonapi/>
+//    (633 KB, all endpoints) contains zero occurrences of "webhook". So does every
+//    live swagger document, <https://test.saferpay.com/Api/swagger/{version}/swagger.json>
+//    — checked 1.44 (the version this connector pins), 1.53 and 1.54 (the newest
+//    that resolves; 1.55+ are 404). Their path sets are identical apart from
+//    `Transaction/DccInquiry`, and none of them declares an inbound callback
+//    schema, a signature header or an HMAC field (the single "signature" hit in
+//    1.54 is the `SIGNATURE_REQUIRED` Klarna shipping attribute). The changelog
+//    <https://github.com/saferpay/jsonapi/blob/master/texts/Changelog.md> covers
+//    1.5 (2017) through 1.53 and never adds one; every notification entry in its
+//    history is either an e-mail recipient list (v1.12 "replaced _MerchantEmail_
+//    with _MerchantEmails_ ... to which the payment notification is sent",
+//    v1.35 `TransactionNotification` = `PayerDccReceiptEmail` only) or a bare
+//    callback URL (v1.23 "added container _RedirectNotifyUrls_", v1.24 "replaced
+//    parameter `NotifyUrl` ... with the two separate parameters `SuccessNotifyUrl`
+//    and `FailNotifyUrl`"). Nor is there a Backoffice setting to register one:
+//    the docs sitemap <https://docs.saferpay.com/home/llms.txt> lists all 130
+//    pages and has no webhook, event or notification-API page, and the one page
+//    that would carry such a setting,
+//    <https://docs.saferpay.com/home/interfaces/backoffice/settings>, scopes its
+//    "Notifications" section to e-mail addresses for a human ("you can configure
+//    if, where, and in what language Saferpay should contact you in case of
+//    certain events and news. Each input accepts a comma-separated list").
+//
+// 2. What the callback URLs do deliver is nothing this trait can act on.
+//    Transaction interface, `RedirectNotifyUrls.Success` / `.Fail`
+//    <https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/transaction-interface>,
+//    §RedirectNotifyUrls: "The notification happens via http-GET and **does not
+//    carry any data (like the token)**, except parameters, that have been added to
+//    the URL by the merchant-system. ... Otherwise, the notification callback
+//    would be an empty request", and again "The notification also does not return
+//    any data to the merchants application, except your own parameters ... via
+//    GET!". The Payment Page's `Notification.SuccessNotifyUrl` /
+//    `.FailNotifyUrl` carries the identical sentence
+//    <https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/payment-page>.
+//    So the request that would reach `ParseEvent` has no body, no Saferpay-set
+//    query parameter, no event type, no resource id and no signature — there is
+//    nothing to decode in `get_event_type`, nothing to return from
+//    `get_webhook_event_reference`, and `verify_webhook_source` could never
+//    honestly return `true`.
+//
+//    It is not even a payment-status event on the interface this connector uses.
+//    Same section: "Note, that at this point, no transaction has been made. The
+//    redirect ... only serves the purpose, to perform 3D Secure and DCC. The
+//    transaction itself is made, with the execution of the transaction authorize
+//    request." A `Success` ping means the redirect leg finished, not that money
+//    moved, so mapping it to any concrete `AttemptStatus` or `PaymentIntent*`
+//    event would be a fabrication.
+//
+// 3. No dispute events either, and nothing to poll for them. "chargeback" and
+//    "dispute" appear zero times in the full JSON API specification and in every
+//    swagger version above, and the docs sitemap has no chargeback page —
+//    chargebacks are discussed only as liability-shift consequences under 3-D
+//    Secure, never as something delivered to the merchant by API. There is no
+//    disputed transaction state to observe either: the one reporting endpoint,
+//    `GET /rest/customers/{customerId}/transactions`, documents "TransactionState
+//    ... Possible values: SUCCESSFUL, FAILED, PENDING." Saferpay places the
+//    chargeback relationship with the acquirer rather than itself — merchants are
+//    told to keep documentation so they can "provide the acquirer with the
+//    necessary documentation on request". That is why `Accept` / `DefendDispute`
+//    / `SubmitEvidence` stay `not_implemented` below: there is no notification to
+//    service them with, and emitting a `Dispute*` event type here would hand the
+//    caller a dispute the rest of the stack has no way to act on.
+//
+// Correct reconciliation strategy, and note it is *not* polling. Saferpay
+// forbids polling outright — <https://docs.saferpay.com/home/integration-guide/general-information>,
+// §Polling: "Polling in general is strictly forbidden! You should always react to
+// the redirect and/or notification, that is triggered by our gateway. Not
+// following this rule, can lead to your account being blocked." The specification
+// itself repeats it and names the remedy: "DO NOT implement a polling-process, to
+// poll for the transaction-data. Respond with the necessary request, at the
+// correct time (e.g. doing the assert only, if the SuccessUrl, or NotifyUrl are
+// called). Saferpay reserves the right to otherwise deactivate, or block your
+// account!", and on the result-fetch call, "Do not poll this function! Wait until
+// the payer is redirected back to the shop or until the notification was called".
+// The supported model is event-driven off the payer's return: the `ReturnUrl`
+// redirect and, as its redundant twin, the notify-URL ping each trigger one
+// `Transaction/Authorize` (or, for an already-authorized Payment Page session,
+// one result fetch), with the two de-duplicated against each other — "It is
+// important, that you do not handle both calls as separate transactions."
+// On the UCS side that is the existing `PreAuthenticate` -> browser ->
+// `Authorize` sequence, with PSync (`Transaction/Inquire`) used as a bounded
+// one-shot repair for a session whose redirect was lost, not as a poll loop.
+// Wiring `RedirectNotifyUrls` to the UCS webhook endpoint would be actively
+// harmful while nothing consumes it: `ParseEvent` would reject the empty GET, the
+// endpoint would answer non-200, and Saferpay retries a failed notification "up
+// to five times more, for a total of six times", backing off "to a maximum of
+// 1 day".
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Saferpay<T>
 {
