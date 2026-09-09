@@ -153,6 +153,12 @@ impl SuperpositionRecordingSampler {
         policy.record || (policy.percent > 0 && request_bucket(&facts.request_id) < policy.percent)
     }
 
+    fn count(outcome: &str) {
+        external_services::shared_metrics::SUPERPOSITION_RESOLVE_TOTAL
+            .with_label_values(&["sampler", outcome])
+            .inc();
+    }
+
     /// True the first time an rpc reports a given failure, false after — so a
     /// persistent misconfiguration is logged once per rpc, not once per request.
     fn first_warn(&self, rpc: &str, what: &str) -> bool {
@@ -169,6 +175,7 @@ impl SuperpositionRecordingSampler {
             percent: 0,
         };
         let Some(superposition) = &self.superposition else {
+            Self::count("no_source");
             return failure_policy; // no-source: logged once at install
         };
         // The request id is the experiment targeting key (see the module doc); the
@@ -185,6 +192,7 @@ impl SuperpositionRecordingSampler {
             {
                 Ok(resolved) => resolved,
                 Err(_elapsed) => {
+                    Self::count("timeout");
                     if self.first_warn(rpc, "timeout") {
                         tracing::warn!(
                             timeout_ms = self.timeout_ms,
@@ -199,8 +207,12 @@ impl SuperpositionRecordingSampler {
         match resolved {
             Ok(resolved) => {
                 let record = match resolved.get(&self.record_key).and_then(|v| v.as_bool()) {
-                    Some(decision) => decision,
+                    Some(decision) => {
+                        Self::count("hit");
+                        decision
+                    }
                     None => {
+                        Self::count("key_missing");
                         if self.first_warn(rpc, "key") {
                             tracing::warn!(
                                 record_key = %self.record_key,
@@ -235,6 +247,7 @@ impl SuperpositionRecordingSampler {
                 ResolvedPolicy { record, percent }
             }
             Err(error) => {
+                Self::count("error");
                 if self.first_warn(rpc, "eval") {
                     tracing::warn!(
                         error = %error,

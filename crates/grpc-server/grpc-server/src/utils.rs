@@ -219,10 +219,16 @@ pub async fn resolve_connector_urls(
     let environment_lower = environment.to_lowercase();
     let connector_str = connector_name.to_lowercase();
 
+    let count = |outcome: &str| {
+        external_services::shared_metrics::SUPERPOSITION_RESOLVE_TOTAL
+            .with_label_values(&["connector_urls", outcome])
+            .inc();
+    };
     match config.resolve(&connector_str, &environment_lower).await {
         Ok(resolved) => {
             let urls = get_connector_urls(&resolved);
             if urls.base_url.is_none() {
+                count("miss");
                 tracing::warn!(
                     connector = %connector_str,
                     environment = %environment_lower,
@@ -230,6 +236,7 @@ pub async fn resolve_connector_urls(
                 );
                 return None;
             }
+            count("hit");
             tracing::info!(
                 connector = %connector_str,
                 environment = %environment_lower,
@@ -239,6 +246,7 @@ pub async fn resolve_connector_urls(
             Some(urls)
         }
         Err(e) => {
+            count("error");
             tracing::warn!(
                 connector = %connector_str,
                 environment = %environment_lower,
