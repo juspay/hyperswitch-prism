@@ -14,6 +14,7 @@ use common_utils::{
         RuntimeMetadataPatch,
     },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    superposition_config::SuperpositionSettings,
     SuperpositionConfig,
 };
 use domain_types::{
@@ -59,8 +60,16 @@ pub struct Config {
     /// build. Absent optional values are simply omitted and never fail startup.
     #[serde(default)]
     pub runtime_metadata: RuntimeMetadata,
-    /// Superposition configuration for connector URL resolution
-    /// This is loaded at startup and watches config/superposition.toml for changes.
+    /// Where Superposition policy comes from: the baked file (default) or a remote
+    /// workspace. Loadable from the `[superposition]` table and `CS__SUPERPOSITION__*`
+    /// env vars, but excluded from the per-request `x-config-override` surface via
+    /// `#[patch(ignore)]`: a request header must never be able to repoint the policy
+    /// source or hand the process a different token.
+    #[serde(default)]
+    #[patch(ignore)]
+    pub superposition: SuperpositionSettings,
+    /// The initialised Superposition provider (connector URL resolution, the déjà
+    /// sampler). Built at startup from `superposition` + `config/superposition.toml`.
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
@@ -433,6 +442,16 @@ impl Config {
         // Fail loud at boot on an unsafe déjà configuration (e.g. replay in production).
         #[cfg(feature = "deja")]
         config.deja.validate(&config.common.environment)?;
+
+        // A remote Superposition source that was deliberately enabled but cannot be
+        // described (no endpoint/token/org/workspace) is a deployment error, not
+        // something to paper over with the baked file.
+        if config.superposition.enabled {
+            config
+                .superposition
+                .validate()
+                .map_err(|error| config::ConfigError::Message(error.to_string()))?;
+        }
 
         // Fail fast on malformed platform CA config, using the same PEM parser as
         // runtime client construction. Iterates the hand-maintained list in

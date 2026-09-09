@@ -5,6 +5,7 @@
 
 use std::{fmt, path::PathBuf};
 
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::{Map, Value};
 use superposition_provider::{
     data_source::file::FileDataSource, traits::AllFeatureProvider, EvaluationContext,
@@ -24,6 +25,84 @@ pub enum SuperpositionConfigError {
     InitializationError(String),
     #[error("Failed to resolve superposition configuration: {0}")]
     ResolutionError(String),
+    #[error("Invalid superposition configuration: {0}")]
+    InvalidConfiguration(String),
+}
+
+/// The `[superposition]` table: where policy comes from.
+///
+/// `enabled = false` (the default) keeps today's behaviour — the baked
+/// `config/superposition.toml`, watched for changes. `enabled = true` points the same
+/// provider at a remote workspace (polled), with the baked file as the fallback the
+/// provider consults if the remote source cannot initialise. Mirrors hyperswitch's
+/// `SuperpositionClientConfig` field for field; `enabled` is the one addition, because
+/// prism must boot file-first wherever no workspace exists yet.
+///
+/// Env overrides: `CS__SUPERPOSITION__{ENABLED,ENDPOINT,TOKEN,ORG_ID,WORKSPACE_ID,
+/// POLLING_INTERVAL,REQUEST_TIMEOUT,BACKUP_FILE_PATH}`.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct SuperpositionSettings {
+    pub enabled: bool,
+    /// Superposition server URL.
+    pub endpoint: String,
+    /// Workspace bearer token (a secret: never logged).
+    pub token: Secret<String>,
+    pub org_id: String,
+    pub workspace_id: String,
+    /// Seconds between polls of the remote workspace.
+    pub polling_interval: u64,
+    /// Request timeout in seconds for the poll. Kept for parity with hyperswitch; the
+    /// provider only logs it today.
+    pub request_timeout: Option<u64>,
+    /// Fallback the provider loads if the remote source fails at init. Consulted at init
+    /// ONLY — after a successful init a failed poll keeps the last good snapshot. Defaults
+    /// to the baked `config/superposition.toml` when unset.
+    pub backup_file_path: Option<PathBuf>,
+}
+
+impl Default for SuperpositionSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            endpoint: String::new(),
+            token: Secret::new(String::new()),
+            org_id: String::new(),
+            workspace_id: String::new(),
+            polling_interval: 15,
+            request_timeout: None,
+            backup_file_path: None,
+        }
+    }
+}
+
+impl SuperpositionSettings {
+    /// A deliberately enabled remote source with a broken config is a deployment error:
+    /// fail loud at boot rather than silently serving the file. Only meaningful when
+    /// `enabled`; callers skip it otherwise.
+    pub fn validate(&self) -> Result<(), SuperpositionConfigError> {
+        let invalid = |message: &str| {
+            Err(SuperpositionConfigError::InvalidConfiguration(
+                message.to_string(),
+            ))
+        };
+        if self.endpoint.trim().is_empty() {
+            return invalid("superposition.endpoint cannot be empty");
+        }
+        if url::Url::parse(&self.endpoint).is_err() {
+            return invalid("superposition.endpoint must be a valid URL");
+        }
+        if self.token.peek().trim().is_empty() {
+            return invalid("superposition.token cannot be empty");
+        }
+        if self.org_id.trim().is_empty() {
+            return invalid("superposition.org_id cannot be empty");
+        }
+        if self.workspace_id.trim().is_empty() {
+            return invalid("superposition.workspace_id cannot be empty");
+        }
+        Ok(())
+    }
 }
 
 /// Local provider backed by superposition.toml.
@@ -217,5 +296,48 @@ mod tests {
             get_optional_nonempty_string(&resolved, "key"),
             Some("value".to_string())
         );
+    }
+
+    fn remote_settings() -> SuperpositionSettings {
+        SuperpositionSettings {
+            enabled: true,
+            endpoint: "http://superposition:8080".to_string(),
+            token: Secret::new("sp_token".to_string()),
+            org_id: "hyperswitch".to_string(),
+            workspace_id: "prism".to_string(),
+            ..SuperpositionSettings::default()
+        }
+    }
+
+    /// The default table is the file-only posture: off, nothing to validate.
+    #[test]
+    fn settings_default_is_disabled_with_hyperswitch_polling_interval() {
+        let settings = SuperpositionSettings::default();
+        assert!(!settings.enabled);
+        assert_eq!(settings.polling_interval, 15);
+        assert!(settings.backup_file_path.is_none());
+    }
+
+    /// Mirrors hyperswitch's `SuperpositionClientConfig::validate`: every field a
+    /// remote source needs is checked, and each failure names its field.
+    #[test]
+    fn settings_validate_rejects_each_missing_remote_field() {
+        assert!(remote_settings().validate().is_ok());
+        let cases: [(&str, Box<dyn Fn(&mut SuperpositionSettings)>); 5] = [
+            ("endpoint", Box::new(|s| s.endpoint = "  ".to_string())),
+            (
+                "valid URL",
+                Box::new(|s| s.endpoint = "not a url".to_string()),
+            ),
+            ("token", Box::new(|s| s.token = Secret::new(String::new()))),
+            ("org_id", Box::new(|s| s.org_id = String::new())),
+            ("workspace_id", Box::new(|s| s.workspace_id = String::new())),
+        ];
+        for (needle, break_it) in cases {
+            let mut settings = remote_settings();
+            break_it(&mut settings);
+            let error = settings.validate().expect_err(needle).to_string();
+            assert!(error.contains(needle), "{error} should mention {needle}");
+        }
     }
 }
