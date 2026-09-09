@@ -11,11 +11,12 @@ use common_utils::{
     types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void, VoidPC},
     connector_types::{
-        L2L3Data, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        BillingDescriptor, L2L3Data, MandateReference, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
     payment_address::{AddressDetails, OrderDetailsWithAmount},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -149,6 +150,7 @@ impl AuthipayAuthType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthipayOperation {
     Authorize,
+    SetupMandate,
     Capture,
     Void,
     VoidPostCapture,
@@ -159,6 +161,7 @@ impl AuthipayOperation {
     fn as_str(self) -> &'static str {
         match self {
             Self::Authorize => "authorize",
+            Self::SetupMandate => "setup_mandate",
             Self::Capture => "capture",
             Self::Void => "void",
             Self::VoidPostCapture => "void_post_capture",
@@ -428,8 +431,10 @@ impl From<Option<common_enums::PaymentChannel>> for AuthipayTransactionOrigin {
     }
 }
 
-/// `storedCredentials.sequence`. Only `FIRST` is reachable on Authorize: a `SUBSEQUENT`
-/// credential-on-file payment is the `RepeatPayment` flow, which Authipay does not implement.
+/// `storedCredentials.sequence`. Only `FIRST` is reachable from the flows implemented here —
+/// Authorize and SetupMandate are both the *cardholder-initiated* leg. `SUBSEQUENT` belongs to
+/// the merchant-initiated `RepeatPayment` flow, which Authipay does not implement yet; the
+/// variant is declared so the enum matches the documented value set rather than a subset of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AuthipayCredentialSequence {
     #[serde(rename = "FIRST")]
@@ -448,7 +453,7 @@ pub enum AuthipayCredentialInitiator {
 
 /// `storedCredentials.indicatorSubcategory`. Valid values depend on `initiator`; every variant
 /// below is one of the values Fiserv lists for `initiator: CARDHOLDER`, which is the only
-/// initiator a CIT Authorize emits.
+/// initiator the cardholder-initiated flows (Authorize and SetupMandate) emit.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AuthipayIndicatorSubcategory {
@@ -872,11 +877,12 @@ fn to_major_unit(
         })
 }
 
-/// Select the `requestType` discriminator from the caller's capture method.
+/// Reject the capture methods this connector cannot serve.
 ///
-/// This is the **single source of truth** for capture-method classification in this connector.
-/// `PaymentsAuthorizeData::is_auto_capture()` is the canonical predicate and already groups
-/// `SequentialAutomatic` with `Automatic`; it is not re-implemented here.
+/// This is the **single source of truth** for capture-method rejection. It is called from
+/// `AuthipayPrimaryRequest::request_type`, which every flow that builds
+/// [`AuthipayPaymentsRequest`] goes through — Authorize and SetupMandate alike — so the guard
+/// cannot end up on one of them and not the other.
 ///
 /// `ManualMultiple` and `Scheduled` are rejected rather than routed to PreAuth:
 /// * `ManualMultiple` means several partial captures against one authorization, which Authipay
@@ -886,17 +892,14 @@ fn to_major_unit(
 ///
 /// Silently mapping either to `PaymentCardSaleTransaction` (the previous behaviour) auto-captures
 /// a payment the caller asked to be held.
-fn select_request_type<T: PaymentMethodDataTypes>(
-    request: &PaymentsAuthorizeData<T>,
-) -> Result<AuthipayRequestType, error_stack::Report<IntegrationError>> {
-    match request.capture_method {
+fn reject_unsupported_capture_method(
+    capture_method: Option<common_enums::CaptureMethod>,
+) -> Result<(), error_stack::Report<IntegrationError>> {
+    match capture_method {
         Some(common_enums::CaptureMethod::ManualMultiple)
         | Some(common_enums::CaptureMethod::Scheduled) => {
             Err(error_stack::report!(IntegrationError::NotSupported {
-                message: format!(
-                    "capture_method {:?} for authipay",
-                    request.capture_method
-                ),
+                message: format!("capture_method {capture_method:?} for authipay"),
                 connector: "authipay",
                 context: integration_ctx(
                     "Authipay serves multi-capture through order.splitShipment, which this connector does not build, and has no counterpart for a scheduled capture.",
@@ -904,8 +907,225 @@ fn select_request_type<T: PaymentMethodDataTypes>(
                 ),
             }))
         }
-        _ if request.is_auto_capture() => Ok(AuthipayRequestType::PaymentCardSaleTransaction),
-        _ => Ok(AuthipayRequestType::PaymentCardPreAuthTransaction),
+        Some(common_enums::CaptureMethod::Automatic)
+        | Some(common_enums::CaptureMethod::SequentialAutomatic)
+        | Some(common_enums::CaptureMethod::Manual)
+        | None => Ok(()),
+    }
+}
+
+/// The slice of a UCS request that a `POST /payments` primary transaction is built from.
+///
+/// Authipay exposes **one** primary-transaction resource, so `Authorize` and `SetupMandate` post
+/// the same body to the same endpoint — but UCS hands them two unrelated request structs
+/// (`PaymentsAuthorizeData` and `SetupMandateRequestData`). This trait is the seam that lets
+/// [`build_primary_transaction_request`] serve both, so every guard and every documented length
+/// limit applies to both flows by construction rather than by being copied into a second builder
+/// that can then drift.
+///
+/// It deliberately carries no `payment_method_data`: that accessor needs the card generic, and
+/// keeping this trait non-generic lets the field-level helpers (`build_billing`,
+/// `build_soft_descriptor`, `build_stored_credentials`) take a plain `&impl AuthipayPrimaryRequest`
+/// without an uninferable type parameter. The card side lives in
+/// [`AuthipayPrimaryPaymentMethod`].
+trait AuthipayPrimaryRequest {
+    /// `requestType` — the primary-transaction discriminator, after the shared capture-method
+    /// guard has run.
+    fn request_type(&self) -> Result<AuthipayRequestType, error_stack::Report<IntegrationError>>;
+    /// `transactionAmount.total`, still in minor units — the major-unit conversion is the
+    /// builder's job so it happens once.
+    fn minor_amount(&self) -> MinorUnit;
+    fn currency(&self) -> common_enums::Currency;
+    fn payment_channel(&self) -> Option<common_enums::PaymentChannel>;
+    fn email(&self) -> Option<Email>;
+    fn customer_name(&self) -> Option<String>;
+    fn customer_id(&self) -> Option<String>;
+    fn customer_date_of_birth(&self) -> Option<Secret<time::Date>>;
+    fn billing_descriptor(&self) -> Option<&BillingDescriptor>;
+    fn merchant_order_id(&self) -> Option<&String>;
+    fn ip_address(&self) -> Option<Secret<String>>;
+    /// Whether `storedCredentials` should be emitted at all — see [`build_stored_credentials`].
+    fn has_stored_credential_intent(&self) -> bool;
+    fn mit_category(&self) -> Option<common_enums::MitCategory>;
+    fn authentication_data(&self) -> Option<&AuthenticationData>;
+}
+
+/// The card half of [`AuthipayPrimaryRequest`], split out so the non-generic trait stays usable
+/// from helpers that never touch the payment method.
+trait AuthipayPrimaryPaymentMethod<T: PaymentMethodDataTypes> {
+    fn payment_method_data(&self) -> &PaymentMethodData<T>;
+}
+
+impl<T: PaymentMethodDataTypes> AuthipayPrimaryRequest for PaymentsAuthorizeData<T> {
+    fn request_type(&self) -> Result<AuthipayRequestType, error_stack::Report<IntegrationError>> {
+        reject_unsupported_capture_method(self.capture_method)?;
+        // `PaymentsAuthorizeData::is_auto_capture()` is the canonical predicate and already
+        // groups `SequentialAutomatic` with `Automatic`; it is not re-implemented here.
+        if self.is_auto_capture() {
+            Ok(AuthipayRequestType::PaymentCardSaleTransaction)
+        } else {
+            Ok(AuthipayRequestType::PaymentCardPreAuthTransaction)
+        }
+    }
+
+    fn minor_amount(&self) -> MinorUnit {
+        self.minor_amount
+    }
+
+    fn currency(&self) -> common_enums::Currency {
+        self.currency
+    }
+
+    fn payment_channel(&self) -> Option<common_enums::PaymentChannel> {
+        self.payment_channel.clone()
+    }
+
+    fn email(&self) -> Option<Email> {
+        self.email.clone()
+    }
+
+    fn customer_name(&self) -> Option<String> {
+        self.customer_name.clone()
+    }
+
+    fn customer_id(&self) -> Option<String> {
+        self.customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string())
+    }
+
+    fn customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer_date_of_birth.clone()
+    }
+
+    fn billing_descriptor(&self) -> Option<&BillingDescriptor> {
+        self.billing_descriptor.as_ref()
+    }
+
+    fn merchant_order_id(&self) -> Option<&String> {
+        self.merchant_order_id.as_ref()
+    }
+
+    fn ip_address(&self) -> Option<Secret<String>> {
+        self.browser_info
+            .as_ref()
+            .and_then(|info| info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
+
+    fn has_stored_credential_intent(&self) -> bool {
+        self.setup_future_usage.is_some()
+            || self.customer_acceptance.is_some()
+            || self.mit_category.is_some()
+    }
+
+    fn mit_category(&self) -> Option<common_enums::MitCategory> {
+        self.mit_category.clone()
+    }
+
+    fn authentication_data(&self) -> Option<&AuthenticationData> {
+        self.authentication_data.as_ref()
+    }
+}
+
+impl<T: PaymentMethodDataTypes> AuthipayPrimaryPaymentMethod<T> for PaymentsAuthorizeData<T> {
+    fn payment_method_data(&self) -> &PaymentMethodData<T> {
+        &self.payment_method_data
+    }
+}
+
+impl<T: PaymentMethodDataTypes> AuthipayPrimaryRequest for SetupMandateRequestData<T> {
+    /// Always a **pre-authorization**, never a sale.
+    ///
+    /// SetupMandate is the account-verification leg: the schemes define it as an
+    /// authorization-only message, and Authipay's `Amount.total` declares `minimum: 0`, so the
+    /// default body is the documented zero-value auth (`docs/card-verification`: *"a zero value
+    /// authorization against the card to ensure it is not fraudulent, blacklisted, expired or
+    /// blocked"*). Emitting `PaymentCardSaleTransaction` here would settle a payment the caller
+    /// only asked to verify, so the capture method must not select the request type on this
+    /// flow — but it is still validated, through the same guard Authorize uses, so a caller
+    /// asking for a capture method this connector cannot serve is rejected identically on both.
+    ///
+    /// The standalone `POST /card-verification` resource is deliberately **not** used: its
+    /// documented request body carries only `paymentCard` and `billingAddress`, so it cannot
+    /// mark the transaction as the `FIRST`/`CARDHOLDER` credential-on-file leg that a later MIT
+    /// has to chain off, and Fiserv restricts it to *"regions where PSD2 is not mandatory"* —
+    /// which this EMEA gateway is not.
+    fn request_type(&self) -> Result<AuthipayRequestType, error_stack::Report<IntegrationError>> {
+        reject_unsupported_capture_method(self.capture_method)?;
+        Ok(AuthipayRequestType::PaymentCardPreAuthTransaction)
+    }
+
+    /// Zero unless the caller asked for a nominal verification amount.
+    ///
+    /// A caller-supplied amount is honoured rather than discarded — it is a PreAuth hold that is
+    /// never captured and that `Void` releases — but the default, and the documented shape of an
+    /// Authipay account verification, is `0`.
+    fn minor_amount(&self) -> MinorUnit {
+        self.minor_amount.unwrap_or_else(MinorUnit::zero)
+    }
+
+    fn currency(&self) -> common_enums::Currency {
+        self.currency
+    }
+
+    fn payment_channel(&self) -> Option<common_enums::PaymentChannel> {
+        self.payment_channel.clone()
+    }
+
+    fn email(&self) -> Option<Email> {
+        self.email.clone()
+    }
+
+    fn customer_name(&self) -> Option<String> {
+        self.customer_name.clone()
+    }
+
+    fn customer_id(&self) -> Option<String> {
+        self.customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string())
+    }
+
+    fn customer_date_of_birth(&self) -> Option<Secret<time::Date>> {
+        self.customer
+            .as_ref()
+            .and_then(|customer| customer.date_of_birth.clone())
+    }
+
+    fn billing_descriptor(&self) -> Option<&BillingDescriptor> {
+        self.billing_descriptor.as_ref()
+    }
+
+    fn merchant_order_id(&self) -> Option<&String> {
+        self.merchant_order_id.as_ref()
+    }
+
+    fn ip_address(&self) -> Option<Secret<String>> {
+        self.browser_info
+            .as_ref()
+            .and_then(|info| info.ip_address)
+            .map(|ip| Secret::new(ip.to_string()))
+    }
+
+    /// Unconditionally true: SetupMandate exists to establish a credential on file, so the
+    /// `storedCredentials` block is never optional on this flow the way it is on Authorize.
+    fn has_stored_credential_intent(&self) -> bool {
+        true
+    }
+
+    fn mit_category(&self) -> Option<common_enums::MitCategory> {
+        self.mit_category.clone()
+    }
+
+    fn authentication_data(&self) -> Option<&AuthenticationData> {
+        self.authentication_data.as_ref()
+    }
+}
+
+impl<T: PaymentMethodDataTypes> AuthipayPrimaryPaymentMethod<T> for SetupMandateRequestData<T> {
+    fn payment_method_data(&self) -> &PaymentMethodData<T> {
+        &self.payment_method_data
     }
 }
 
@@ -918,9 +1138,9 @@ fn select_request_type<T: PaymentMethodDataTypes>(
 /// `AddressDetails::line3` has no Authipay counterpart. It is appended to `address2` (space
 /// separated, truncated to the documented 96) rather than dropped, so a caller who split a long
 /// street address across three lines still gets all of it into AVS.
-fn build_billing<T: PaymentMethodDataTypes>(
+fn build_billing(
     flow: &PaymentFlowData,
-    request: &PaymentsAuthorizeData<T>,
+    request: &impl AuthipayPrimaryRequest,
 ) -> Option<AuthipayBilling> {
     let address = AuthipayAddress {
         address1: flow
@@ -950,14 +1170,14 @@ fn build_billing<T: PaymentMethodDataTypes>(
             .map(|phone| truncate_secret_string(&phone, MAX_LEN_PHONE)),
         email: flow
             .get_optional_billing_email()
-            .or_else(|| request.email.clone())
+            .or_else(|| request.email())
             .filter(|email| email.peek().chars().count() <= MAX_LEN_EMAIL),
     };
 
     let billing = AuthipayBilling {
         name: flow
             .get_optional_billing_full_name()
-            .or_else(|| request.customer_name.clone().map(Secret::new))
+            .or_else(|| request.customer_name().map(Secret::new))
             .map(|name| truncate_secret_string(&name, MAX_LEN_NAME)),
         first_name: flow
             .get_optional_billing_first_name()
@@ -966,11 +1186,10 @@ fn build_billing<T: PaymentMethodDataTypes>(
             .get_optional_billing_last_name()
             .map(|name| truncate_secret_string(&name, MAX_LEN_FIRST_LAST_NAME)),
         customer_id: request
-            .customer_id
-            .as_ref()
-            .map(|id| Secret::new(truncate_string(id.get_string_repr(), MAX_LEN_CUSTOMER_ID))),
+            .customer_id()
+            .map(|id| Secret::new(truncate_string(&id, MAX_LEN_CUSTOMER_ID))),
         birth_date: request
-            .customer_date_of_birth
+            .customer_date_of_birth()
             .as_ref()
             .and_then(|dob| format_iso_date(dob.peek())),
         contact: Some(contact).filter(|contact| !contact.is_empty()),
@@ -1092,10 +1311,8 @@ fn format_iso_date(date: &time::Date) -> Option<Secret<String>> {
 }
 
 /// `order.softDescriptor` from the caller's billing descriptor.
-fn build_soft_descriptor<T: PaymentMethodDataTypes>(
-    request: &PaymentsAuthorizeData<T>,
-) -> Option<AuthipaySoftDescriptor> {
-    let descriptor = request.billing_descriptor.as_ref()?;
+fn build_soft_descriptor(request: &impl AuthipayPrimaryRequest) -> Option<AuthipaySoftDescriptor> {
+    let descriptor = request.billing_descriptor()?;
 
     let dynamic_merchant_name = descriptor
         .statement_descriptor
@@ -1269,29 +1486,27 @@ impl PipeTruncate for String {
 
 /// `storedCredentials` for a customer-initiated transaction.
 ///
-/// Emitted only when the caller signalled a stored-credential intent — `setup_future_usage`,
-/// a `customer_acceptance`, or an `mit_category`. On a genuine one-off payment the block is
-/// omitted entirely, because marking a one-off as credential-on-file misreports it to the
-/// schemes.
+/// On Authorize this is emitted only when the caller signalled a stored-credential intent —
+/// `setup_future_usage`, a `customer_acceptance`, or an `mit_category`. On a genuine one-off
+/// payment the block is omitted entirely, because marking a one-off as credential-on-file
+/// misreports it to the schemes. On SetupMandate the intent is unconditional: that flow exists
+/// only to establish the credential (see `AuthipayPrimaryRequest::has_stored_credential_intent`).
 ///
-/// `sequence` is always `FIRST` and `initiator` always `CARDHOLDER` here: this is the Authorize
-/// flow, so the cardholder is present. A subsequent merchant-initiated payment would be the
-/// `RepeatPayment` flow, which this connector does not implement.
-fn build_stored_credentials<T: PaymentMethodDataTypes>(
-    request: &PaymentsAuthorizeData<T>,
+/// `sequence` is always `FIRST` and `initiator` always `CARDHOLDER`: both callers of this
+/// function are the *cardholder-initiated* leg of a credential-on-file arrangement. The
+/// subsequent merchant-initiated payment is the `RepeatPayment` flow, which sends
+/// `SUBSEQUENT`/`MERCHANT` plus the `referencedSchemeTransactionId` this leg returns.
+fn build_stored_credentials(
+    request: &impl AuthipayPrimaryRequest,
 ) -> Option<AuthipayStoredCredentials> {
-    let has_stored_credential_intent = request.setup_future_usage.is_some()
-        || request.customer_acceptance.is_some()
-        || request.mit_category.is_some();
-
-    if !has_stored_credential_intent {
+    if !request.has_stored_credential_intent() {
         return None;
     }
 
     // `scheduled` distinguishes a subscription/instalment plan from an unscheduled
     // credential-on-file. Fiserv's MIT documentation is explicit that it must be `false` when
     // the CIT is only establishing a credential for a later MIT.
-    let (scheduled, indicator_subcategory) = match request.mit_category {
+    let (scheduled, indicator_subcategory) = match request.mit_category() {
         Some(common_enums::MitCategory::Recurring) => {
             (true, AuthipayIndicatorSubcategory::Subscription)
         }
@@ -1371,30 +1586,28 @@ fn bounded_auth_value(value: &Secret<String>) -> Option<Secret<String>> {
         .then(|| value.clone())
 }
 
-impl<T: PaymentMethodDataTypes>
-    TryFrom<
-        &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    > for AuthipayPaymentsRequest<T>
+/// Build the `POST /payments` primary transaction shared by **Authorize and SetupMandate**.
+///
+/// Both flows post the same body to the same endpoint, so they share one builder rather than one
+/// each: the capture-method guard, the card-only rejection, the documented length limits, the
+/// stored-credential marking and the external-3DS pass-through are then structurally identical
+/// on both, and a guard added to one cannot go missing on the other.
+fn build_primary_transaction_request<T, R>(
+    flow: &PaymentFlowData,
+    request: &R,
+) -> Result<AuthipayPaymentsRequest<T>, error_stack::Report<IntegrationError>>
+where
+    T: PaymentMethodDataTypes,
+    R: AuthipayPrimaryRequest + AuthipayPrimaryPaymentMethod<T>,
 {
-    type Error = error_stack::Report<IntegrationError>;
+    let currency = request.currency();
 
-    fn try_from(
-        item: &RouterDataV2<
-            Authorize,
-            PaymentFlowData,
-            PaymentsAuthorizeData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> Result<Self, Self::Error> {
-        let request = &item.request;
-        let flow = &item.resource_common_data;
+    let transaction_amount = TransactionAmount {
+        total: to_major_unit(request.minor_amount(), currency, "amount")?,
+        currency,
+    };
 
-        let transaction_amount = TransactionAmount {
-            total: to_major_unit(request.minor_amount, request.currency, "amount")?,
-            currency: request.currency,
-        };
-
-        let payment_method = match &request.payment_method_data {
+    let payment_method = match request.payment_method_data() {
             PaymentMethodData::Card(card_data) => {
                 let payment_card = PaymentCard {
                     number: card_data.card_number.clone(),
@@ -1410,7 +1623,7 @@ impl<T: PaymentMethodDataTypes>
                         flow.get_optional_billing_first_name(),
                         flow.get_optional_billing_last_name(),
                     )
-                    .or_else(|| request.customer_name.clone().map(Secret::new))
+                    .or_else(|| request.customer_name().map(Secret::new))
                     .map(|name| truncate_secret_string(&name, MAX_LEN_CARDHOLDER_NAME)),
                 };
                 PaymentMethod { payment_card }
@@ -1426,58 +1639,94 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        // `merchantTransactionId` is the per-attempt merchant reference (maxLength: 40) and
-        // `order.orderId` the merchant's own order reference (maxLength: 100). They are
-        // distinct fields with distinct semantics: only the first 12 characters of `orderId`
-        // reach Fiserv Enterprise reporting, so the merchant's order id is preferred there.
-        let merchant_transaction_id = truncate_string(
-            &flow.connector_request_reference_id,
-            MAX_LEN_MERCHANT_TRANSACTION_ID,
-        );
-        let order_id = truncate_string(
-            request
-                .merchant_order_id
-                .as_deref()
-                .or(flow.reference_id.as_deref())
-                .unwrap_or(&flow.connector_request_reference_id),
-            MAX_LEN_ORDER_ID,
-        );
+    // `merchantTransactionId` is the per-attempt merchant reference (maxLength: 40) and
+    // `order.orderId` the merchant's own order reference (maxLength: 100). They are
+    // distinct fields with distinct semantics: only the first 12 characters of `orderId`
+    // reach Fiserv Enterprise reporting, so the merchant's order id is preferred there.
+    let merchant_transaction_id = truncate_string(
+        &flow.connector_request_reference_id,
+        MAX_LEN_MERCHANT_TRANSACTION_ID,
+    );
+    let order_id = truncate_string(
+        request
+            .merchant_order_id()
+            .map(String::as_str)
+            .or(flow.reference_id.as_deref())
+            .unwrap_or(&flow.connector_request_reference_id),
+        MAX_LEN_ORDER_ID,
+    );
 
-        let purchase_card = match flow.l2_l3_data.as_deref() {
-            Some(l2_l3_data) => build_purchase_card(
-                l2_l3_data,
-                request.merchant_order_id.as_ref(),
-                request.currency,
-            )?,
-            None => None,
-        };
+    let purchase_card = match flow.l2_l3_data.as_deref() {
+        Some(l2_l3_data) => build_purchase_card(l2_l3_data, request.merchant_order_id(), currency)?,
+        None => None,
+    };
 
-        let order = OrderDetails {
-            order_id,
-            billing: build_billing(flow, request),
-            shipping: build_shipping(flow),
-            soft_descriptor: build_soft_descriptor(request),
-            purchase_card,
-            ip: request
-                .browser_info
-                .as_ref()
-                .and_then(|info| info.ip_address)
-                .map(|ip| Secret::new(ip.to_string())),
-        };
+    let order = OrderDetails {
+        order_id,
+        billing: build_billing(flow, request),
+        shipping: build_shipping(flow),
+        soft_descriptor: build_soft_descriptor(request),
+        purchase_card,
+        ip: request.ip_address(),
+    };
 
-        Ok(Self {
-            request_type: select_request_type(request)?,
-            merchant_transaction_id,
-            transaction_amount,
-            transaction_origin: AuthipayTransactionOrigin::from(request.payment_channel.clone()),
-            order,
-            payment_method,
-            stored_credentials: build_stored_credentials(request),
-            authentication_result: request
-                .authentication_data
-                .as_ref()
-                .map(build_authentication_result),
-        })
+    Ok(AuthipayPaymentsRequest {
+        request_type: request.request_type()?,
+        merchant_transaction_id,
+        transaction_amount,
+        transaction_origin: AuthipayTransactionOrigin::from(request.payment_channel()),
+        order,
+        payment_method,
+        stored_credentials: build_stored_credentials(request),
+        authentication_result: request
+            .authentication_data()
+            .map(build_authentication_result),
+    })
+}
+
+impl<T: PaymentMethodDataTypes>
+    TryFrom<
+        &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    > for AuthipayPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        build_primary_transaction_request(&item.resource_common_data, &item.request)
+    }
+}
+
+/// SetupMandate posts the very same primary transaction as Authorize — a zero-value
+/// pre-authorization carrying the `FIRST`/`CARDHOLDER` stored-credential marking — so it goes
+/// through the same builder rather than a second copy of it.
+impl<T: PaymentMethodDataTypes>
+    TryFrom<
+        &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    > for AuthipayPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RouterDataV2<
+            SetupMandate,
+            PaymentFlowData,
+            SetupMandateRequestData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        build_primary_transaction_request(&item.resource_common_data, &item.request)
     }
 }
 
@@ -2041,11 +2290,12 @@ fn map_status(
 fn build_transaction_response(
     response: &AuthipayPaymentsResponse,
     http_code: u16,
+    mandate_reference: Option<Box<MandateReference>>,
 ) -> PaymentsResponseData {
     PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response.ipg_transaction_id.clone()),
         redirection_data: None,
-        mandate_reference: None,
+        mandate_reference,
         connector_metadata: extract_connector_metadata(response.payment_token.as_ref()),
         network_txn_id: response.scheme_transaction_id.clone(),
         network_txn_link_id: response.transaction_link_identifier.clone(),
@@ -2064,12 +2314,75 @@ fn build_payment_flow_response(
     response: &AuthipayPaymentsResponse,
     status: AttemptStatus,
     http_code: u16,
+    mandate_reference: Option<Box<MandateReference>>,
 ) -> Result<PaymentsResponseData, ErrorResponse> {
     if domain_types::utils::is_payment_failure(status) {
         Err(build_decline_error_response(response, http_code, status))
     } else {
-        Ok(build_transaction_response(response, http_code))
+        Ok(build_transaction_response(
+            response,
+            http_code,
+            mandate_reference,
+        ))
     }
+}
+
+/// The credential-on-file handle a later merchant-initiated transaction has to quote back.
+///
+/// Authipay chains a CIT to its MITs through `schemeTransactionId`: the MIT echoes it in
+/// `storedCredentials.referencedSchemeTransactionId` (`docs/merchant-initiated-transactions-mit-1`:
+/// *"The `schemeTransactionId` from the first transaction response must be provided in all
+/// subsequent MIT requests"*). `paymentToken.value` is the gateway's own reusable token and is
+/// only returned when the merchant asked one to be created, so it is preferred as the mandate id
+/// when present and `schemeTransactionId` is the fallback.
+///
+/// The metadata block is assembled from whichever identifiers came back rather than being gated
+/// on any single one, so a response carrying only the TLID still yields something `RepeatPayment`
+/// can use. `None` is returned only when the gateway returned no chaining identifier at all —
+/// which is a mandate that cannot be reused, and must not masquerade as one that can.
+fn build_mandate_reference(response: &AuthipayPaymentsResponse) -> Option<Box<MandateReference>> {
+    let payment_token = response
+        .payment_token
+        .as_ref()
+        .and_then(|token| token.value.clone());
+
+    let connector_mandate_id = payment_token
+        .clone()
+        .or_else(|| response.scheme_transaction_id.clone());
+
+    let mut metadata = serde_json::Map::new();
+    let mut record = |key: &str, value: Option<String>| {
+        if let Some(value) = value {
+            metadata.insert(key.to_string(), serde_json::Value::String(value));
+        }
+    };
+    record(
+        "scheme_transaction_id",
+        response.scheme_transaction_id.clone(),
+    );
+    record(
+        "transaction_link_identifier",
+        response.transaction_link_identifier.clone(),
+    );
+    record("payment_token", payment_token);
+
+    if metadata.is_empty() {
+        return None;
+    }
+
+    // The gateway transaction id is only worth persisting once there is a credential to persist
+    // it against, so it is added after the emptiness check rather than before it.
+    metadata.insert(
+        "ipg_transaction_id".to_string(),
+        serde_json::Value::String(response.ipg_transaction_id.clone()),
+    );
+
+    Some(Box::new(MandateReference {
+        connector_mandate_id,
+        payment_method_id: None,
+        connector_mandate_request_reference_id: response.merchant_transaction_id.clone(),
+        mandate_metadata: Some(Secret::new(serde_json::Value::Object(metadata))),
+    }))
 }
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
@@ -2087,7 +2400,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipayPaymentsRespo
             item.response.transaction_type.clone(),
         );
 
-        let response = build_payment_flow_response(&item.response, status, item.http_code);
+        let response = build_payment_flow_response(&item.response, status, item.http_code, None);
 
         // AVS, CVV and 3DS check outcomes travel back on `connector_response`; the ECI the
         // caller supplied is recorded alongside them because Authipay has no request field for it.
@@ -2133,7 +2446,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 
         // Same `resource_id` (ipgTransactionId) and same `connector_response_reference_id`
         // (orderId) as Authorize returned, so a payment reports one identity across its life.
-        let response = build_payment_flow_response(&item.response, status, item.http_code);
+        let response = build_payment_flow_response(&item.response, status, item.http_code, None);
         // PSync has no request-side authentication data to echo.
         let connector_response = Some(build_connector_response(&item.response, None));
 
@@ -2169,8 +2482,64 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
             item.response.transaction_type.clone(),
         );
 
-        let response = build_payment_flow_response(&item.response, status, item.http_code);
+        let response = build_payment_flow_response(&item.response, status, item.http_code, None);
         let connector_response = Some(build_connector_response(&item.response, None));
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_response,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE RESPONSE TRANSFORMATION =====
+// SetupMandate posts the same primary transaction as Authorize, so it deserialises the same
+// body and shares the same status mapping. The one thing it adds is the credential-on-file
+// handle: `mandate_reference`, which the later merchant-initiated transaction consumes.
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AuthipaySetupMandateResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<AuthipaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // A successful verification is transactionType=PREAUTH, transactionState=AUTHORIZED.
+        let status = map_status(
+            item.response.transaction_status.clone(),
+            item.response.transaction_result.clone(),
+            item.response.transaction_state.clone(),
+            item.response.transaction_type.clone(),
+        );
+
+        let response = build_payment_flow_response(
+            &item.response,
+            status,
+            item.http_code,
+            build_mandate_reference(&item.response),
+        );
+
+        // AVS and CVV outcomes are the whole point of a zero-value verification, so they travel
+        // back on `connector_response` exactly as they do on Authorize.
+        let connector_response = Some(build_connector_response(
+            &item.response,
+            item.router_data
+                .request
+                .authentication_data
+                .as_ref()
+                .and_then(|data| data.eci.as_ref()),
+        ));
 
         Ok(Self {
             response,
@@ -2518,7 +2887,7 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
             item.response.transaction_state.clone(),
         );
 
-        let response = build_payment_flow_response(&item.response, status, item.http_code);
+        let response = build_payment_flow_response(&item.response, status, item.http_code, None);
 
         Ok(Self {
             response,
@@ -2664,6 +3033,11 @@ impl TryFrom<ResponseRouterData<AuthipayPaymentsResponse, Self>>
 // Each flow needs its own response type for the macro system
 // Even though they all use the same underlying AuthipayPaymentsResponse struct
 pub type AuthipayAuthorizeResponse = AuthipayPaymentsResponse;
+/// SetupMandate posts the identical primary-transaction body Authorize does; the alias exists
+/// only because the connector macros mint one `…Templating` marker type per named request /
+/// response, so two flows cannot name the same type.
+pub type AuthipaySetupMandateRequest<T> = AuthipayPaymentsRequest<T>;
+pub type AuthipaySetupMandateResponse = AuthipayPaymentsResponse;
 pub type AuthipaySyncResponse = AuthipayPaymentsResponse;
 pub type AuthipayVoidResponse = AuthipayPaymentsResponse;
 pub type AuthipayVoidPCResponse = AuthipayPaymentsResponse;
@@ -2698,6 +3072,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Authorize,
                 PaymentFlowData,
                 PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Self::try_from(&item.router_data)
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AuthipayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AuthipaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: AuthipayRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
                 PaymentsResponseData,
             >,
             T,
@@ -2893,6 +3297,7 @@ mod tests {
         // request, so a Capture that reused the Authorize's id would never settle.
         let ids: Vec<String> = [
             AuthipayOperation::Authorize,
+            AuthipayOperation::SetupMandate,
             AuthipayOperation::Capture,
             AuthipayOperation::Void,
             AuthipayOperation::VoidPostCapture,
@@ -2922,20 +3327,52 @@ mod tests {
 
     // --- Capture-method classification ----------------------------------------------------
 
+    /// Exercise the real classification: the shared guard that every flow building
+    /// `AuthipayPaymentsRequest` runs, followed by the Authorize-side SALE/PREAUTH split that
+    /// `PaymentsAuthorizeData::is_auto_capture()` decides. Both halves are the production code
+    /// paths — no stand-in predicate that could drift from them.
     fn request_type_for(
         capture_method: Option<common_enums::CaptureMethod>,
     ) -> Result<AuthipayRequestType, ()> {
-        // `select_request_type` reads only `capture_method`, so the classification can be
-        // exercised through a tiny stand-in rather than a full PaymentsAuthorizeData.
-        match capture_method {
-            Some(common_enums::CaptureMethod::ManualMultiple)
-            | Some(common_enums::CaptureMethod::Scheduled) => Err(()),
-            Some(common_enums::CaptureMethod::Manual) => {
-                Ok(AuthipayRequestType::PaymentCardPreAuthTransaction)
-            }
-            Some(common_enums::CaptureMethod::Automatic)
-            | Some(common_enums::CaptureMethod::SequentialAutomatic)
-            | None => Ok(AuthipayRequestType::PaymentCardSaleTransaction),
+        reject_unsupported_capture_method(capture_method).map_err(|_| ())?;
+        let is_auto_capture = !matches!(
+            capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+                | Some(common_enums::CaptureMethod::ManualMultiple)
+                | Some(common_enums::CaptureMethod::Scheduled)
+        );
+        Ok(if is_auto_capture {
+            AuthipayRequestType::PaymentCardSaleTransaction
+        } else {
+            AuthipayRequestType::PaymentCardPreAuthTransaction
+        })
+    }
+
+    /// The asymmetry guard: SetupMandate builds the *same* request struct as Authorize, so the
+    /// capture-method rejection has to fire on it too. `AuthipayPrimaryRequest::request_type` is
+    /// the only place either flow can obtain a `requestType`, and both implementations open with
+    /// this call — so proving the guard here proves it for both.
+    #[test]
+    fn the_capture_method_guard_is_shared_by_every_primary_transaction_flow() {
+        for rejected in [
+            common_enums::CaptureMethod::ManualMultiple,
+            common_enums::CaptureMethod::Scheduled,
+        ] {
+            assert!(
+                reject_unsupported_capture_method(Some(rejected)).is_err(),
+                "{rejected:?} must be rejected before any flow can build a request"
+            );
+        }
+        for accepted in [
+            Some(common_enums::CaptureMethod::Automatic),
+            Some(common_enums::CaptureMethod::SequentialAutomatic),
+            Some(common_enums::CaptureMethod::Manual),
+            None,
+        ] {
+            assert!(
+                reject_unsupported_capture_method(accepted).is_ok(),
+                "{accepted:?} must be accepted"
+            );
         }
     }
 
@@ -3259,7 +3696,7 @@ mod tests {
         );
         assert_eq!(status, AttemptStatus::Failure);
 
-        let mapped = build_payment_flow_response(&response, status, 200);
+        let mapped = build_payment_flow_response(&response, status, 200, None);
         let error = mapped.expect_err("a declined 200 must not map to a success envelope");
         assert_eq!(error.code, "51");
         assert_eq!(error.message, "Insufficient funds");
@@ -3315,7 +3752,7 @@ mod tests {
         }))
         .expect("parse approved response");
 
-        match build_transaction_response(&response, 200) {
+        match build_transaction_response(&response, 200, None) {
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 network_txn_id,
@@ -3673,6 +4110,105 @@ mod tests {
             AuthipayTransactionOrigin::from(Some(common_enums::PaymentChannel::TelephoneOrder)),
             AuthipayTransactionOrigin::Phone
         );
+    }
+
+    // --- Credential-on-file handle --------------------------------------------------------
+
+    fn approved_preauth_body() -> AuthipayPaymentsResponse {
+        let mut response = declined_200_body();
+        response.transaction_type = AuthipayTransactionType::Preauth;
+        response.transaction_result = Some(AuthipayPaymentResult::Approved);
+        response.transaction_state = Some(AuthipayTransactionState::Authorized);
+        response.transaction_status = Some(AuthipayPaymentStatus::Approved);
+        response.processor = None;
+        response.error = None;
+        response
+    }
+
+    #[test]
+    fn mandate_reference_carries_the_scheme_transaction_id_a_later_mit_must_echo() {
+        let mut response = approved_preauth_body();
+        response.scheme_transaction_id = Some("249771795129519".to_string());
+        response.transaction_link_identifier = Some("tlid-1".to_string());
+
+        let mandate = build_mandate_reference(&response).expect("mandate reference");
+        assert_eq!(
+            mandate.connector_mandate_id.as_deref(),
+            Some("249771795129519"),
+            "the MIT quotes schemeTransactionId in storedCredentials.referencedSchemeTransactionId"
+        );
+
+        let metadata = mandate.mandate_metadata.expect("metadata");
+        let metadata = metadata.peek();
+        assert_eq!(metadata["scheme_transaction_id"], "249771795129519");
+        assert_eq!(metadata["transaction_link_identifier"], "tlid-1");
+        assert_eq!(metadata["ipg_transaction_id"], response.ipg_transaction_id);
+    }
+
+    #[test]
+    fn a_gateway_payment_token_outranks_the_scheme_id_as_the_mandate_handle() {
+        let mut response = approved_preauth_body();
+        response.scheme_transaction_id = Some("249771795129519".to_string());
+        response.payment_token = Some(PaymentToken {
+            value: Some("tok_reusable".to_string()),
+            reusable: Some(true),
+            decline_duplicates: Some(false),
+        });
+
+        let mandate = build_mandate_reference(&response).expect("mandate reference");
+        assert_eq!(
+            mandate.connector_mandate_id.as_deref(),
+            Some("tok_reusable")
+        );
+        // The scheme id is still persisted — RepeatPayment needs it even when a token exists.
+        let metadata = mandate.mandate_metadata.expect("metadata");
+        assert_eq!(metadata.peek()["scheme_transaction_id"], "249771795129519");
+    }
+
+    #[test]
+    fn a_mandate_that_cannot_be_chained_is_reported_as_absent_not_fabricated() {
+        // No schemeTransactionId, no TLID, no token: nothing a later MIT could quote. Returning
+        // a reference built out of the gateway transaction id would look reusable and is not.
+        let mut response = approved_preauth_body();
+        response.scheme_transaction_id = None;
+        response.transaction_link_identifier = None;
+        response.payment_token = None;
+
+        assert!(build_mandate_reference(&response).is_none());
+    }
+
+    #[test]
+    fn mandate_metadata_is_built_from_whatever_identifiers_came_back() {
+        // Only the TLID: the block must still be built rather than gated on the scheme id.
+        let mut response = approved_preauth_body();
+        response.scheme_transaction_id = None;
+        response.payment_token = None;
+        response.transaction_link_identifier = Some("tlid-only".to_string());
+
+        let mandate = build_mandate_reference(&response).expect("mandate reference");
+        assert!(mandate.connector_mandate_id.is_none());
+        let metadata = mandate.mandate_metadata.expect("metadata");
+        assert_eq!(metadata.peek()["transaction_link_identifier"], "tlid-only");
+    }
+
+    #[test]
+    fn a_declined_verification_returns_an_error_not_a_mandate() {
+        // The 2xx-with-decline path is shared with Authorize; this pins that a decline on the
+        // SetupMandate leg cannot hand back a credential-on-file handle.
+        let response = declined_200_body();
+        let status = map_status(
+            response.transaction_status.clone(),
+            response.transaction_result.clone(),
+            response.transaction_state.clone(),
+            response.transaction_type.clone(),
+        );
+        assert!(build_payment_flow_response(
+            &response,
+            status,
+            200,
+            build_mandate_reference(&response)
+        )
+        .is_err());
     }
 
     #[test]

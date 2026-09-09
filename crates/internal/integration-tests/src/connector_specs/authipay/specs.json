@@ -7,12 +7,16 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentService/Void",
-    "PaymentService/Reverse"
+    "PaymentService/Reverse",
+    "PaymentService/SetupRecurring"
   ],
   "supported_payment_methods": ["card"],
   "unsupported_scenarios": {
     "PaymentService/Authorize": {
       "no3ds_fail_payment": "the Authipay/AIB sandbox approves every card transaction it is given — 500100 EUR, an expired expiry year and the shared 4000000000000002 decline card all return HTTP 200 transactionResult APPROVED — so there is no decline trigger to assert against. Same limitation as fiserv, which is the same gateway. The 200-with-decline mapping is covered by the unit tests in authipay/transformers.rs instead."
+    },
+    "PaymentService/SetupRecurring": {
+      "setup_recurring_with_webhook": "Authipay/Fiserv IPG has no outbound webhook channel on this integration — the connector implements no IncomingWebhook parsing, so the webhook leg of this scenario has no event to assert against."
     }
   }
 }

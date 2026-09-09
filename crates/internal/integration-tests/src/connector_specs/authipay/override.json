@@ -183,6 +183,137 @@
       }
     }
   },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 0,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5424180279791732"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "state": {
+              "value": "Leinster"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 0,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5424180279791732"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "state": {
+              "value": "Leinster"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "auto_generate",
+        "amount": {
+          "minor_amount": 0,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "5424180279791732"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "977"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "line1": {
+              "value": "123 Main St."
+            },
+            "city": {
+              "value": "Dublin"
+            },
+            "state": {
+              "value": "Leinster"
+            },
+            "zip_code": {
+              "value": "D02XY45"
+            },
+            "country_alpha2_code": "IE",
+            "phone_country_code": "+353"
+          }
+        }
+      }
+    }
+  },
   "PaymentService/Capture": {
     "capture_full_amount": {
       "grpc_req": {
