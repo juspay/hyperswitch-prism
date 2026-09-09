@@ -753,10 +753,10 @@ examples_python: examples/revolv3/revolv3.py
 ## Saferpay
 connector_id: saferpay
 doc: docs/connectors/saferpay.md
-scenarios: none
-payment_methods: none
-flows: capture, get, pre_authenticate, proxy_setup_recurring, recurring_charge, refund_get, setup_recurring, void
-examples_python: none
+scenarios: checkout_autocapture, checkout_card, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, pre_authenticate, proxy_setup_recurring, recurring_charge, refund_get, setup_recurring, void
+examples_python: examples/saferpay/saferpay.py
 
 ## Shift4
 connector_id: shift4
