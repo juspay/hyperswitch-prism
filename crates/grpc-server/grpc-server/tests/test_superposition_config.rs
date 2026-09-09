@@ -1,5 +1,5 @@
-#![allow(clippy::expect_used)]
-#![allow(clippy::panic)]
+// Fixture assertions may unwrap/expect freely — a panic IS the test failing.
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
 
 use std::{fs, time::Duration};
 

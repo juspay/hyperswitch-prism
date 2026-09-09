@@ -529,6 +529,14 @@ pub fn get_connector_urls(resolved: &Map<String, Value>) -> ConnectorUrls {
 
 #[cfg(test)]
 mod tests {
+    // Fixture assertions may unwrap/expect freely — a panic IS the test failing.
+    #![allow(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::indexing_slicing,
+        clippy::type_complexity
+    )]
+
     use super::*;
 
     #[test]
