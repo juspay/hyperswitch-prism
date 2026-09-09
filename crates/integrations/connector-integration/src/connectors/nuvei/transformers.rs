@@ -6,7 +6,8 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        ConnectorSpecificClientAuthenticationResponse, L2L3Data, MandateReference,
+        MandateReferenceId,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
@@ -29,7 +30,7 @@ use url::Url;
 
 use super::NuveiRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 // Nuvei's APM (Alternative Payment Method) identifier for ACH. Required literal
 // per Nuvei's API; reused by both BankTransfer::AchBankTransfer and
@@ -1128,10 +1129,104 @@ const NUVEI_L23_CUSTOMER_VAT_MAX_LENGTH: usize = 13;
 const NUVEI_L23_DESCRIPTION_MAX_LENGTH: usize = 35;
 const NUVEI_L23_PRODUCT_CODE_MAX_LENGTH: usize = 12;
 const NUVEI_L23_COMMODITY_CODE_MAX_LENGTH: usize = 12;
+const NUVEI_L23_VAT_OR_TAX_RATE_MAX_LENGTH: usize = 4;
+const NUVEI_L23_DISCOUNT_RATE_MAX_LENGTH: usize = 5;
 
-fn truncate_to(value: String, max_length: usize) -> Option<String> {
+/// Render a Level 2/3 rate inside the character width Nuvei allows for it.
+///
+/// The rate fields are fixed-width strings (`items[].vatOrTaxRate` is 4,
+/// `items[].discountRate` is 5) and Nuvei validates the width, rejecting the
+/// settle with `errCode 1019` when it is exceeded - confirmed live against the
+/// sandbox, which refused `"0.025"` for a 4-character `vatOrTaxRate` even though
+/// Nuvei's own documentation uses that exact value as the example.
+///
+/// So the value is rendered with the most decimal places that still fit rather
+/// than truncated as a string: truncation turns `0.025` into `0.02` and `12.5`
+/// into the un-parseable `12.`. Losing precision is logged, because it changes a
+/// number the caller supplied. A rate whose integer part alone overflows the field
+/// is malformed rather than imprecise, and is rejected.
+fn format_l23_rate(
+    field_name: &'static str,
+    rate: f64,
+    max_length: usize,
+) -> Result<String, Report<IntegrationError>> {
+    for decimals in (0..=4usize).rev() {
+        let rendered = format!("{rate:.decimals$}");
+        if rendered.chars().count() <= max_length {
+            if rendered.parse::<f64>().is_ok_and(|parsed| parsed != rate) {
+                tracing::warn!(
+                    field_name,
+                    max_length,
+                    "nuvei: rounding Level 2/3 rate to fit its documented field width; the \
+                     matching amount field is still sent at full precision"
+                );
+            }
+            return Ok(rendered);
+        }
+    }
+    Err(IntegrationError::InvalidDataFormat {
+        field_name: "l2_l3_data.order_info.order_details.rate",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "{field_name} value {rate} does not fit Nuvei's {max_length}-character limit \
+                 even with no decimal places"
+            )),
+            suggested_action: Some(
+                "Supply a rate with a smaller integer part (Nuvei expects a fraction, e.g. 0.05 \
+                 for 5%)"
+                    .to_string(),
+            ),
+            doc_url: None,
+        },
+    }
+    .into())
+}
+
+/// Clamp a Level 2/3 string to the length Nuvei documents for it.
+///
+/// Nuvei rejects an over-long addendum field outright, so truncating is strictly
+/// better than sending a value that fails the whole settle - but it is still a
+/// deliberate lossy default, so it is logged. The field name is logged; the value
+/// is not, since several of these carry PII (VAT registration numbers, customer
+/// codes).
+fn truncate_to(field_name: &'static str, value: String, max_length: usize) -> Option<String> {
+    if value.chars().count() > max_length {
+        tracing::warn!(
+            field_name,
+            max_length,
+            "nuvei: truncating Level 2/3 addendum field to its documented maximum length"
+        );
+    }
     let value: String = value.chars().take(max_length).collect();
     (!value.is_empty()).then_some(value)
+}
+
+/// Warn - and do nothing else - when a caller attaches Level 2/3 data to a Nuvei
+/// Authorize.
+///
+/// `/payment.do` has no `addendums` member at all: Nuvei accepts
+/// `addendums.l23processingData` only on `/settleTransaction.do`, and only on the
+/// Auth->Settle path, so an auto-capture `Sale` has no leg that can carry it.
+///
+/// This is a warn rather than an error on purpose. `PaymentServiceAuthorizeRequest`
+/// is connector-agnostic and its `l2_l3_data` is meaningful for processors that do
+/// take L2/L3 on authorize; failing the payment because Nuvei happens to want the
+/// data one leg later would turn an interchange-optimisation miss into a declined
+/// transaction. The caller keeps a valid payment and gets told, once per request,
+/// where the data actually belongs: `PaymentServiceCaptureRequest.l2_l3_data`.
+fn warn_if_l2_l3_data_on_authorize(
+    l2_l3_data: Option<&L2L3Data>,
+    capture_method: Option<common_enums::CaptureMethod>,
+) {
+    if l2_l3_data.is_some() {
+        tracing::warn!(
+            capture_method = ?capture_method,
+            "nuvei: ignoring l2_l3_data on authorize - /payment.do does not accept \
+             `addendums`. Nuvei takes Level 2/3 data only on /settleTransaction.do, \
+             so supply it on PaymentServiceCaptureRequest.l2_l3_data and use the \
+             Auth->Settle (manual capture) path; an auto-capture Sale cannot carry it."
+        );
+    }
 }
 
 /// Build `addendums.l23processingData` from the domain `L2L3Data`.
@@ -1140,13 +1235,22 @@ fn truncate_to(value: String, max_length: usize) -> Option<String> {
 /// nothing is hardcoded or invented. Returns `None` when the caller supplied
 /// no Level 2/3 data, so the object stays off the wire entirely.
 ///
-/// NOTE: today this always returns `None` on the gRPC path, because
-/// `grpc_api_types::payments::PaymentServiceCaptureRequest` has no
-/// `l2_l3_data` field and `PaymentFlowData::foreign_try_from` for that request
-/// hardcodes `l2_l3_data: None` / `order_details: None`. The mapping below
-/// reads only real `L2L3Data` accessors, so it starts emitting the addendum
-/// the moment the capture request carries the data - and until then the settle
-/// request (and therefore its checksum) is byte-for-byte unchanged.
+/// Reaching this function at all means the caller is on the Auth->Settle path:
+/// `/settleTransaction.do` is only ever built for the Capture flow, which an
+/// auto-capture `Sale` never enters. The `capture_method` carried on
+/// `PaymentsCaptureData` is deliberately NOT consulted as an auto-capture guard,
+/// because the proto field is optional and its unspecified value maps to
+/// `CaptureMethod::Automatic` - gating on it would silently drop the addendum for
+/// every caller that leaves `capture_method` unset, reintroducing exactly the
+/// inertness this wiring removes.
+///
+/// The address- and customer-derived subfields of the spec's root table
+/// (`destinationZip`, `shipFromZip`, `destinationCountryCode`, `customerCode`)
+/// come out `None` on the gRPC path today: `PaymentServiceCaptureRequest` carries
+/// no `address` / `customer` block, so `L2L3Data::{shipping_details,
+/// billing_details, customer_info}` are empty there. They are read through the
+/// normal accessors regardless, so they populate as soon as the capture request
+/// grows those blocks.
 fn build_nuvei_addendums(
     router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
     amount_converter: &(dyn common_utils::types::AmountConvertor<Output = StringMajorUnit> + Sync),
@@ -1164,15 +1268,25 @@ fn build_nuvei_addendums(
     };
 
     // `YYMMDD` per the Level 2&3 reference (note: NOT the `YYYYMMDDHHmmss`
-    // form used by the request `timeStamp`).
+    // form used by the request `timeStamp`, and not one of the
+    // `common_utils::date_time::DateFormat` variants either).
     let order_date = l2_l3
         .get_order_date()
         .map(|date| {
             date.format(&time::macros::format_description!(
                 "[year repr:last_two][month][day]"
             ))
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "l2_l3_data.order_info.order_date",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "failed to format order_date {date:?} as YYMMDD"
+                    )),
+                    suggested_action: Some(
+                        "Provide a valid l2_l3_data.order_info.order_date".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })
         .transpose()?;
@@ -1201,11 +1315,15 @@ fn build_nuvei_addendums(
         .iter()
         .map(|detail| {
             Ok(NuveiL23Item {
-                commodity_code: detail
-                    .commodity_code
-                    .clone()
-                    .and_then(|code| truncate_to(code, NUVEI_L23_COMMODITY_CODE_MAX_LENGTH)),
+                commodity_code: detail.commodity_code.clone().and_then(|code| {
+                    truncate_to(
+                        "items.commodityCode",
+                        code,
+                        NUVEI_L23_COMMODITY_CODE_MAX_LENGTH,
+                    )
+                }),
                 description: truncate_to(
+                    "items.description",
                     detail
                         .description
                         .clone()
@@ -1216,14 +1334,34 @@ fn build_nuvei_addendums(
                     .product_id
                     .clone()
                     .or_else(|| detail.sku.clone())
-                    .and_then(|code| truncate_to(code, NUVEI_L23_PRODUCT_CODE_MAX_LENGTH)),
+                    .and_then(|code| {
+                        truncate_to("items.productCode", code, NUVEI_L23_PRODUCT_CODE_MAX_LENGTH)
+                    }),
                 quantity: Some(detail.quantity.to_string()),
                 unit_measure: detail.unit_of_measure.clone(),
                 price: Some(convert(detail.amount)?),
                 vat_or_tax_amount: detail.total_tax_amount.map(convert).transpose()?,
-                vat_or_tax_rate: detail.tax_rate.map(|rate| rate.to_string()),
+                vat_or_tax_rate: detail
+                    .tax_rate
+                    .map(|rate| {
+                        format_l23_rate(
+                            "items.vatOrTaxRate",
+                            rate,
+                            NUVEI_L23_VAT_OR_TAX_RATE_MAX_LENGTH,
+                        )
+                    })
+                    .transpose()?,
                 total_amount: detail.total_amount.map(convert).transpose()?,
-                discount_rate: detail.discount_percentage.map(|rate| rate.to_string()),
+                discount_rate: detail
+                    .discount_percentage
+                    .map(|rate| {
+                        format_l23_rate(
+                            "items.discountRate",
+                            rate,
+                            NUVEI_L23_DISCOUNT_RATE_MAX_LENGTH,
+                        )
+                    })
+                    .transpose()?,
                 discount: detail.unit_discount_amount.map(convert).transpose()?,
                 tax_type: detail.product_tax_code.clone(),
                 credit_indicator: Some("D".to_string()),
@@ -1243,15 +1381,26 @@ fn build_nuvei_addendums(
         tax_indicator,
         customer_code: l2_l3.get_customer_id().and_then(|id| {
             truncate_to(
+                "customerCode",
                 id.get_string_repr().to_string(),
                 NUVEI_L23_CUSTOMER_CODE_MAX_LENGTH,
             )
         }),
         merchant_vat_reg_num: l2_l3.get_merchant_tax_registration_id().and_then(|id| {
-            truncate_to(id.peek().to_string(), NUVEI_L23_MERCHANT_VAT_MAX_LENGTH).map(Secret::new)
+            truncate_to(
+                "merchantVATRegNum",
+                id.peek().to_string(),
+                NUVEI_L23_MERCHANT_VAT_MAX_LENGTH,
+            )
+            .map(Secret::new)
         }),
         customer_vat_reg_num: l2_l3.get_customer_tax_registration_id().and_then(|id| {
-            truncate_to(id.peek().to_string(), NUVEI_L23_CUSTOMER_VAT_MAX_LENGTH).map(Secret::new)
+            truncate_to(
+                "customerVATRegNum",
+                id.peek().to_string(),
+                NUVEI_L23_CUSTOMER_VAT_MAX_LENGTH,
+            )
+            .map(Secret::new)
         }),
         destination_zip: l2_l3.get_shipping_zip(),
         ship_from_zip: l2_l3.get_shipping_origin_zip(),
@@ -1955,6 +2104,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Determine transaction type based on capture method
         let transaction_type =
             TransactionType::get_from_capture_method(router_data.request.capture_method, &amount);
+
+        // Level 2/3 data cannot ride on `/payment.do` at all - see
+        // `warn_if_l2_l3_data_on_authorize` for why this warns instead of failing.
+        warn_if_l2_l3_data_on_authorize(
+            router_data.resource_common_data.l2_l3_data.as_deref(),
+            router_data.request.capture_method,
+        );
 
         // Build urlDetails from router_return_url if available
         let url_details =
@@ -4133,5 +4289,219 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response: Ok(payments_response_data),
             ..router_data.clone()
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use common_utils::types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+    };
+
+    use super::*;
+
+    const MERCHANT_ID: &str = "427583496191624621";
+    const MERCHANT_SITE_ID: &str = "142566";
+    const MERCHANT_SECRET: &str = "sandbox_secret_key";
+    const CLIENT_REQUEST_ID: &str = "nuvei-l23-test-req-1";
+    const CLIENT_UNIQUE_ID: &str = "nuvei-l23-test-uid-1";
+    const RELATED_TRANSACTION_ID: &str = "7110000000012345678";
+    const TIME_STAMP: &str = "20260910120000";
+    const AUTH_CODE: &str = "111111";
+
+    /// `SHA256(merchantId + merchantSiteId + clientRequestId + clientUniqueId +
+    /// amount + currency + relatedTransactionId + timeStamp + merchantSecretKey)` -
+    /// the form UCS builds today, i.e. the 11-element `/settleTransaction.do`
+    /// concatenation with `authCode` and `comment` contributing empty strings.
+    const SETTLE_CHECKSUM_NO_AUTH_CODE: &str =
+        "5fab4ae164614fb32e2fcf6c8ba798a3b4159372e6923fb5d7a4a95ccaa72e65";
+
+    /// The same inputs with `authCode` populated. Per the Nuvei checksum table
+    /// `authCode` sits between `relatedTransactionId` and `comment`, NOT at the end:
+    /// appending it instead would produce a different digest and `errCode 1001`.
+    const SETTLE_CHECKSUM_WITH_AUTH_CODE: &str =
+        "bd80483326d43e5907df3ac26d60820a11623aa5fc4f6fe093ea82ae28f11861";
+
+    fn test_auth() -> NuveiAuthType {
+        NuveiAuthType {
+            merchant_id: Secret::new(MERCHANT_ID.to_string()),
+            merchant_site_id: Secret::new(MERCHANT_SITE_ID.to_string()),
+            merchant_secret: Secret::new(MERCHANT_SECRET.to_string()),
+        }
+    }
+
+    /// `2.00` USD, produced through the connector's amount converter rather than a
+    /// hand-written string, so the test breaks if the unit contract ever changes.
+    fn test_amount() -> StringMajorUnit {
+        StringMajorUnitForConnector
+            .convert(MinorUnit::new(200), common_enums::Currency::USD)
+            .expect("200 USD minor units convert to a major-unit string")
+    }
+
+    fn test_time_stamp(
+    ) -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
+        let date = time::Date::from_calendar_date(2026, time::Month::September, 10)
+            .expect("2026-09-10 is a valid date");
+        let time_of_day = time::Time::from_hms(12, 0, 0).expect("12:00:00 is a valid time");
+        common_utils::date_time::DateTime::from(time::PrimitiveDateTime::new(date, time_of_day))
+    }
+
+    /// The 11-element `/settleTransaction.do` preimage minus the trailing secret,
+    /// with `authCode` and `comment` supplied explicitly. Empty strings for both
+    /// reproduce the 8-element form UCS builds.
+    fn settle_preimage(auth_code: &str, comment: &str) -> String {
+        format!(
+            "{MERCHANT_ID}{MERCHANT_SITE_ID}{CLIENT_REQUEST_ID}{CLIENT_UNIQUE_ID}{}USD\
+             {RELATED_TRANSACTION_ID}{auth_code}{comment}{TIME_STAMP}",
+            test_amount().get_amount_as_string(),
+        )
+    }
+
+    fn settle_checksum(auth_code: &str, comment: &str) -> String {
+        let auth = test_auth();
+        auth.generate_checksum(&[
+            MERCHANT_ID,
+            MERCHANT_SITE_ID,
+            CLIENT_REQUEST_ID,
+            CLIENT_UNIQUE_ID,
+            &test_amount().get_amount_as_string(),
+            "USD",
+            RELATED_TRANSACTION_ID,
+            auth_code,
+            comment,
+            TIME_STAMP,
+        ])
+    }
+
+    fn test_capture_request(addendums: Option<NuveiAddendums>) -> NuveiCaptureRequest {
+        NuveiCaptureRequest {
+            merchant_id: Secret::new(MERCHANT_ID.to_string()),
+            merchant_site_id: Secret::new(MERCHANT_SITE_ID.to_string()),
+            client_request_id: CLIENT_REQUEST_ID.to_string(),
+            client_unique_id: CLIENT_UNIQUE_ID.to_string(),
+            amount: test_amount(),
+            currency: common_enums::Currency::USD,
+            related_transaction_id: RELATED_TRANSACTION_ID.to_string(),
+            addendums,
+            time_stamp: test_time_stamp(),
+            checksum: settle_checksum("", ""),
+        }
+    }
+
+    fn test_addendums() -> NuveiAddendums {
+        NuveiAddendums {
+            l23_processing_data: NuveiL23ProcessingData {
+                tax_indicator: Some("1".to_string()),
+                merchant_vat_reg_num: Some(Secret::new("78875627".to_string())),
+                order_date: Some("260910".to_string()),
+                line_item_count: Some("1".to_string()),
+                items: Some(vec![NuveiL23Item {
+                    description: Some("Garden Supplies".to_string()),
+                    quantity: Some("1".to_string()),
+                    price: Some(test_amount()),
+                    total_amount: Some(test_amount()),
+                    credit_indicator: Some("D".to_string()),
+                    ..Default::default()
+                }]),
+                amount_details: Some(NuveiL23AmountDetails {
+                    tax_amount: Some(test_amount()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Pins the preimage AND the digest of the settle checksum for the form UCS
+    /// actually sends - `authCode` and `comment` absent, therefore empty.
+    #[test]
+    fn settle_checksum_preimage_and_digest_without_l2_l3() {
+        assert_eq!(
+            settle_preimage("", ""),
+            "427583496191624621142566nuvei-l23-test-req-1nuvei-l23-test-uid-12.00USD\
+             711000000001234567820260910120000"
+        );
+        assert_eq!(settle_checksum("", ""), SETTLE_CHECKSUM_NO_AUTH_CODE);
+    }
+
+    /// `addendums` is not a member of the checksum concatenation, so attaching
+    /// Level 2/3 data must leave the signed string - and therefore the digest -
+    /// byte-identical. This is the regression guard for `errCode 1001`.
+    #[test]
+    fn settle_checksum_is_byte_identical_with_and_without_l2_l3() {
+        let without = test_capture_request(None);
+        let with = test_capture_request(Some(test_addendums()));
+
+        assert_eq!(without.checksum, with.checksum);
+        assert_eq!(with.checksum, SETTLE_CHECKSUM_NO_AUTH_CODE);
+
+        let without_body =
+            serde_json::to_value(&without).expect("capture request serializes to JSON");
+        let with_body = serde_json::to_value(&with).expect("capture request serializes to JSON");
+
+        // The addendum-free body must not carry the key at all - not `null`.
+        assert!(without_body.get("addendums").is_none());
+        assert!(with_body
+            .get("addendums")
+            .and_then(|addendums| addendums.get("l23processingData"))
+            .is_some());
+
+        // Every other member of the body is untouched by the addendum.
+        for field in [
+            "merchantId",
+            "merchantSiteId",
+            "clientRequestId",
+            "clientUniqueId",
+            "amount",
+            "currency",
+            "relatedTransactionId",
+            "timeStamp",
+            "checksum",
+        ] {
+            assert_eq!(
+                without_body.get(field),
+                with_body.get(field),
+                "field {field} changed when addendums were attached"
+            );
+        }
+    }
+
+    /// Documents the concatenation the moment `authCode` IS sent: it is inserted
+    /// between `relatedTransactionId` and `comment`. Appending it to the end of the
+    /// current 8-element form yields a different digest, which Nuvei rejects with
+    /// `errCode 1001`.
+    #[test]
+    fn settle_checksum_with_auth_code_inserts_it_before_comment() {
+        assert_eq!(
+            settle_preimage(AUTH_CODE, ""),
+            "427583496191624621142566nuvei-l23-test-req-1nuvei-l23-test-uid-12.00USD\
+             7110000000012345678111111\
+             20260910120000"
+        );
+        assert_eq!(
+            settle_checksum(AUTH_CODE, ""),
+            SETTLE_CHECKSUM_WITH_AUTH_CODE
+        );
+
+        // The wrong form - authCode appended after timeStamp - must NOT match.
+        let auth = test_auth();
+        let appended = auth.generate_checksum(&[
+            MERCHANT_ID,
+            MERCHANT_SITE_ID,
+            CLIENT_REQUEST_ID,
+            CLIENT_UNIQUE_ID,
+            &test_amount().get_amount_as_string(),
+            "USD",
+            RELATED_TRANSACTION_ID,
+            TIME_STAMP,
+            AUTH_CODE,
+        ]);
+        assert_ne!(appended, SETTLE_CHECKSUM_WITH_AUTH_CODE);
+        assert_ne!(
+            SETTLE_CHECKSUM_WITH_AUTH_CODE, SETTLE_CHECKSUM_NO_AUTH_CODE,
+            "sending authCode must change the digest"
+        );
     }
 }

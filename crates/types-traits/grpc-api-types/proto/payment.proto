@@ -3265,6 +3265,13 @@ message PaymentServiceCaptureRequest {
   // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
   // N per-vendor splits. Supersedes split_payments; new connectors read this field.
   optional SplitSettlement split_settlement = 15;
+
+  // Level 2 / Level 3 interchange-optimisation data. Several processors accept
+  // this ONLY on the capture/settle leg and reject it on authorize — e.g. Nuvei
+  // takes it as `addendums.l23processingData` on `/settleTransaction.do` and not
+  // on `/payment.do` — so it has to be supplied here rather than (or in addition
+  // to) PaymentServiceAuthorizeRequest.l2_l3_data.
+  optional L2L3Data l2_l3_data = 16;
 }
 
 // Response message for a payment capture operation
