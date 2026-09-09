@@ -133,13 +133,61 @@ pub struct Revolv3AmountData {
     pub currency: common_enums::Currency,
 }
 
+/// Revolv3's `paymentMethod` object is flat: the billing fields sit alongside exactly one
+/// method-specific payload (`creditCard`, `applePay`, ...), so billing is modelled once here
+/// and the method payload is flattened in beside it.
+#[derive(Debug, Serialize)]
+pub struct Revolv3PaymentMethodData<T: PaymentMethodDataTypes> {
+    #[serde(flatten)]
+    billing: Revolv3BillingDetails,
+    #[serde(flatten)]
+    method: Revolv3PaymentMethodDetails<T>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
-pub enum Revolv3PaymentMethodData<T: PaymentMethodDataTypes> {
+pub enum Revolv3PaymentMethodDetails<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardPaymentMethodData<T>),
     Ntid(NtidCreditCardPaymentMethodData),
     ApplePay(ApplePayPaymentMethodData),
-    MandatePayment,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3BillingDetails {
+    billing_address: Option<Revolv3BillingAddress>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+    /// Optional on the wire: a raw card is required to carry a cardholder name (enforced by
+    /// the credit card builders), but a wallet token is not.
+    billing_full_name: Option<Secret<String>>,
+}
+
+impl Revolv3BillingDetails {
+    fn from_payment_flow_data(common_data: &PaymentFlowData) -> Self {
+        Self {
+            billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
+            billing_first_name: common_data.get_optional_billing_first_name(),
+            billing_last_name: common_data.get_optional_billing_last_name(),
+            billing_full_name: common_data.get_billing_full_name().ok(),
+        }
+    }
+
+    /// Revolv3 rejects a card payment without a cardholder name, so the credit card flows
+    /// resolve it from the billing address first and fall back to the name on the card.
+    fn with_required_full_name(
+        mut self,
+        card_holder_name: Option<Secret<String>>,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        self.billing_full_name = self.billing_full_name.or(card_holder_name);
+        if self.billing_full_name.is_none() {
+            Err(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data.billing.address.first_name",
+                context: Default::default(),
+            })?
+        }
+        Ok(self)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -158,10 +206,6 @@ pub struct Revolv3BillingAddress {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NtidCreditCardPaymentMethodData {
-    billing_address: Option<Revolv3BillingAddress>,
-    billing_first_name: Option<Secret<String>>,
-    billing_last_name: Option<Secret<String>>,
-    billing_full_name: Secret<String>,
     credit_card: Revolv3NtidCreditCardData,
 }
 
@@ -175,10 +219,6 @@ pub struct Revolv3NtidCreditCardData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardPaymentMethodData<T: PaymentMethodDataTypes> {
-    billing_address: Option<Revolv3BillingAddress>,
-    billing_first_name: Option<Secret<String>>,
-    billing_last_name: Option<Secret<String>>,
-    billing_full_name: Secret<String>,
     credit_card: Revolv3CreditCardData<T>,
 }
 
@@ -193,12 +233,6 @@ pub struct Revolv3CreditCardData<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayPaymentMethodData {
-    billing_address: Option<Revolv3BillingAddress>,
-    billing_first_name: Option<Secret<String>>,
-    billing_last_name: Option<Secret<String>>,
-    // Unlike a raw card, an Apple Pay token is not required to carry a cardholder name,
-    // so Revolv3's optional billing name fields are sent only when the merchant supplied them.
-    billing_full_name: Option<Secret<String>>,
     apple_pay: Revolv3ApplePayData,
 }
 
@@ -349,23 +383,16 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
         card: Card<T>,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let common_data = &item.resource_common_data;
-        let credit_card_data = CreditCardPaymentMethodData {
-            billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
-            billing_first_name: common_data.get_optional_billing_first_name(),
-            billing_last_name: common_data.get_optional_billing_last_name(),
-            billing_full_name: common_data
-                .get_billing_full_name()
-                .ok()
-                .or(card.card_holder_name.clone())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.address.first_name",
-                    context: Default::default(),
-                })?,
-            credit_card: Revolv3CreditCardData {
-                payment_account_number: card.card_number.clone(),
-                expiration_date: card.get_expiry_date_as_mmyy()?,
-                security_code: card.card_cvc.clone(),
-            },
+        let payment_method_data = Revolv3PaymentMethodData {
+            billing: Revolv3BillingDetails::from_payment_flow_data(common_data)
+                .with_required_full_name(card.card_holder_name.clone())?,
+            method: Revolv3PaymentMethodDetails::CreditCard(CreditCardPaymentMethodData {
+                credit_card: Revolv3CreditCardData {
+                    payment_account_number: card.card_number.clone(),
+                    expiration_date: card.get_expiry_date_as_mmyy()?,
+                    security_code: card.card_cvc.clone(),
+                },
+            }),
         };
         let network_data = item
             .request
@@ -376,7 +403,7 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
             });
 
         Ok(Self {
-            payment_method_data: Revolv3PaymentMethodData::CreditCard(credit_card_data),
+            payment_method_data,
             network_data,
         })
     }
@@ -391,16 +418,15 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
         apple_pay_data: &ApplePayWalletData,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
         let common_data = &item.resource_common_data;
-        let apple_pay_payment_method_data = ApplePayPaymentMethodData {
-            billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
-            billing_first_name: common_data.get_optional_billing_first_name(),
-            billing_last_name: common_data.get_optional_billing_last_name(),
-            billing_full_name: common_data.get_billing_full_name().ok(),
-            apple_pay: Revolv3ApplePayData {
-                apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage::try_from(
-                    apple_pay_data,
-                )?,
-            },
+        let payment_method_data = Revolv3PaymentMethodData {
+            billing: Revolv3BillingDetails::from_payment_flow_data(common_data),
+            method: Revolv3PaymentMethodDetails::ApplePay(ApplePayPaymentMethodData {
+                apple_pay: Revolv3ApplePayData {
+                    apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage::try_from(
+                        apple_pay_data,
+                    )?,
+                },
+            }),
         };
         let network_data = item
             .request
@@ -411,7 +437,7 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
             });
 
         Ok(Self {
-            payment_method_data: Revolv3PaymentMethodData::ApplePay(apple_pay_payment_method_data),
+            payment_method_data,
             network_data,
         })
     }
@@ -1244,7 +1270,9 @@ pub enum Revolv3RepeatPaymentRequest<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3RepeatSaleRequest<T: PaymentMethodDataTypes> {
-    pub payment_method: Revolv3PaymentMethodData<T>,
+    /// `None` for a mandate payment: the stored payment method is addressed by the id in the
+    /// URL path, and Revolv3 expects a null `paymentMethod` in the body.
+    pub payment_method: Option<Revolv3PaymentMethodData<T>>,
     pub network_processing: NetworkProcessingData,
     pub invoice: Revolv3InvoiceData,
 }
@@ -1252,7 +1280,8 @@ pub struct Revolv3RepeatSaleRequest<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3RepeatAuthorizeRequest<T: PaymentMethodDataTypes> {
-    pub payment_method: Revolv3PaymentMethodData<T>,
+    /// See [`Revolv3RepeatSaleRequest::payment_method`].
+    pub payment_method: Option<Revolv3PaymentMethodData<T>>,
     pub network_processing: NetworkProcessingData,
     pub amount: Revolv3AmountData,
 }
@@ -1262,28 +1291,16 @@ impl<T: PaymentMethodDataTypes> Revolv3PaymentMethodData<T> {
         card: CardDetailsForNetworkTransactionId,
         common_data: &PaymentFlowData,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let credit_card_data = NtidCreditCardPaymentMethodData {
-            billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
-            billing_first_name: common_data.get_optional_billing_first_name(),
-            billing_last_name: common_data.get_optional_billing_last_name(),
-            billing_full_name: common_data
-                .get_billing_full_name()
-                .ok()
-                .or(card.card_holder_name.clone())
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "payment_method_data.billing.address.first_name",
-                    context: Default::default(),
-                })?,
-            credit_card: Revolv3NtidCreditCardData {
-                payment_account_number: card.card_number.clone(),
-                expiration_date: card.get_expiry_date_as_mmyy()?,
-            },
-        };
-        Ok(Self::Ntid(credit_card_data))
-    }
-
-    pub fn set_mandate_data() -> Result<Self, error_stack::Report<IntegrationError>> {
-        Ok(Self::MandatePayment)
+        Ok(Self {
+            billing: Revolv3BillingDetails::from_payment_flow_data(common_data)
+                .with_required_full_name(card.card_holder_name.clone())?,
+            method: Revolv3PaymentMethodDetails::Ntid(NtidCreditCardPaymentMethodData {
+                credit_card: Revolv3NtidCreditCardData {
+                    payment_account_number: card.card_number.clone(),
+                    expiration_date: card.get_expiry_date_as_mmyy()?,
+                },
+            }),
+        })
     }
 }
 
@@ -1326,12 +1343,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     })?
                 };
-                Revolv3PaymentMethodData::set_credit_card_data_for_ntid(
+                Some(Revolv3PaymentMethodData::set_credit_card_data_for_ntid(
                     card_data.clone(),
                     &item.router_data.resource_common_data,
-                )?
+                )?)
             }
-            PaymentMethodData::MandatePayment => Revolv3PaymentMethodData::set_mandate_data()?,
+            // The stored payment method is addressed by the id in the URL path.
+            PaymentMethodData::MandatePayment => None,
             _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
                 Default::default(),
@@ -1454,24 +1472,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?
                 };
                 let common_data = &item.router_data.resource_common_data;
-                Revolv3PaymentMethodData::CreditCard(CreditCardPaymentMethodData {
-                    billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
-                    billing_first_name: common_data.get_optional_billing_first_name(),
-                    billing_last_name: common_data.get_optional_billing_last_name(),
-                    billing_full_name: common_data
-                        .get_billing_full_name()
-                        .ok()
-                        .or(card_data.card_holder_name.clone())
-                        .ok_or(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method_data.billing.address.first_name",
-                            context: Default::default(),
-                        })?,
-                    credit_card: Revolv3CreditCardData {
-                        payment_account_number: card_data.card_number.clone(),
-                        expiration_date: card_data.get_expiry_date_as_mmyy()?,
-                        security_code: card_data.card_cvc.clone(),
-                    },
-                })
+                Revolv3PaymentMethodData {
+                    billing: Revolv3BillingDetails::from_payment_flow_data(common_data)
+                        .with_required_full_name(card_data.card_holder_name.clone())?,
+                    method: Revolv3PaymentMethodDetails::CreditCard(CreditCardPaymentMethodData {
+                        credit_card: Revolv3CreditCardData {
+                            payment_account_number: card_data.card_number.clone(),
+                            expiration_date: card_data.get_expiry_date_as_mmyy()?,
+                            security_code: card_data.card_cvc.clone(),
+                        },
+                    }),
+                }
             }
             _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
