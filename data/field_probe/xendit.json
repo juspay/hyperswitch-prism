@@ -751,8 +751,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: void flow for xendit"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.latest_payment_id — Missing required field: connector_feature_data.latest_payment_id"
       }
     }
   }
