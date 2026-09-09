@@ -8,8 +8,10 @@ use std::{fmt, path::PathBuf};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::{Map, Value};
 use superposition_provider::{
-    data_source::file::FileDataSource, traits::AllFeatureProvider, EvaluationContext,
-    LocalResolutionProvider, RefreshStrategy, WatchStrategy,
+    data_source::{file::FileDataSource, http::HttpDataSource},
+    traits::AllFeatureProvider,
+    EvaluationContext, LocalResolutionProvider, PollingStrategy, RefreshStrategy,
+    SuperpositionDataSource, SuperpositionOptions, WatchStrategy,
 };
 
 use crate::consts::{
@@ -105,19 +107,104 @@ impl SuperpositionSettings {
     }
 }
 
-/// Local provider backed by superposition.toml.
+/// Which source the provider was built on. Logged once at boot so a pod that fell
+/// back to the file — and therefore will not follow the workspace — is visible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceKind {
+    /// Remote workspace polled on an interval, the baked file as init-time fallback.
+    /// The only source that can carry experiments.
+    Remote,
+    /// The baked `config/superposition.toml`, watched for changes. No experiments.
+    File,
+}
+
+impl fmt::Display for SourceKind {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Remote => "remote",
+            Self::File => "file",
+        })
+    }
+}
+
+/// Superposition's local provider over whichever source [`SuperpositionConfig::new`]
+/// selected. Evaluation is always in-process against the provider's cached snapshot;
+/// only the source's refresh differs (poll vs. file watch).
 #[derive(Clone)]
 pub struct SuperpositionConfig {
     provider: LocalResolutionProvider,
+    source: SourceKind,
 }
 
 impl fmt::Debug for SuperpositionConfig {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("SuperpositionConfig")
+        write!(formatter, "SuperpositionConfig({})", self.source)
     }
 }
 
 impl SuperpositionConfig {
+    /// Build the provider the settings ask for.
+    ///
+    /// `enabled` → the remote workspace as primary with the backup file (default: the
+    /// baked file at `baked_path`) as the provider's init-time fallback, polled every
+    /// `polling_interval` seconds — hyperswitch's `SuperpositionClient::new` shape. If
+    /// even that cannot initialise (remote unreachable AND fallback unreadable), boot
+    /// continues on the baked file alone, loudly: prism's contract is fail-open.
+    ///
+    /// Not `enabled` → the baked file, watched (today's behaviour).
+    ///
+    /// `Err` only when NO source could initialise; the caller then runs without
+    /// Superposition (static connector config, sampler in its no-source state).
+    pub async fn new(
+        settings: &SuperpositionSettings,
+        baked_path: &str,
+    ) -> Result<Self, SuperpositionConfigError> {
+        if settings.enabled {
+            let fallback_path = settings
+                .backup_file_path
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(baked_path));
+            let primary = HttpDataSource::new(SuperpositionOptions::new(
+                settings.endpoint.clone(),
+                settings.token.peek().clone(),
+                settings.org_id.clone(),
+                settings.workspace_id.clone(),
+            ));
+            // A missing fallback file only warns: the remote source may still
+            // initialise on its own, exactly as hyperswitch treats it.
+            let fallback: Option<Box<dyn SuperpositionDataSource>> = match FileDataSource::new(
+                fallback_path.clone(),
+            ) {
+                Ok(source) => Some(Box::new(source)),
+                Err(error) => {
+                    tracing::warn!(
+                        path = %fallback_path.display(),
+                        %error,
+                        "superposition fallback file unavailable; the remote source has no init-time fallback"
+                    );
+                    None
+                }
+            };
+            let strategy = RefreshStrategy::Polling(PollingStrategy {
+                interval: settings.polling_interval,
+                timeout: settings.request_timeout,
+            });
+            match Self::with_sources(Box::new(primary), fallback, strategy, SourceKind::Remote)
+                .await
+            {
+                Ok(config) => return Ok(config),
+                Err(error) => tracing::error!(
+                    %error,
+                    endpoint = %settings.endpoint,
+                    workspace = %settings.workspace_id,
+                    "superposition remote source failed to initialise; falling back to the \
+                     baked file — policy will NOT follow the workspace until restart"
+                ),
+            }
+        }
+        Self::from_file(baked_path).await
+    }
+
     /// Load superposition.toml and watch it for changes.
     ///
     /// # Arguments
@@ -133,17 +220,41 @@ impl SuperpositionConfig {
     pub async fn from_file(path: &str) -> Result<Self, SuperpositionConfigError> {
         let source = FileDataSource::new(PathBuf::from(path))
             .map_err(SuperpositionConfigError::InitializationError)?;
-        let provider = LocalResolutionProvider::new(
+        Self::with_sources(
             Box::new(source),
             None,
             RefreshStrategy::Watch(WatchStrategy::default()),
-        );
+            SourceKind::File,
+        )
+        .await
+    }
+
+    /// The provider over explicit sources. `from_file` and `new` are the two shapes
+    /// prism ships; this is the seam for either, and for tests that need a custom
+    /// data source.
+    pub async fn with_sources(
+        primary: Box<dyn SuperpositionDataSource>,
+        fallback: Option<Box<dyn SuperpositionDataSource>>,
+        strategy: RefreshStrategy,
+        source: SourceKind,
+    ) -> Result<Self, SuperpositionConfigError> {
+        let provider = LocalResolutionProvider::new(primary, fallback, strategy);
         provider
             .init(EvaluationContext::default())
             .await
             .map_err(|error| SuperpositionConfigError::InitializationError(error.to_string()))?;
+        Ok(Self { provider, source })
+    }
 
-        Ok(Self { provider })
+    /// Which source this provider was built on.
+    pub fn source(&self) -> SourceKind {
+        self.source
+    }
+
+    /// Whether this source can carry experiments at all. A file cannot — a policy
+    /// that expects experiments to sample requests in will silently see none.
+    pub fn experiments_supported(&self) -> bool {
+        matches!(self.source, SourceKind::Remote)
     }
 
     /// Resolve the flat key-value map for given dimensions.

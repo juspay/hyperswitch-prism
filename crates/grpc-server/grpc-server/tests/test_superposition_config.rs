@@ -3,7 +3,10 @@
 
 use std::{fs, time::Duration};
 
-use common_utils::SuperpositionConfig;
+use common_utils::{
+    superposition_config::{SourceKind, SuperpositionSettings},
+    SuperpositionConfig,
+};
 use tokio::time::{sleep, timeout};
 use ucs_env::configs;
 
@@ -85,4 +88,77 @@ async fn superposition_toml_file_changes_are_reloaded() {
 
     let _ = fs::remove_file(temp_path);
     refreshed.expect("superposition config was not refreshed after the file changed");
+}
+
+fn baked_path() -> String {
+    format!(
+        "{}/config/superposition.toml",
+        configs::workspace_path().display()
+    )
+}
+
+fn remote_settings() -> SuperpositionSettings {
+    SuperpositionSettings {
+        enabled: true,
+        // Nothing listens here: connection refused, immediately. The point is a
+        // remote source that cannot initialise, so the fallback path is exercised
+        // for real instead of through a stub.
+        endpoint: "http://127.0.0.1:9".to_string(),
+        token: hyperswitch_masking::Secret::new("sp_test".to_string()),
+        org_id: "hyperswitch".to_string(),
+        workspace_id: "prism".to_string(),
+        ..SuperpositionSettings::default()
+    }
+}
+
+/// Source selection, disabled: the baked file, watched — today's behaviour.
+#[tokio::test]
+async fn disabled_settings_select_the_baked_file() {
+    let config = SuperpositionConfig::new(&SuperpositionSettings::default(), &baked_path())
+        .await
+        .unwrap();
+    assert_eq!(config.source(), SourceKind::File);
+    assert!(!config.experiments_supported());
+    let resolved = config.resolve("stripe", "sandbox").await.unwrap();
+    assert_eq!(
+        resolved
+            .get("connector_base_url")
+            .and_then(|url| url.as_str()),
+        Some("https://api.stripe.com/")
+    );
+}
+
+/// Source selection, enabled but the workspace is unreachable: the provider
+/// initialises from its fallback file (hyperswitch's `backup_file_path`
+/// contract) and stays a REMOTE provider — polling keeps trying the workspace
+/// — while serving the file's policy meanwhile.
+#[tokio::test]
+async fn unreachable_remote_initialises_from_the_fallback_file() {
+    let config = SuperpositionConfig::new(&remote_settings(), &baked_path())
+        .await
+        .unwrap();
+    assert_eq!(config.source(), SourceKind::Remote);
+    assert!(config.experiments_supported());
+    let resolved = config.resolve("stripe", "sandbox").await.unwrap();
+    assert_eq!(
+        resolved
+            .get("connector_base_url")
+            .and_then(|url| url.as_str()),
+        Some("https://api.stripe.com/"),
+        "the fallback file's policy is what the remote provider serves until the workspace answers"
+    );
+}
+
+/// Both the workspace and the configured fallback file are unusable: boot still
+/// continues on the baked file — fail-open — rather than aborting like hyperswitch.
+#[tokio::test]
+async fn unreachable_remote_with_bad_fallback_degrades_to_the_baked_file() {
+    let settings = SuperpositionSettings {
+        backup_file_path: Some(std::path::PathBuf::from("/nonexistent/superposition.toml")),
+        ..remote_settings()
+    };
+    let config = SuperpositionConfig::new(&settings, &baked_path())
+        .await
+        .unwrap();
+    assert_eq!(config.source(), SourceKind::File);
 }
