@@ -557,7 +557,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
+          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { status terminal ... on AuthorizedEvent { riskDecision networkResponse { code message } } ... on ProcessorDeclinedEvent { declineType riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
         }
       }
     },
@@ -917,7 +917,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_tokenized_txn_001\"}}}}"
+          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { status terminal ... on AuthorizedEvent { riskDecision networkResponse { code message } } ... on ProcessorDeclinedEvent { declineType riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_tokenized_txn_001\"}}}}"
         }
       }
     },
