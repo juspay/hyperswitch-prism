@@ -6,11 +6,14 @@ use common_utils::{
     Method,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -475,11 +478,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(capture_method_not_supported(*method));
         }
 
-        // Mandates, MIT and tokenization are out of scope: Saferpay expresses them
-        // through Secure Card Data / `Alias`, which this integration does not
-        // implement. Reject rather than silently dropping the intent.
-        if request.mandate_id.is_some() || request.setup_mandate_details.is_some() {
-            return Err(not_supported("Mandates / stored credentials".to_string()));
+        // Saferpay expresses stored credentials through Secure Card Data aliases. The
+        // alias is now created by the dedicated `SetupMandate` flow
+        // (`Alias/InsertDirect`), but the Transaction interface still has no wiring
+        // here: charging one needs `PaymentMeans.Alias.Id` in place of the PAN
+        // (a repeat-payment flow), and registering one alongside a charge needs
+        // `RegisterAlias` on `AuthorizeDirect`. Neither is implemented, so both
+        // intents are still refused rather than silently dropped.
+        if request.mandate_id.is_some() {
+            return Err(not_supported(
+                "Charging a stored Saferpay alias from Authorize — no repeat-payment flow \
+                 is implemented"
+                    .to_string(),
+            ));
+        }
+        if request.setup_mandate_details.is_some() {
+            return Err(not_supported(
+                "Registering an alias alongside an Authorize — run the SetupMandate flow \
+                 (Alias/InsertDirect) instead"
+                    .to_string(),
+            ));
         }
 
         let exp_year = card
@@ -1636,6 +1654,445 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE — `Alias/InsertDirect` (Secure Card Data standalone registration)
+// =============================================================================
+//
+// Saferpay has **no zero-amount authorization**. No endpoint on the Payment API
+// accepts `Amount.Value: "0"` for card verification, and the integration guide
+// explicitly forbids the small-amount workaround for the two dominant brands:
+//
+// > "Do not use the Payment Page just for registrations for Visa and Mastercard,
+// > e.g. by applying a small amount (0.01 EUR or similar). This is deemed
+// > non-compliant."
+//
+// The sanctioned zero-cost path is a **standalone alias registration**. Two shapes
+// exist: `Alias/Insert` -> hosted card form -> `Alias/AssertInsert` (two calls plus
+// a redirect), and `Alias/InsertDirect`, which registers raw card data in a single
+// call. This connector already sends raw PANs (`Transaction/AuthorizeDirect`), so
+// `InsertDirect` is the mapping that matches the integration's existing PCI posture
+// and keeps SetupMandate a single, non-redirecting `ConnectorIntegrationV2`.
+//
+// `Verify: true` asks Saferpay to run a card check against the issuer before the
+// alias is stored, so a dead PAN fails here instead of on the first MIT.
+
+/// `RegisterAlias.IdGenerator`. `RANDOM_UNIQUE` makes Saferpay mint a fresh,
+/// unguessable alias id and de-duplicates a re-registration of the same PAN +
+/// expiry instead of erroring.
+const ALIAS_ID_GENERATOR_RANDOM_UNIQUE: &str = "RANDOM_UNIQUE";
+
+/// Key under which SetupMandate publishes the alias lifetime (in days) so the
+/// caller can reason about when the stored credential stops working.
+pub const ALIAS_LIFETIME_METADATA_KEY: &str = "alias_lifetime_days";
+/// Key under which SetupMandate publishes the registered brand.
+pub const ALIAS_BRAND_METADATA_KEY: &str = "alias_brand";
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRegisterAlias {
+    #[serde(rename = "IdGenerator")]
+    pub id_generator: &'static str,
+}
+
+/// The card block of an **alias** request.
+///
+/// Deliberately not `SaferpayCardDetails`: the Transaction interface spells the
+/// security code `VerificationCode`, while the Alias interface spells it `Cvv`.
+/// `ExpYear` / `ExpMonth` are JSON numbers on both.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasCardDetails<T: PaymentMethodDataTypes> {
+    #[serde(rename = "Number")]
+    pub number: RawCardNumber<T>,
+    #[serde(rename = "ExpYear")]
+    pub exp_year: Secret<u16>,
+    #[serde(rename = "ExpMonth")]
+    pub exp_month: Secret<u8>,
+    #[serde(rename = "HolderName", skip_serializing_if = "Option::is_none")]
+    pub holder_name: Option<Secret<String>>,
+    #[serde(rename = "Cvv", skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasPaymentMeans<T: PaymentMethodDataTypes> {
+    #[serde(rename = "Card")]
+    pub card: SaferpayAliasCardDetails<T>,
+}
+
+/// Body for `POST /Payment/v1/Alias/InsertDirect`.
+///
+/// There is **no `Payment` container and no `Amount`** anywhere in this request:
+/// registering an alias moves no money, which is exactly why it is the right
+/// mapping for SetupMandate.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpaySetupMandateRequest<T: PaymentMethodDataTypes> {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TerminalId")]
+    pub terminal_id: Secret<String>,
+    #[serde(rename = "RegisterAlias")]
+    pub register_alias: SaferpayRegisterAlias,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayAliasPaymentMeans<T>,
+    /// Runs an online card check before the alias is stored.
+    #[serde(rename = "Verify")]
+    pub verify: bool,
+}
+
+type SetupMandateRouterData<T> =
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<SetupMandateRouterData<T>, T>> for SaferpaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<SetupMandateRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        let card = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card mandates are supported by saferpay — Secure Card Data \
+                     registers cards only"
+                        .to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        // A mandate that already exists is not something to set up again; reusing an
+        // alias for an MIT belongs to a repeat-payment flow, which this connector does
+        // not implement. Refuse instead of silently minting a second alias.
+        if request.mandate_id.is_some() {
+            return Err(not_supported(
+                "Re-using an existing mandate on SetupMandate".to_string(),
+            ));
+        }
+
+        // Saferpay's Alias interface accepts externally obtained 3DS results only from
+        // SpecVersion 1.47 (`Authentication.ExternalThreeDS`), and this integration is
+        // pinned to 1.44. Refuse rather than dropping the authentication silently and
+        // registering an alias that carries no SCA evidence.
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "External/merchant-provided 3DS authentication data on alias registration"
+                    .to_string(),
+            ));
+        }
+
+        let exp_year = card
+            .get_expiry_year_4_digit()
+            .expose()
+            .parse::<u16>()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_exp_year",
+                    context: context(),
+                })
+            })?;
+        let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "card_exp_month",
+                context: context(),
+            })
+        })?;
+
+        // `SetupMandateRequestData::{amount, minor_amount, currency}` are deliberately
+        // unused: `InsertDirect` has no amount field at all, so a non-zero amount here
+        // can never become a charge. Sending one is impossible, not merely ignored.
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            terminal_id: auth.terminal_id.clone(),
+            register_alias: SaferpayRegisterAlias {
+                id_generator: ALIAS_ID_GENERATOR_RANDOM_UNIQUE,
+            },
+            payment_means: SaferpayAliasPaymentMeans {
+                card: SaferpayAliasCardDetails {
+                    number: card.card_number.clone(),
+                    exp_year: Secret::new(exp_year),
+                    exp_month: Secret::new(exp_month),
+                    holder_name: card.get_optional_cardholder_name(),
+                    cvv: Some(card.card_cvc.clone()),
+                },
+            },
+            verify: true,
+        })
+    }
+}
+
+/// The registered alias. `Id` is the only durable handle Saferpay hands back and
+/// becomes the `connector_mandate_id`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAlias {
+    #[serde(rename = "Id")]
+    pub id: String,
+    /// Days the alias stays valid.
+    #[serde(rename = "Lifetime")]
+    pub lifetime: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasBrand {
+    #[serde(rename = "PaymentMethod")]
+    pub payment_method: Option<String>,
+    #[serde(rename = "Name")]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasCardInfo {
+    #[serde(rename = "MaskedNumber")]
+    pub masked_number: Option<String>,
+    #[serde(rename = "ExpYear")]
+    pub exp_year: Option<i64>,
+    #[serde(rename = "ExpMonth")]
+    pub exp_month: Option<i64>,
+    #[serde(rename = "HolderName")]
+    pub holder_name: Option<String>,
+    #[serde(rename = "CountryCode")]
+    pub country_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasPaymentMeansResponse {
+    #[serde(rename = "Brand")]
+    pub brand: Option<SaferpayAliasBrand>,
+    #[serde(rename = "DisplayText")]
+    pub display_text: Option<String>,
+    #[serde(rename = "Card")]
+    pub card: Option<SaferpayAliasCardInfo>,
+}
+
+/// One entry of the array form of `CheckResult`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckEntry {
+    #[serde(rename = "Type")]
+    pub check_type: Option<String>,
+    #[serde(rename = "Success")]
+    pub success: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckAuthentication {
+    #[serde(rename = "Result")]
+    pub result: Option<String>,
+    #[serde(rename = "Message")]
+    pub message: Option<String>,
+    #[serde(rename = "Xid")]
+    pub xid: Option<String>,
+}
+
+/// `CheckResult` has two documented shapes — the object form
+/// (`Result` / `Message` / `Authentication`) on docs.saferpay.com and the array form
+/// (`Check: [{Type, Success}]`) in the OpenAPI schema — and the sandbox omits it
+/// entirely when `Verify` alone is used. Every member is therefore optional and both
+/// shapes are read.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckResult {
+    #[serde(rename = "Result")]
+    pub result: Option<String>,
+    #[serde(rename = "Message")]
+    pub message: Option<String>,
+    #[serde(rename = "Authentication")]
+    pub authentication: Option<SaferpayCheckAuthentication>,
+    #[serde(rename = "Check")]
+    pub check: Option<Vec<SaferpayCheckEntry>>,
+}
+
+impl SaferpayCheckResult {
+    /// `Some(false)` only when Saferpay actively reports a failed check. An absent
+    /// `CheckResult`, or one carrying no verdict, is not a failure — the sandbox
+    /// returns no `CheckResult` at all for a plain `Verify: true` registration.
+    fn failed(&self) -> bool {
+        let array_failed = self
+            .check
+            .as_ref()
+            .is_some_and(|checks| checks.iter().any(|check| check.success == Some(false)));
+
+        let object_failed = self
+            .result
+            .as_deref()
+            .is_some_and(|result| result.eq_ignore_ascii_case("FAILED"));
+
+        array_failed || object_failed
+    }
+
+    fn message(&self) -> Option<String> {
+        self.message
+            .clone()
+            .or_else(|| self.authentication.as_ref().and_then(|a| a.message.clone()))
+    }
+}
+
+/// `RegistrationResult` appears on the transaction-attached registration path and,
+/// per the OpenAPI schema, on `AliasInfoResponse` too.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayRegistrationResult {
+    #[serde(rename = "Success")]
+    pub success: Option<bool>,
+    #[serde(rename = "Alias")]
+    pub alias: Option<SaferpayAlias>,
+}
+
+/// `AliasInfoResponse` — the body of `Alias/InsertDirect`, `Alias/AssertInsert` and
+/// `Alias/Inquire`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpaySetupMandateResponse {
+    #[serde(rename = "ResponseHeader")]
+    pub response_header: Option<SaferpayResponseHeader>,
+    #[serde(rename = "Alias")]
+    pub alias: Option<SaferpayAlias>,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: Option<SaferpayAliasPaymentMeansResponse>,
+    #[serde(rename = "CheckResult")]
+    pub check_result: Option<SaferpayCheckResult>,
+    #[serde(rename = "RegistrationResult")]
+    pub registration_result: Option<SaferpayRegistrationResult>,
+}
+
+impl SaferpaySetupMandateResponse {
+    /// The alias, wherever Saferpay put it: `InsertDirect` and `AssertInsert` answer
+    /// with a top-level `Alias`, while the OpenAPI schema also allows it nested under
+    /// `RegistrationResult`.
+    fn resolved_alias(&self) -> Option<&SaferpayAlias> {
+        self.alias.as_ref().or_else(|| {
+            self.registration_result
+                .as_ref()
+                .and_then(|result| result.alias.as_ref())
+        })
+    }
+
+    fn connector_metadata(&self, alias: &SaferpayAlias) -> Option<serde_json::Value> {
+        let mut metadata = serde_json::Map::new();
+
+        if let Some(lifetime) = alias.lifetime {
+            metadata.insert(
+                ALIAS_LIFETIME_METADATA_KEY.to_string(),
+                serde_json::Value::from(lifetime),
+            );
+        }
+
+        if let Some(brand) = self
+            .payment_means
+            .as_ref()
+            .and_then(|means| means.brand.as_ref())
+            .and_then(|brand| brand.payment_method.clone())
+        {
+            metadata.insert(
+                ALIAS_BRAND_METADATA_KEY.to_string(),
+                serde_json::Value::String(brand),
+            );
+        }
+
+        (!metadata.is_empty()).then_some(serde_json::Value::Object(metadata))
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpaySetupMandateResponse, Self>>
+    for SetupMandateRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Saferpay answers a failed card check with HTTP 402 `CARD_CHECK_FAILED`, which
+        // `build_error_response` already turns into an `ErrorResponse`. A 200 that
+        // nevertheless reports a failed check, or that stored no alias, is still a
+        // failure and must not be reported as a set-up mandate.
+        let check_failed = response
+            .check_result
+            .as_ref()
+            .is_some_and(SaferpayCheckResult::failed);
+        let registration_failed = response
+            .registration_result
+            .as_ref()
+            .is_some_and(|result| result.success == Some(false));
+
+        let alias = response.resolved_alias();
+
+        if check_failed || registration_failed || alias.is_none() {
+            let message = response
+                .check_result
+                .as_ref()
+                .and_then(SaferpayCheckResult::message)
+                .unwrap_or_else(|| "saferpay: alias registration returned no Alias.Id".to_string());
+
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: response
+                        .check_result
+                        .as_ref()
+                        .and_then(|check| check.result.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message,
+                    reason: response
+                        .check_result
+                        .as_ref()
+                        .and_then(SaferpayCheckResult::message),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    ..Default::default()
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let alias = alias.ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: alias registration response carried no Alias object",
+            ))
+        })?;
+
+        // No transaction exists — nothing was charged — so the alias id doubles as the
+        // resource id and as the mandate reference a later MIT presents in
+        // `PaymentMeans.Alias.Id`.
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(alias.id.clone()),
+                redirection_data: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(alias.id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })),
+                connector_metadata: response.connector_metadata(alias),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response
+                    .response_header
+                    .as_ref()
+                    .and_then(|header| header.request_id.clone()),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                // The card check ran and the credential is stored; there is no later
+                // settlement step for a registration, so this is terminal success.
+                status: AttemptStatus::Charged,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data

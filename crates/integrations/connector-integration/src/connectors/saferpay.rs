@@ -5,11 +5,13 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, SetupMandate, Void,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
+        RefundSyncData, RefundsData, RefundsResponseData, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -30,7 +32,8 @@ use transformers::{
     SaferpayCaptureResponse, SaferpayPSyncRequest, SaferpayPSyncResponse,
     SaferpayPreAuthenticateRequest, SaferpayPreAuthenticateResponse, SaferpayRefundRequest,
     SaferpayRefundResponse, SaferpayRefundSyncRequest, SaferpayRefundSyncResponse,
-    SaferpayVoidRequest, SaferpayVoidResponse,
+    SaferpaySetupMandateRequest, SaferpaySetupMandateResponse, SaferpayVoidRequest,
+    SaferpayVoidResponse,
 };
 
 use super::macros;
@@ -57,6 +60,10 @@ const PATH_CAPTURE: &str = "/Payment/v1/Transaction/Capture";
 const PATH_CANCEL: &str = "/Payment/v1/Transaction/Cancel";
 /// Creates a refund against a capture.
 const PATH_REFUND: &str = "/Payment/v1/Transaction/Refund";
+/// Registers raw card data as a Secure Card Data alias in a single call. Saferpay
+/// has no zero-amount authorization, so this — not a 0-value charge — is how a
+/// mandate is set up.
+const PATH_ALIAS_INSERT_DIRECT: &str = "/Payment/v1/Alias/InsertDirect";
 
 // `Amount.Value` is a string in the currency's minor units; Saferpay rejects a
 // numeric value.
@@ -108,6 +115,12 @@ macros::create_all_prerequisites!(
             request_body: SaferpayPreAuthenticateRequest<T>,
             response_body: SaferpayPreAuthenticateResponse,
             router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: SaferpaySetupMandateRequest<T>,
+            response_body: SaferpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -333,6 +346,46 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate Flow — standalone Secure Card Data registration.
+//
+// Saferpay sanctions no zero-amount authorization, and the docs forbid the 0.01 EUR
+// registration workaround for Visa/Mastercard, so a mandate is set up by registering
+// the card as an alias instead of by charging it. `Alias/InsertDirect` does that in a
+// single call with no redirect, matching the raw-PAN posture `AuthorizeDirect`
+// already has. The returned `Alias.Id` becomes the `connector_mandate_id`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Saferpay,
+    curl_request: Json(SaferpaySetupMandateRequest<T>),
+    curl_response: SaferpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                PATH_ALIAS_INSERT_DIRECT
+            ))
+        }
+    }
+);
+
 // Capture Flow — settles an authorized transaction and yields the `CaptureId` that
 // a later Refund must reference.
 macros::macro_connector_implementation!(
@@ -518,6 +571,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Saferpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Saferpay<T>
 {
 }
@@ -575,9 +633,10 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
-// Everything outside Authorize / PSync / Capture / Void / Refund / RSync is stubbed:
-// mandates, tokenization (Alias / Secure Card Data), disputes and payouts are out of
-// scope for this card-only integration.
+// Everything outside Authorize / PSync / Capture / Void / Refund / RSync /
+// PreAuthenticate / SetupMandate is stubbed: charging a stored alias (repeat payment),
+// alias revocation, disputes and payouts are out of scope for this card-only
+// integration.
 macros::macro_connector_flow_status_impls!(
     connector: Saferpay,
     generic_type: T,
@@ -599,7 +658,6 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
         SubmitEvidence,
         GetConnectorCustomer,
         VoidPostRefund
