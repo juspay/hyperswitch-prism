@@ -19,6 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.09.0
+
+### Features
+
+- **connector:** Add globalpay webhooks and postauthenticate flow ([#2229](https://github.com/juspay/connector-service/pull/2229)) ([`bb2249e`](https://github.com/juspay/connector-service/commit/bb2249e8a37fac53bd18679517357a36bc3da0df))
+- **twoc_twop_paco:** Send billing email via generalPayerDetails and add cardHolderName fallback ([#2250](https://github.com/juspay/connector-service/pull/2250)) ([`0fa2dcd`](https://github.com/juspay/connector-service/commit/0fa2dcd7c0fc07a1d52acf674cf96b90711bf675))
+
+### Miscellaneous Tasks
+
+- **clippy:** Disallow raw entropy/clock calls in connector code ([#2256](https://github.com/juspay/connector-service/pull/2256)) ([`f893a73`](https://github.com/juspay/connector-service/commit/f893a73fbcba1ff7e3ebbb1e9b4ba001b2eea626))
+
+**Full Changelog:** [`2026.09.08.0...2026.09.09.0`](https://github.com/juspay/connector-service/compare/2026.09.08.0...2026.09.09.0)
+
+- - -
+
 ## 2026.09.08.0
 
 ### Features
