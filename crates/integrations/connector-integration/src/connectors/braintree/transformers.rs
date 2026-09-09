@@ -45,12 +45,70 @@ use tracing::{info, warn};
 pub const BRAINTREE_CONNECTOR_NAME: &str = "braintree";
 
 pub mod constants {
+    /// The response-and-error surface selected by every card Authorize / Capture mutation:
+    /// AVS and CVV check results, the processor's own authorization and settlement codes,
+    /// the Mastercard Merchant Advice Code, the raw card-network response and the gateway
+    /// rejection reason. Without it a decline comes back as a bare `PROCESSOR_DECLINED`
+    /// with no reason attached.
+    ///
+    /// Three things about this selection are easy to get wrong:
+    ///
+    /// * **The GraphQL names are not the REST names.** The REST/server-SDK docs describe
+    ///   `processor_response_code`, `cvv_response_code`, `avs_postal_code_response_code`.
+    ///   In GraphQL those are `legacyCode`, `cvvResponse` and `avsPostalCodeResponse` — no
+    ///   `Code` suffix. There is no `avsErrorResponseCode` at all; its `S`/`E` outcomes
+    ///   fold into the two AVS fields as `ISSUER_DOES_NOT_PARTICIPATE` / `SYSTEM_ERROR`
+    ///   (confirmed against sandbox with billing postal codes `30001` / `30000`).
+    /// * **`declineType`, `merchantAdviceCodeResponse`, `networkResponse` and
+    ///   `gatewayRejectionReason` are not on `Transaction`.** They exist only on typed
+    ///   members of `statusHistory` (there is no `statusEvents` field) and are therefore
+    ///   reachable only through inline fragments.
+    /// * **AVS/CVV cannot be read off a capture.** The equivalent members of
+    ///   `TransactionSettlementProcessorResponse` are `@deprecated` because the checks only
+    ///   happen at authorization time, so they are not selected here; a capture response
+    ///   simply repeats the authorization's values.
+    ///
+    /// The event-level `processorResponse` is deliberately not selected: it duplicates
+    /// `Transaction.processorAuthorizationResponse`, and selecting it on both the decline
+    /// and settlement fragments would collide two differently-typed fields of the same name.
+    ///
+    /// Every field below was confirmed to resolve against the Braintree sandbox under the
+    /// pinned `Braintree-Version: 2019-01-01` header before being added here — a selection
+    /// on a field the versioned schema does not expose is a hard GraphQL validation error
+    /// that would break every Authorize call, not just the decline path.
+    ///
+    /// Kept as a macro rather than a `const` so `concat!` can splice it into each query
+    /// literal while the constants stay `&'static str`.
+    macro_rules! txn_response_surface {
+        () => {
+            "processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } \
+             processorSettlementResponse { legacyCode message } \
+             statusHistory { status terminal \
+               ... on AuthorizedEvent { riskDecision networkResponse { code message } } \
+               ... on ProcessorDeclinedEvent { declineType riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } \
+               ... on GatewayRejectedEvent { gatewayRejectionReason riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } \
+               ... on FailedEvent { riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } }"
+        };
+    }
+
     pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
     pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
     pub const TOKENIZE_CREDIT_CARD: &str = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }";
-    pub const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
-    pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
-    pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
+    pub const CHARGE_CREDIT_CARD_MUTATION: &str = concat!(
+        "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status ",
+        txn_response_surface!(),
+        " } } }"
+    );
+    pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = concat!(
+        "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status ",
+        txn_response_surface!(),
+        " } } }"
+    );
+    pub const CAPTURE_TRANSACTION_MUTATION: &str = concat!(
+        "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status ",
+        txn_response_surface!(),
+        " } } }"
+    );
     // `reverseTransaction` returns the union `TransactionReversal = Refund | Transaction`:
     // an unsettled transaction is voided (Transaction branch), a settled one is refunded in
     // full (Refund branch). Selecting only `... on Transaction` makes the settled case come
@@ -58,8 +116,16 @@ pub mod constants {
     // deserialized and the new refund id is lost, so both branches must be selected.
     pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { __typename ...  on Transaction { id legacyId amount { value currencyCode } status } ... on Refund { id legacyId amount { value currencyCode } status } } } }";
     pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
-    pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
-    pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
+    pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str = concat!(
+        "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } ",
+        txn_response_surface!(),
+        " } } }"
+    );
+    pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str = concat!(
+        "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } ",
+        txn_response_surface!(),
+        " } } }"
+    );
     pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
     pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
     pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
@@ -725,6 +791,10 @@ pub struct TransactionAuthChargeResponseBody {
     id: String,
     status: BraintreePaymentStatus,
     payment_method: Option<PaymentMethodInfo>,
+    /// AVS / CVV, processor codes and the typed status events. Flattened because the
+    /// mutation selects them directly on `transaction`, alongside `id` and `status`.
+    #[serde(flatten)]
+    response_surface: TransactionResponseSurface,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -755,15 +825,20 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             BraintreeAuthResponse::AuthResponse(auth_response) => {
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let surface = &transaction_data.response_surface;
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                    Err(create_declined_error_response(
+                        &transaction_data.status,
+                        surface,
+                        Some(transaction_data.id.clone()),
+                        status,
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             Box::new(MandateReference {
@@ -786,6 +861,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        // AVS / CVV outcome and the acquirer auth code travel on the
+                        // success path too — an approved transaction can still carry an
+                        // AVS mismatch when the merchant has no AVS rule enabled.
+                        connector_response: build_card_connector_response(surface),
+                        raw_connector_status: build_raw_connector_status(surface),
                         ..item.router_data.resource_common_data
                     },
                     response,
@@ -931,6 +1011,133 @@ fn get_error_response<T>(
     }))
 }
 
+/// Build the `ErrorResponse` for a transaction Braintree *accepted* — HTTP 200, no
+/// `errors[]` entry — but refused: `PROCESSOR_DECLINED`, `GATEWAY_REJECTED`, `FAILED`,
+/// `SETTLEMENT_DECLINED` or `AUTHORIZATION_EXPIRED`. Braintree answers 200 for everything,
+/// including declines, so this is the only place the refusal reason can be recovered.
+///
+/// The field choices are dictated by what the Hyperswitch Gateway Status Map keys on, so
+/// that smart retry can make a per-decline-reason decision instead of treating every
+/// Braintree failure alike:
+///
+/// * `code` / `message` — the processor's own code and text (`2001` / `Insufficient
+///   Funds`), which the GSM looks up as connector_error_code / connector_error_message. For
+///   a settlement refusal these come from the 4000-class settlement response instead, and
+///   for a gateway rejection from the rejection reason, because the processor never saw it.
+/// * `network_advice_code` — the Mastercard Merchant Advice Code (`01`), which Hyperswitch
+///   looks up in `merchant_advice_codes.<network>.<code>` to obtain a recommended action.
+/// * `network_decline_code` — the raw card-network response code, which Hyperswitch uses as
+///   the GSM `issuer_error_code` (`Network:{brand}|IssuerCode:{code}`).
+/// * `network_error_message` — the network's own text.
+/// * `reason` — the human-readable remediation. `ErrorResponse` has no `suggested_action`
+///   or `doc_url` field, so the per-decline-class guidance (hard vs soft, the merchant
+///   advice code, the gateway rejection reason) has nowhere else to travel.
+///
+/// `attempt_status` is set explicitly rather than left to the 2xx fallback: Braintree's
+/// refusals are terminal, and a terminal connector state that reports as anything but a
+/// terminal UCS state leaves the attempt polling forever.
+fn create_declined_error_response(
+    status: &BraintreePaymentStatus,
+    surface: &TransactionResponseSurface,
+    connector_transaction_id: Option<String>,
+    attempt_status: enums::AttemptStatus,
+    http_code: u16,
+) -> domain_types::router_data::ErrorResponse {
+    let processor = surface.processor_authorization_response.as_ref();
+    let settlement = surface.processor_settlement_response.as_ref();
+    let gateway_rejection = surface.gateway_rejection_reason();
+
+    // A capture-time refusal reports in the 4000-class settlement response; an
+    // authorization-time refusal reports in the 1000/2000/3000-class authorization response.
+    let settlement_first = matches!(status, BraintreePaymentStatus::SettlementDeclined);
+    let (primary_code, primary_message) = if settlement_first {
+        (
+            settlement.and_then(|s| s.legacy_code.clone()),
+            settlement.and_then(|s| s.message.clone()),
+        )
+    } else {
+        (
+            processor.and_then(|p| p.legacy_code.clone()),
+            processor.and_then(|p| p.message.clone()),
+        )
+    };
+    let (fallback_code, fallback_message) = if settlement_first {
+        (
+            processor.and_then(|p| p.legacy_code.clone()),
+            processor.and_then(|p| p.message.clone()),
+        )
+    } else {
+        (
+            settlement.and_then(|s| s.legacy_code.clone()),
+            settlement.and_then(|s| s.message.clone()),
+        )
+    };
+
+    let code = primary_code
+        .or(fallback_code)
+        // A gateway rejection is blocked by the merchant's own gateway rules before the
+        // processor is reached, so it has no processor code. The rejection reason is the
+        // most specific identifier available and distinguishes the causes from each other.
+        .or_else(|| gateway_rejection.map(|reason| reason.to_string()))
+        // Never NO_ERROR_CODE: the transaction status is always known and is more useful
+        // than a blank field reaching the merchant.
+        .unwrap_or_else(|| status.wire_value().to_string());
+    let message = primary_message
+        .or(fallback_message)
+        .unwrap_or_else(|| status.wire_value().to_string());
+
+    // Everything that explains *why* and what may be done about it, most specific first.
+    let mut reason_parts: Vec<String> = Vec::new();
+    if let Some(additional) = processor.and_then(|p| p.additional_information.clone()) {
+        reason_parts.push(additional);
+    }
+    if let Some(decline_type) = surface.decline_type() {
+        if let Some(guidance) = decline_type.guidance() {
+            reason_parts.push(guidance.to_string());
+        }
+    }
+    if let Some(reason) = gateway_rejection {
+        reason_parts.push(format!(
+            "gateway rejection ({reason}): {}",
+            reason.guidance()
+        ));
+    }
+    if let Some(advice_code) = surface.merchant_advice_code() {
+        let advice_text = surface
+            .merchant_advice_message()
+            .or_else(|| merchant_advice_code_guidance(&advice_code).map(str::to_string));
+        reason_parts.push(match advice_text {
+            Some(text) => format!("merchant advice code {advice_code}: {text}"),
+            None => format!("merchant advice code {advice_code}"),
+        });
+    }
+    if let Some(RiskDecision::Review) = surface.risk_decision() {
+        reason_parts.push("flagged for manual review by risk rules".to_string());
+    }
+
+    domain_types::router_data::ErrorResponse {
+        code,
+        message,
+        reason: Some(if reason_parts.is_empty() {
+            status.wire_value().to_string()
+        } else {
+            reason_parts.join("; ")
+        }),
+        status_code: http_code,
+        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
+            attempt_status,
+        )),
+        connector_transaction_id,
+        network_advice_code: surface.merchant_advice_code(),
+        network_decline_code: surface.network_code(),
+        network_error_message: surface.network_message(),
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
 fn create_failure_error_response<T: ToString>(
     status: T,
     connector_id: Option<String>,
@@ -977,6 +1184,424 @@ pub enum BraintreePaymentStatus {
     SubmittedForSettlement,
 }
 
+// ---------------------------------------------------------------------------
+// Response & error surface: AVS / CVV, processor codes, Mastercard advice codes.
+//
+// None of this data hangs off `Transaction` directly. The processor's authorization and
+// settlement responses do; everything else (hard/soft decline type, merchant advice code,
+// raw network response, gateway rejection reason) lives on typed members of
+// `Transaction.statusHistory` and is only reachable through inline fragments. See
+// `constants::txn_response_surface!` for the selection set that fetches it.
+// ---------------------------------------------------------------------------
+
+/// Braintree's AVS / CVV check outcome. A single SDL enum (`AvsCvvResponseCode`) types all
+/// three of `cvvResponse`, `avsPostalCodeResponse` and `avsStreetAddressResponse`.
+///
+/// `#[serde(other)]` is deliberate: these fields are nullable and an outcome we do not
+/// recognise must degrade to `Unknown` rather than fail the whole Authorize response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum AvsCvvResponseCode {
+    Bypass,
+    DoesNotMatch,
+    IssuerDoesNotParticipate,
+    Matches,
+    NotApplicable,
+    NotProvided,
+    NotVerified,
+    SystemError,
+    #[serde(other)]
+    Unknown,
+}
+
+impl AvsCvvResponseCode {
+    /// The single-letter REST / server-SDK representation of the same outcome. Braintree's
+    /// own AVS and CVV reference tables — and every downstream AVS/CVV consumer, including
+    /// the `payment_checks` bag the Cybersource and Bank of America connectors already
+    /// populate — speak in these letters; the long names exist only in GraphQL.
+    ///
+    /// `Unknown` has no letter to map to, so the absence is reported rather than guessed.
+    pub fn as_rest_code(self) -> Option<&'static str> {
+        match self {
+            Self::Matches => Some("M"),
+            Self::DoesNotMatch => Some("N"),
+            Self::NotVerified => Some("U"),
+            Self::NotProvided => Some("I"),
+            Self::IssuerDoesNotParticipate => Some("S"),
+            Self::SystemError => Some("E"),
+            Self::NotApplicable => Some("A"),
+            Self::Bypass => Some("B"),
+            Self::Unknown => None,
+        }
+    }
+
+    /// Whether the value provided by the shopper failed to match the issuer's record.
+    /// `NOT_VERIFIED` / `NOT_PROVIDED` / `ISSUER_DOES_NOT_PARTICIPATE` are explicitly not
+    /// mismatches — the check simply did not happen.
+    pub fn is_mismatch(self) -> bool {
+        matches!(self, Self::DoesNotMatch)
+    }
+}
+
+/// `ProcessorDeclinedEvent.declineType` — Braintree's own hard/soft discriminator, and the
+/// authoritative answer to "may this be retried with the same credential?". It is on the
+/// status event only, never on the processor-response object, which is why the inline
+/// fragment in the selection set is not optional.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessorDeclineType {
+    Hard,
+    Soft,
+    #[serde(other)]
+    Unknown,
+}
+
+impl ProcessorDeclineType {
+    /// Remediation text, taken from the SDL's own docstrings for the two values.
+    pub fn guidance(self) -> Option<&'static str> {
+        match self {
+            Self::Hard => Some(
+                "hard decline: the issue is not temporary, do not retry with the same payment method",
+            ),
+            Self::Soft => Some("soft decline: temporary issue, a later retry may succeed"),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// `GatewayRejectedEvent.gatewayRejectionReason`. All fourteen SDL values are matched — the
+/// prose documentation lists only nine, and the five it omits (`EXCESSIVE_RETRY`,
+/// `MANUAL_TRANSACTIONS_DISABLED`, `TOO_MANY_CONFIRMATION_ATTEMPTS`,
+/// `UNION_PAY_ENROLLMENT_REQUIRED`, `AVS_AND_CVV`) are real and must not fail parsing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum GatewayRejectionReason {
+    ApplicationIncomplete,
+    Avs,
+    AvsAndCvv,
+    Cvv,
+    Duplicate,
+    ExcessiveRetry,
+    Fraud,
+    ManualTransactionsDisabled,
+    PaymentMethodBlocked,
+    RiskThreshold,
+    ThreeDSecure,
+    TokenIssuance,
+    TooManyConfirmationAttempts,
+    UnionPayEnrollmentRequired,
+    #[serde(other)]
+    Unknown,
+}
+
+impl GatewayRejectionReason {
+    /// Per-reason remediation. A gateway rejection is not an issuer decline: the merchant's
+    /// own gateway settings blocked it, so the advice is about the merchant's configuration
+    /// or the data supplied, not about the card.
+    ///
+    /// Note for any future Void work: a `GATEWAY_REJECTED` transaction that had already been
+    /// authorized is voided automatically by the gateway, so the connector must never issue
+    /// a Void against one.
+    pub fn guidance(self) -> &'static str {
+        match self {
+            Self::Avs => "rejected by the merchant's AVS rules: correct the billing address before retrying",
+            Self::Cvv => "rejected by the merchant's CVV rules: correct the card verification value before retrying",
+            Self::AvsAndCvv => "rejected by the merchant's AVS and CVV rules: correct both the billing address and the card verification value before retrying",
+            Self::Duplicate => "rejected as a duplicate of an earlier transaction: reconcile against the original rather than retrying",
+            Self::Fraud | Self::RiskThreshold => "rejected by the merchant's fraud or risk rules: do not retry",
+            Self::ThreeDSecure => "rejected by the merchant's 3D Secure rules: retry only after a successful authentication",
+            Self::ApplicationIncomplete => "the merchant account application is incomplete: this is a provisioning issue, not a payment issue",
+            Self::PaymentMethodBlocked => "the payment method is blocked for this merchant: do not retry",
+            Self::TokenIssuance => "the payment method token could not be issued: do not retry with the same token",
+            Self::ExcessiveRetry | Self::TooManyConfirmationAttempts => "too many attempts against this payment: back off before retrying",
+            Self::ManualTransactionsDisabled => "manual transactions are disabled for this merchant account: enable them in the Control Panel",
+            Self::UnionPayEnrollmentRequired => "UnionPay enrolment is required for this card: do not retry as-is",
+            Self::Unknown => "rejected by the merchant's gateway settings",
+        }
+    }
+}
+
+/// `riskDecision` on the authorization / decline / rejection events. `REVIEW` is the value
+/// that matters operationally: the transaction may be authorized yet flagged for manual
+/// review, which is not a clean success.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum RiskDecision {
+    Approve,
+    Decline,
+    NotEvaluated,
+    Review,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Remediation for a Mastercard Merchant Advice Code.
+///
+/// The published list is `01`–`04`, `21`, `24`–`30`, `40`, `41` and `43`; there is no code
+/// `42`, and `05`–`20`, `22`–`23` and `31`–`39` are not published either. An unlisted code
+/// returns `None` rather than being guessed — the raw code still travels to the caller in
+/// `ErrorResponse::network_advice_code`, where the Hyperswitch Gateway Status Map looks it
+/// up per card network.
+fn merchant_advice_code_guidance(code: &str) -> Option<&'static str> {
+    // Braintree sends the code zero-padded ("01"), but pad defensively so a bare "1" from a
+    // future response still resolves to the same advice.
+    let padded = if code.len() == 1 {
+        format!("0{code}")
+    } else {
+        code.to_string()
+    };
+    match padded.as_str() {
+        "01" => Some("new account information available: retry only with updated card details"),
+        "02" => Some("cannot approve at this time: retry later"),
+        "03" => Some("do not try again"),
+        "04" => Some("token not supported: retry only with a different credential form"),
+        "21" => Some("stop the recurring payment: cancel the series"),
+        "24" => Some("retry after 1 hour"),
+        "25" => Some("retry after 24 hours"),
+        "26" => Some("retry after 2 days"),
+        "27" => Some("retry after 4 days"),
+        "28" => Some("retry after 6 days"),
+        "29" => Some("retry after 8 days"),
+        "30" => Some("retry after 10 days"),
+        "40" => Some("non-reloadable prepaid card: do not retry"),
+        "41" => Some("single-use virtual card number already spent: do not retry"),
+        "43" => Some("multi-use virtual card number"),
+        _ => None,
+    }
+}
+
+/// `Transaction.processorAuthorizationResponse` — the authorization-time processor result.
+/// This replaces the `@deprecated` `Transaction.processorResponse`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessorAuthorizationResponse {
+    /// The processor's own response code, e.g. `"2001"`. A `String` in the SDL, not an
+    /// integer — compare as text.
+    pub legacy_code: Option<String>,
+    pub message: Option<String>,
+    pub cvv_response: Option<AvsCvvResponseCode>,
+    pub avs_postal_code_response: Option<AvsCvvResponseCode>,
+    pub avs_street_address_response: Option<AvsCvvResponseCode>,
+    /// The acquirer authorization code (REST `processor_authorization_code`).
+    pub authorization_id: Option<String>,
+    pub additional_information: Option<String>,
+}
+
+/// `Transaction.processorSettlementResponse` — the 4000-class settlement result. Null until
+/// a settlement is attempted, which is why a Capture that is refused reports here rather
+/// than in the authorization response.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessorSettlementResponse {
+    pub legacy_code: Option<String>,
+    pub message: Option<String>,
+}
+
+/// The shape shared by `MerchantAdviceCodeResponse` and `PaymentNetworkResponse`.
+///
+/// `code` stays a `String` rather than becoming an enum on purpose: the SDL types it as a
+/// bare nullable `String`, Braintree does not constrain it, and a network response code is
+/// only interpretable together with the card brand (Visa `05` and Amex `000` mean opposite
+/// things). Turning it into an enum would either fail on unknown values or invent meaning.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeCodeMessage {
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
+/// One member of `Transaction.statusHistory`, flattened across the `PaymentStatusEvent`
+/// implementations: every extra member is optional and only the inline fragment that
+/// matched populates it. `declineType` therefore identifies a `ProcessorDeclinedEvent` and
+/// `gatewayRejectionReason` a `GatewayRejectedEvent`.
+///
+/// `status` is deliberately an untyped `String` and not `BraintreePaymentStatus`: the
+/// history carries every status the transaction has ever held, so a single value Braintree
+/// adds later would otherwise fail the entire Authorize response rather than just this one
+/// history entry.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeStatusEvent {
+    pub status: Option<String>,
+    /// SDL: "Whether this is the final state for the payment."
+    pub terminal: Option<bool>,
+    pub decline_type: Option<ProcessorDeclineType>,
+    pub gateway_rejection_reason: Option<GatewayRejectionReason>,
+    pub risk_decision: Option<RiskDecision>,
+    pub network_response: Option<BraintreeCodeMessage>,
+    pub merchant_advice_code_response: Option<BraintreeCodeMessage>,
+}
+
+/// The Authorize / Capture response surface, flattened into each transaction body so the
+/// card charge, card authorize and capture selections all share one shape. Every member is
+/// optional: a mutation whose selection set has not been widened simply yields `None`
+/// throughout and the connector falls back to the transaction status.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionResponseSurface {
+    pub processor_authorization_response: Option<ProcessorAuthorizationResponse>,
+    pub processor_settlement_response: Option<ProcessorSettlementResponse>,
+    /// Returned in reverse chronological order, most recent event first.
+    pub status_history: Option<Vec<BraintreeStatusEvent>>,
+}
+
+impl TransactionResponseSurface {
+    /// Scan the history most-recent-first for the first event that carries `f`.
+    ///
+    /// A plain `statusHistory[0]` lookup is not enough: on an approved auto-capture the
+    /// most recent event is `SUBMITTED_FOR_SETTLEMENT`, which carries no network response —
+    /// the `AuthorizedEvent` that does is the entry behind it.
+    fn find_in_history<'a, R>(
+        &'a self,
+        f: impl Fn(&'a BraintreeStatusEvent) -> Option<R>,
+    ) -> Option<R> {
+        self.status_history.iter().flatten().find_map(f)
+    }
+
+    /// The Mastercard Merchant Advice Code, e.g. `"01"`. Populated only for Mastercard and
+    /// only on a declined / rejected / failed event.
+    pub fn merchant_advice_code(&self) -> Option<String> {
+        self.find_in_history(|event| {
+            event
+                .merchant_advice_code_response
+                .as_ref()
+                .and_then(|mac| mac.code.clone())
+        })
+    }
+
+    pub fn merchant_advice_message(&self) -> Option<String> {
+        self.find_in_history(|event| {
+            event
+                .merchant_advice_code_response
+                .as_ref()
+                .and_then(|mac| mac.message.clone())
+        })
+    }
+
+    /// The raw card-network response code. Supplemental to the processor response code —
+    /// never the source of truth, and never something to branch retry logic on.
+    pub fn network_code(&self) -> Option<String> {
+        self.find_in_history(|event| {
+            event
+                .network_response
+                .as_ref()
+                .and_then(|network| network.code.clone())
+        })
+    }
+
+    pub fn network_message(&self) -> Option<String> {
+        self.find_in_history(|event| {
+            event
+                .network_response
+                .as_ref()
+                .and_then(|network| network.message.clone())
+        })
+    }
+
+    pub fn decline_type(&self) -> Option<ProcessorDeclineType> {
+        self.find_in_history(|event| event.decline_type)
+    }
+
+    pub fn gateway_rejection_reason(&self) -> Option<GatewayRejectionReason> {
+        self.find_in_history(|event| event.gateway_rejection_reason)
+    }
+
+    pub fn risk_decision(&self) -> Option<RiskDecision> {
+        self.find_in_history(|event| event.risk_decision)
+    }
+
+    /// Whether Braintree itself considers the current status final. Preferred over
+    /// inferring terminality from the status enum, though the status map stays the
+    /// authority for which UCS state to report.
+    pub fn is_terminal(&self) -> Option<bool> {
+        self.status_history
+            .as_ref()
+            .and_then(|history| history.first())
+            .and_then(|event| event.terminal)
+    }
+}
+
+/// The AVS / CVV outcome, the acquirer authorization code and the risk decision, in the
+/// shape UCS's `AdditionalPaymentMethodConnectorResponse::Card` expects. The `payment_checks`
+/// keys mirror what the Cybersource and Bank of America connectors already emit so that
+/// downstream consumers see one vocabulary, and the values are the single-letter REST codes
+/// those consumers speak.
+///
+/// Returns `None` when the response carried nothing worth reporting, so a connector that has
+/// not widened its selection set does not emit an empty bag.
+fn build_card_connector_response(
+    surface: &TransactionResponseSurface,
+) -> Option<domain_types::router_data::ConnectorResponseData> {
+    let processor = surface.processor_authorization_response.as_ref();
+
+    let mut payment_checks = serde_json::Map::new();
+    let mut insert_check = |key: &str, value: Option<AvsCvvResponseCode>| {
+        if let Some(code) = value {
+            payment_checks.insert(
+                key.to_string(),
+                // Fall back to the GraphQL spelling when the value is outside the SDL enum
+                // and therefore has no REST letter.
+                serde_json::json!(code
+                    .as_rest_code()
+                    .map_or_else(|| code.to_string(), str::to_string)),
+            );
+        }
+    };
+    insert_check(
+        "avs_postal_code_response",
+        processor.and_then(|p| p.avs_postal_code_response),
+    );
+    insert_check(
+        "avs_street_address_response",
+        processor.and_then(|p| p.avs_street_address_response),
+    );
+    insert_check("card_verification", processor.and_then(|p| p.cvv_response));
+    if let Some(risk_decision) = surface.risk_decision() {
+        payment_checks.insert(
+            "risk_decision".to_string(),
+            serde_json::json!(risk_decision.to_string()),
+        );
+    }
+
+    let auth_code = processor.and_then(|p| p.authorization_id.clone());
+
+    if payment_checks.is_empty() && auth_code.is_none() {
+        return None;
+    }
+
+    Some(
+        domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+            domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: (!payment_checks.is_empty())
+                    .then(|| serde_json::Value::Object(payment_checks)),
+                card_network: None,
+                domestic_network: None,
+                auth_code,
+            },
+        ),
+    )
+}
+
+/// The processor's own code / text for a transaction Braintree accepted, so the caller can
+/// see `1000 / Approved` on a success as well as `2001 / Insufficient Funds` on a decline.
+fn build_raw_connector_status(
+    surface: &TransactionResponseSurface,
+) -> Option<connector_types::RawConnectorStatus> {
+    let processor = surface.processor_authorization_response.as_ref()?;
+    if processor.legacy_code.is_none() && processor.message.is_none() {
+        return None;
+    }
+    Some(connector_types::RawConnectorStatus {
+        code: processor.legacy_code.clone(),
+        message: processor.message.clone(),
+        reason: processor.additional_information.clone(),
+    })
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ErrorDetails {
     pub message: String,
@@ -990,6 +1615,32 @@ pub struct AdditionalErrorDetails {
 }
 
 impl BraintreePaymentStatus {
+    /// The status exactly as Braintree spells it on the wire, e.g. `PROCESSOR_DECLINED`.
+    ///
+    /// The derived `strum::Display` renders the *Rust* variant name (`ProcessorDeclined`),
+    /// which is not a value the gateway ever sends. When a status has to stand in as an
+    /// error code — a refusal that carried no processor code at all — it must be the value
+    /// the gateway actually used, so the code is greppable against Braintree's own logs and
+    /// survives a rename of the Rust variant. Matched exhaustively so a new status cannot
+    /// silently inherit another one's spelling.
+    pub fn wire_value(&self) -> &'static str {
+        match self {
+            Self::Authorized => "AUTHORIZED",
+            Self::Authorizing => "AUTHORIZING",
+            Self::AuthorizationExpired => "AUTHORIZATION_EXPIRED",
+            Self::Failed => "FAILED",
+            Self::ProcessorDeclined => "PROCESSOR_DECLINED",
+            Self::GatewayRejected => "GATEWAY_REJECTED",
+            Self::Voided => "VOIDED",
+            Self::Settling => "SETTLING",
+            Self::Settled => "SETTLED",
+            Self::SettlementPending => "SETTLEMENT_PENDING",
+            Self::SettlementDeclined => "SETTLEMENT_DECLINED",
+            Self::SettlementConfirmed => "SETTLEMENT_CONFIRMED",
+            Self::SubmittedForSettlement => "SUBMITTED_FOR_SETTLEMENT",
+        }
+    }
+
     /// The values that are a terminal refusal whichever resource carries them — the shared
     /// `PaymentStatus` enum types both `Transaction.status` and `Refund.status`.
     pub fn is_terminal_failure(&self) -> bool {
@@ -1041,15 +1692,20 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             BraintreePaymentsResponse::PaymentsResponse(payment_response) => {
                 let transaction_data = payment_response.data.charge_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let surface = &transaction_data.response_surface;
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                    Err(create_declined_error_response(
+                        &transaction_data.status,
+                        surface,
+                        Some(transaction_data.id.clone()),
+                        status,
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             Box::new(MandateReference {
@@ -1072,6 +1728,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        // AVS / CVV outcome and the acquirer auth code travel on the
+                        // success path too — an approved transaction can still carry an
+                        // AVS mismatch when the merchant has no AVS rule enabled.
+                        connector_response: build_card_connector_response(surface),
+                        raw_connector_status: build_raw_connector_status(surface),
                         ..item.router_data.resource_common_data
                     },
                     response,
@@ -1918,9 +2579,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CaptureResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
+    /// A capture repeats the authorization's AVS / CVV values — no new check happens at
+    /// capture time — but the 4000-class settlement response is only ever populated here.
+    #[serde(flatten)]
+    response_surface: TransactionResponseSurface,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1950,15 +2616,20 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
             BraintreeCaptureResponse::SuccessResponse(capture_data) => {
                 let transaction_data = capture_data.data.capture_transaction.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let surface = &transaction_data.response_surface;
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                    Err(create_declined_error_response(
+                        &transaction_data.status,
+                        surface,
+                        Some(transaction_data.id.clone()),
+                        status,
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -1974,6 +2645,11 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        // No new AVS/CVV check happens at capture; these values repeat the
+                        // authorization's, which is still worth surfacing so a capture-only
+                        // caller sees them.
+                        connector_response: build_card_connector_response(surface),
+                        raw_connector_status: build_raw_connector_status(surface),
                         ..item.router_data.resource_common_data
                     },
                     response,
@@ -4896,5 +5572,470 @@ mod tests {
                 "orderId": "ref_1"
             })
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Response & error surface: AVS / CVV, processor codes, advice codes.
+    // The payloads below are copied verbatim from live Braintree sandbox
+    // responses captured under `Braintree-Version: 2019-01-01`.
+    // -----------------------------------------------------------------------
+
+    fn surface(value: serde_json::Value) -> TransactionResponseSurface {
+        serde_json::from_value(value).expect("response surface must deserialize")
+    }
+
+    /// A forced processor decline: sandbox amount `2001.00`, CVV `200` and billing postal
+    /// code `20000` / street `200 N Main St` to drive every check to a mismatch.
+    fn declined_surface() -> serde_json::Value {
+        serde_json::json!({
+            "processorAuthorizationResponse": {
+                "legacyCode": "2001",
+                "message": "Insufficient Funds",
+                "cvvResponse": "DOES_NOT_MATCH",
+                "avsPostalCodeResponse": "DOES_NOT_MATCH",
+                "avsStreetAddressResponse": "DOES_NOT_MATCH",
+                "authorizationId": null,
+                "additionalInformation": "2001 : Insufficient Funds"
+            },
+            "processorSettlementResponse": { "legacyCode": null, "message": null },
+            "statusHistory": [{
+                "status": "PROCESSOR_DECLINED",
+                "terminal": true,
+                "declineType": "SOFT",
+                "riskDecision": null,
+                "networkResponse": { "code": "05", "message": "Do not honor" },
+                "merchantAdviceCodeResponse": { "code": "01", "message": null }
+            }]
+        })
+    }
+
+    /// An approved auto-capture. Note the event order: the most recent event is
+    /// `SUBMITTED_FOR_SETTLEMENT`, which carries no network response — the `AuthorizedEvent`
+    /// that does is the entry behind it.
+    fn approved_surface() -> serde_json::Value {
+        serde_json::json!({
+            "processorAuthorizationResponse": {
+                "legacyCode": "1000",
+                "message": "Approved",
+                "cvvResponse": "MATCHES",
+                "avsPostalCodeResponse": "SYSTEM_ERROR",
+                "avsStreetAddressResponse": "MATCHES",
+                "authorizationId": "2C8XV5",
+                "additionalInformation": null
+            },
+            "processorSettlementResponse": { "legacyCode": null, "message": null },
+            "statusHistory": [
+                { "status": "SUBMITTED_FOR_SETTLEMENT", "terminal": false },
+                {
+                    "status": "AUTHORIZED",
+                    "terminal": false,
+                    "riskDecision": "REVIEW",
+                    "networkResponse": { "code": "00", "message": "Approved" }
+                }
+            ]
+        })
+    }
+
+    /// A gateway rejection: sandbox amount `5001.00`. The processor is never reached, so
+    /// there is no processor `legacyCode` at all.
+    fn gateway_rejected_surface() -> serde_json::Value {
+        serde_json::json!({
+            "processorAuthorizationResponse": {
+                "legacyCode": null,
+                "message": "Unavailable",
+                "cvvResponse": null,
+                "avsPostalCodeResponse": null,
+                "avsStreetAddressResponse": null,
+                "authorizationId": null,
+                "additionalInformation": null
+            },
+            "processorSettlementResponse": { "legacyCode": null, "message": null },
+            "statusHistory": [{
+                "status": "GATEWAY_REJECTED",
+                "terminal": true,
+                "gatewayRejectionReason": "APPLICATION_INCOMPLETE",
+                "riskDecision": null,
+                "merchantAdviceCodeResponse": { "code": null, "message": null },
+                "networkResponse": { "code": null, "message": null }
+            }]
+        })
+    }
+
+    /// Every value of the SDL's `AvsCvvResponseCode` must parse, and each must map to the
+    /// single-letter REST code Braintree's own reference tables use.
+    #[test]
+    fn avs_cvv_response_code_rest_letters() {
+        for (value, letter) in [
+            ("MATCHES", "M"),
+            ("DOES_NOT_MATCH", "N"),
+            ("NOT_VERIFIED", "U"),
+            ("NOT_PROVIDED", "I"),
+            ("ISSUER_DOES_NOT_PARTICIPATE", "S"),
+            ("SYSTEM_ERROR", "E"),
+            ("NOT_APPLICABLE", "A"),
+            ("BYPASS", "B"),
+        ] {
+            let parsed: AvsCvvResponseCode =
+                serde_json::from_value(serde_json::json!(value)).expect("must deserialize");
+            assert_eq!(
+                parsed.as_rest_code(),
+                Some(letter),
+                "unexpected REST letter for {value}"
+            );
+        }
+    }
+
+    /// An outcome outside the SDL enum must degrade to `Unknown` rather than fail the whole
+    /// Authorize response, and must not be given a letter it does not have.
+    #[test]
+    fn unknown_avs_cvv_value_degrades_instead_of_failing() {
+        let parsed: AvsCvvResponseCode =
+            serde_json::from_value(serde_json::json!("SOME_FUTURE_OUTCOME"))
+                .expect("unknown value must still deserialize");
+        assert_eq!(parsed, AvsCvvResponseCode::Unknown);
+        assert_eq!(parsed.as_rest_code(), None);
+        assert!(!parsed.is_mismatch());
+        // Only an explicit mismatch counts as one — a check that did not run does not.
+        assert!(AvsCvvResponseCode::DoesNotMatch.is_mismatch());
+        for not_a_mismatch in [
+            AvsCvvResponseCode::NotVerified,
+            AvsCvvResponseCode::NotProvided,
+            AvsCvvResponseCode::IssuerDoesNotParticipate,
+            AvsCvvResponseCode::Bypass,
+            AvsCvvResponseCode::NotApplicable,
+            AvsCvvResponseCode::SystemError,
+            AvsCvvResponseCode::Matches,
+        ] {
+            assert!(
+                !not_a_mismatch.is_mismatch(),
+                "{not_a_mismatch} is not a mismatch"
+            );
+        }
+    }
+
+    /// All fourteen SDL values must parse, including the five the prose documentation does
+    /// not list, and an unlisted one must not fail the response.
+    #[test]
+    fn every_gateway_rejection_reason_parses() {
+        for value in [
+            "APPLICATION_INCOMPLETE",
+            "AVS",
+            "AVS_AND_CVV",
+            "CVV",
+            "DUPLICATE",
+            "EXCESSIVE_RETRY",
+            "FRAUD",
+            "MANUAL_TRANSACTIONS_DISABLED",
+            "PAYMENT_METHOD_BLOCKED",
+            "RISK_THRESHOLD",
+            "THREE_D_SECURE",
+            "TOKEN_ISSUANCE",
+            "TOO_MANY_CONFIRMATION_ATTEMPTS",
+            "UNION_PAY_ENROLLMENT_REQUIRED",
+        ] {
+            let parsed: GatewayRejectionReason =
+                serde_json::from_value(serde_json::json!(value)).expect("must deserialize");
+            assert_ne!(
+                parsed,
+                GatewayRejectionReason::Unknown,
+                "{value} must map to a named variant"
+            );
+            // Round-trips to the same wire spelling, which is what lands in `ErrorResponse.code`.
+            assert_eq!(parsed.to_string(), value);
+        }
+        let unknown: GatewayRejectionReason =
+            serde_json::from_value(serde_json::json!("SOME_FUTURE_REASON"))
+                .expect("unknown value must still deserialize");
+        assert_eq!(unknown, GatewayRejectionReason::Unknown);
+    }
+
+    /// The published Merchant Advice Code list. There is no code `42`, and `05`-`20`,
+    /// `22`-`23` and `31`-`39` are not published either — an unlisted code must return no
+    /// guidance rather than an invented one.
+    #[test]
+    fn merchant_advice_code_guidance_map() {
+        for code in [
+            "01", "02", "03", "04", "21", "24", "25", "26", "27", "28", "29", "30", "40", "41",
+            "43",
+        ] {
+            assert!(
+                merchant_advice_code_guidance(code).is_some(),
+                "MAC {code} must carry guidance"
+            );
+        }
+        for code in ["42", "05", "22", "31", "99", ""] {
+            assert_eq!(
+                merchant_advice_code_guidance(code),
+                None,
+                "MAC {code} is not published and must not be given guidance"
+            );
+        }
+        // Do-not-retry codes must say so; the timed ones must name their interval.
+        assert_eq!(
+            merchant_advice_code_guidance("03"),
+            Some("do not try again")
+        );
+        assert_eq!(
+            merchant_advice_code_guidance("24"),
+            Some("retry after 1 hour")
+        );
+        // A bare, un-padded code resolves to the same advice as its zero-padded form.
+        assert_eq!(
+            merchant_advice_code_guidance("1"),
+            merchant_advice_code_guidance("01")
+        );
+    }
+
+    #[test]
+    fn processor_decline_type_map() {
+        for (value, expected) in [
+            ("HARD", ProcessorDeclineType::Hard),
+            ("SOFT", ProcessorDeclineType::Soft),
+            ("SOMETHING_ELSE", ProcessorDeclineType::Unknown),
+        ] {
+            let parsed: ProcessorDeclineType =
+                serde_json::from_value(serde_json::json!(value)).expect("must deserialize");
+            assert_eq!(parsed, expected);
+        }
+        assert!(ProcessorDeclineType::Hard
+            .guidance()
+            .is_some_and(|text| text.contains("do not retry")));
+        assert!(ProcessorDeclineType::Soft
+            .guidance()
+            .is_some_and(|text| text.contains("retry may succeed")));
+        assert_eq!(ProcessorDeclineType::Unknown.guidance(), None);
+    }
+
+    /// A `statusHistory` lookup must not stop at entry zero: on an approved auto-capture the
+    /// most recent event carries no network response and the one behind it does.
+    #[test]
+    fn status_history_lookup_scans_past_the_most_recent_event() {
+        let approved = surface(approved_surface());
+        assert_eq!(approved.network_code(), Some("00".to_string()));
+        assert_eq!(approved.network_message(), Some("Approved".to_string()));
+        assert_eq!(approved.risk_decision(), Some(RiskDecision::Review));
+        // `terminal` is read off the current event only, and an approved auto-capture is
+        // not terminal.
+        assert_eq!(approved.is_terminal(), Some(false));
+        assert_eq!(approved.decline_type(), None);
+        assert_eq!(approved.gateway_rejection_reason(), None);
+        assert_eq!(approved.merchant_advice_code(), None);
+    }
+
+    /// The decline that this whole surface exists for: it must reach the caller as the
+    /// processor's own code and text plus the values the Gateway Status Map keys on, never
+    /// as an opaque `PROCESSOR_DECLINED`.
+    #[test]
+    fn processor_decline_surfaces_specific_gsm_fields() {
+        let declined = surface(declined_surface());
+        let error = create_declined_error_response(
+            &BraintreePaymentStatus::ProcessorDeclined,
+            &declined,
+            Some("dHJhbnNhY3Rpb25fOXhwN201bmQ".to_string()),
+            enums::AttemptStatus::Failure,
+            200,
+        );
+
+        assert_eq!(error.code, "2001");
+        assert_eq!(error.message, "Insufficient Funds");
+        // The Mastercard advice code is what Hyperswitch looks up in
+        // `merchant_advice_codes.<network>.<code>` to pick a recommended action.
+        assert_eq!(error.network_advice_code, Some("01".to_string()));
+        // The raw network code becomes the GSM `issuer_error_code`.
+        assert_eq!(error.network_decline_code, Some("05".to_string()));
+        assert_eq!(
+            error.network_error_message,
+            Some("Do not honor".to_string())
+        );
+        assert_eq!(
+            error.connector_transaction_id,
+            Some("dHJhbnNhY3Rpb25fOXhwN201bmQ".to_string())
+        );
+        // A terminal refusal must report a terminal payment status, or the attempt polls
+        // forever. It must be a `Payment` status: this builder is only ever reached from a
+        // payment flow, never from the flow-agnostic `ConnectorCommon::build_error_response`.
+        assert!(matches!(
+            error.attempt_status,
+            Some(domain_types::router_data::FlowStatus::Payment(
+                enums::AttemptStatus::Failure
+            ))
+        ));
+
+        let reason = error.reason.expect("a decline must carry a reason");
+        assert!(reason.contains("2001 : Insufficient Funds"), "{reason}");
+        assert!(reason.contains("soft decline"), "{reason}");
+        assert!(reason.contains("merchant advice code 01"), "{reason}");
+        assert!(
+            reason.contains("retry only with updated card details"),
+            "{reason}"
+        );
+    }
+
+    /// A gateway rejection never reaches the processor, so it has no processor code. The
+    /// rejection reason has to become the error code, otherwise every rejection cause
+    /// collapses into one opaque `GATEWAY_REJECTED`.
+    #[test]
+    fn gateway_rejection_reports_its_reason_as_the_code() {
+        let rejected = surface(gateway_rejected_surface());
+        let error = create_declined_error_response(
+            &BraintreePaymentStatus::GatewayRejected,
+            &rejected,
+            Some("dHJhbnNhY3Rpb25fZTNuZHY0MmI".to_string()),
+            enums::AttemptStatus::Failure,
+            200,
+        );
+
+        assert_eq!(error.code, "APPLICATION_INCOMPLETE");
+        assert_eq!(error.message, "Unavailable");
+        // A null advice / network code must not become an empty string.
+        assert_eq!(error.network_advice_code, None);
+        assert_eq!(error.network_decline_code, None);
+        let reason = error.reason.expect("a rejection must carry a reason");
+        assert!(
+            reason.contains("gateway rejection (APPLICATION_INCOMPLETE)"),
+            "{reason}"
+        );
+        assert!(reason.contains("provisioning issue"), "{reason}");
+    }
+
+    /// A capture refusal reports in the 4000-class settlement response, not in the
+    /// authorization response — reading the authorization code there would report the
+    /// original approval as the failure reason.
+    #[test]
+    fn settlement_decline_prefers_the_settlement_code() {
+        let declined = surface(serde_json::json!({
+            "processorAuthorizationResponse": { "legacyCode": "1000", "message": "Approved" },
+            "processorSettlementResponse": {
+                "legacyCode": "4001",
+                "message": "Settlement Declined"
+            },
+            "statusHistory": [{ "status": "SETTLEMENT_DECLINED", "terminal": true }]
+        }));
+        let error = create_declined_error_response(
+            &BraintreePaymentStatus::SettlementDeclined,
+            &declined,
+            None,
+            enums::AttemptStatus::Failure,
+            200,
+        );
+        assert_eq!(error.code, "4001");
+        assert_eq!(error.message, "Settlement Declined");
+    }
+
+    /// A refusal with nothing selected — a mutation whose selection set was never widened —
+    /// must still produce a usable code rather than a blank one.
+    #[test]
+    fn empty_surface_falls_back_to_the_transaction_status() {
+        let error = create_declined_error_response(
+            &BraintreePaymentStatus::Failed,
+            &TransactionResponseSurface::default(),
+            None,
+            enums::AttemptStatus::Failure,
+            200,
+        );
+        assert_eq!(error.code, "FAILED");
+        assert_eq!(error.message, "FAILED");
+        assert_eq!(error.reason, Some("FAILED".to_string()));
+        assert_ne!(error.code, NO_ERROR_CODE);
+    }
+
+    /// AVS / CVV results travel on the success path too: an approved transaction still
+    /// carries them, and a merchant without AVS rules enabled sees a mismatch without a
+    /// rejection.
+    #[test]
+    fn approved_transaction_surfaces_avs_cvv_and_auth_code() {
+        let approved = surface(approved_surface());
+        let connector_response =
+            build_card_connector_response(&approved).expect("an approval must report its checks");
+        let json = serde_json::to_value(&connector_response).expect("must serialize");
+        let card = json
+            .get("additional_payment_method_data")
+            .and_then(|value| value.get("Card"))
+            .expect("card response must be present");
+        assert_eq!(card.get("auth_code"), Some(&serde_json::json!("2C8XV5")));
+        let checks = card.get("payment_checks").expect("payment checks present");
+        assert_eq!(
+            checks.get("card_verification"),
+            Some(&serde_json::json!("M"))
+        );
+        assert_eq!(
+            checks.get("avs_street_address_response"),
+            Some(&serde_json::json!("M"))
+        );
+        // The REST `avs_error_response_code` has no GraphQL equivalent; its `E` outcome
+        // folds into the AVS fields as `SYSTEM_ERROR`, confirmed against sandbox with
+        // billing postal code `30000`.
+        assert_eq!(
+            checks.get("avs_postal_code_response"),
+            Some(&serde_json::json!("E"))
+        );
+        assert_eq!(
+            checks.get("risk_decision"),
+            Some(&serde_json::json!("REVIEW"))
+        );
+
+        let raw_status =
+            build_raw_connector_status(&approved).expect("an approval reports its processor code");
+        assert_eq!(raw_status.code, Some("1000".to_string()));
+        assert_eq!(raw_status.message, Some("Approved".to_string()));
+    }
+
+    /// Nothing to report means nothing is emitted, rather than an empty bag.
+    #[test]
+    fn empty_surface_emits_no_connector_response() {
+        let empty = TransactionResponseSurface::default();
+        assert!(build_card_connector_response(&empty).is_none());
+        assert!(build_raw_connector_status(&empty).is_none());
+    }
+
+    /// The widened selection sets must actually ask for the fields the response types read,
+    /// and must keep asking for the identifiers the rest of the connector depends on.
+    #[test]
+    fn authorize_and_capture_selections_carry_the_response_surface() {
+        for query in [
+            constants::CHARGE_CREDIT_CARD_MUTATION,
+            constants::AUTHORIZE_CREDIT_CARD_MUTATION,
+            constants::CAPTURE_TRANSACTION_MUTATION,
+            constants::AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION,
+            constants::CHARGE_AND_VAULT_TRANSACTION_MUTATION,
+        ] {
+            for field in [
+                "processorAuthorizationResponse",
+                "legacyCode",
+                "cvvResponse",
+                "avsPostalCodeResponse",
+                "avsStreetAddressResponse",
+                "authorizationId",
+                "processorSettlementResponse",
+                "statusHistory",
+                "... on ProcessorDeclinedEvent",
+                "declineType",
+                "... on GatewayRejectedEvent",
+                "gatewayRejectionReason",
+                "merchantAdviceCodeResponse",
+                "networkResponse",
+                "id",
+                "status",
+            ] {
+                assert!(
+                    query.contains(field),
+                    "{field} missing from selection: {query}"
+                );
+            }
+            // The REST spellings are not GraphQL field names and would be a hard validation
+            // error that breaks every call, not just the decline path.
+            for wrong in [
+                "processorResponseCode",
+                "cvvResponseCode",
+                "avsPostalCodeResponseCode",
+                "avsErrorResponseCode",
+                "statusEvents",
+            ] {
+                assert!(
+                    !query.contains(wrong),
+                    "{wrong} must not be selected: {query}"
+                );
+            }
+        }
     }
 }

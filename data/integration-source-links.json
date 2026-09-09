@@ -223,21 +223,25 @@
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
   ],
   "Braintree": [
+    "https://graphql.braintreepayments.com/",
     "https://developer.paypal.com/braintree/graphql/reference/",
     "https://raw.githubusercontent.com/braintree/graphql-api/master/schema.graphql",
     "https://developer.paypal.com/braintree/graphql/guides/making_api_calls/",
     "https://developer.paypal.com/braintree/graphql/guides/transactions/",
-    "https://developer.paypal.com/braintree/graphql/integration_guides/credit_cards/",
-    "https://developer.paypal.com/braintree/graphql/integration_guides",
-    "https://developer.paypal.com/braintree/graphql/integration_guides/idempotency/",
-    "https://developer.paypal.com/braintree/graphql/guides/testing/",
-    "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/overview",
-    "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/required-fields",
-    "https://developer.paypal.com/braintree/in-person/legacy/guides/making-a-transaction/level-2-and-level-3-data-processing/",
-    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale",
+    "https://developer.paypal.com/braintree/docs/reference/response/transaction",
+    "https://developer.paypal.com/braintree/docs/reference/response/credit-card-verification",
+    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/authorization-responses/",
+    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/settlement-responses",
+    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/avs-cvv-responses",
+    "https://developer.paypal.com/braintree/docs/reference/general/merchant-responses/merchant-advice-codes",
+    "https://developer.paypal.com/braintree/docs/guides/pinless-debit/optimized-debit-routing/network-response-codes/",
+    "https://developer.paypal.com/braintree/docs/reference/general/statuses",
+    "https://developer.paypal.com/braintree/articles/control-panel/transactions/gateway-rejections",
+    "https://developer.paypal.com/braintree/articles/control-panel/transactions/declines",
+    "https://developer.paypal.com/braintree/articles/guides/fraud-tools/basic/avs-cvv-rules",
     "https://developer.paypal.com/braintree/docs/reference/general/validation-errors/all",
-    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/authorization-responses",
     "https://developer.paypal.com/braintree/docs/reference/general/testing",
-    "https://developer.paypal.com/braintree/docs/guides/webhooks/parse"
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/overview",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/transaction"
   ]
 }
