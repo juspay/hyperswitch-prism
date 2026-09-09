@@ -7,10 +7,10 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
+    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
     errors,
@@ -32,7 +32,8 @@ use transformers::{
     WorldpayraftAuthorizeRequest, WorldpayraftAuthorizeResponse, WorldpayraftCaptureRequest,
     WorldpayraftCaptureResponse, WorldpayraftRefundRequest, WorldpayraftRefundResponse,
     WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
-    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse,
+    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest,
+    WorldpayraftVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -60,6 +61,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftCaptureRequest,
             response_body: WorldpayraftCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: WorldpayraftVoidRequest,
+            response_body: WorldpayraftVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -262,12 +269,8 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url_payments(req);
             let is_debit = worldpayraft::is_debit_card(&req.request.payment_method_data);
             let is_auto_capture = worldpayraft::resolve_auto_capture(&req.request)?;
-            let path = match (is_debit, is_auto_capture) {
-                (false, true) => "credit/purchase",
-                (false, false) => "credit/authorization",
-                (true, true) => "debit/purchase",
-                (true, false) => "debit/preauth",
-            };
+            let path = worldpayraft::WorldpayraftOriginalOperation::from_parts(is_debit, is_auto_capture)
+                .path();
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -317,7 +320,55 @@ macros::macro_connector_implementation!(
                     },
                 })?;
             let reference = worldpayraft::WorldpayraftTransactionReference::parse(&connector_txn_id)?;
-            let path = if reference.is_debit { "debit/completion" } else { "credit/completion" };
+            let path = if reference.is_debit() { "debit/completion" } else { "credit/completion" };
+            Ok(format!("{base_url}/{path}"))
+        }
+    }
+);
+
+// ===== VOID TRAIT MARKER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Worldpayraft<T>
+{
+}
+
+// =============================================================================
+// VOID FLOW IMPLEMENTATION
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftVoidRequest),
+    curl_response: WorldpayraftVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+        /// Native RAFT publishes **no** void, reversal or cancel endpoint for cards. A void
+        /// is the original financial message re-POSTed to the endpoint that served it, with
+        /// `AuthorizationType: "RV"`. That endpoint is recovered from the operation code
+        /// carried in the first segment of the composite `connector_transaction_id` — the
+        /// same reference Capture and Refund route on — so no second lookup mechanism and no
+        /// invented path is involved.
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(
+                &req.request.connector_transaction_id,
+            )?;
+            let path = reference.operation.path();
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -359,7 +410,7 @@ macros::macro_connector_implementation!(
             let reference = worldpayraft::WorldpayraftTransactionReference::parse(
                 &req.request.connector_transaction_id,
             )?;
-            let path = if reference.is_debit { "debit/refund" } else { "credit/refund" };
+            let path = if reference.is_debit() { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -457,7 +508,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,

@@ -4,11 +4,11 @@ use common_utils::{
     types::{MinorUnit, StringMajorUnit},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
+    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
@@ -29,10 +29,14 @@ use crate::{connectors::worldpayraft::WorldpayraftRouterData, types::ResponseRou
 /// Card type identifier as received in `PaymentMethodData` (compared case-insensitively).
 pub(super) const CARD_TYPE_DEBIT: &str = "debit";
 
-/// Prefix embedded in `connector_transaction_id` to identify debit transactions.
-const TXN_TYPE_DEBIT: &str = "D";
-/// Prefix embedded in `connector_transaction_id` to identify credit transactions.
-const TXN_TYPE_CREDIT: &str = "C";
+/// First segment of `connector_transaction_id` — original operation `POST /credit/authorization`.
+const TXN_OP_CREDIT_AUTH: &str = "C";
+/// First segment of `connector_transaction_id` — original operation `POST /credit/purchase`.
+const TXN_OP_CREDIT_PURCHASE: &str = "CP";
+/// First segment of `connector_transaction_id` — original operation `POST /debit/preauth`.
+const TXN_OP_DEBIT_PREAUTH: &str = "D";
+/// First segment of `connector_transaction_id` — original operation `POST /debit/purchase`.
+const TXN_OP_DEBIT_PURCHASE: &str = "DP";
 /// Number of `|`-separated segments in the composite `connector_transaction_id`.
 const TXN_REFERENCE_SEGMENTS: usize = 6;
 
@@ -114,6 +118,65 @@ pub enum WorldpayraftFlag {
     Yes,
     #[serde(rename = "N")]
     No,
+}
+
+/// `AuthorizationType` — the closed two-value set that changes the disposition of an
+/// otherwise ordinary financial message.
+///
+/// Verbatim from the specification: *"Provides a means for the transaction disposition to be
+/// changed from standard authorization to forced conditions. Valid Values: FP - Force Post
+/// (Host Capture Advice completions, credit card completions, etc.); RV - Reversal"*.
+/// `maxLength: 2`, request only, and absent altogether on a normal auth or sale.
+///
+/// `RV` is the **entire** void mechanism: Native RAFT publishes no `/credit/void`,
+/// `/credit/reversal`, `/credit/cancel`, `/debit/void` or `/debit/reversal` endpoint, so a
+/// void is the original message re-POSTed to the original path with this field set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum WorldpayraftAuthorizationType {
+    /// `FP` — Force Post.
+    #[serde(rename = "FP")]
+    ForcePost,
+    /// `RV` — Reversal. Set on a void.
+    #[serde(rename = "RV")]
+    Reversal,
+}
+
+impl WorldpayraftAuthorizationType {
+    /// The literal that goes on the wire.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ForcePost => "FP",
+            Self::Reversal => "RV",
+        }
+    }
+}
+
+impl TryFrom<&str> for WorldpayraftAuthorizationType {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    /// Rejects anything outside the published pair. Worldpay silently books an
+    /// unrecognised `AuthorizationType` as a plain authorization, which on a void would
+    /// charge the cardholder a second time instead of releasing the hold.
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            value if value == Self::ForcePost.as_str() => Ok(Self::ForcePost),
+            value if value == Self::Reversal.as_str() => Ok(Self::Reversal),
+            other => Err(error_stack::report!(
+                errors::IntegrationError::InvalidDataFormat {
+                    field_name: "AuthorizationType",
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Worldpay RAFT publishes exactly two AuthorizationType values, \
+                             {:?} (Force Post) and {:?} (Reversal); got {other:?}",
+                            Self::ForcePost.as_str(),
+                            Self::Reversal.as_str(),
+                        )),
+                        ..Default::default()
+                    },
+                }
+            )),
+        }
+    }
 }
 
 /// `CardVerificationData.Cvv2Cvc2CIDIndicator` — the CVV2/CVC2/CID **presence** indicator.
@@ -524,11 +587,13 @@ fn reject_unsupported_capture_method(
 /// as structured `connector_metadata` for observability and webhook correlation.
 ///
 /// Wire format (six `|`-separated segments, none of which can contain `|`):
-/// `{C|D}|{APITransactionID}|{LocalDateTime}|{authorized minor amount}|{AuthorizationNumber}|{RetrievalREFNumber}`
+/// `{C|CP|D|DP}|{APITransactionID}|{LocalDateTime}|{authorized minor amount}|{AuthorizationNumber}|{RetrievalREFNumber}`
 #[derive(Debug, Clone)]
 pub(super) struct WorldpayraftTransactionReference {
-    /// Routes the follow-up to `/debit/*` instead of `/credit/*`.
-    pub is_debit: bool,
+    /// The endpoint the original message used. A completion or refund only needs the
+    /// credit/debit half of it; a **reversal needs all of it**, because it has to be
+    /// re-POSTed to that exact endpoint.
+    pub operation: WorldpayraftOriginalOperation,
     /// The `APITransactionID` **sent** on the original message; replayed verbatim.
     pub api_transaction_id: String,
     /// The merchant-local timestamp recorded for the original message and replayed on
@@ -550,16 +615,91 @@ pub(super) struct WorldpayraftTransactionReference {
     pub retrieval_ref_number: Option<String>,
 }
 
+/// The financial operation a transaction was created by, and therefore the endpoint any
+/// follow-up to it has to use.
+///
+/// Native RAFT has no void endpoint at all: a void is the **same message re-POSTed to the
+/// same path** with `AuthorizationType: "RV"`. `PaymentVoidData` carries nothing but
+/// `connector_transaction_id`, so the endpoint has to travel inside it — which is why this
+/// is the first segment of the composite reference rather than a bare credit/debit flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum WorldpayraftOriginalOperation {
+    /// `POST /credit/authorization`, wrapper `creditauth` — manual-capture credit auth.
+    CreditAuth,
+    /// `POST /credit/purchase`, wrapper `creditpurchase` — auto-capture credit sale.
+    CreditPurchase,
+    /// `POST /debit/preauth`, wrapper `debitpreauth` — manual-capture debit auth.
+    DebitPreauth,
+    /// `POST /debit/purchase`, wrapper `debitpurchase` — auto-capture debit sale.
+    DebitPurchase,
+}
+
+impl WorldpayraftOriginalOperation {
+    /// Selects the operation from the two facts an authorize-family wrapper key carries.
+    pub(super) fn from_parts(is_debit: bool, is_auto_capture: bool) -> Self {
+        match (is_debit, is_auto_capture) {
+            (false, false) => Self::CreditAuth,
+            (false, true) => Self::CreditPurchase,
+            (true, false) => Self::DebitPreauth,
+            (true, true) => Self::DebitPurchase,
+        }
+    }
+
+    /// The code written into the first segment of `connector_transaction_id`.
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::CreditAuth => TXN_OP_CREDIT_AUTH,
+            Self::CreditPurchase => TXN_OP_CREDIT_PURCHASE,
+            Self::DebitPreauth => TXN_OP_DEBIT_PREAUTH,
+            Self::DebitPurchase => TXN_OP_DEBIT_PURCHASE,
+        }
+    }
+
+    /// `true` for the `/debit/*` family, which mirrors every credit endpoint but carries
+    /// no `POSEnvironment`, no `AddressVerificationData` and no `*SpecificData` blocks.
+    pub(super) fn is_debit(self) -> bool {
+        match self {
+            Self::DebitPreauth | Self::DebitPurchase => true,
+            Self::CreditAuth | Self::CreditPurchase => false,
+        }
+    }
+
+    /// The path this operation is served on, relative to the RAFT base URL. It is also the
+    /// path a **reversal** of such a transaction has to be re-POSTed to.
+    pub(super) fn path(self) -> &'static str {
+        match self {
+            Self::CreditAuth => "credit/authorization",
+            Self::CreditPurchase => "credit/purchase",
+            Self::DebitPreauth => "debit/preauth",
+            Self::DebitPurchase => "debit/purchase",
+        }
+    }
+}
+
+impl TryFrom<&str> for WorldpayraftOriginalOperation {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            TXN_OP_CREDIT_AUTH => Ok(Self::CreditAuth),
+            TXN_OP_CREDIT_PURCHASE => Ok(Self::CreditPurchase),
+            TXN_OP_DEBIT_PREAUTH => Ok(Self::DebitPreauth),
+            TXN_OP_DEBIT_PURCHASE => Ok(Self::DebitPurchase),
+            _ => Err(()),
+        }
+    }
+}
+
 impl WorldpayraftTransactionReference {
+    /// `true` when the follow-up belongs on the `/debit/*` endpoint family.
+    pub(super) fn is_debit(&self) -> bool {
+        self.operation.is_debit()
+    }
+
     fn encode(&self) -> String {
-        let prefix = if self.is_debit {
-            TXN_TYPE_DEBIT
-        } else {
-            TXN_TYPE_CREDIT
-        };
         format!(
             "{}|{}|{}|{}|{}|{}",
-            prefix,
+            self.operation.as_str(),
             self.api_transaction_id,
             self.local_date_time,
             self.authorized_minor_amount
@@ -577,7 +717,7 @@ impl WorldpayraftTransactionReference {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(format!(
                         "Worldpay RAFT expects the composite reference \
-                         '[C|D]|APITransactionID|LocalDateTime|authorized_minor_amount|\
+                         '[C|CP|D|DP]|APITransactionID|LocalDateTime|authorized_minor_amount|\
                          AuthorizationNumber|RetrievalREFNumber', got {raw:?}"
                     )),
                     ..Default::default()
@@ -589,11 +729,8 @@ impl WorldpayraftTransactionReference {
         if segments.len() != TXN_REFERENCE_SEGMENTS {
             return Err(invalid());
         }
-        let is_debit = match segments[0] {
-            TXN_TYPE_DEBIT => true,
-            TXN_TYPE_CREDIT => false,
-            _ => return Err(invalid()),
-        };
+        let operation =
+            WorldpayraftOriginalOperation::try_from(segments[0]).map_err(|()| invalid())?;
         if segments[1].is_empty() || segments[2].is_empty() {
             return Err(invalid());
         }
@@ -603,7 +740,7 @@ impl WorldpayraftTransactionReference {
         };
 
         Ok(Self {
-            is_debit,
+            operation,
             api_transaction_id: segments[1].to_string(),
             local_date_time: segments[2].to_string(),
             authorized_minor_amount,
@@ -648,6 +785,14 @@ pub struct WorldpayraftAmounts {
     /// was approved for. **Required** on `creditcompletion` / `debitcompletion`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preauthorized_amount: Option<StringMajorUnit>,
+    /// `MiscAmountsBalances.DispensedAmount` — **partial reversals only**. Verbatim:
+    /// *"This is the amount authorized for settlement. It is used in reversal processing to
+    /// indicate the actual amount remaining after the reversal. By default, Worldpay assumes
+    /// the reversal is a full reversal, so this field is only necessary where the reversal
+    /// amount is different than the original transaction amount."* Omitted everywhere else,
+    /// so a full reversal stays a full reversal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dispensed_amount: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Serialize)]
@@ -1101,6 +1246,27 @@ impl WorldpayraftResponseInner {
         }
     }
 
+    /// The `AttemptStatus` for a declined **reversal**.
+    ///
+    /// The sibling of [`Self::payment_decline_status`] for the void flow. It honours the
+    /// same two non-terminal `ResponseCode`s, but a void has no cardholder-authentication
+    /// step, so `003 HONOR WITH ID` — the issuer asking for the message to be re-presented
+    /// with an identification — maps to `VoidInitiated` here rather than to
+    /// `AuthenticationPending`. Everything else, `002 VOID UNSUCCESSFUL` and
+    /// `051 UNABLE TO LOCATE A MATCHING ORIGINAL TRANSACTION` included, is a terminal
+    /// `VoidFailed`: the hold is still in place.
+    fn void_decline_status(&self) -> AttemptStatus {
+        if self.return_code != RETURN_CODE_SUCCESS {
+            return AttemptStatus::VoidFailed;
+        }
+        match self.response_code.as_deref() {
+            Some(RESPONSE_CODE_HONOR_WITH_ID) | Some(RESPONSE_CODE_REQUEST_IN_PROGRESS) => {
+                AttemptStatus::VoidInitiated
+            }
+            _ => AttemptStatus::VoidFailed,
+        }
+    }
+
     /// The terminal `RefundStatus` for a declined refund message.
     fn refund_decline_status(&self) -> RefundStatus {
         if self.return_code == RETURN_CODE_SUCCESS
@@ -1142,7 +1308,8 @@ impl WorldpayraftResponseInner {
         serde_json::json!({
             "api_transaction_id": reference.api_transaction_id,
             "local_date_time": reference.local_date_time,
-            "is_debit": reference.is_debit,
+            "original_operation": reference.operation.path(),
+            "is_debit": reference.is_debit(),
             "authorized_minor_amount": reference.authorized_minor_amount,
             "authorization_number": reference.authorization_number,
             "retrieval_ref_number": reference.retrieval_ref_number,
@@ -1168,14 +1335,14 @@ impl WorldpayraftResponseInner {
     /// numbers Worldpay returned.
     fn to_transaction_reference(
         &self,
-        is_debit: bool,
+        operation: WorldpayraftOriginalOperation,
         api_transaction_id: String,
         local_date_time: String,
         authorized_minor_amount: Option<i64>,
     ) -> WorldpayraftTransactionReference {
         let trace = self.reference_trace_numbers.as_ref();
         WorldpayraftTransactionReference {
-            is_debit,
+            operation,
             api_transaction_id,
             local_date_time,
             authorized_minor_amount,
@@ -1497,6 +1664,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             misc_amounts_balances: WorldpayraftAmounts {
                 transaction_amount,
                 preauthorized_amount: None,
+                dispensed_amount: None,
             },
             card_info: WorldpayraftCardInfo {
                 pan: card.card_number.clone(),
@@ -1573,7 +1741,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let reference = inner.to_transaction_reference(
-            is_debit,
+            WorldpayraftOriginalOperation::from_parts(is_debit, is_auto_capture),
             api_transaction_id,
             get_local_datetime(),
             authorized_minor_amount,
@@ -1745,6 +1913,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             misc_amounts_balances: WorldpayraftAmounts {
                 transaction_amount,
                 preauthorized_amount: Some(preauthorized_amount),
+                dispensed_amount: None,
             },
             reference_trace_numbers: reference.follow_up_trace_numbers(),
             world_pay_merchant_id: auth.merchant_id,
@@ -1752,7 +1921,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             local_date_time: reference.local_date_time.clone(),
         };
 
-        Ok(if reference.is_debit {
+        Ok(if reference.is_debit() {
             Self::Debit {
                 debitcompletion: inner,
             }
@@ -1820,6 +1989,308 @@ impl TryFrom<ResponseRouterData<WorldpayraftCaptureResponse, Self>>
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// VOID (reversal)
+// =============================================================================
+
+/// Inner fields for a reversal.
+///
+/// There is no reversal *operation* in Native RAFT — this is the ordinary financial
+/// message for whichever endpoint the original transaction used (`creditauth`,
+/// `creditpurchase`, `debitpreauth`, `debitpurchase`), reduced to the members a reversal
+/// needs and flagged with `AuthorizationType: "RV"`. No `CardInfo` is sent: the reversal is
+/// matched on `APITransactionID`, so re-transmitting the PAN would put card data on the wire
+/// for no benefit.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct WorldpayraftReversalInner {
+    /// `AuthorizationType` — always `RV`. This single member is the whole void mechanism.
+    pub authorization_type: WorldpayraftAuthorizationType,
+    /// `MiscAmountsBalances` — `TransactionAmount` is the **original** transaction's amount,
+    /// and `DispensedAmount` the amount left standing after a partial reversal.
+    pub misc_amounts_balances: WorldpayraftAmounts,
+    /// `ReferenceTraceNumbers` — the secondary matching keys (`AuthorizationNumber`,
+    /// `RetrievalREFNumber`) received on the original response, replayed here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference_trace_numbers: Option<WorldpayraftRequestTraceNumbers>,
+    #[serde(rename = "WorldPayMerchantID")]
+    pub world_pay_merchant_id: Secret<String>,
+    /// The **original** transaction's `APITransactionID`, replayed verbatim. This is how
+    /// RAFT matches a reversal to its original; a freshly generated id comes back as
+    /// `ResponseCode 051 UNABLE TO LOCATE A MATCHING ORIGINAL TRANSACTION`.
+    #[serde(rename = "APITransactionID")]
+    pub api_transaction_id: String,
+    /// The `LocalDateTime` recorded for the original transaction, replayed as the secondary
+    /// matching key.
+    pub local_date_time: String,
+}
+
+/// Outer wrapper for a void. The key — and therefore the endpoint — is whichever the
+/// original transaction used, recovered from the composite `connector_transaction_id`.
+///
+/// | original | re-POST to | wrapper |
+/// |---|---|---|
+/// | `/credit/authorization` | `POST /credit/authorization` | `creditauth` |
+/// | `/credit/purchase` | `POST /credit/purchase` | `creditpurchase` |
+/// | `/debit/preauth` | `POST /debit/preauth` | `debitpreauth` |
+/// | `/debit/purchase` | `POST /debit/purchase` | `debitpurchase` |
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum WorldpayraftVoidRequest {
+    CreditAuth {
+        creditauth: WorldpayraftReversalInner,
+    },
+    CreditPurchase {
+        creditpurchase: WorldpayraftReversalInner,
+    },
+    DebitPreauth {
+        debitpreauth: WorldpayraftReversalInner,
+    },
+    DebitPurchase {
+        debitpurchase: WorldpayraftReversalInner,
+    },
+}
+
+/// A reversal answers on the same response wrapper as the operation it re-sent.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WorldpayraftVoidResponse {
+    CreditAuth {
+        creditauthresponse: WorldpayraftResponseInner,
+    },
+    CreditPurchase {
+        creditpurchaseresponse: WorldpayraftResponseInner,
+    },
+    DebitPreauth {
+        debitpreauthresponse: WorldpayraftResponseInner,
+    },
+    DebitPurchase {
+        debitpurchaseresponse: WorldpayraftResponseInner,
+    },
+}
+
+impl WorldpayraftVoidResponse {
+    fn inner(&self) -> &WorldpayraftResponseInner {
+        match self {
+            Self::CreditAuth {
+                creditauthresponse: inner,
+            }
+            | Self::CreditPurchase {
+                creditpurchaseresponse: inner,
+            }
+            | Self::DebitPreauth {
+                debitpreauthresponse: inner,
+            }
+            | Self::DebitPurchase {
+                debitpurchaseresponse: inner,
+            } => inner,
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayraftRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    > for WorldpayraftVoidRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    /// **Amounts.** The specification is explicit that a reversal carries the *original*
+    /// transaction's `TransactionAmount`, and that a partial reversal expresses itself with
+    /// `DispensedAmount` — "the actual amount remaining after the reversal" — rather than by
+    /// shrinking `TransactionAmount`. The original amount is taken from the composite
+    /// `connector_transaction_id`, the only channel that reaches the Void flow, so the
+    /// figure sent is the one that was actually approved rather than one reconstructed by
+    /// the caller.
+    ///
+    /// `PaymentVoidData::amount` is therefore read as *how much of the original to release*:
+    /// absent or equal to the original means a full reversal and `DispensedAmount` is
+    /// omitted, less than the original leaves `original - amount` standing, and more than the
+    /// original is refused rather than clamped.
+    ///
+    /// `PaymentVoidData::currency` is required because `TransactionAmount` is a major-unit
+    /// string (`ddddddddd.cc`) and neither the composite reference nor the Void flow's
+    /// `PaymentFlowData` (whose `amount` is `None` by construction) carries a currency to
+    /// scale the stored minor amount with.
+    fn try_from(
+        item: WorldpayraftRouterData<
+            RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = WorldpayraftAuthType::try_from(&router_data.connector_config)?;
+
+        let reference =
+            WorldpayraftTransactionReference::parse(&router_data.request.connector_transaction_id)?;
+
+        let original_minor_amount = reference.authorized_minor_amount.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "TransactionAmount",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "A Worldpay RAFT reversal carries the amount of the transaction being \
+                         reversed, and the connector transaction reference records no original \
+                         amount for this transaction"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+
+        let currency = router_data.request.currency.ok_or_else(|| {
+            error_stack::report!(errors::IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send PaymentServiceVoidRequest.amount with the original payment's \
+                         currency (the Money message carries both minor_amount and currency)"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Worldpay RAFT requires MiscAmountsBalances.TransactionAmount on a \
+                         reversal as a major-unit string, and the Void flow's PaymentFlowData \
+                         carries no amount to take a currency from"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+
+        let convert = |minor: i64, what: &str| {
+            item.connector
+                .amount_converter
+                .convert(MinorUnit::new(minor), currency)
+                .change_context(errors::IntegrationError::AmountConversionFailed {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "Worldpay RAFT requires the reversal {what} in major currency units"
+                        )),
+                        ..Default::default()
+                    },
+                })
+        };
+
+        let transaction_amount = convert(original_minor_amount, "TransactionAmount")?;
+
+        let dispensed_amount = match router_data.request.amount {
+            Some(requested) => {
+                let requested_minor = requested.get_amount_as_i64();
+                if requested_minor > original_minor_amount {
+                    return Err(error_stack::report!(
+                        errors::IntegrationError::InvalidDataFormat {
+                            field_name: "amount",
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(format!(
+                                    "Worldpay RAFT cannot reverse more than the original \
+                                     transaction: asked to reverse {requested_minor} minor units \
+                                     of a transaction authorized for {original_minor_amount}"
+                                )),
+                                ..Default::default()
+                            },
+                        }
+                    ));
+                }
+                let remaining = original_minor_amount - requested_minor;
+                // A full reversal is the RAFT default; DispensedAmount exists only to say
+                // how much is left standing, so it is sent only when something is.
+                if remaining > 0 {
+                    Some(convert(remaining, "DispensedAmount")?)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        };
+
+        let inner = WorldpayraftReversalInner {
+            authorization_type: WorldpayraftAuthorizationType::Reversal,
+            misc_amounts_balances: WorldpayraftAmounts {
+                transaction_amount,
+                preauthorized_amount: None,
+                dispensed_amount,
+            },
+            reference_trace_numbers: reference.follow_up_trace_numbers(),
+            world_pay_merchant_id: auth.merchant_id,
+            api_transaction_id: reference.api_transaction_id.clone(),
+            local_date_time: reference.local_date_time.clone(),
+        };
+
+        // `ReversalAdviceReasonCd` is deliberately not sent. Its published values are
+        // 000 Normal Reversal, 002 Timeout, 003 Syntax, 005 Clerk Cancel, 006 Customer
+        // Cancel and 010 Previously Authorized; `PaymentVoidData::cancellation_reason` is a
+        // free-text string with no defined vocabulary, so nothing can be mapped onto that
+        // set without guessing. The field is optional and Worldpay defaults it to
+        // 000 Normal Reversal, which is exactly what a UCS-initiated void is.
+        Ok(match reference.operation {
+            WorldpayraftOriginalOperation::CreditAuth => Self::CreditAuth { creditauth: inner },
+            WorldpayraftOriginalOperation::CreditPurchase => Self::CreditPurchase {
+                creditpurchase: inner,
+            },
+            WorldpayraftOriginalOperation::DebitPreauth => Self::DebitPreauth {
+                debitpreauth: inner,
+            },
+            WorldpayraftOriginalOperation::DebitPurchase => Self::DebitPurchase {
+                debitpurchase: inner,
+            },
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<WorldpayraftVoidResponse, Self>>
+    for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<WorldpayraftVoidResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let inner = item.response.inner();
+
+        if !inner.is_success() {
+            let status = inner.void_decline_status();
+            return Ok(Self {
+                response: Err(inner.to_error_response(item.http_code, FlowStatus::Payment(status))),
+                resource_common_data: PaymentFlowData {
+                    status,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // The composite reference is preserved unchanged: a reversal mints no new
+        // transaction, and a partial reversal leaves the remainder addressable.
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.router_data.request.connector_transaction_id.clone(),
+                ),
+                redirection_data: None,
+                mandate_reference: None,
+                connector_metadata: None,
+                network_txn_id: inner.network_transaction_id(),
+                network_txn_link_id: inner.transaction_link_id(),
+                connector_response_reference_id: inner.api_transaction_id.clone(),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: inner.payment_account_reference(),
+            }),
+            resource_common_data: PaymentFlowData {
+                status: AttemptStatus::Voided,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1926,6 +2397,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             misc_amounts_balances: WorldpayraftAmounts {
                 transaction_amount,
                 preauthorized_amount: None,
+                dispensed_amount: None,
             },
             reference_trace_numbers: reference.follow_up_trace_numbers(),
             world_pay_merchant_id: auth.merchant_id,
@@ -1933,7 +2405,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             local_date_time: reference.local_date_time.clone(),
         };
 
-        Ok(if reference.is_debit {
+        Ok(if reference.is_debit() {
             Self::Debit { debitrefund: inner }
         } else {
             Self::Credit {
@@ -1985,7 +2457,7 @@ impl TryFrom<ResponseRouterData<WorldpayraftRefundResponse, Self>>
             },
         })?;
         let refund_reference = inner.to_transaction_reference(
-            reference.is_debit,
+            reference.operation,
             reference.api_transaction_id.clone(),
             reference.local_date_time.clone(),
             reference.authorized_minor_amount,
@@ -2152,10 +2624,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             })?;
 
-        // Tokenization is always a credit-path operation and carries no amount, so the
-        // composite reference has no PreauthorizedAmount to record.
+        // Tokenization is neither an authorization nor a sale: it is not reversible and
+        // carries no amount, so the reference records the credit-path auth operation purely
+        // so the composite id keeps its shape, with no PreauthorizedAmount.
         let reference = inner.to_transaction_reference(
-            false,
+            WorldpayraftOriginalOperation::CreditAuth,
             truncate_api_transaction_id(
                 &item
                     .router_data
@@ -2515,6 +2988,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             misc_amounts_balances: WorldpayraftAmounts {
                 transaction_amount,
                 preauthorized_amount: None,
+                dispensed_amount: None,
             },
             card_info,
             encryption_token_data,
@@ -2581,8 +3055,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             });
         }
 
+        // A merchant-initiated transaction is credit-only, and the wrapper key that came
+        // back says whether it was booked as a sale or as an auth to be completed later.
         let reference = inner.to_transaction_reference(
-            false,
+            WorldpayraftOriginalOperation::from_parts(false, is_auto_capture),
             truncate_api_transaction_id(
                 &item
                     .router_data
