@@ -100,8 +100,7 @@ pub struct PayhereServerAuthenticationTokenResponse {
     pub token_type: Option<String>,
 }
 
-impl
-    TryFrom<ResponseRouterData<PayhereServerAuthenticationTokenResponse, Self>>
+impl TryFrom<ResponseRouterData<PayhereServerAuthenticationTokenResponse, Self>>
     for RouterDataV2<
         ServerAuthenticationToken,
         MerchantAuthenticationFlowData,
@@ -421,8 +420,7 @@ pub struct PayherePaymentData {
     pub amount: f64,
 }
 
-impl
-    TryFrom<ResponseRouterData<PayhereSyncResponse, Self>>
+impl TryFrom<ResponseRouterData<PayhereSyncResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::PSync,
         PaymentFlowData,
@@ -431,9 +429,7 @@ impl
     >
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<PayhereSyncResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<PayhereSyncResponse, Self>) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;
 
         let payment_data = item.response.data.and_then(|mut d| d.pop());
