@@ -931,7 +931,7 @@ connector_id: xendit
 doc: docs/connectors/xendit.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Card
-flows: authorize, get, proxy_authorize, refund, refund_get
+flows: authorize, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring
 examples_python: examples/xendit/xendit.py
 
 ## Zift

@@ -652,8 +652,43 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/return",
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.xendit.co/v3/payment_requests",
+          "method": "Post",
+          "headers": {
+            "api-version": "2024-11-11",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reference_id\":\"probe_proxy_mandate_001\",\"type\":\"VERIFY_PAYMENT_METHOD\",\"currency\":\"USD\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"{{$card_cvc}}\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"success_return_url\":\"https://example.com/return\",\"failure_return_url\":\"https://example.com/return\",\"skip_three_ds\":true,\"card_on_file_type\":\"MERCHANT_UNSCHEDULED\",\"transaction_sequence\":\"INITIAL\"}}"
+        }
       }
     },
     "recurring_charge": {
@@ -728,8 +763,46 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.xendit.co/v3/payment_requests",
+          "method": "Post",
+          "headers": {
+            "api-version": "2024-11-11",
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"reference_id\":\"probe_mandate_001\",\"type\":\"VERIFY_PAYMENT_METHOD\",\"currency\":\"USD\",\"channel_code\":\"CARDS\",\"channel_properties\":{\"card_details\":{\"card_number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvn\":\"737\",\"cardholder_first_name\":\"John\",\"cardholder_last_name\":\"Doe\"},\"success_return_url\":\"https://example.com/mandate-return\",\"failure_return_url\":\"https://example.com/mandate-return\",\"skip_three_ds\":true,\"card_on_file_type\":\"MERCHANT_UNSCHEDULED\",\"transaction_sequence\":\"INITIAL\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -741,7 +814,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for xendit"
+        "error": "This feature is not implemented: Selected payment method through xendit"
       }
     },
     "verify_redirect": {
