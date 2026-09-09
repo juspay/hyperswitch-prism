@@ -11,17 +11,23 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
-        Card, CardDetailsForNetworkTransactionId, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber,
+        ApplePayPaymentData, ApplePayWalletData, Card, CardDetailsForNetworkTransactionId,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_request_types::AuthenticationData,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
+
+/// `deviceManufacturerIdentifier` for the Apple Pay decrypted package. Revolv3 requires the
+/// field, but the value from Apple's decrypted token is not carried through the UCS proto /
+/// `ApplePayDecryptedData`, so we send the well-known Apple identifier.
+/// TODO(#1149): thread the real identifier once it is available on `ApplePayDecryptedData`.
+const APPLE_PAY_DEVICE_MANUFACTURER_ID: &str = "040010030273";
 
 #[derive(Debug, Clone)]
 pub struct Revolv3AuthType {
@@ -132,6 +138,7 @@ pub struct Revolv3AmountData {
 pub enum Revolv3PaymentMethodData<T: PaymentMethodDataTypes> {
     CreditCard(CreditCardPaymentMethodData<T>),
     Ntid(NtidCreditCardPaymentMethodData),
+    ApplePay(ApplePayPaymentMethodData),
     MandatePayment,
 }
 
@@ -181,6 +188,126 @@ pub struct Revolv3CreditCardData<T: PaymentMethodDataTypes> {
     payment_account_number: RawCardNumber<T>,
     expiration_date: Secret<String>,
     security_code: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPaymentMethodData {
+    billing_address: Option<Revolv3BillingAddress>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+    // Unlike a raw card, an Apple Pay token is not required to carry a cardholder name,
+    // so Revolv3's optional billing name fields are sent only when the merchant supplied them.
+    billing_full_name: Option<Secret<String>>,
+    apple_pay: Revolv3ApplePayData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3ApplePayData {
+    // UCS only ever forwards pre-decrypted Apple Pay tokens, so the sibling `applePayToken`
+    // (encrypted payload) field is never populated.
+    apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Revolv3ApplePayDecryptedPackage {
+    /// Device-specific account number (DPAN) of the card funding the transaction.
+    application_primary_account_number: Secret<String>,
+    /// DPAN expiry in MMYY format.
+    application_expiration_date: Secret<String>,
+    /// Apple Pay ECI, at most two characters.
+    electronic_commerce_indicator: Option<String>,
+    online_payment_cryptogram: Secret<String>,
+    device_manufacturer_identifier: Secret<String>,
+    card_brand: Option<Revolv3CardBrand>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum Revolv3CardBrand {
+    Visa,
+    Mastercard,
+    Amex,
+    Discover,
+    #[serde(rename = "JCB")]
+    Jcb,
+    Diners,
+}
+
+impl Revolv3CardBrand {
+    /// Maps the wallet-supplied card network label (Apple Pay sends values such as `visa`,
+    /// `masterCard` or `amex`) onto Revolv3's `CardBrandType`.
+    ///
+    /// `cardBrand` is optional on Revolv3's decrypted package and the brand is also derivable
+    /// from the PAN, so a network Revolv3 does not model (Interac, Cartes Bancaires, ...) is
+    /// omitted rather than failing the payment.
+    fn from_wallet_network(network: &str) -> Option<Self> {
+        // Uppercasing normalises the wallet casing onto the SCREAMING_SNAKE_CASE serde
+        // aliases of `common_enums::CardNetwork`.
+        let card_network: common_enums::CardNetwork =
+            serde_json::from_value(serde_json::Value::String(network.to_uppercase())).ok()?;
+
+        match card_network {
+            common_enums::CardNetwork::Visa => Some(Self::Visa),
+            common_enums::CardNetwork::Mastercard => Some(Self::Mastercard),
+            common_enums::CardNetwork::AmericanExpress => Some(Self::Amex),
+            common_enums::CardNetwork::Discover => Some(Self::Discover),
+            common_enums::CardNetwork::JCB => Some(Self::Jcb),
+            common_enums::CardNetwork::DinersClub => Some(Self::Diners),
+            _ => None,
+        }
+    }
+}
+
+impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(apple_pay_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
+        let decrypted_data = match &apple_pay_data.payment_data {
+            ApplePayPaymentData::Decrypted(decrypted_data) => decrypted_data,
+            // Revolv3 also accepts the raw `applePayToken`, but decrypting it requires the
+            // merchant's Apple Pay certificate to be provisioned on Revolv3's side, which UCS
+            // does not model today.
+            ApplePayPaymentData::Encrypted(_) => Err(IntegrationError::NotSupported {
+                message: "Apple Pay encrypted payment data".to_string(),
+                connector: "revolv3",
+                context: Default::default(),
+            })?,
+        };
+
+        let expiration_year = decrypted_data.get_two_digit_expiry_year().change_context(
+            IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.wallet.apple_pay.application_expiration_year",
+                context: Default::default(),
+            },
+        )?;
+        let application_expiration_date = Secret::new(format!(
+            "{:0>2}{}",
+            decrypted_data.get_expiry_month().peek(),
+            expiration_year.peek()
+        ));
+
+        Ok(Self {
+            application_primary_account_number: Secret::new(
+                decrypted_data
+                    .application_primary_account_number
+                    .get_card_no(),
+            ),
+            application_expiration_date,
+            electronic_commerce_indicator: decrypted_data.payment_data.eci_indicator.clone(),
+            online_payment_cryptogram: decrypted_data
+                .payment_data
+                .online_payment_cryptogram
+                .clone(),
+            device_manufacturer_identifier: Secret::new(
+                APPLE_PAY_DEVICE_MANUFACTURER_ID.to_string(),
+            ),
+            card_brand: Revolv3CardBrand::from_wallet_network(
+                &apple_pay_data.payment_method.network,
+            ),
+        })
+    }
 }
 
 impl Revolv3BillingAddress {
@@ -250,6 +377,41 @@ impl<T: PaymentMethodDataTypes> PaymentMethodSpecificRequest<T> {
 
         Ok(Self {
             payment_method_data: Revolv3PaymentMethodData::CreditCard(credit_card_data),
+            network_data,
+        })
+    }
+
+    pub fn set_apple_pay_data(
+        item: &RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+        apple_pay_data: &ApplePayWalletData,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let common_data = &item.resource_common_data;
+        let apple_pay_payment_method_data = ApplePayPaymentMethodData {
+            billing_address: Revolv3BillingAddress::try_from_payment_flow_data(common_data),
+            billing_first_name: common_data.get_optional_billing_first_name(),
+            billing_last_name: common_data.get_optional_billing_last_name(),
+            billing_full_name: common_data.get_billing_full_name().ok(),
+            apple_pay: Revolv3ApplePayData {
+                apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage::try_from(
+                    apple_pay_data,
+                )?,
+            },
+        };
+        let network_data = item
+            .request
+            .is_mandate_payment()
+            .then_some(NetworkProcessingData {
+                processing_type: Some(PaymentProcessingType::InitialRecurring),
+                original_network_transaction_id: None,
+            });
+
+        Ok(Self {
+            payment_method_data: Revolv3PaymentMethodData::ApplePay(apple_pay_payment_method_data),
             network_data,
         })
     }
@@ -330,6 +492,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &item.router_data,
                     card_data.clone(),
                 )?
+            }
+            PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_data)) => {
+                PaymentMethodSpecificRequest::set_apple_pay_data(&item.router_data, apple_pay_data)?
             }
             _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
