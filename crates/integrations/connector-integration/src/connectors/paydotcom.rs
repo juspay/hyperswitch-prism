@@ -103,7 +103,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -524,9 +524,30 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // MIT charges always go to `/v1/charges`; Pay.com has no hold (manual-capture)
-            // variant for off-session transactions because no cardholder is present to
-            // approve a later capture.
+            // MIT charges always go to `/v1/charges`; Pay.com has no Hold endpoint for
+            // off-session transactions. Reject Manual explicitly rather than silently
+            // capturing immediately — a merchant asking for Manual must get an error.
+            if paydotcom::is_manual_capture(req.request.capture_method)? {
+                return Err(error_stack::report!(
+                    IntegrationError::NotImplemented(
+                        "Manual capture for Pay.com off-session (MIT) charge".to_string(),
+                        IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com has no Hold endpoint for off-session (MIT) \
+                                 transactions; MIT charges are always auto-captured. No \
+                                 cardholder is present to approve a later capture."
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Use AUTOMATIC capture_method for merchant-initiated \
+                                 transactions"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    )
+                ));
+            }
             Ok(format!("{}{}", self.connector_base_url_payments(req), PATH_CHARGES))
         }
     }
