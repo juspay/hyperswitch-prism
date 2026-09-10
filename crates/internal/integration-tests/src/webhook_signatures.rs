@@ -20,6 +20,12 @@ pub struct SignatureContext<'a> {
     /// (e.g. phonepe's `###<key_index>` suffix). Defaults to "1" if the
     /// scheme requires one and none is supplied.
     pub key_index: Option<&'a str>,
+    /// The timestamp header's bytes **exactly as they appear on the wire**, for
+    /// schemes that sign the header value verbatim rather than a number they
+    /// re-render (e.g. airwallex). Distinct from `timestamp`, which is parsed:
+    /// re-rendering an i64 is only safe when the header is bare digits, and a
+    /// scheme that signs the raw bytes must not depend on that.
+    pub raw_timestamp: Option<&'a str>,
 }
 
 /// Generate webhook signature for a given connector.
@@ -41,8 +47,44 @@ pub fn generate_signature(
         "authorizedotnet" => generate_authorizedotnet_signature(payload, secret),
         "paypal" => generate_paypal_signature(payload, secret),
         "phonepe" => generate_phonepe_signature(payload, secret, ctx),
+        "airwallex" => generate_airwallex_signature(payload, secret, ctx),
         _ => Err(format!("Unsupported connector: {}", connector)),
     }
+}
+
+/// Generate an Airwallex webhook `x-signature` value.
+///
+/// Matches `Airwallex::get_webhook_source_verification_message` exactly:
+/// HMAC-SHA256 over `x-timestamp` header bytes ++ raw body bytes (timestamp
+/// first, no separator), lowercase hex. The timestamp comes from
+/// `raw_timestamp` so the exact header bytes are signed, never a re-rendered
+/// integer.
+fn generate_airwallex_signature(
+    payload: &[u8],
+    secret: &str,
+    ctx: &SignatureContext<'_>,
+) -> Result<String, String> {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+
+    let timestamp = ctx
+        .raw_timestamp
+        .ok_or_else(|| "airwallex signature needs the x-timestamp header value".to_string())?;
+
+    let mut message = Vec::with_capacity(timestamp.len() + payload.len());
+    message.extend_from_slice(timestamp.as_bytes());
+    message.extend_from_slice(payload);
+
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+        .map_err(|e| format!("Failed to create HMAC: {e}"))?;
+    mac.update(&message);
+
+    let mut hex_signature = String::new();
+    for byte in mac.finalize().into_bytes() {
+        write!(&mut hex_signature, "{byte:02x}")
+            .map_err(|e| format!("Failed to write hex: {e}"))?;
+    }
+    Ok(hex_signature)
 }
 
 /// Generate PhonePe webhook X-VERIFY signature.
