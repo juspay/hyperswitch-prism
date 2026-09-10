@@ -3498,8 +3498,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         key1,
                         api_secret,
                     } => Ok(Self::Etisalat {
-                        password: api_key.clone(),
-                        user_name: key1.clone(),
+                        user_name: api_key.clone(),
+                        password: key1.clone(),
                         customer: api_secret.clone(),
                         base_url: None,
                     }),

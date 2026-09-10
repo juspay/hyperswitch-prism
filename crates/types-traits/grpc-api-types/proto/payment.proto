@@ -5790,9 +5790,9 @@ message MonerisConfig {
 }
 
 message EtisalatConfig {
-  SecretString user_name = 1;
-  SecretString password = 2;
-  SecretString customer = 3; // The merchant identifier assigned by EPG (sandbox uses "Demo Merchant").
+  SecretString user_name = 1; // Maps from connector_account_details.api_key (primary credential).
+  SecretString password = 2;  // Maps from connector_account_details.key1 (secondary credential).
+  SecretString customer = 3;  // Maps from connector_account_details.api_secret — merchant identifier assigned by EPG (sandbox: "Demo Merchant").
   optional string base_url = 50;
 }
 

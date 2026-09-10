@@ -1,4 +1,4 @@
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CaptureMethod, Currency, RefundStatus};
 use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, Refund, RepeatPayment, Void},
@@ -12,7 +12,7 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, FlowStatus},
+    router_data::{ConnectorResponseData, ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
@@ -355,15 +355,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
             })?;
 
-        // Partial captures keep the residual balance (merchant may capture it later
-        // or void it explicitly). Full captures release the residual so no funds
-        // stay uselessly reserved on the payer's card.
-        let is_partial = match item
+        // `minor_amount_capturable` is None on this path (domain_types hardcodes it);
+        // derive partial vs full from the authorized amount in resource_common_data.amount.
+        // Partial captures keep the residual balance (RVS:N). Full captures release it (RVS:Y).
+        let authorized = item
             .router_data
             .resource_common_data
-            .minor_amount_capturable
-        {
-            Some(authorized) => request.minor_amount_to_capture < authorized,
+            .amount
+            .as_ref()
+            .map(|m| m.amount);
+        let is_partial = match authorized {
+            Some(auth_amount) => request.minor_amount_to_capture < auth_amount,
             None => false,
         };
         let transaction_hint = if is_partial {
@@ -567,6 +569,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let request = &item.router_data.request;
         let router_data = &item.router_data;
 
+        // Etisalat MIT charges always auto-capture; there is no hold/manual-capture
+        // variant for off-session transactions.
+        if matches!(
+            request.capture_method,
+            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
+        ) {
+            return Err(Report::new(IntegrationError::NotImplemented(
+                "Manual capture is not supported for Etisalat MIT charges".to_string(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Etisalat's recurring Authorization endpoint always settles immediately \
+                         (CPT:Y); no Hold variant exists for off-session transactions."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Use capture_method: AUTOMATIC for merchant-initiated transactions."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            )));
+        }
+
         // Etisalat's recurrence design keys off the master TransactionID (the one
         // returned by the original 3DS Registration + Finalization that set up the
         // mandate). Prism carries this as `connector_mandate_id`.
@@ -659,7 +684,7 @@ pub struct EtisalatTransactionBody {
     pub amount: Option<EtisalatMoney>,
     pub balance: Option<EtisalatMoney>,
     pub fees: Option<EtisalatMoney>,
-    pub card_number: Option<String>,
+    pub card_number: Option<Secret<String>>,
     pub card_token: Option<Secret<String>>,
     pub card_brand: Option<String>,
     pub card_type: Option<String>,
@@ -709,13 +734,21 @@ fn missing_transaction_id_err() -> ConnectorError {
 /// Map the Etisalat response code to an AttemptStatus, given the flow-specific
 /// success mapping (Authorize can settle to Authorized or Charged depending on
 /// capture mode; Capture → Charged; Void → Voided; RepeatPayment → Charged).
-fn map_attempt_status(body: &EtisalatTransactionBody, on_success: AttemptStatus) -> AttemptStatus {
+/// Map the Etisalat response code to an AttemptStatus. `on_failure` must be
+/// flow-specific — a rejected Capture should surface as `CaptureFailed`, a
+/// rejected Void as `VoidFailed`, not as a generic `Failure` that would imply
+/// the authorization itself was declined.
+fn map_attempt_status(
+    body: &EtisalatTransactionBody,
+    on_success: AttemptStatus,
+    on_failure: AttemptStatus,
+) -> AttemptStatus {
     if body.is_success() {
         on_success
     } else if body.is_pending() {
         AttemptStatus::Pending
     } else {
-        AttemptStatus::Failure
+        on_failure
     }
 }
 
@@ -734,7 +767,9 @@ fn success_payments_response(
         redirection_data: None,
         mandate_reference,
         connector_metadata: None,
-        network_txn_id: body.approval_code.clone(),
+        // approval_code is an acquirer auth code, not a network transaction id.
+        // Callers set connector_response via ConnectorResponseData::with_auth_code.
+        network_txn_id: None,
         network_txn_link_id: None,
         connector_response_reference_id: body.order_id.clone().or(Some(transaction_id)),
         incremental_authorization_allowed: None,
@@ -762,41 +797,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         } else {
             AttemptStatus::Authorized
         };
-        let status = map_attempt_status(&body, success_status);
+        let status = map_attempt_status(&body, success_status, AttemptStatus::Failure);
 
+        // The plain Authorization TransactionID is not a chargeable recurrence handle
+        // — Etisalat's MIT requires a 3DS Registration flow that this connector does
+        // not yet implement. Emitting a mandate_reference here would record a saved
+        // mandate that fails on every subsequent MIT charge.
         let response = if body.is_success() {
-            // Etisalat returns a CardToken on the direct Authorization; carry it
-            // as the mandate reference when the payer opted into mandate setup.
-            // Note: true recurrence provisioning requires the 3DS Registration
-            // flow — this token is best-effort for CIT card-on-file scenarios.
-            let mandate_reference = if item
-                .router_data
-                .request
-                .is_customer_initiated_mandate_payment()
-            {
-                body.transaction_id.clone().map(|txn_id| {
-                    Box::new(MandateReference {
-                        connector_mandate_id: Some(txn_id),
-                        payment_method_id: None,
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
-                    })
-                })
-            } else {
-                None
-            };
-            Ok(success_payments_response(
+            Ok(success_payments_response(&body, item.http_code, None)?)
+        } else {
+            Err(build_error_response(
                 &body,
                 item.http_code,
-                mandate_reference,
-            )?)
-        } else {
-            Err(build_error_response(&body, item.http_code, Some(status)))
+                Some(FlowStatus::Payment(status)),
+            ))
         };
+
+        // Route the acquirer approval_code through connector_response rather than
+        // network_txn_id, which is reserved for the network transaction identifier
+        // used for MIT continuity.
+        let connector_response = body.approval_code.clone().and_then(|code| {
+            item.router_data
+                .resource_common_data
+                .payment_method_type
+                .map(|pmt| ConnectorResponseData::with_auth_code(code, pmt))
+        });
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -817,19 +847,24 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
     fn try_from(item: ResponseRouterData<EtisalatResponse, Self>) -> Result<Self, Self::Error> {
         let body = item.response.transaction;
 
-        // A partial capture that reports Success settles to PartialCharged;
-        // a full capture settles to Charged.
-        let success_status = match item
+        // `minor_amount_capturable` is None on the Capture path; derive partial/full
+        // from the authorized amount in resource_common_data.amount instead.
+        let authorized = item
             .router_data
             .resource_common_data
-            .minor_amount_capturable
-        {
-            Some(authorized) if item.router_data.request.minor_amount_to_capture < authorized => {
-                AttemptStatus::PartialCharged
-            }
-            _ => AttemptStatus::Charged,
+            .amount
+            .as_ref()
+            .map(|m| m.amount);
+        let is_partial = match authorized {
+            Some(auth_amount) => item.router_data.request.minor_amount_to_capture < auth_amount,
+            None => false,
         };
-        let status = map_attempt_status(&body, success_status);
+        let success_status = if is_partial {
+            AttemptStatus::PartialCharged
+        } else {
+            AttemptStatus::Charged
+        };
+        let status = map_attempt_status(&body, success_status, AttemptStatus::CaptureFailed);
 
         let response = if body.is_success() {
             // Capture responses do not include a fresh TransactionID (PDF §6.3
@@ -856,7 +891,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
-                network_txn_id: body.approval_code.clone(),
+                network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: body.unique_id.clone().or(Some(txn_id)),
                 incremental_authorization_allowed: None,
@@ -865,12 +900,24 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
                 payment_account_reference: None,
             })
         } else {
-            Err(build_error_response(&body, item.http_code, Some(status)))
+            Err(build_error_response(
+                &body,
+                item.http_code,
+                Some(FlowStatus::Payment(status)),
+            ))
         };
+
+        let connector_response = body.approval_code.clone().and_then(|code| {
+            item.router_data
+                .resource_common_data
+                .payment_method_type
+                .map(|pmt| ConnectorResponseData::with_auth_code(code, pmt))
+        });
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -890,7 +937,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
 
     fn try_from(item: ResponseRouterData<EtisalatResponse, Self>) -> Result<Self, Self::Error> {
         let body = item.response.transaction;
-        let status = map_attempt_status(&body, AttemptStatus::Voided);
+        let status = map_attempt_status(&body, AttemptStatus::Voided, AttemptStatus::VoidFailed);
 
         let response = if body.is_success() {
             // Reversal responses do not include a fresh TransactionID; reuse
@@ -901,7 +948,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
-                network_txn_id: body.approval_code.clone(),
+                network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: body.unique_id.clone().or(Some(txn_id)),
                 incremental_authorization_allowed: None,
@@ -910,12 +957,24 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
                 payment_account_reference: None,
             })
         } else {
-            Err(build_error_response(&body, item.http_code, Some(status)))
+            Err(build_error_response(
+                &body,
+                item.http_code,
+                Some(FlowStatus::Payment(status)),
+            ))
         };
+
+        let connector_response = body.approval_code.clone().and_then(|code| {
+            item.router_data
+                .resource_common_data
+                .payment_method_type
+                .map(|pmt| ConnectorResponseData::with_auth_code(code, pmt))
+        });
 
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data
             },
             response,
@@ -937,12 +996,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(item: ResponseRouterData<EtisalatResponse, Self>) -> Result<Self, Self::Error> {
         let body = item.response.transaction;
         // Payer-not-present recurring charges always auto-capture on Etisalat.
-        let status = map_attempt_status(&body, AttemptStatus::Charged);
+        let status = map_attempt_status(&body, AttemptStatus::Charged, AttemptStatus::Failure);
 
         let response = if body.is_success() {
             Ok(success_payments_response(&body, item.http_code, None)?)
         } else {
-            Err(build_error_response(&body, item.http_code, Some(status)))
+            Err(build_error_response(
+                &body,
+                item.http_code,
+                Some(FlowStatus::Payment(status)),
+            ))
         };
 
         Ok(Self {
@@ -967,40 +1030,49 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
 
     fn try_from(item: ResponseRouterData<EtisalatResponse, Self>) -> Result<Self, Self::Error> {
         let body = item.response.transaction;
-        let refund_status = if body.is_success() {
-            RefundStatus::Success
-        } else if body.is_pending() {
-            RefundStatus::Pending
-        } else {
-            RefundStatus::Failure
+
+        // EPG mints no refund-specific id. UniqueID is the per-call UUID (unique per
+        // refund attempt; absent = spec violation). Use it for success and pending;
+        // fall back to TransactionID only when both are absent.
+        let unique_id_err = || {
+            Report::new(ConnectorError::ResponseDeserializationFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "Etisalat refund response did not include Transaction.UniqueID."
+                            .to_string(),
+                    ),
+                },
+            })
         };
 
         let response = if body.is_success() {
-            // EPG mints no refund-specific id. UniqueID is the per-call UUID
-            // (unique per refund attempt) and per doc §8 is a common response
-            // field, so its absence is a spec violation — fail hard to catch
-            // gateway drift and prevent collision from falling back to the
-            // shared original TransactionID.
-            let refund_id = body.unique_id.clone().ok_or_else(|| {
-                Report::new(ConnectorError::ResponseDeserializationFailed {
-                    context: ResponseTransformationErrorContext {
-                        http_status_code: Some(item.http_code),
-                        additional_context: Some(
-                            "Etisalat refund success response did not include a \
-                             Transaction.UniqueID."
-                                .to_string(),
-                        ),
-                    },
-                })
-            })?;
+            let refund_id = body.unique_id.clone().ok_or_else(unique_id_err)?;
             Ok(RefundsResponseData {
                 connector_refund_id: refund_id,
-                refund_status,
+                refund_status: RefundStatus::Success,
+                status_code: item.http_code,
+                acquirer_reference_number: None,
+            })
+        } else if body.is_pending() {
+            // Pending refunds also carry a UniqueID per spec §8.
+            let refund_id = body
+                .unique_id
+                .clone()
+                .or_else(|| body.transaction_id.clone())
+                .ok_or_else(unique_id_err)?;
+            Ok(RefundsResponseData {
+                connector_refund_id: refund_id,
+                refund_status: RefundStatus::Pending,
                 status_code: item.http_code,
                 acquirer_reference_number: None,
             })
         } else {
-            Err(build_error_response(&body, item.http_code, None))
+            Err(build_error_response(
+                &body,
+                item.http_code,
+                Some(FlowStatus::Refund(RefundStatus::Failure)),
+            ))
         };
 
         Ok(Self {
@@ -1017,7 +1089,7 @@ impl TryFrom<ResponseRouterData<EtisalatResponse, Self>>
 pub fn build_error_response(
     body: &EtisalatTransactionBody,
     status_code: u16,
-    attempt_status: Option<AttemptStatus>,
+    flow_status: Option<FlowStatus>,
 ) -> domain_types::router_data::ErrorResponse {
     let message = body.error_message();
     domain_types::router_data::ErrorResponse {
@@ -1025,7 +1097,7 @@ pub fn build_error_response(
         code: body.response_code.clone(),
         message: message.clone(),
         reason: Some(message),
-        attempt_status: attempt_status.map(FlowStatus::Payment),
+        attempt_status: flow_status,
         connector_transaction_id: body.transaction_id.clone(),
         network_advice_code: None,
         network_decline_code: None,
