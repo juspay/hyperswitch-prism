@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, Currency, MitCategory, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     types::StringMajorUnit,
@@ -37,14 +37,48 @@ use crate::{
 pub type MerchanteRefundSyncRequest = MerchanteSyncRequest;
 
 // ============================================================================
-// CONSTANTS — gateway sentinels
+// WIRE-FORMAT ENUMS — typed replacements for the former string constants.
+// Each variant serialises to its documented wire value via `#[serde(rename)]`.
 // ============================================================================
 
-const ECOM_INDICATOR_DEFAULT: &str = "7";
-const ECOM_INDICATOR_RECURRING_MOTO: &str = "2";
-const ACCOUNT_DATA_SOURCE_KEYED: &str = "@";
-const ACCOUNT_DATA_SOURCE_COF: &str = "Y";
-const CIT_MIT_UNSCHEDULED: &str = "M101";
+/// `moto_ecommerce_ind` codes.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum MerchanteEcomIndicator {
+    /// `"7"` — standard e-commerce.
+    #[serde(rename = "7")]
+    Default,
+    /// `"2"` — recurring / MOTO.
+    #[serde(rename = "2")]
+    RecurringMoto,
+}
+
+/// `account_data_source` codes.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum MerchanteAccountDataSource {
+    /// `"@"` — keyed entry (raw card data submitted by the merchant).
+    #[serde(rename = "@")]
+    Keyed,
+    /// `"Y"` — card on file (token / stored credential).
+    #[serde(rename = "Y")]
+    CardOnFile,
+}
+
+/// Mastercard `cit_mit_indicator` codes for subsequent CoF (MIT) charges.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum MerchanteCoFMitIndicator {
+    /// `M101` — Unscheduled CoF: fixed or variable amount with no regular intervals.
+    #[serde(rename = "M101")]
+    Unscheduled,
+    /// `M102` — Standing Order: variable amount at fixed regular intervals.
+    #[serde(rename = "M102")]
+    StandingOrder,
+    /// `M103` — Subscription: fixed amount and frequency.
+    #[serde(rename = "M103")]
+    Subscription,
+    /// `M104` — Installment: single purchase split into a known number of payments.
+    #[serde(rename = "M104")]
+    Installment,
+}
 
 // Approved / partial-approval outcomes; anything else is a decline or gateway error.
 const MERCHANTE_APPROVED: &str = "000";
@@ -132,7 +166,14 @@ fn truncate_retry_id(reference: &str) -> String {
     if reference.len() <= RETRY_ID_MAX_LEN {
         reference.to_string()
     } else {
-        reference[..RETRY_ID_MAX_LEN].to_string()
+        // Byte-slice indexing panics on multi-byte UTF-8 char boundaries; walk
+        // char boundaries instead so any Unicode in caller-supplied reference IDs
+        // is handled safely.
+        reference
+            .char_indices()
+            .take_while(|(i, c)| i + c.len_utf8() <= RETRY_ID_MAX_LEN)
+            .map(|(_, c)| c)
+            .collect()
     }
 }
 
@@ -145,6 +186,21 @@ fn sale_txn_type(is_auto_capture: bool) -> MerchanteTransactionType {
     }
 }
 
+/// Maps Prism's `MitCategory` to Merchante's Mastercard `cit_mit_indicator`.
+///
+/// Spec (MIT table): M101 unscheduled, M102 standing order, M103 subscription,
+/// M104 installment. Defaults to M101 when the category is absent or a
+/// `Resubmission` (retry has no distinct Mastercard indicator).
+fn mit_indicator(category: Option<MitCategory>) -> MerchanteCoFMitIndicator {
+    match category {
+        Some(MitCategory::Recurring) => MerchanteCoFMitIndicator::Subscription,
+        Some(MitCategory::Installment) => MerchanteCoFMitIndicator::Installment,
+        Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
+            MerchanteCoFMitIndicator::Unscheduled
+        }
+    }
+}
+
 // ============================================================================
 // COMMON RESPONSE + ERROR TYPES (shared by every flow)
 // ============================================================================
@@ -154,28 +210,28 @@ fn sale_txn_type(is_auto_capture: bool) -> MerchanteTransactionType {
 pub struct MerchantePaymentResponse {
     pub transaction_id: String,
     pub error_code: String,
-    #[serde(default)]
     pub auth_response_text: Option<String>,
-    #[serde(default)]
     pub auth_code: Option<String>,
-    #[serde(default)]
-    pub avs_result: Option<String>,
-    #[serde(default)]
-    pub cvv2_result: Option<String>,
+    pub avs_result: Option<Secret<String>>,
+    pub cvv2_result: Option<Secret<String>>,
     /// Permanent card token returned when `store_card=Y` was sent in the request.
-    #[serde(default)]
     pub card_id: Option<Secret<String>>,
-    #[serde(default)]
     pub payment_account_reference: Option<String>,
-    #[serde(default)]
     pub retry_count: Option<String>,
-    #[serde(default)]
     pub partial_auth: Option<String>,
 }
 
 impl MerchantePaymentResponse {
     fn is_approved(&self) -> bool {
-        self.error_code == MERCHANTE_APPROVED || self.error_code == MERCHANTE_PARTIAL_APPROVED
+        self.error_code == MERCHANTE_APPROVED
+    }
+
+    /// `010` — issuer approved less than the requested amount. The approved amount
+    /// arrives in `partial_auth` (major-unit string). Reported as a decline until
+    /// `partial_auth` is parsed and propagated as `PartialCharged` with the real
+    /// captured amount; treating it as fully approved silently charges the wrong amount.
+    fn is_partial_approved(&self) -> bool {
+        self.error_code == MERCHANTE_PARTIAL_APPROVED
     }
 
     fn to_error_response(&self, status_code: u16) -> ErrorResponse {
@@ -186,10 +242,19 @@ impl MerchantePaymentResponse {
         } else {
             self.error_code.clone()
         };
-        let message = self
-            .auth_response_text
-            .clone()
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string());
+        let message = if self.is_partial_approved() {
+            // Distinguish partial approval from a hard decline so callers can
+            // decide whether to void the partial approval or accept the lower amount.
+            format!(
+                "Partial approval: issuer authorised {} of the requested amount. \
+                 Void the transaction or implement partial_auth handling.",
+                self.partial_auth.as_deref().unwrap_or("unknown amount")
+            )
+        } else {
+            self.auth_response_text
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string())
+        };
         ErrorResponse {
             status_code,
             code,
@@ -228,6 +293,9 @@ impl From<&MerchantePaymentResponse> for MerchantePaymentStatus {
         if response.is_approved() {
             Self::Approved
         } else {
+            // Partial approval (010) is explicitly not mapped to Approved: the
+            // approved amount differs from the requested amount and must be
+            // surfaced to the caller rather than silently reported as fully charged.
             Self::Declined
         }
     }
@@ -275,8 +343,8 @@ pub struct MerchantePaymentsRequest<
     pub card_exp_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv2: Option<Secret<String>>,
-    pub moto_ecommerce_ind: String,
-    pub account_data_source: String,
+    pub moto_ecommerce_ind: MerchanteEcomIndicator,
+    pub account_data_source: MerchanteAccountDataSource,
     pub client_reference_number: String,
     pub retry_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -375,8 +443,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_number: card.card_number.clone(),
             card_exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
             cvv2: Some(card.card_cvc.clone()),
-            moto_ecommerce_ind: ECOM_INDICATOR_DEFAULT.to_string(),
-            account_data_source: ACCOUNT_DATA_SOURCE_KEYED.to_string(),
+            moto_ecommerce_ind: MerchanteEcomIndicator::Default,
+            account_data_source: MerchanteAccountDataSource::Keyed,
             client_reference_number: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -484,15 +552,40 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = item.router_data;
         let auth = MerchanteAuthType::try_from(&router_data.connector_config)?;
+
+        // Merchante's Inquiry endpoint only accepts retry_id (the merchant-supplied
+        // reference sent on the original transaction); it has no transaction_id input.
+        // connector_request_reference_id carries that reference — if absent the
+        // Inquiry posts retry_id= and resolves nothing.
+        let retry_id = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+        if retry_id.is_empty() {
+            return Err(Report::new(IntegrationError::MissingRequiredField {
+                field_name: "connector_request_reference_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Merchante Inquiry (PSync) requires the retry_id sent on the original \
+                         transaction, sourced from connector_request_reference_id, which is \
+                         empty for this request."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure the payment request included a non-empty \
+                         connector_request_reference_id so PSync can look it up via Inquiry."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }));
+        }
+
         Ok(Self {
             profile_id: auth.profile_id,
             profile_key: auth.profile_key,
             transaction_type: MerchanteTransactionType::Inquiry,
-            retry_id: truncate_retry_id(
-                &router_data
-                    .resource_common_data
-                    .connector_request_reference_id,
-            ),
+            retry_id: truncate_retry_id(&retry_id),
         })
     }
 }
@@ -947,11 +1040,11 @@ pub struct MerchanteRepeatPaymentRequest {
     pub currency_code: Currency,
     /// Stored card token returned from a prior Authorize with `store_card=Y`.
     pub card_id: Secret<String>,
-    pub moto_ecommerce_ind: String,
-    pub account_data_source: String,
+    pub moto_ecommerce_ind: MerchanteEcomIndicator,
+    pub account_data_source: MerchanteAccountDataSource,
     pub card_on_file: String,
     pub merchant_initiated: String,
-    pub cit_mit_indicator: String,
+    pub cit_mit_indicator: MerchanteCoFMitIndicator,
     pub client_reference_number: String,
     pub retry_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1011,8 +1104,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
 
         let card_id = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(m) => {
-                m.get_connector_mandate_id().ok_or_else(|| {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                mandate_data.get_connector_mandate_id().ok_or_else(|| {
                     Report::new(IntegrationError::NotSupported {
                         message: "Merchante MIT requires a connector_mandate_id".to_string(),
                         connector: "merchante",
@@ -1068,11 +1161,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transaction_amount: amount,
             currency_code: router_data.request.currency,
             card_id: Secret::new(card_id),
-            moto_ecommerce_ind: ECOM_INDICATOR_RECURRING_MOTO.to_string(),
-            account_data_source: ACCOUNT_DATA_SOURCE_COF.to_string(),
+            moto_ecommerce_ind: MerchanteEcomIndicator::RecurringMoto,
+            account_data_source: MerchanteAccountDataSource::CardOnFile,
             card_on_file: "Y".to_string(),
             merchant_initiated: "Y".to_string(),
-            cit_mit_indicator: CIT_MIT_UNSCHEDULED.to_string(),
+            cit_mit_indicator: mit_indicator(router_data.request.mit_category),
             client_reference_number: router_data
                 .resource_common_data
                 .connector_request_reference_id
@@ -1154,8 +1247,8 @@ pub struct MerchanteSetupMandateRequest<
     pub card_exp_date: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cvv2: Option<Secret<String>>,
-    pub moto_ecommerce_ind: String,
-    pub account_data_source: String,
+    pub moto_ecommerce_ind: MerchanteEcomIndicator,
+    pub account_data_source: MerchanteAccountDataSource,
     pub store_card: String,
     pub client_reference_number: String,
     pub retry_id: String,
@@ -1219,15 +1312,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // Verify (A) validates the card without settling it; combined with
             // store_card=Y this returns a permanent card_id for later MIT calls.
             transaction_type: MerchanteTransactionType::Verify,
-            // Zero-value verify is USD-only per the Merchante docs; use the
-            // amount converter's zero to stay consistent with its formatting.
             transaction_amount: StringMajorUnit::zero(),
             currency_code: router_data.request.currency,
             card_number: card.card_number.clone(),
             card_exp_date: card.get_card_expiry_month_year_2_digit_with_delimiter(String::new())?,
             cvv2: Some(card.card_cvc.clone()),
-            moto_ecommerce_ind: ECOM_INDICATOR_DEFAULT.to_string(),
-            account_data_source: ACCOUNT_DATA_SOURCE_KEYED.to_string(),
+            moto_ecommerce_ind: MerchanteEcomIndicator::Default,
+            account_data_source: MerchanteAccountDataSource::Keyed,
             store_card: "Y".to_string(),
             client_reference_number: router_data
                 .resource_common_data

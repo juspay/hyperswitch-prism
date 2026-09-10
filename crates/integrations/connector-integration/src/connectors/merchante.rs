@@ -50,7 +50,9 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{
+    types::ResponseRouterData, utils::response_deserialization_fail, with_error_response_body,
+};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -93,14 +95,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        // Merchante's transport-level errors reuse the same flat urlencoded
-        // response shape — error_code + auth_response_text — that gateway
-        // approvals use. The preprocess step upstream has already converted
-        // that to JSON so we can parse it as MerchantePaymentResponse here.
-        let parsed = common_utils::ext_traits::ByteSliceExt::parse_struct::<MerchantePaymentResponse>(
-            res.response.as_ref(),
-            "MerchantePaymentResponse",
-        );
+        // Merchante error bodies are raw URL-encoded — `preprocess_response_bytes`
+        // only runs inside `handle_response_v2`, not here. Use `serde_qs` directly,
+        // the same parser the preprocess hook uses.
+        let body_str = String::from_utf8_lossy(res.response.as_ref());
+        let trimmed = body_str.trim();
+        let parsed = serde_qs::from_str::<MerchantePaymentResponse>(trimmed).map_err(|e| {
+            error_stack::report!(response_deserialization_fail(
+                res.status_code,
+                "merchante: error body was not URL-encoded key=value pairs",
+            ))
+            .attach_printable(format!("serde_qs parse error: {e:?}"))
+        });
 
         let (code, message, reason) = match parsed {
             Ok(ref r) => {
@@ -229,7 +235,7 @@ macros::create_all_prerequisites!(
 
             let parsed: MerchantePaymentResponse = serde_qs::from_str(trimmed)
                 .map_err(|e| {
-                    error_stack::report!(crate::utils::response_deserialization_fail(
+                    error_stack::report!(response_deserialization_fail(
                         status_code,
                         "merchante: response body did not match the expected urlencoded shape"
                     ))
@@ -237,7 +243,7 @@ macros::create_all_prerequisites!(
                 })?;
 
             let json_bytes = serde_json::to_vec(&parsed).map_err(|e| {
-                error_stack::report!(crate::utils::response_deserialization_fail(
+                error_stack::report!(response_deserialization_fail(
                     status_code,
                     "merchante: internal serialization error"
                 ))
