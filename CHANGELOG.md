@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.10.1
+
+### Features
+
+- **PAYHERE:** PayHere connector integration ([#2253](https://github.com/juspay/connector-service/pull/2253)) ([`d7a8d36`](https://github.com/juspay/connector-service/commit/d7a8d360a155023a78e121e77803d8035bf4235d))
+- **connector:** Implement Authorize, PSync, Capture, Void, Refund, RSync for globalpaymentsheartland ([#2207](https://github.com/juspay/connector-service/pull/2207)) ([`beefc07`](https://github.com/juspay/connector-service/commit/beefc079dea399ed19099fb65c3c0bfd574bc6ed))
+
+### Bug Fixes
+
+- **ucs:** Record euler-assigned api_tag on outgoing golden log span ([#2284](https://github.com/juspay/connector-service/pull/2284)) ([`1b03823`](https://github.com/juspay/connector-service/commit/1b03823d2f74b0be25e19a0191927c0901bec217))
+- **worldpayxml:** Surface approval code as auth_code, not network_txn_id ([#2272](https://github.com/juspay/connector-service/pull/2272)) ([`a64a96a`](https://github.com/juspay/connector-service/commit/a64a96a75ea47b2c23b6fdcca983898146cbe147))
+
+**Full Changelog:** [`2026.09.10.0...2026.09.10.1`](https://github.com/juspay/connector-service/compare/2026.09.10.0...2026.09.10.1)
+
+- - -
+
 ## 2026.09.10.0
 
 ### Features
