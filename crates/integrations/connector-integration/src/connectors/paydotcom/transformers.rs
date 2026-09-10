@@ -463,13 +463,37 @@ fn build_three_ds_raw(
     let eci = authentication_data.eci.clone().ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "authentication_data.eci",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com external-MPI path requires an ECI value from the 3DS \
+                     authentication; it must be present in authentication_data.eci"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the external MPI returns the ECI indicator and populate \
+                     authentication_data.eci before sending the Authorize request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
     let cavv = authentication_data.cavv.clone().ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "authentication_data.cavv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com external-MPI path requires a CAVV/UCAF authentication value; \
+                     it must be present in authentication_data.cavv"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the external MPI returns the CAVV and populate \
+                     authentication_data.cavv before sending the Authorize request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
 
@@ -497,14 +521,39 @@ fn build_authentication_context(
     let browser_info = browser_info.ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "browser_info",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com gateway-driven 3DS requires the payer's browser information to \
+                     build the authentication_context field; browser_info must be populated \
+                     when auth_type is ThreeDs and no external-MPI authentication_data is present"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Collect browser information from the frontend (user-agent, screen \
+                     dimensions, language, timezone offset, etc.) and pass it in the \
+                     payment request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
 
     let missing = |field: &'static str| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: field,
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Pay.com authentication_context.browser_details requires `{field}`; \
+                     all browser fields are documented as mandatory by the Pay.com API"
+                )),
+                suggested_action: Some(
+                    "Collect the full browser fingerprint on the frontend and include it \
+                     in browser_info"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     };
 
@@ -722,7 +771,20 @@ fn build_create_resource_request<T: PaymentMethodDataTypes>(
                 name: card.card_holder_name.clone().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "payment_method_data.card.card_holder_name",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com source_data.card.name is mandatory and must match the \
+                                 name as it appears on the card; the billing name is deliberately \
+                                 not used as a fallback because the two can differ"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Pass the cardholder name in \
+                                 payment_method_data.card.card_holder_name"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                 })?,
                 billing_address,
@@ -772,7 +834,20 @@ fn build_wallet_source_data<T: PaymentMethodDataTypes>(
                 let eci = cryptogram_data.eci_indicator.clone().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "apple_pay_decrypted_data.eci_indicator",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.three_ds.eci is required for Apple Pay; \
+                                 the ECI indicator must be present in the decrypted Apple Pay \
+                                 token's payment_data"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Ensure the Apple Pay token is decrypted correctly and that \
+                                 eci_indicator is populated from the decrypted cryptogram data"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                 })?;
                 let cryptogram = cryptogram_data.online_payment_cryptogram.clone();
@@ -834,19 +909,49 @@ fn build_wallet_source_data<T: PaymentMethodDataTypes>(
                 let eci = decrypted.eci_indicator.clone().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "google_pay_decrypted_data.eci_indicator",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.three_ds.eci is required for Google Pay; \
+                                 the ECI indicator is only present on CRYPTOGRAM_3DS tokens, \
+                                 not PAN_ONLY tokens"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Configure Google Pay with CRYPTOGRAM_3DS to ensure the ECI \
+                                 indicator is included in the decrypted token"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                 })?;
                 let expiry_year = decrypted.get_four_digit_expiry_year().change_context(
                     IntegrationError::InvalidDataFormat {
                         field_name: "google_pay_decrypted_data.card_exp_year",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.expiry_year must be a 4-digit year; \
+                                 the value from the decrypted Google Pay token could not be parsed"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
                     },
                 )?;
                 let expiry_month = decrypted.get_expiry_month().change_context(
                     IntegrationError::InvalidDataFormat {
                         field_name: "google_pay_decrypted_data.card_exp_month",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.expiry_month must be a 2-digit \
+                                 zero-padded month (MM); the value from the decrypted \
+                                 Google Pay token could not be parsed"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
                     },
                 )?;
 
@@ -970,7 +1075,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                                 error_stack::report!(
                                                     IntegrationError::MissingRequiredField {
                                                         field_name: "authentication_data",
-                                                        context: Default::default(),
+                                                        context: IntegrationErrorContext {
+                                                            additional_context: Some(
+                                                                "Authorize reached the \
+                                                                 ExternalMpi branch but \
+                                                                 authentication_data is absent; \
+                                                                 this branch is only entered \
+                                                                 when authentication_data was \
+                                                                 present in three_ds_mode()"
+                                                                    .to_string(),
+                                                            ),
+                                                            suggested_action: None,
+                                                            doc_url: None,
+                                                        },
                                                     }
                                                 )
                                             },
@@ -1101,7 +1218,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let minor_amount = item.request.minor_amount.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "minor_amount",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com SetupMandate creates a Charge or Hold to validate the card; \
+                         an explicit amount is required even if the hold will be voided afterward"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide a minor_amount in the SetupMandate request (typically 0 or a \
+                         small value in the card's currency)"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })?;
 
@@ -1125,7 +1254,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             item.request.authentication_data.as_ref().ok_or_else(|| {
                                 error_stack::report!(IntegrationError::MissingRequiredField {
                                     field_name: "authentication_data",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "SetupMandate reached the external-MPI branch but \
+                                             authentication_data is absent; this branch is only \
+                                             entered when authentication_data.is_some() is true"
+                                                .to_string(),
+                                        ),
+                                        suggested_action: None,
+                                        doc_url: None,
+                                    },
                                 })
                             })?;
                         (
@@ -1303,7 +1441,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = item.request.currency.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "currency",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com POST /v1/charges|/v1/holds requires an ISO-4217 currency code; \
+                         currency must be present on the PreAuthenticate request"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the transaction currency in the payment request".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })?;
 
@@ -1407,7 +1555,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "continue_redirection_url",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com linked-authentication-session return_url must be the \
+                             complete-authorize URL so the orchestrator triggers leg 3 \
+                             (/confirm) when the shopper returns; a plain return URL causes \
+                             the resource to remain parked on requires_authentication"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set continue_redirection_url to the orchestrator's \
+                             complete-authorize endpoint, not the merchant's plain return URL"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 })
             })?;
 
