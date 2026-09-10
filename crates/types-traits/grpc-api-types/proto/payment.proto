@@ -913,6 +913,7 @@ enum Connector {
   D24 = 144;
   PAYDOTCOM = 145;
   NSURE = 146;
+  GLOBALPAYMENTS_HEARTLAND = 147;
 }
 
 // Payment method types
@@ -5773,6 +5774,13 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -6193,6 +6201,8 @@ message ConnectorSpecificConfig {
     PaydotcomConfig paydotcom = 156;
     // NSURE = 146
     NsureConfig nsure = 157;
+    // GLOBALPAYMENTS_HEARTLAND = 147
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 158;
   }
 }
 

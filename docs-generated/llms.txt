@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 115
+# Connectors: 121
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 115
+  total_connectors: 121
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -21,6 +21,14 @@ integration_pattern:
   5. Pass connector_transaction_id from Authorize response to Capture/Refund
 
 ---
+
+## Absa Sanlam
+connector_id: absa_sanlam
+doc: docs/connectors/absa_sanlam.md
+scenarios: none
+payment_methods: none
+flows: handle_event, parse_event
+examples_python: none
 
 ## Absasanlam
 connector_id: absasanlam
@@ -350,6 +358,14 @@ payment_methods: Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, Paypa
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, handle_event, parse_event, post_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/globalpay/globalpay.py
 
+## Globalpayments Heartland
+connector_id: globalpayments_heartland
+doc: docs/connectors/globalpayments_heartland.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, refund, refund_get, void
+examples_python: examples/globalpayments_heartland/globalpayments_heartland.py
+
 ## Glomopay
 connector_id: glomopay
 doc: docs/connectors/glomopay.md
@@ -437,6 +453,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Ach, Card
 flows: authorize, capture, create_client_authentication_token, create_server_authentication_token, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/jpmorgan/jpmorgan.py
+
+## Jpmorgan Orbital
+connector_id: jpmorgan_orbital
+doc: docs/connectors/jpmorgan_orbital.md
+scenarios: checkout_autocapture, get_payment
+payment_methods: Card
+flows: authorize, get, proxy_authorize
+examples_python: examples/jpmorgan_orbital/jpmorgan_orbital.py
 
 ## Jpmorganorbital
 connector_id: jpmorganorbital
@@ -662,6 +686,14 @@ payment_methods: UpiCollect, UpiIntent, UpiQr
 flows: authorize, capture, get, handle_event, parse_event, refund, refund_get, void
 examples_python: none
 
+## Pinelabs Online
+connector_id: pinelabs_online
+doc: docs/connectors/pinelabs_online.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
+
 ## Pinelabsonline
 connector_id: pinelabsonline
 doc: docs/connectors/pinelabsonline.md
@@ -717,6 +749,14 @@ scenarios: none
 payment_methods: none
 flows: capture, create_order, create_server_session_authentication_token, get, handle_event, parse_event, refund, refund_get
 examples_python: none
+
+## Razorpay V2
+connector_id: razorpay_v2
+doc: docs/connectors/razorpay_v2.md
+scenarios: checkout_autocapture, refund, get_payment
+payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, Alfamart, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, Bacs, BacsBankTransfer, BancontactCard, BcaBankTransfer, Becs, BillDeskRedirect, Bizum, Blik, Bluecode, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CashappQr, CashfreeRedirect, CimbVaBankTransfer, ClassicReward, Dana, DanamonVaBankTransfer, EVoucher, EaseBuzzRedirect, Efecty, Eft, Eps, FamilyMart, GCash, Giropay, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, Ideal, Indomaret, IndonesianBankTransfer, InstantBankTransfer, InstantBankTransferFinland, InstantBankTransferPoland, Interac, KakaoPay, Klarna, Lawson, LazyPayRedirect, LocalBankRedirect, LocalBankTransfer, MandiriVaBankTransfer, MbWay, Mifinity, MiniStop, Momo, MultibancoBankTransfer, Netbanking, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingPoland, OnlineBankingSlovakia, OnlineBankingThailand, OpenBanking, OpenBankingUk, Oxxo, PagoEfectivo, PayEasy, PaySafeCard, PayURedirect, PaypalRedirect, PaypalSdk, PermataBankTransfer, PhonePeRedirect, Pix, Przelewy24, Pse, RedCompra, RedPagos, RevolutPay, SamsungPay, Satispay, Seicomart, Sepa, SepaBankTransfer, SepaGuaranteedDebit, SevenEleven, Skrill, Sofort, Swish, TouchNGo, Trustly, Twint, UpiCollect, UpiIntent, UpiQr, Vipps, WeChatPayQr, Webpay, Wero
+flows: authorize, create_order, get, proxy_authorize, refund, refund_get, token_authorize
+examples_python: examples/razorpay_v2/razorpay_v2.py
 
 ## Razorpay V2
 connector_id: razorpayv2
@@ -854,6 +894,14 @@ payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/tsys/tsys.py
 
+## Tsys Transit
+connector_id: tsys_transit
+doc: docs/connectors/tsys_transit.md
+scenarios: none
+payment_methods: none
+flows: capture, get, refund, refund_get, reverse, void
+examples_python: none
+
 ## Tsystransit
 connector_id: tsystransit
 doc: docs/connectors/tsystransit.md
@@ -865,10 +913,10 @@ examples_python: none
 ## Twoc Twop Paco
 connector_id: twoc_twop_paco
 doc: docs/connectors/twoc_twop_paco.md
-scenarios: checkout_autocapture, checkout_card, refund
-payment_methods: Card, GcashRedirect
-flows: authorize, get, capture, void, reverse, refund, refund_get, authenticate, post_authenticate
-examples_python: examples/twoc_twop_paco/twoc_twop_paco.py
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## Twoctwoppaco
 connector_id: twoctwoppaco
