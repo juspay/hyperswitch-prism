@@ -48,8 +48,14 @@ impl TryFrom<&ConnectorSpecificConfig> for PayhereAuthType {
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
                     context: IntegrationErrorContext {
-                        suggested_action: None,
-                        doc_url: None,
+                        suggested_action: Some(
+                            "Provide connector_specific_config.payhere (PayhereConfig) with app_id, app_secret, merchant_id and merchant_secret"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://support.payhere.lk/api-&-mobile-sdk/merchant-api"
+                                .to_string(),
+                        ),
                         additional_context: Some(
                             "payhere: expected PayhereConfig connector credentials".to_string(),
                         ),
@@ -177,8 +183,11 @@ impl PayherePaymentsRequest {
             _ => {
                 return Err(error_stack::report!(IntegrationError::InvalidWallet {
                     context: IntegrationErrorContext {
-                        suggested_action: None,
-                        doc_url: None,
+                        suggested_action: Some(
+                            "Pass wallet.payhere_redirect as payment_method_data; PayHere supports only its own hosted checkout"
+                                .to_string(),
+                        ),
+                        doc_url: Some("https://support.payhere.lk/api-&-mobile-sdk/api".to_string()),
                         additional_context: Some(
                             "payhere: only the payhere_redirect wallet is supported".to_string(),
                         ),
@@ -190,8 +199,13 @@ impl PayherePaymentsRequest {
         let auth = PayhereAuthType::try_from(&router_data.connector_config).change_context(
             IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
-                    suggested_action: None,
-                    doc_url: None,
+                    suggested_action: Some(
+                        "Check that connector config carries the PayhereConfig variant with valid app_id/app_secret"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://support.payhere.lk/api-&-mobile-sdk/merchant-api".to_string(),
+                    ),
                     additional_context: Some(
                         "payhere: failed to build auth from connector config".to_string(),
                     ),
@@ -206,18 +220,26 @@ impl PayherePaymentsRequest {
         )
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
-                suggested_action: None,
-                doc_url: None,
+                suggested_action: Some(
+                    "Send a positive amount in the payment currency; PayHere checkout expects a major-unit decimal string"
+                        .to_string(),
+                ),
+                doc_url: Some("https://support.payhere.lk/api-&-mobile-sdk/api".to_string()),
                 additional_context: Some("payhere: amount conversion failed".to_string()),
             },
         })?;
 
-        let hash_failed = || IntegrationError::RequestEncodingFailed {
+        let hash_failed = || {
+            IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
-                suggested_action: None,
-                doc_url: None,
+                suggested_action: Some(
+                    "Verify merchant_secret matches the PayHere account; the checkout hash is md5(merchant_id + order_id + amount + currency + upper(md5(merchant_secret)))"
+                        .to_string(),
+                ),
+                doc_url: Some("https://support.payhere.lk/api-&-mobile-sdk/api".to_string()),
                 additional_context: Some("payhere: failed to compute checkout hash".to_string()),
             },
+        }
         };
         let hash_secret = common_utils::crypto::Md5
             .generate_digest(auth.merchant_secret.expose().as_bytes())
@@ -245,17 +267,21 @@ impl PayherePaymentsRequest {
         // barclaycard/razorpay/givepayments). The extra change_context names
         // *both* attempted sources — the underlying can only name the last one
         // tried.
-        let missing_billing_fallback =
-            |field: &'static str| IntegrationError::MissingRequiredField {
+        let missing_billing_fallback = |field: &'static str| {
+            IntegrationError::MissingRequiredField {
                 field_name: field,
                 context: IntegrationErrorContext {
-                    suggested_action: None,
-                    doc_url: None,
+                    suggested_action: Some(
+                        "Populate the billing address block (first_name/last_name/email/phone) or the request-level customer email/phone; PayHere hosted checkout requires them"
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://support.payhere.lk/api-&-mobile-sdk/api".to_string()),
                     additional_context: Some(
                         "payhere: required (billing address block or customer object)".to_string(),
                     ),
                 },
-            };
+            }
+        };
         let first_name = router_data.resource_common_data.get_billing_first_name()?;
         let last_name = router_data.resource_common_data.get_billing_last_name()?;
         let email = router_data

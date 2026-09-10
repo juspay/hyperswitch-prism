@@ -866,10 +866,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
         },
         ConnectorEnum::Payhere => ConnectorSpecificConfig::Payhere {
-            api_key: k(),
-            key1: k(),
-            api_secret: k(),
-            key2: k(),
+            app_id: k(),
+            merchant_id: k(),
+            app_secret: k(),
+            merchant_secret: k(),
             base_url: None,
         },
     }

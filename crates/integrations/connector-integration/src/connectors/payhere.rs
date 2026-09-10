@@ -87,11 +87,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        let http_status_code = res.status_code;
         let response: PayhereErrorResponse = res
             .response
             .parse_struct("PayhereErrorResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(http_status_code),
+                    additional_context: Some(
+                        "Failed to deserialize PayHere error response body as PayhereErrorResponse"
+                            .to_string(),
+                    ),
+                },
             })?;
 
         with_error_response_body!(event_builder, response);
@@ -249,8 +256,23 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
-            let auth = PayhereAuthType::try_from(&req.connector_config)
-                .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+            let auth = PayhereAuthType::try_from(&req.connector_config).map_err(|err| {
+                errors::IntegrationError::FailedToObtainAuthType {
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "payhere: invalid connector config for OAuth Basic auth on /merchant/v1/oauth/token ({err})"
+                        )),
+                        suggested_action: Some(
+                            "Check that connector config carries app_id and app_secret for PAYHERE"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://support.payhere.lk/api-&-mobile-sdk/merchant-api"
+                                .to_string(),
+                        ),
+                    },
+                }
+            })?;
             let basic_auth = format!("{}:{}", auth.app_id.expose(), auth.app_secret.expose());
             let encoded = BASE64_ENGINE.encode(basic_auth.as_bytes());
             Ok(vec![
@@ -321,8 +343,14 @@ macros::macro_connector_implementation!(
                         additional_context: Some(format!(
                             "payhere: PSync needs an access token from CreateServerAuthenticationToken ({err})"
                         )),
-                        suggested_action: None,
-                        doc_url: None,
+                        suggested_action: Some(
+                            "Verify the PayHere app_id/app_secret credentials are valid; the OAuth call to /merchant/v1/oauth/token must succeed before PSync"
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://support.payhere.lk/api-&-mobile-sdk/merchant-api"
+                                .to_string(),
+                        ),
                     },
                 }
             })?;
