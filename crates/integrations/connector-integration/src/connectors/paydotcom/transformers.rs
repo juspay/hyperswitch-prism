@@ -1104,7 +1104,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ),
                             };
 
-                        Ok(Self::Create(Box::new(build_create_resource_request(
+                        // Mirror the wallet arm: if the Authorize carries
+                        // setup_future_usage: OffSession, tell Pay.com to store the
+                        // card for future MIT. Without this, the card arm silently
+                        // ignores the flag while the wallet arm honours it.
+                        let sfu = item.request.setup_future_usage.and_then(|u| {
+                            matches!(u, common_enums::FutureUsage::OffSession)
+                                .then_some(PaydotcomSetupFutureUsage::OffSession)
+                        });
+                        let mut create_request = build_create_resource_request(
                             card,
                             amount,
                             item.request.currency,
@@ -1117,7 +1125,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             three_ds,
                             authentication_context,
                             request_threed_secure,
-                        )?)))
+                        )?;
+                        create_request.source_data.setup_future_usage = sfu;
+                        Ok(Self::Create(Box::new(create_request)))
                     }
 
                     PaymentMethodData::Wallet(wallet_data) => {
@@ -1255,13 +1265,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     } else if item.resource_common_data.auth_type
                         == common_enums::AuthenticationType::ThreeDs
                     {
-                        // Gateway-driven: supply browser context and force a challenge.
+                        // Gateway-driven: use Automatic, not Challenge. SetupMandate has
+                        // no Confirm leg — if Pay.com returns requires_authentication
+                        // (Challenge path) the AuthenticationSession arm at the response
+                        // side yields no mandate reference and the setup is silently lost.
+                        // Automatic lets frictionless auth complete in a single call and
+                        // return underlying_network_id immediately.
                         (
                             None,
                             Some(build_authentication_context(
                                 item.request.browser_info.as_ref(),
                             )?),
-                            PaydotcomThreeDsRequest::Challenge,
+                            PaydotcomThreeDsRequest::Automatic,
                         )
                     } else {
                         // NoThreeDs: no browser context or challenge required.
@@ -1355,9 +1370,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
-                        mandate_metadata: charge.source.as_ref().map(|pm_id| {
-                            Secret::new(serde_json::json!({ "payment_method_id": pm_id }))
-                        }),
+                        mandate_metadata: charge.source.as_ref().and_then(|v| v.as_str()).map(
+                            |pm_id| Secret::new(serde_json::json!({ "payment_method_id": pm_id })),
+                        ),
                     })
                 })
             }
@@ -1368,7 +1383,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
-                    mandate_metadata: hold.source.as_ref().map(|pm_id| {
+                    mandate_metadata: hold.source.as_ref().and_then(|v| v.as_str()).map(|pm_id| {
                         Secret::new(serde_json::json!({ "payment_method_id": pm_id }))
                     }),
                 })
@@ -1380,6 +1395,26 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
 
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
+            // Charge/Hold terminal-success with no underlying_network_id means Pay.com did
+            // not store the mandate — the setup call succeeded but the result is unusable for
+            // MIT. Surface this as a failure rather than returning an empty mandate silently.
+            AttemptStatus::Charged | AttemptStatus::Authorized if mandate_reference.is_none() => {
+                Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: NO_ERROR_CODE.to_string(),
+                    message: NO_ERROR_MESSAGE.to_string(),
+                    reason: None,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: Some(item.response.id().to_string()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
+                })
+            }
             _ => {
                 let mut transaction_response = item.response.transaction_response(item.http_code);
                 // Inject the mandate reference into the transaction response.
@@ -1801,12 +1836,12 @@ pub struct PaydotcomChargeResponse {
     /// The network transaction identifier returned by Pay.com after mandate setup.
     /// Used as `connector_mandate_id` in the SetupMandate response.
     pub underlying_network_id: Option<String>,
-    /// Pay.com payment-method id (`pm_card_…`) tied to this charge, when the charge was
-    /// created from a stored payment method. Deserialized defensively — omitted if Pay.com
-    /// does not include it in the response. When present, stored in `mandate_metadata` so
-    /// RepeatPayment can use it for Variant B/C without conflating it with Hyperswitch's own
-    /// payment_method_id (which overwrites the field after SetupMandate).
-    pub source: Option<String>,
+    /// Pay.com payment-method id (`pm_card_…`) tied to this charge. Typed as
+    /// `serde_json::Value` rather than `String` because the wire shape is unverified —
+    /// if Pay.com ever returns an object (`{"id":"pm_…"}`) a bare `String` would cause
+    /// all five flows sharing this struct to fail deserialization. `as_str()` extracts
+    /// the bare id when present; mismatched shapes are silently ignored at no cost.
+    pub source: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1828,11 +1863,9 @@ pub struct PaydotcomHoldResponse {
     /// The network transaction identifier returned by Pay.com after mandate setup.
     /// Used as `connector_mandate_id` in the SetupMandate response.
     pub underlying_network_id: Option<String>,
-    /// Pay.com payment-method id (`pm_card_…`) tied to this hold, when the hold was
-    /// created from a stored payment method. Deserialized defensively — omitted if Pay.com
-    /// does not include it in the response. When present, stored in `mandate_metadata` so
-    /// RepeatPayment can use it for Variant B/C (same semantics as the Charge variant).
-    pub source: Option<String>,
+    /// Same as `PaydotcomChargeResponse::source` — typed as `serde_json::Value` for the
+    /// same reason (unverified wire shape; soft-fail on mismatch).
+    pub source: Option<serde_json::Value>,
 }
 
 /// `POST /v1/sessions/authentication/linked` — carries the challenge URL the shopper is
@@ -2705,15 +2738,42 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             _ => (None, None),
         };
 
+        let customer_reference_id = item
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string());
+
+        // Variant A (customer_reference_id only) requires at least the customer id.
+        // Without it AND without a pm_id / mandate id, the request carries nothing
+        // to identify a payment source and Pay.com will 400.
+        if source.is_none() && source_data.is_none() && customer_reference_id.is_none() {
+            return Err(
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "mandate_reference or customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com RepeatPayment requires at least one payment source identifier: \
+                         a connector mandate id (underlying_network_id), a Pay.com pm_card_… id \
+                         in mandate_metadata, or a customer_reference_id. All three are absent."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Ensure SetupMandate completed successfully and returned an \
+                         underlying_network_id, or provide customer_id on the payment."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }),
+            );
+        }
+
         Ok(Self {
             off_session: true,
             currency: item.request.currency,
             amount,
-            customer_reference_id: item
-                .resource_common_data
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_string()),
+            customer_reference_id,
             source,
             source_data,
             reference,
