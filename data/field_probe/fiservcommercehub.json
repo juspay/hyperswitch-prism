@@ -797,12 +797,6 @@
         "error": "This feature is not implemented: This payment method is not implemented"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_supported",
-        "error": "payment_method_token flow not supported by fiservcommercehub connector"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

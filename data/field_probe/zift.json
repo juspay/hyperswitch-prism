@@ -809,12 +809,6 @@
         "error": "Only card supported for mandate setup is not supported by Zift"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for zift"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

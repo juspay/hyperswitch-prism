@@ -1167,12 +1167,6 @@
         "error": "Payment method not supported for mandate setup is not supported by ACI"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for aci"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

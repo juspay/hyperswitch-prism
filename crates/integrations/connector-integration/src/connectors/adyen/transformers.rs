@@ -4552,6 +4552,7 @@ impl TryFrom<ResponseRouterData<AdyenVoidResponse, Self>>
             mandate_reference: None,
             status_code: http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -4781,6 +4782,7 @@ pub fn get_adyen_response(
         mandate_reference: mandate_reference.map(Box::new),
         status_code,
         splits,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4884,6 +4886,7 @@ pub fn get_present_to_shopper_response(
         mandate_reference: None,
         status_code,
         splits,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4963,6 +4966,7 @@ pub fn get_redirection_error_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -5038,6 +5042,7 @@ pub fn get_qr_code_response(
         mandate_reference: None,
         status_code,
         splits,
+        payment_account_reference: None,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -5184,6 +5189,7 @@ pub fn get_webhook_response(
             incremental_authorization_allowed: None,
             status_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(AdyenPaymentsResponseData {
@@ -5346,6 +5352,7 @@ pub fn get_redirection_response(
         incremental_authorization_allowed: None,
         status_code,
         splits,
+        payment_account_reference: None,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -6299,6 +6306,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
                 mandate_reference: None,
                 status_code: http_code,
                 splits,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,

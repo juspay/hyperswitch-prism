@@ -34,11 +34,11 @@ use std::{collections::BTreeSet, fs, path::PathBuf};
 use inquire::{list_option::ListOption, validator::Validation, Confirm, MultiSelect, Select, Text};
 use integration_tests::harness::{
     credentials::load_connector_config,
-    report::{append_report_batch_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
+    report::{append_report_best_effort, extract_pm_and_pmt, now_epoch_ms, ReportEntry},
     scenario_api::{
         get_the_grpc_req_for_connector, run_all_suites_with_options,
         run_scenario_test_with_options, run_suite_test_with_options, ExecutionBackend,
-        SuiteRunOptions, SuiteRunSummary, DEFAULT_ENDPOINT,
+        SuiteRunOptions, SuiteRunSummary, SuiteScenarioResult, DEFAULT_ENDPOINT,
     },
     scenario_loader::{
         configured_all_connectors, discover_all_connectors, is_suite_supported_for_connector,
@@ -203,9 +203,7 @@ fn run_non_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    if failed > 0 {
-        return Err("one or more scenarios failed".to_string());
-    }
+    run_outcome(&scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -466,9 +464,7 @@ fn run_interactive(args: &[String]) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     println!("\n[test_ucs] grand total: passed={passed} failed={failed} skipped={skipped}");
-    if failed > 0 {
-        return Err("one or more scenarios failed".to_string());
-    }
+    run_outcome(&scenario_selection, passed, failed)?;
 
     Ok(())
 }
@@ -532,6 +528,39 @@ fn build_equivalent_command(
 }
 
 // ── Execution ──────────────────────────────────────────────────────────────────
+
+/// Whether a selection obliges the run to have actually executed something.
+///
+/// `execute_plan` counts a scenario the harness declines to run — unsupported
+/// payment method, unmet dependency, filter mismatch — as `skipped`, leaving
+/// `failed` at zero. For a sweep that is correct: skips are expected and the
+/// run still succeeded. When the caller named one scenario, exiting zero
+/// without having run it reports success for work that never happened, and
+/// anything keyed off the exit code inherits that false negative.
+fn requires_execution(selection: &ScenarioSelection) -> bool {
+    match selection {
+        // The caller named exactly what to run.
+        ScenarioSelection::Specific(_) => true,
+        // A sweep may legitimately skip what a connector does not support.
+        ScenarioSelection::All | ScenarioSelection::Multiple(_) => false,
+    }
+}
+
+/// Turns the run totals into an exit outcome.
+fn run_outcome(selection: &ScenarioSelection, passed: usize, failed: usize) -> Result<(), String> {
+    if failed > 0 {
+        return Err("one or more scenarios failed".to_string());
+    }
+    if passed == 0 && requires_execution(selection) {
+        return Err(match selection {
+            ScenarioSelection::Specific(name) => {
+                format!("scenario '{name}' was skipped, not executed — nothing was verified")
+            }
+            _ => "no scenario executed — nothing was verified".to_string(),
+        });
+    }
+    Ok(())
+}
 
 fn execute_plan(
     connector_selection: &ConnectorSelection,
@@ -633,7 +662,8 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
         return;
     }
 
-    let mut batch: Vec<ReportEntry> = Vec::new();
+    println!("\n[test_ucs] {}  {}", summary.suite, summary.connector);
+    let mut failures: Vec<&SuiteScenarioResult> = Vec::new();
 
     for result in &summary.results {
         let template_req =
@@ -648,7 +678,7 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
                 .and_then(|scenarios| scenarios.get(&result.scenario).cloned())
                 .and_then(|scenario_def| scenario_def.display_name);
 
-            batch.push(build_report_entry(
+            append_report_best_effort(build_report_entry(
                 &result.suite,
                 &result.scenario,
                 scenario_display_name,
@@ -675,39 +705,75 @@ fn print_suite_results(summary: &SuiteRunSummary, endpoint: &str, report: bool) 
         }
 
         if result.passed {
-            println!(
-                "[test_ucs] assertion result for '{}': PASS",
-                result.scenario
-            );
+            println!("  PASS  {}", result.scenario);
         } else if result.skipped {
             println!(
-                "[test_ucs] assertion result for '{}': SKIP ({})",
+                "  SKIP  {}  ({})",
                 result.scenario,
                 result.error.as_deref().unwrap_or("no reason given")
             );
         } else {
-            println!(
-                "[test_ucs] assertion result for '{}': FAIL ({})",
-                result.scenario,
-                compact_error_for_console(result.error.as_deref())
-            );
+            println!("  FAIL  {}", result.scenario);
+            failures.push(result);
         }
     }
 
-    if !batch.is_empty() {
-        append_report_batch_best_effort(batch);
-    }
-
     println!(
-        "[test_ucs] summary suite={} connector={} passed={} failed={} skipped={}",
-        summary.suite, summary.connector, summary.passed, summary.failed, summary.skipped
+        "\n  {} passed  {} failed  {} skipped  {} unsupported  {} connector-specific",
+        summary.passed,
+        summary.failed,
+        summary.skipped,
+        summary.unsupported,
+        summary.connector_specific
     );
+
+    // Repeated here with their detail: a failure two hundred lines up, between
+    // thirty-five passes, is one nobody finds. Order and per-scenario identity
+    // are preserved — nothing is counted or merged.
+    if !failures.is_empty() {
+        println!("\n  FAILURES");
+        for result in failures {
+            println!("  {}", result.scenario);
+            println!(
+                "    assertion: {}",
+                compact_error_for_console(result.error.as_deref())
+            );
+            if let Some(detail) = connector_error_for_console(result.res_body.as_ref()) {
+                println!("    connector: {detail}");
+            }
+        }
+    }
+}
+
+/// The connector's own error from the response, when it carried one.
+///
+/// Printed verbatim and untruncated: it is the line someone reads first, and a
+/// code cut off mid-word is worth nothing.
+fn connector_error_for_console(res_body: Option<&Value>) -> Option<String> {
+    let details = res_body?.pointer("/error/connectorDetails")?;
+    let message = details.get("message").and_then(|v| v.as_str())?;
+    Some(match details.get("code").and_then(|v| v.as_str()) {
+        Some(code) if !code.is_empty() => format!("{code} — {message}"),
+        _ => message.to_string(),
+    })
 }
 
 fn compact_error_for_console(error: Option<&str>) -> String {
     let Some(error) = error else {
         return "unknown error".to_string();
     };
+
+    // `-format-error` makes grpcurl print the status as JSON, so the message is
+    // a field rather than a line to find. Preferred over any text scraping.
+    for chunk in error.split("\n\n") {
+        if let Ok(status) = serde_json::from_str::<Value>(chunk.trim()) {
+            if let Some(message) = status.get("message").and_then(Value::as_str) {
+                if !message.is_empty() {
+                    return truncate_for_console(message, 220);
+                }
+            }
+        }
+    }
 
     for line in error.lines() {
         let trimmed = line.trim();
@@ -719,22 +785,49 @@ fn compact_error_for_console(error: Option<&str>) -> String {
         }
     }
 
-    for line in error.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty()
-            || trimmed == "ERROR:"
-            || trimmed.starts_with("Resolved method descriptor:")
-            || trimmed.starts_with("Request metadata to send:")
-            || trimmed.starts_with("Response headers received:")
-            || trimmed.starts_with("Response trailers received:")
-            || trimmed.starts_with("Sent ")
-        {
-            continue;
+    // grpcurl prints request metadata before the outcome, and those lines carry
+    // credentials — x-connector-config holds the connector's API key. Anything
+    // before `ERROR:` is context, not the failure, so it is never displayed.
+    if let Some(rest) = error.split_once("ERROR:").map(|(_, rest)| rest) {
+        for line in rest.lines() {
+            let trimmed = line.trim();
+            if is_grpcurl_preamble(trimmed) || trimmed.starts_with("Code:") {
+                continue;
+            }
+            return truncate_for_console(
+                trimmed.strip_prefix("Message:").unwrap_or(trimmed).trim(),
+                220,
+            );
         }
-        return truncate_for_console(trimmed, 220);
     }
 
-    truncate_for_console(error.trim(), 220)
+    // No `Message:` means grpcurl never got a response — the call was refused,
+    // hung until it was killed, or the request could not be built. What is left
+    // is its verbose preamble, and the method descriptor it prints carries the
+    // proto's own doc comments. Those read like a sentence, so without skipping
+    // them every such failure is reported as "// Authorize a payment amount on a
+    // payment method…" and the real cause never reaches the log.
+
+    // Nothing identifiable. Say so rather than dumping the raw output, which
+    // carries the request metadata and with it the connector's API key.
+    "no error message in the connector response".to_string()
+}
+
+/// Lines grpcurl prints around a call rather than about its outcome.
+fn is_grpcurl_preamble(trimmed: &str) -> bool {
+    trimmed.is_empty()
+        || trimmed == "ERROR:"
+        || trimmed.starts_with("Resolved method descriptor:")
+        || trimmed.starts_with("Request metadata to send:")
+        || trimmed.starts_with("Response headers received:")
+        || trimmed.starts_with("Response trailers received:")
+        || trimmed.starts_with("Sent ")
+        // The descriptor body: the proto comments above the rpc, and the rpc
+        // signature itself.
+        || trimmed.starts_with("//")
+        || trimmed.starts_with("rpc ")
+        // Header lines grpcurl emits under the metadata sections.
+        || trimmed == "(empty)"
 }
 
 fn truncate_for_console(text: &str, max_chars: usize) -> String {
@@ -939,4 +1032,149 @@ enum ScenarioSelection {
     All,
     Specific(String),
     Multiple(Vec<String>),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        compact_error_for_console, connector_error_for_console, run_outcome, ScenarioSelection,
+    };
+
+    /// grpcurl's verbose output when the call itself produced no response. The
+    /// method descriptor it echoes carries the proto's leading doc comments.
+    const NO_RESPONSE: &str = "\n\
+Resolved method descriptor:\n\
+// Authorize a payment amount on a payment method. This reserves funds\n\
+// without capturing them, essential for verifying availability before finalizing.\n\
+rpc Authorize ( .ucs.v2.PaymentServiceAuthorizeRequest ) returns ( .ucs.v2.PaymentServiceAuthorizeResponse );\n\
+\n\
+Request metadata to send:\n\
+x-connector: fiserv\n";
+
+    #[test]
+    fn a_proto_doc_comment_is_never_reported_as_the_error() {
+        // Every fiserv scenario in CI reported "// Authorize a payment amount on
+        // a payment method. This reserves funds" — the proto's own comment, not
+        // an error. The failures all looked identical and said nothing, which is
+        // why the real cause stayed invisible across several runs.
+        let shown = compact_error_for_console(Some(NO_RESPONSE));
+        assert!(
+            !shown.starts_with("//"),
+            "a proto doc comment was reported as the error: {shown}"
+        );
+        assert!(
+            !shown.starts_with("rpc "),
+            "the rpc signature was reported as the error: {shown}"
+        );
+    }
+
+    #[test]
+    fn the_real_message_still_wins_when_there_is_one() {
+        let with_message = format!("{NO_RESPONSE}\nERROR:\n  Code: Internal\n  Message: connector returned 401 Unauthorized\n");
+        assert_eq!(
+            compact_error_for_console(Some(&with_message)),
+            "connector returned 401 Unauthorized"
+        );
+    }
+
+    #[test]
+    fn the_json_status_message_is_preferred() {
+        // With -format-error grpcurl prints the status as JSON, so there is no
+        // "ERROR:" block to anchor on.
+        let out = "{\"code\":3,\"message\":\"Your card was declined.\"}\n\nRequest metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
+        let shown = compact_error_for_console(Some(out));
+        assert_eq!(shown, "Your card was declined.");
+        assert!(!shown.contains("sk_test"));
+    }
+
+    #[test]
+    fn unrecognisable_output_never_dumps_the_raw_text() {
+        // The raw text carries request metadata, and with it the API key. Saying
+        // nothing is better than saying that.
+        let out =
+            "Request metadata to send:\nx-connector-config: {\"api_key\":\"sk_test_SECRET\"}\n";
+        let shown = compact_error_for_console(Some(out));
+        assert!(
+            !shown.contains("sk_test"),
+            "a credential reached the log: {shown}"
+        );
+        assert_eq!(shown, "no error message in the connector response");
+    }
+
+    #[test]
+    fn request_metadata_is_never_shown_as_the_failure() {
+        // proxy_setup_mandate and token_setup_mandate reported the echoed
+        // x-connector-config header as their error — printing stripe's live API
+        // key into a public CI log, and telling nobody what actually failed.
+        let out = "\nRequest metadata to send:\nx-connector-config: {\"config\":{\"Stripe\":{\"api_key\":\"sk_test_SECRET\"}}}\n\nERROR:\n  Code: Internal\n  Message: connector returned no response\n";
+        let shown = compact_error_for_console(Some(out));
+        assert!(
+            !shown.contains("api_key"),
+            "a credential reached the log: {shown}"
+        );
+        assert!(
+            !shown.contains("sk_test"),
+            "a credential reached the log: {shown}"
+        );
+        assert_eq!(shown, "connector returned no response");
+    }
+
+    #[test]
+    fn the_connectors_own_error_is_surfaced() {
+        // tsys returned this on 51 scenarios while every line read only
+        // "expected field to exist" — the cause appeared nowhere.
+        let body = serde_json::json!({
+            "error": { "connectorDetails": {
+                "code": "F9901",
+                "message": "The value of element 'transactionKey' is not valid." } }
+        });
+        assert_eq!(
+            connector_error_for_console(Some(&body)).as_deref(),
+            Some("F9901 — The value of element 'transactionKey' is not valid.")
+        );
+    }
+
+    #[test]
+    fn a_response_without_a_connector_error_prints_nothing() {
+        assert!(connector_error_for_console(None).is_none());
+        let ok = serde_json::json!({ "status": "CHARGED" });
+        assert!(connector_error_for_console(Some(&ok)).is_none());
+    }
+
+    #[test]
+    fn a_failure_is_always_a_failure() {
+        for selection in [
+            ScenarioSelection::All,
+            ScenarioSelection::Specific("s".to_string()),
+        ] {
+            assert!(run_outcome(&selection, 1, 1).is_err());
+        }
+    }
+
+    #[test]
+    fn a_named_scenario_that_never_ran_is_not_a_pass() {
+        // passed=0, failed=0 is what a skip looks like from the outside.
+        let outcome = run_outcome(&ScenarioSelection::Specific("no3ds".to_string()), 0, 0);
+        assert!(
+            outcome.is_err(),
+            "a skipped named scenario must not report success"
+        );
+        let message = outcome.err().unwrap_or_default();
+        assert!(
+            message.contains("no3ds"),
+            "error should name the scenario: {message}"
+        );
+    }
+
+    #[test]
+    fn a_sweep_may_skip_everything() {
+        // Nothing ran, but nothing was promised either.
+        assert!(run_outcome(&ScenarioSelection::All, 0, 0).is_ok());
+        assert!(run_outcome(&ScenarioSelection::Multiple(vec!["a".to_string()]), 0, 0).is_ok());
+    }
+
+    #[test]
+    fn a_named_scenario_that_ran_and_passed_is_a_pass() {
+        assert!(run_outcome(&ScenarioSelection::Specific("s".to_string()), 1, 0).is_ok());
+    }
 }

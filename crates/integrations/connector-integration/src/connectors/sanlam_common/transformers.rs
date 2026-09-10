@@ -38,7 +38,7 @@ impl TryFrom<&ConnectorSpecificConfig> for AbsaSanlamAuthType {
             _ => Err(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Ensure the connector is configured with a AbsaSanlam-specific config containing a valid api_key.".to_string(),
+                        "Ensure the connector is configured with a AbsaSanlam-specific config containing a valid api_key and merchant_id.".to_string(),
                     ),
                     additional_context: Some(
                         "ConnectorSpecificConfig did not match the AbsaSanlam variant; received an unexpected config variant.".to_string(),
@@ -453,6 +453,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 

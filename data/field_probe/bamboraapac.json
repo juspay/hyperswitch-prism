@@ -844,12 +844,6 @@
         "error": "Only card payment methods are supported for SetupMandate is not supported by Bamboraapac"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for bamboraapac"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -793,12 +793,6 @@
         "error": "This feature is not implemented: setup_mandate flow for authipay"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for authipay"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

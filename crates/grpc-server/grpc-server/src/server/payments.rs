@@ -580,6 +580,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -721,6 +722,7 @@ impl Payments {
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -1139,6 +1141,7 @@ impl PaymentService for Payments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -1615,7 +1618,7 @@ impl PaymentService for Payments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1721,7 +1724,7 @@ impl PaymentService for Payments {
                 Ok(tonic::Response::new(setup_mandate_response))
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -2623,6 +2626,7 @@ impl PaymentMethod {
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -2699,6 +2703,7 @@ impl PaymentMethod {
         // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
+                token_payment_method_type: None,
                 token: Secret::new(String::new()),
             },
         );
@@ -2762,6 +2767,7 @@ impl PaymentMethod {
             merchant_id: metadata_payload.merchant_id.as_str(),
             org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
             log_fields_enabled: config.log_fields.enabled,
@@ -2883,6 +2889,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3028,6 +3035,7 @@ impl MerchantAuthentication {
             merchant_id: event_params.merchant_id,
             org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3447,7 +3455,7 @@ impl RecurringPaymentService for RecurringPayments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -3613,6 +3621,7 @@ impl RecurringPaymentService for RecurringPayments {
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3641,7 +3650,7 @@ impl RecurringPaymentService for RecurringPayments {
                     Ok(tonic::Response::new(repeat_payment_response))
                 })
             },
-        )
+        ))
         .await
     }
 

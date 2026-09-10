@@ -430,6 +430,7 @@ macro_rules! expand_fn_handle_response {
                     evt.response_data = Some(msv.clone());
                 }
             }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
@@ -467,6 +468,7 @@ macro_rules! expand_fn_handle_response {
                     evt.response_data = Some(msv.clone());
                 }
             }
+            tracing::info!(response=?response_body, "response from connector");
             let response_router_data = ResponseRouterData {
                 response: response_body,
                 router_data: data.clone(),
@@ -1433,10 +1435,10 @@ pub(crate) use create_amount_converter_wrapper;
 ///
 /// The macro uses a **recursive list-peeling** pattern with three arms:
 ///
-/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all eight
+/// 1. **Default arm (no `payout_flows` specified)** – Expands the full list of all nine
 ///    payout flows (`PayoutCreate`, `PayoutTransfer`, `PayoutGet`, `PayoutVoid`,
 ///    `PayoutStage`, `PayoutCreateLink`, `PayoutCreateRecipient`,
-///    `PayoutEnrollDisburseAccount`) and re-invokes itself with that list.
+///    `PayoutEnrollDisburseAccount`, `PayoutEligibility`) and re-invokes itself with that list.
 ///
 /// 2. **Recursive arm (`payout_flows: [head, tail…]`)** – Peels the first flow off the
 ///    list, delegates it to [`expand_payout_implementation!`] to emit the trait impls for
@@ -1463,7 +1465,8 @@ macro_rules! macro_connector_payout_implementation {
                 PayoutStage,
                 PayoutCreateLink,
                 PayoutCreateRecipient,
-                PayoutEnrollDisburseAccount
+                PayoutEnrollDisburseAccount,
+                PayoutEligibility
             ]
         );
     };
@@ -1766,6 +1769,39 @@ macro_rules! expand_payout_implementation {
                 Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
                     ::interfaces::api::ConnectorCommon::id(self),
                     "payout_enroll_disburse_account",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                ).into())
+            }
+
+        }
+    };
+    (
+        connector: $connector: ident,
+        flow: PayoutEligibility,
+        generic_type: $generic_type:tt,
+        [ $($bounds:tt)* ]
+    ) => {
+        impl<$generic_type: $($bounds)*> ::interfaces::connector_types::PayoutEligibilityV2 for $connector<$generic_type> {}
+        impl<$generic_type: $($bounds)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                ::domain_types::connector_flow::PayoutEligibility,
+                ::domain_types::payouts::payouts_types::PayoutFlowData,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+            > for $connector<$generic_type>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    ::domain_types::connector_flow::PayoutEligibility,
+                    ::domain_types::payouts::payouts_types::PayoutFlowData,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityRequest,
+                    ::domain_types::payouts::payouts_types::PayoutEligibilityResponse,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "payout_eligibility",
                     ::domain_types::errors::IntegrationErrorContext::default(),
                 ).into())
             }

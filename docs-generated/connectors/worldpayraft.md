@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L176) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L97) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L223)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L176) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L97) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L224)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,13 +141,13 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L195) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L113) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L239)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L195) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L113) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L240)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L220) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L135) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L262)
+**Examples:** [Python](../../examples/worldpayraft/worldpayraft.py#L220) · [JavaScript](../../examples/worldpayraft/worldpayraft.js) · [Kotlin](../../examples/worldpayraft/worldpayraft.kt#L135) · [Rust](../../examples/worldpayraft/worldpayraft.rs#L263)
 
 ## API Reference
 

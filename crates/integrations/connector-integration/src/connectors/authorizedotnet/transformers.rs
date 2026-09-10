@@ -2239,6 +2239,7 @@ impl<
                         incremental_authorization_allowed: None,
                         status_code: http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                 }
             }
@@ -2399,6 +2400,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: http_code,
                     splits: None,
+                    payment_account_reference: None,
                 });
 
                 Ok(new_router_data)
@@ -2767,6 +2769,7 @@ pub fn convert_to_payments_response_data_or_error(
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
                     splits: None,
+                    payment_account_reference: None,
                 })
             }
         }
@@ -2805,6 +2808,7 @@ pub fn convert_to_payments_response_data_or_error(
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
                 splits: None,
+                payment_account_reference: None,
             })
         }
         None if status == AttemptStatus::VoidedPostCapture
@@ -3203,6 +3207,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             });
         } else {
             let error_response = ErrorResponse {

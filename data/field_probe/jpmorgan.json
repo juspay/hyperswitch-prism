@@ -1033,12 +1033,6 @@
         "error": "This feature is not implemented: Only Card payment method is implemented for JPMorgan SetupMandate"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for jpmorgan"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L319) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L154) · [Rust](../../examples/globalpay/globalpay.rs#L385)
+**Examples:** [Python](../../examples/globalpay/globalpay.py#L319) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L154) · [Rust](../../examples/globalpay/globalpay.rs#L386)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L338) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L170) · [Rust](../../examples/globalpay/globalpay.rs#L401)
+**Examples:** [Python](../../examples/globalpay/globalpay.py#L338) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L170) · [Rust](../../examples/globalpay/globalpay.rs#L402)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L363) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L192) · [Rust](../../examples/globalpay/globalpay.rs#L424)
+**Examples:** [Python](../../examples/globalpay/globalpay.py#L363) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L192) · [Rust](../../examples/globalpay/globalpay.rs#L425)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L388) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L214) · [Rust](../../examples/globalpay/globalpay.rs#L447)
+**Examples:** [Python](../../examples/globalpay/globalpay.py#L388) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L214) · [Rust](../../examples/globalpay/globalpay.rs#L448)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/globalpay/globalpay.py#L410) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L233) · [Rust](../../examples/globalpay/globalpay.rs#L466)
+**Examples:** [Python](../../examples/globalpay/globalpay.py#L410) · [JavaScript](../../examples/globalpay/globalpay.js) · [Kotlin](../../examples/globalpay/globalpay.kt#L233) · [Rust](../../examples/globalpay/globalpay.rs#L467)
 
 ## API Reference
 

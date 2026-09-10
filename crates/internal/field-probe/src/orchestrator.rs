@@ -12,10 +12,14 @@ pub(crate) fn probe_connector(connector: &ConnectorEnum) -> ConnectorResult {
     let name = format!("{connector:?}").to_lowercase();
     let config = load_config();
     let metadata = make_masked_metadata();
-    let pm_variants: HashMap<String, fn() -> PaymentMethod> = get_config()
+    let pm_variants: HashMap<String, PaymentMethod> = get_config()
         .get_enabled_payment_methods()
         .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
+        .map(|(k, build)| {
+            let mut pm = build();
+            crate::registry::apply_wallet_token_override(&mut pm, connector, k);
+            (k.to_string(), pm)
+        })
         .collect();
 
     let mut flows: BTreeMap<String, BTreeMap<String, FlowResult>> = BTreeMap::new();

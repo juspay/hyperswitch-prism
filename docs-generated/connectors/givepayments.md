@@ -123,19 +123,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L166) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L104) · [Rust](../../examples/givepayments/givepayments.rs#L220)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L166) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L104) · [Rust](../../examples/givepayments/givepayments.rs#L221)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L185) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L120) · [Rust](../../examples/givepayments/givepayments.rs#L236)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L185) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L120) · [Rust](../../examples/givepayments/givepayments.rs#L237)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py#L210) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L142) · [Rust](../../examples/givepayments/givepayments.rs#L259)
+**Examples:** [Python](../../examples/givepayments/givepayments.py#L210) · [JavaScript](../../examples/givepayments/givepayments.js) · [Kotlin](../../examples/givepayments/givepayments.kt#L142) · [Rust](../../examples/givepayments/givepayments.rs#L260)
 
 ## API Reference
 

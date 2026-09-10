@@ -631,6 +631,7 @@ impl<
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -778,6 +779,7 @@ impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         };
 

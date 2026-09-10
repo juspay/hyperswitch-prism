@@ -1109,12 +1109,6 @@
         "error": "Stuck on field: payment_method_type — Missing required field: payment_method_type"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for ppro"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "supported"

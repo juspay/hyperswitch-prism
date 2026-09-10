@@ -871,12 +871,6 @@
         "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

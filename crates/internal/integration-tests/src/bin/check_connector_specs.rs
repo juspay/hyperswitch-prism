@@ -7,10 +7,12 @@
 //! Exits non-zero if the two sets diverge.
 //!
 //! **Phase 2 — flow → suite coverage**
-//! For every connector that has a `create_all_prerequisites!` macro, verifies
-//! that every flow listed there appears in that connector's
-//! `connector_specs/<name>/specs.json` `supported_suites` list.
-//! Exits non-zero if any suite is missing — there is no escape hatch.
+//! For every connector, verifies that every flow it implements appears in that
+//! connector's `connector_specs/<name>/specs.json` `supported_suites` list.
+//! Flows are read from both declaration forms the codebase uses — the
+//! `create_all_prerequisites!` macro and hand-written `ConnectorIntegrationV2<Flow, ...>`
+//! impls — so coverage does not depend on which style a connector was written in.
+//! Exits non-zero if any suite is missing.
 //! When a connector does not yet support a flow's suite, do not add it to
 //! the flow-to-suite mapping in `flow_to_suites` (map it to `None` instead).
 //!
@@ -73,8 +75,9 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "MandateRevoke" => Some(&["RecurringPaymentService/Revoke"]),
         // Customer/token flows
         "CreateConnectorCustomer" => Some(&["CustomerService/Create"]),
-        "GetConnectorCustomer" => Some(&["CustomerService/Create"]),
+        "GetConnectorCustomer" => Some(&["CustomerService/Get"]),
         "PaymentMethodToken" => Some(&["PaymentMethodService/Tokenize"]),
+        "PaymentMethodEligibility" => Some(&["PaymentMethodService/Eligibility"]),
         // Authentication flows (now have test suites!)
         "ServerAuthenticationToken" => {
             Some(&["MerchantAuthenticationService/CreateServerAuthenticationToken"])
@@ -92,22 +95,48 @@ fn flow_to_suites(flow: &str) -> Option<&'static [&'static str]> {
         "CreateOrder" => Some(&["PaymentService/CreateOrder"]),
         "IncrementalAuthorization" => Some(&["PaymentService/IncrementalAuthorization"]),
         // Dispute flows — out of scope (no test suites yet).
-        "Accept" => None,
-        "DefendDispute" => None,
-        "SubmitEvidence" => None,
-        // Payout flows — out of scope.
-        "PayoutCreate" => None,
-        "PayoutGet" => None,
-        "PayoutStage" => None,
-        "PayoutTransfer" => None,
-        "PayoutVoid" => None,
-        "PayoutEnrollDisburseAccount" => None,
-        "PayoutCreateRecipient" => None,
-        "PayoutCreateLink" => None,
-        // Unknown / macro-internal tokens — skip.
+        // Anything not listed above is unknown: OUT_OF_SCOPE_FLOWS is the only
+        // way to opt a flow out, and main() fails on a flow that is in neither.
         _ => None,
     }
 }
+
+/// Flows that deliberately have no integration-test suite.
+///
+/// A flow reaches this list only by decision. Everything not in `flow_to_suites`
+/// and not here fails the check, so a newly added flow cannot slip through
+/// uncovered simply because nobody updated the mapping — which is how `VoidPC`
+/// came to be implemented by 14 connectors and certified by none.
+const OUT_OF_SCOPE_FLOWS: &[&str] = &[
+    // Disputes — no suites yet.
+    "Accept",
+    "DefendDispute",
+    "SubmitEvidence",
+    // Payouts — out of scope for the payment suites.
+    "PayoutCreate",
+    "PayoutGet",
+    "PayoutStage",
+    "PayoutTransfer",
+    "PayoutVoid",
+    "PayoutEnrollDisburseAccount",
+    "PayoutCreateRecipient",
+    "PayoutCreateLink",
+    // Implemented today with no suite to map to. Each is a coverage gap, not a
+    // decision that it should never be covered: add a suite, then move the flow
+    // into flow_to_suites above.
+    "VoidPC",              // 14 connectors
+    "VerifyWebhookSource", // 2 connectors
+    "VoidPostRefund",
+    "Recharge",
+    "CreatePaymentMethod",
+    "GetPaymentMethod",
+    "RefreshPaymentMethod",
+    "PreRiskCheck",
+    "PostRiskCheck",
+    "FrmPaymentOutcome",
+    "FrmRefundProcessed",
+    "FrmChargebackReceived",
+];
 
 // ---------------------------------------------------------------------------
 // Specs.json schema
@@ -129,6 +158,43 @@ struct ConnectorSpecs {
 /// then collect every line that matches `flow:\s*<Ident>` inside it.
 ///
 /// Brackets are balanced to find the block end so nested parens are handled.
+/// Every flow a connector implements, read from both forms the codebase uses to
+/// declare one:
+///
+/// - `create_all_prerequisites!(api: [ flow: Authorize, ... ])`
+/// - `impl ... ConnectorIntegrationV2<Authorize, ...> for Connector<T>`
+///
+/// Both are equally machine-readable, and many connectors use both at once (the
+/// macro for payment flows, hand-written impls for access-token and
+/// authentication flows). Reading only the macro would silently miss the second
+/// form, so a connector could implement a flow with no corresponding entry in
+/// its `specs.json` and still pass this check.
+fn extract_declared_flows(src: &str) -> Vec<String> {
+    let mut flows = extract_flows_from_source(src);
+    for flow in extract_flows_from_v2_impls(src) {
+        if !flows.contains(&flow) {
+            flows.push(flow);
+        }
+    }
+    flows
+}
+
+/// Flow names from hand-written `ConnectorIntegrationV2<Flow, ...>` impls. The
+/// flow is always the first type argument.
+fn extract_flows_from_v2_impls(src: &str) -> Vec<String> {
+    // Single-letter names are generic parameters from blanket impls
+    // (`ConnectorIntegrationV2<F, ...>`), not concrete flows.
+    let re = Regex::new(r"ConnectorIntegrationV2<\s*([A-Za-z][A-Za-z0-9]{2,})\s*,").unwrap();
+    let mut flows = Vec::new();
+    for caps in re.captures_iter(src) {
+        let name = caps[1].to_string();
+        if !flows.contains(&name) {
+            flows.push(name);
+        }
+    }
+    flows
+}
+
 fn extract_flows_from_source(src: &str) -> Vec<String> {
     let flow_re = Regex::new(r"^\s*flow:\s*([A-Za-z][A-Za-z0-9]*)").unwrap();
     let mut flows = Vec::new();
@@ -307,8 +373,14 @@ fn main() {
     let mut errors: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
     // connector_name → list of (flow, suite) pairs that are covered
     let mut covered_summary: BTreeMap<String, Vec<(String, String)>> = BTreeMap::new();
-    // connectors where no create_all_prerequisites! macro was found
-    let mut no_macro: Vec<String> = Vec::new();
+
+    // Connectors whose source could not be read at all.
+    let mut unverifiable: Vec<String> = Vec::new();
+    // Connectors that declare no flows in either supported form.
+    let mut no_flows_declared: Vec<String> = Vec::new();
+    // connector_name → flows that are in neither flow_to_suites nor
+    // OUT_OF_SCOPE_FLOWS. Unknown means untriaged, so it fails the check.
+    let mut unknown_flows: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
     for connector in &connectors {
         let src_path = connectors_src.join(format!("{connector}.rs"));
@@ -316,14 +388,14 @@ fn main() {
         let src = match fs::read_to_string(&src_path) {
             Ok(s) => s,
             Err(_) => {
-                no_macro.push(connector.clone());
+                unverifiable.push(connector.clone());
                 continue;
             }
         };
 
-        let flows = extract_flows_from_source(&src);
+        let flows = extract_declared_flows(&src);
         if flows.is_empty() {
-            no_macro.push(connector.clone());
+            no_flows_declared.push(connector.clone());
             continue;
         }
 
@@ -340,7 +412,13 @@ fn main() {
 
         for flow in &flows {
             let Some(suites) = flow_to_suites(flow) else {
-                continue; // flow has no suite mapping — skip
+                if !OUT_OF_SCOPE_FLOWS.contains(&flow.as_str()) {
+                    unknown_flows
+                        .entry(connector.clone())
+                        .or_default()
+                        .push(flow.clone());
+                }
+                continue;
             };
 
             for &suite in suites {
@@ -367,8 +445,13 @@ fn main() {
         let covered = covered_summary.get(connector.as_str());
         let missing = errors.get(connector.as_str());
 
-        if no_macro.contains(connector) {
-            println!("[SKIP] {connector}  (no create_all_prerequisites! macro)");
+        if unverifiable.contains(connector) {
+            println!("[FAIL] {connector}  (connector source could not be read)");
+            continue;
+        }
+
+        if no_flows_declared.contains(connector) {
+            println!("[SKIP] {connector}  (declares no flows in either supported form)");
             continue;
         }
 
@@ -387,6 +470,54 @@ fn main() {
             println!("[OK]   {connector}  ({n} flows mapped)");
         }
         println!();
+    }
+
+    // -----------------------------------------------------------------------
+    // Phase 2b: webhook coverage
+    // -----------------------------------------------------------------------
+    // Deterministic, no heuristics: a connector's own specs.json is the
+    // authoritative declaration of what it supports. If supported_suites
+    // includes "EventService/HandleEvent" — the same suite name used
+    // everywhere else in this file, not an inferred signal — the connector
+    // is claiming real webhook support, so it must have a
+    // connector_specs/<name>/webhook_payload.json fixture. A connector that
+    // doesn't declare EventService/HandleEvent has no requirement here.
+    println!();
+    println!("{}", "=".repeat(80));
+    println!("PHASE 2B — WEBHOOK COVERAGE CHECK");
+    println!("{}", "=".repeat(80));
+    println!();
+
+    const WEBHOOK_SUITE: &str = "EventService/HandleEvent";
+    let mut webhook_errors: Vec<String> = Vec::new();
+
+    for connector in &connectors {
+        let specs_path = specs_root.join(connector).join("specs.json");
+        let Ok(content) = fs::read_to_string(&specs_path) else {
+            continue;
+        };
+        let Ok(specs) = serde_json::from_str::<ConnectorSpecs>(&content) else {
+            continue;
+        };
+        if !specs.supported_suites.iter().any(|s| s == WEBHOOK_SUITE) {
+            continue;
+        }
+
+        let webhook_payload_path = specs_root.join(connector).join("webhook_payload.json");
+        if webhook_payload_path.exists() {
+            println!("[OK]   {connector}  (declares {WEBHOOK_SUITE}, has webhook_payload.json)");
+        } else {
+            println!(
+                "[FAIL] {connector}  (declares {WEBHOOK_SUITE} in specs.json but has no \
+                 webhook_payload.json)"
+            );
+            webhook_errors.push(connector.clone());
+        }
+    }
+
+    if webhook_errors.is_empty() {
+        println!();
+        println!("All connectors declaring webhook support have a webhook_payload.json.");
     }
 
     // -----------------------------------------------------------------------
@@ -499,17 +630,36 @@ fn main() {
 
     println!();
     println!("--- Phase 2: Flow coverage ---");
-    let total = connectors.len() - no_macro.len();
+    let total = connectors.len() - no_flows_declared.len() - unverifiable.len();
     let fail_count = errors.len();
     let ok_count = total - fail_count;
     println!("Connectors checked:       {total}");
     println!("All flows accounted:      {ok_count}");
     println!("With missing suites:      {fail_count}");
-    println!("Skipped (no macro):       {}", no_macro.len());
+    println!("No flows declared (SKIP): {}", no_flows_declared.len());
+    println!("Unreadable (FAIL):        {}", unverifiable.len());
 
-    if !no_macro.is_empty() {
+    if !no_flows_declared.is_empty() {
         println!();
-        println!("Skipped connectors: {}", no_macro.join(", "));
+        println!(
+            "Connectors declaring no flows: {}",
+            no_flows_declared.join(", ")
+        );
+    }
+    if !unverifiable.is_empty() {
+        println!();
+        println!("Unreadable connectors: {}", unverifiable.join(", "));
+    }
+
+    println!();
+    println!("--- Phase 2b: Webhook coverage ---");
+    println!("Missing webhook_payload.json: {}", webhook_errors.len());
+    if !webhook_errors.is_empty() {
+        println!();
+        println!(
+            "Connectors missing webhook_payload.json: {}",
+            webhook_errors.join(", ")
+        );
     }
 
     println!();
@@ -529,6 +679,8 @@ fn main() {
     // Final verdict
     // -----------------------------------------------------------------------
     let has_phase2_errors = !errors.is_empty();
+    let has_unverifiable = !unverifiable.is_empty();
+    let has_unknown_flows = !unknown_flows.is_empty();
 
     if has_phase2_errors {
         println!();
@@ -543,7 +695,56 @@ fn main() {
         println!();
     }
 
-    if !phase1_ok || has_phase2_errors {
+    if !unknown_flows.is_empty() {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — flows with no suite mapping and no out-of-scope entry");
+        println!("{}", "=".repeat(80));
+        for (connector, flows) in &unknown_flows {
+            for flow in flows {
+                println!("  {connector:<30}  {flow}");
+            }
+        }
+        println!();
+        println!(
+            "Add each flow to flow_to_suites with the suite it exercises, or to OUT_OF_SCOPE_FLOWS if no suite should cover it."
+        );
+    }
+
+    if has_unverifiable {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — connectors whose source could not be read");
+        println!("{}", "=".repeat(80));
+        for connector in &unverifiable {
+            println!("  {connector:<30}  {connector}.rs could not be read");
+        }
+        println!();
+    }
+
+    let has_webhook_errors = !webhook_errors.is_empty();
+
+    if has_webhook_errors {
+        println!();
+        println!("{}", "=".repeat(80));
+        println!("ERRORS — connectors declaring webhook support without webhook_payload.json");
+        println!("{}", "=".repeat(80));
+        for connector in &webhook_errors {
+            println!("  {connector:<30}  declares {WEBHOOK_SUITE} but has no webhook_payload.json");
+        }
+        println!(
+            "  Fix: add crates/internal/integration-tests/src/connector_specs/<name>/webhook_payload.json, \
+             or remove {WEBHOOK_SUITE} from supported_suites if webhook handling isn't actually implemented."
+        );
+        println!();
+    }
+
+    if !phase1_ok
+        || has_phase2_errors
+        || has_unverifiable
+        || has_webhook_errors
+        || has_unknown_flows
+    {
         let mut reasons = Vec::new();
         if !phase1_ok {
             reasons.push(format!(
@@ -556,6 +757,24 @@ fn main() {
             reasons.push(format!(
                 "{} connector(s) have flows not in specs.json",
                 errors.len()
+            ));
+        }
+        if has_unverifiable {
+            reasons.push(format!(
+                "{} connector source file(s) could not be read",
+                unverifiable.len()
+            ));
+        }
+        if has_unknown_flows {
+            reasons.push(format!(
+                "{} connector(s) implement a flow with no suite mapping",
+                unknown_flows.len()
+            ));
+        }
+        if has_webhook_errors {
+            reasons.push(format!(
+                "{} connector(s) declare webhook support without webhook_payload.json",
+                webhook_errors.len()
             ));
         }
         eprintln!("ERROR: {}", reasons.join("; "));

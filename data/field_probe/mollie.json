@@ -816,12 +816,6 @@
         "error": "This feature is not implemented: setup_mandate flow for mollie"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "error",
-        "error": "Invalid connector configuration: profile_token"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"

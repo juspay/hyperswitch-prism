@@ -88,7 +88,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -126,7 +126,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -164,7 +164,7 @@ impl
 
         Ok(Self {
             merchant_id,
-            connectors,
+            connectors: connectors.into(),
             access_token,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -519,6 +519,7 @@ impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number,
             customer_phone_country_code: value.phone_country_code,
             salutation: value.salutation,
+            date_of_birth: None,
         })
     }
 }

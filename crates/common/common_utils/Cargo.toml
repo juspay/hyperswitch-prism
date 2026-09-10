@@ -20,7 +20,7 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
 
 error-stack = "0.4.1"
 serde = { workspace = true }
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 serde_urlencoded = "0.7.1"
 thiserror = { workspace = true }
 strum = { version = "0.26", features = ["derive"] }

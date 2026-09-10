@@ -1310,6 +1310,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "connector-creds"
+version = "0.1.0"
+dependencies = [
+ "grpc-api-types",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "connector-integration"
 version = "0.1.0"
 dependencies = [
@@ -3341,6 +3351,7 @@ dependencies = [
  "composite-service",
  "config",
  "config_patch_derive",
+ "connector-creds",
  "connector-integration",
  "connector_request_kafka",
  "domain_types",
@@ -4136,6 +4147,7 @@ name = "integration-tests"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "connector-creds",
  "ffi",
  "grpc-api-types",
  "grpc-server",
@@ -8392,6 +8404,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.55",
  "tokio",
+ "toml 0.8.23",
  "tonic 0.14.5",
  "tonic-reflection",
  "tracing",

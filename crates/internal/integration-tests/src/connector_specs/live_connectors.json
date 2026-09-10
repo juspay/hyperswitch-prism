@@ -1,0 +1,7 @@
+{
+  "connectors": {
+    "stripe": {
+      "reason": "carries real production traffic"
+    }
+  }
+}

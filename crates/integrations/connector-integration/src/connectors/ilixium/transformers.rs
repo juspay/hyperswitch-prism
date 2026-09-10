@@ -2276,6 +2276,7 @@ impl<T: PaymentMethodDataTypes>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         };
 
@@ -2393,6 +2394,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         };
 
@@ -2439,6 +2441,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         };
 
@@ -3237,6 +3240,7 @@ impl TryFrom<crate::types::ResponseRouterData<IlixiumHistoryResponse, Self>>
                 incremental_authorization_allowed: None,
                 splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         };
 

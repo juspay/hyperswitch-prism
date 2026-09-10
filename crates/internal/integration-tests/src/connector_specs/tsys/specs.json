@@ -9,5 +9,8 @@
     "PaymentService/Void",
     "PaymentService/SetupRecurring",
     "RecurringPaymentService/Charge"
+  ],
+  "supported_payment_methods": [
+    "card"
   ]
 }

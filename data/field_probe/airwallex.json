@@ -1092,12 +1092,6 @@
         "error": "SetupMandate Payment Method (only Card supported) is not supported by Airwallex"
       }
     },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: payment_method_token flow for airwallex"
-      }
-    },
     "verify_redirect": {
       "default": {
         "status": "not_implemented"
