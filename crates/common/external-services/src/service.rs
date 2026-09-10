@@ -711,6 +711,7 @@ pub struct EventProcessingParams<'a> {
         response.error_message = Empty,
         response.status_code = Empty,
         res_code = Empty,
+        api_tag = Empty,
         message_ = "Golden Log Line (outgoing)",
         // `latency` is the pre-existing human-readable string; `latency_ms` is the same
         // duration as a plain number of milliseconds, for numeric downstream consumers.
@@ -744,6 +745,10 @@ where
         + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
+    tracing::Span::current().record(
+        "api_tag",
+        api_tag.as_deref().unwrap_or(event_params.flow_name.as_str()),
+    );
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     #[cfg(feature = "log-transformations")]
