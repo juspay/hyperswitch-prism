@@ -30,11 +30,11 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "ApplePay": {
         "status": "not_implemented",
@@ -90,7 +90,7 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Bacs": {
         "status": "not_implemented",
@@ -114,7 +114,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Bizum": {
         "status": "not_implemented",
@@ -126,7 +126,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -178,11 +178,11 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -198,7 +198,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -214,7 +214,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Efecty": {
         "status": "not_implemented",
@@ -234,7 +234,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Giropay": {
         "status": "not_implemented",
@@ -246,7 +246,7 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -300,7 +300,7 @@
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Ideal": {
         "status": "not_implemented",
@@ -332,7 +332,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Klarna": {
         "status": "not_implemented",
@@ -344,7 +344,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -360,11 +360,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -376,7 +376,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -440,15 +440,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -464,7 +464,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Pix": {
         "status": "not_implemented",
@@ -488,15 +488,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -520,7 +520,7 @@
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Sofort": {
         "status": "not_implemented",
@@ -528,11 +528,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Trustly": {
         "status": "not_implemented",
@@ -540,7 +540,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -556,11 +556,11 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Webpay": {
         "status": "not_implemented",
@@ -568,7 +568,7 @@
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       }
     },
     "capture": {
