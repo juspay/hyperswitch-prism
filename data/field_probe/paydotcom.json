@@ -820,20 +820,7 @@
             "accepted_at": 0
           },
           "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION",
-          "browser_info": {
-            "color_depth": 24,
-            "screen_height": 900,
-            "screen_width": 1440,
-            "java_enabled": false,
-            "java_script_enabled": true,
-            "language": "en-US",
-            "time_zone_offset_minutes": -480,
-            "accept_header": "application/json",
-            "user_agent": "Mozilla/5.0 (probe-bot)",
-            "accept_language": "en-US,en;q=0.9",
-            "ip_address": "1.2.3.4"
-          }
+          "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
           "url": "https://api.sandbox.pay.com/v1/charges",
@@ -844,7 +831,7 @@
             "via": "HyperSwitch",
             "x-paycom-api-key": "probe_key"
           },
-          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_proxy_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"challenge\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\",\"authentication_context\":{\"browser_details\":{\"java_enabled\":false,\"javascript_enabled\":true,\"user_agent\":\"Mozilla/5.0 (probe-bot)\",\"accept_header\":\"application/json\",\"language\":\"en-US\",\"color_depth\":24,\"screen_height\":900,\"screen_width\":1440,\"timezone_offset\":-480},\"customer_ip_address\":\"1.2.3.4\"}},\"setup_future_usage\":\"off_session\"}}"
+          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_proxy_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"setup_future_usage\":\"off_session\"}}"
         }
       }
     },
@@ -977,19 +964,6 @@
           "customer_acceptance": {
             "acceptance_type": "OFFLINE",
             "accepted_at": 0
-          },
-          "browser_info": {
-            "color_depth": 24,
-            "screen_height": 900,
-            "screen_width": 1440,
-            "java_enabled": false,
-            "java_script_enabled": true,
-            "language": "en-US",
-            "time_zone_offset_minutes": -480,
-            "accept_header": "application/json",
-            "user_agent": "Mozilla/5.0 (probe-bot)",
-            "accept_language": "en-US,en;q=0.9",
-            "ip_address": "1.2.3.4"
           }
         },
         "sample": {
@@ -1001,7 +975,7 @@
             "via": "HyperSwitch",
             "x-paycom-api-key": "probe_key"
           },
-          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"challenge\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\",\"authentication_context\":{\"browser_details\":{\"java_enabled\":false,\"javascript_enabled\":true,\"user_agent\":\"Mozilla/5.0 (probe-bot)\",\"accept_header\":\"application/json\",\"language\":\"en-US\",\"color_depth\":24,\"screen_height\":900,\"screen_width\":1440,\"timezone_offset\":-480},\"customer_ip_address\":\"1.2.3.4\"}},\"setup_future_usage\":\"off_session\"}}"
+          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"setup_future_usage\":\"off_session\"}}"
         }
       }
     },
@@ -1014,7 +988,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com SetupMandate is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       }
     },
     "verify_redirect": {
