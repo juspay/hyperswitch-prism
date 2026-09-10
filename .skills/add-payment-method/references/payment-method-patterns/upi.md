@@ -126,14 +126,23 @@ let status = match response.status {
     ConnectorPaymentStatus::Failed => AttemptStatus::Failure,
 };
 
-// Intent flow returns a deep link for redirect
+// Intent flow returns a deep link for redirect.
+// redirection_data is Option<Box<RedirectForm>>.
 let redirection_data = response.link.map(|url| Box::new(RedirectForm::Uri { uri: url }));
 
+// All 11 fields of the struct-variant, in order (connector_types.rs):
 PaymentsResponseData::TransactionResponse {
-    resource_id: ResponseId::ConnectorTransactionId(response.id),
+    resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
     redirection_data,
+    connector_metadata: None,
     mandate_reference: None,
-    ...
+    network_txn_id: None,
+    network_txn_link_id: None,
+    connector_response_reference_id: Some(response.id),
+    incremental_authorization_allowed: None,
+    splits: None,
+    status_code: item.http_code,
+    payment_account_reference: None,
 }
 ```
 

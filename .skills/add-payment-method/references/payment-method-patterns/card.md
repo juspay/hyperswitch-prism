@@ -38,7 +38,8 @@ match &router_data.request.payment_method_data {
         // ... build request using card_details
     }
     _ => Err(IntegrationError::NotImplemented(
-        get_unimplemented_payment_method_error_message("connector_name", Default::default())
+        get_unimplemented_payment_method_error_message("connector_name"),
+        Default::default(),
     ).into()),
 }
 ```
@@ -149,7 +150,8 @@ impl<T: PaymentMethodDataTypes>
                 amount: Amount { value: item.amount, currency: router_data.request.currency },
             }),
             _ => Err(IntegrationError::NotImplemented(
-                get_unimplemented_payment_method_error_message("connector_name", Default::default())
+                get_unimplemented_payment_method_error_message("connector_name"),
+                Default::default(),
             ).into()),
         }
     }
