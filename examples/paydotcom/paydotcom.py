@@ -154,19 +154,6 @@ def _build_proxy_setup_recurring_request():
         ),
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
         setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
-        browser_info=payment_pb2.BrowserInformation(
-            color_depth=24,  # Display Information.
-            screen_height=900,
-            screen_width=1440,
-            java_enabled=False,  # Browser Settings.
-            java_script_enabled=True,
-            language="en-US",
-            time_zone_offset_minutes=-480,
-            accept_header="application/json",  # Browser Headers.
-            user_agent="Mozilla/5.0 (probe-bot)",
-            accept_language="en-US,en;q=0.9",
-            ip_address="1.2.3.4",  # Device Information.
-        ),
     )
 
 def _build_recurring_charge_request():
@@ -237,19 +224,6 @@ def _build_setup_recurring_request():
         customer_acceptance=payment_pb2.CustomerAcceptance(  # Details of customer acceptance.
             acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-        ),
-        browser_info=payment_pb2.BrowserInformation(  # Information about the customer's browser.
-            color_depth=24,  # Display Information.
-            screen_height=900,
-            screen_width=1440,
-            java_enabled=False,  # Browser Settings.
-            java_script_enabled=True,
-            language="en-US",
-            time_zone_offset_minutes=-480,
-            accept_header="application/json",  # Browser Headers.
-            user_agent="Mozilla/5.0 (probe-bot)",
-            accept_language="en-US,en;q=0.9",
-            ip_address="1.2.3.4",  # Device Information.
         ),
     )
 

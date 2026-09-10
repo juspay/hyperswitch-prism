@@ -220,20 +220,6 @@ pub fn build_proxy_setup_recurring_request() -> PaymentServiceProxySetupRecurrin
         }),
         auth_type: AuthenticationType::NoThreeDs.into(),
         setup_future_usage: Some(FutureUsage::OffSession.into()),
-        browser_info: Some(BrowserInformation {
-            color_depth: Some(24), // Display Information.
-            screen_height: Some(900),
-            screen_width: Some(1440),
-            java_enabled: Some(false), // Browser Settings.
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            time_zone_offset_minutes: Some(-480),
-            accept_header: Some("application/json".to_string()), // Browser Headers.
-            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
-            accept_language: Some("en-US,en;q=0.9".to_string()),
-            ip_address: Some("1.2.3.4".to_string()), // Device Information.
-            ..Default::default()
-        }),
         ..Default::default()
     }
 }
@@ -326,21 +312,6 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
             // Details of customer acceptance.
             acceptance_type: AcceptanceType::Offline.into(), // Type of acceptance (e.g., online, offline).
             accepted_at: 0, // Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            ..Default::default()
-        }),
-        browser_info: Some(BrowserInformation {
-            // Information about the customer's browser.
-            color_depth: Some(24), // Display Information.
-            screen_height: Some(900),
-            screen_width: Some(1440),
-            java_enabled: Some(false), // Browser Settings.
-            java_script_enabled: Some(true),
-            language: Some("en-US".to_string()),
-            time_zone_offset_minutes: Some(-480),
-            accept_header: Some("application/json".to_string()), // Browser Headers.
-            user_agent: Some("Mozilla/5.0 (probe-bot)".to_string()),
-            accept_language: Some("en-US,en;q=0.9".to_string()),
-            ip_address: Some("1.2.3.4".to_string()), // Device Information.
             ..Default::default()
         }),
         ..Default::default()
