@@ -19,7 +19,7 @@ To implement a new connector using these patterns:
 # Replace placeholders:
 {ConnectorName} → NewPayment
 {connector_name} → new_payment
-{AmountType} → StringMinorUnit (if API expects "1000" for $10.00)
+{AmountType} → StringMinorUnit (ONLY if the API literally expects "1000" for $10.00 — read the spec; see the Amount Type Selection Guide)
 {content_type} → "application/json" (if API uses JSON)
 {api_endpoint} → "v1/payments" (your API endpoint)
 ```
@@ -33,7 +33,9 @@ To implement a new connector using these patterns:
 3. [Legacy Manual Pattern (Reference)](#legacy-manual-pattern-reference)
 4. [Authentication Patterns](#authentication-patterns)
 5. [Request/Response Format Variations](#requestresponse-format-variations)
-6. [Error Handling Patterns](#error-handling-patterns)
+6. [The flow-status stub macro](#the-flow-status-stub-macro-macro_connector_flow_status_impls)
+7. [In-band failure inside a 2xx response](#in-band-failure-inside-a-2xx-response)
+8. [Error Handling Patterns](#error-handling-patterns)
 7. [Testing Patterns](#testing-patterns)
 8. [Common Helper Functions](#common-helper-functions)
 9. [Integration Checklist](#integration-checklist)
@@ -90,16 +92,19 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    events,
+};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
-    events::connector_api_logs::ConnectorEvent,
 };
 use serde::Serialize;
 use transformers::{
@@ -158,7 +163,7 @@ macros::create_all_prerequisites!(
     ],
     amount_converters: [
         // Choose appropriate amount converter based on connector requirements
-        amount_converter: {AmountUnit} // StringMinorUnit, StringMajorUnit, MinorUnit
+        amount_converter: {AmountUnit} // MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit
     ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
@@ -169,7 +174,9 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(), // "application/json", "application/x-www-form-urlencoded", etc.
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            // `connector_auth_type` was removed from RouterDataV2 on 2026-03-14 (a7a696c3a).
+            // Auth is read from `req.connector_config: ConnectorSpecificConfig`.
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -217,9 +224,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &connectors.{connector_name}.base_url
     }
 
+    // Real signature: crates/types-traits/interfaces/src/api.rs:25 — the argument
+    // is `&ConnectorSpecificConfig`. Taking `&ConnectorAuthType` no longer matches
+    // the trait and is E0407.
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -236,10 +246,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         )])
     }
 
+    // Real signature: crates/types-traits/interfaces/src/api.rs:50 — THREE
+    // parameters besides `&self`. The event type is `events::Event`; there is no
+    // `ConnectorEvent` in the connector crate, and `events::Event` has no
+    // `set_error_response_body` method. The same third parameter was added to
+    // `get_error_response_v2` and `get_5xx_error_response`
+    // (interfaces/src/connector_integration_v2.rs).
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             // Handle empty responses
@@ -250,20 +267,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
-
+        // `ErrorResponse` has 13 fields and an `impl Default` (router_data.rs) —
+        // use `..Default::default()` rather than listing every one.
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            // NEVER `.unwrap_or_default()` here: an empty code/message hides the
+            // connector's own failure text. Consts live in
+            // crates/common/common_utils/src/consts.rs.
+            code: response
+                .error_code
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error_message
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status: None, // Map based on error types
+            // `Option<FlowStatus>`, NOT `Option<AttemptStatus>`. Leave it `None`
+            // unless the connector's own payload says the attempt is terminal.
+            attempt_status: None,
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -301,14 +323,22 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stubs for all flows (Phase 10 placeholders)
-use interfaces::verification::SourceVerification;
+// `SourceVerification` and `BodyDecoding` are NON-GENERIC traits
+// (crates/types-traits/interfaces/src/verification.rs:20 and
+// interfaces/src/decode.rs). They take NO flow/data/request/response type
+// parameters, so there is exactly ONE impl of each per connector — not one per
+// flow. `SourceVerification<Authorize, ...>` is E0107.
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+use interfaces::{decode::BodyDecoding, verification::SourceVerification};
 
-impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for {ConnectorName}<T>
 {
-    // Stub implementations - will be replaced in Phase 10
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
 }
 
 // Add stub implementations for unsupported flows
@@ -339,7 +369,7 @@ use domain_types::{
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -367,24 +397,35 @@ impl {ConnectorName}AuthType {
     }
 }
 
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = IntegrationError;
-    
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+// `ConnectorAuthType` is GONE. Auth comes from `ConnectorSpecificConfig`
+// (crates/types-traits/domain_types/src/router_data.rs:301), which has ONE
+// struct variant PER CONNECTOR — you add yours there and match only on it.
+// Exemplar: connectors/travelhub/transformers.rs:46
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} {
+                api_key,
+                api_secret,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
-                api_secret: None,
+                api_secret: api_secret.to_owned(),
             }),
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
-                api_key: api_key.to_owned(),
-                api_secret: Some(api_secret.to_owned()),
-            }),
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                api_key: api_key.to_owned(),
-                api_secret: Some(key1.to_owned()),
-            }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
+            // Any other variant means the request was routed to the wrong connector.
+            _ => Err(error_stack::report!(
+                IntegrationError::FailedToObtainAuthType {
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Ensure the connector account is configured with {ConnectorName} credentials"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+            )),
         }
     }
 }
@@ -394,7 +435,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 pub struct {ConnectorName}AuthorizeRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize,
 > {
-    pub amount: {AmountType}, // MinorUnit, StringMinorUnit, etc.
+    pub amount: {AmountType}, // MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit
     pub currency: String,
     pub payment_method: {ConnectorName}PaymentMethod<T>,
     // Add other required fields
@@ -441,6 +482,11 @@ pub enum {ConnectorName}PaymentStatus {
     Succeeded,
     Failed,
     // Add connector-specific statuses
+    /// REQUIRED at the DESERIALIZATION layer. Without it, a status string the
+    /// vendor adds later fails the whole response parse. Reviewers demand this
+    /// half AND an exhaustive (no `_ =>`) match at the status-mapping layer.
+    #[serde(other)]
+    Unknown,
 }
 
 // Error Response Structure
@@ -486,7 +532,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     holder_name: router_data.request.customer_name.clone().map(Secret::new),
                 })
             },
-            _ => return Err(IntegrationError::NotImplemented("Payment method not supported".to_string(, Default::default())).into()),
+            _ => {
+                // NotImplemented is a TUPLE variant: (String, IntegrationErrorContext).
+                return Err(IntegrationError::NotImplemented(
+                    "Payment method not supported".to_string(),
+                    Default::default(),
+                )
+                .into());
+            }
         };
 
         Ok(Self {
@@ -517,6 +570,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
             {ConnectorName}PaymentStatus::Succeeded => common_enums::AttemptStatus::Charged,
             {ConnectorName}PaymentStatus::Pending => common_enums::AttemptStatus::Pending,
             {ConnectorName}PaymentStatus::Failed => common_enums::AttemptStatus::Failure,
+            // Exhaustive: no `_ =>` arm at the status-mapping layer.
+            {ConnectorName}PaymentStatus::Unknown => common_enums::AttemptStatus::Pending,
         };
 
         // Handle error responses
@@ -526,16 +581,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                     status: common_enums::AttemptStatus::Failure,
                     ..router_data.resource_common_data.clone()
                 },
+                // `ErrorResponse` has 13 fields and an `impl Default`
+                // (domain_types/src/router_data.rs) — use `..Default::default()`.
+                // `attempt_status` is `Option<FlowStatus>`: a bare AttemptStatus
+                // is E0308. Here the connector itself reported the failure, so
+                // a terminal Payment status is justified; on the SHARED error
+                // path (build_error_response) it usually is not.
                 response: Err(ErrorResponse {
                     code: error.clone(),
                     message: error.clone(),
                     reason: Some(error.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(
+                        common_enums::AttemptStatus::Failure,
+                    )),
                     connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -543,14 +604,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
         // Success response
         let payments_response_data = PaymentsResponseData::TransactionResponse {
+            // Enum struct-variants have NO functional-update syntax — all 11
+            // fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
-            redirection_data: None, // Add redirection logic if needed
-            mandate_reference: None, // Add mandate handling if needed
+            redirection_data: None,  // Add redirection logic if needed
             connector_metadata: None,
+            mandate_reference: None, // Add mandate handling if needed
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -621,7 +687,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "Content-Type".to_string(),
             "application/json".to_string().into(),
         )];
-        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        let mut api_key = self.get_auth_header(&req.connector_config)?;
         header.append(&mut api_key);
         Ok(header)
     }
@@ -641,7 +707,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let converted_amount = self
             .amount_converter
             .convert(req.request.minor_amount, req.request.currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed)?;
+            .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?;
         
         let connector_router_data = {ConnectorName}RouterData::try_from((converted_amount, req))?;
         let connector_req = {ConnectorName}AuthorizeRequest::try_from(&connector_router_data)?;
@@ -652,7 +718,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn handle_response_v2(
         &self,
         data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, errors::ConnectorError> {
         let response: {ConnectorName}AuthorizeResponse = res
@@ -664,99 +730,140 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         RouterDataV2::try_from(ResponseRouterData {
             response,
-            data: data.clone(),
+            router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed { context: Default::default() })
     }
 
+    // `get_error_response_v2` and `get_5xx_error_response` took the same third
+    // parameter as `build_error_response`
+    // (crates/types-traits/interfaces/src/connector_integration_v2.rs).
     fn get_error_response_v2(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, connector_config)
     }
 }
 ```
 
 ## Authentication Patterns
 
-### HeaderKey Authentication (Bearer Token)
+> **`ConnectorAuthType` no longer exists on `RouterDataV2`.** It was deleted on
+> 2026-03-14 (`a7a696c3a`). Auth is read from
+> `req.connector_config: ConnectorSpecificConfig`
+> (`crates/types-traits/domain_types/src/router_data.rs:301`), and the trait
+> method is `fn get_auth_header(&self, _auth_type: &ConnectorSpecificConfig)`
+> (`crates/types-traits/interfaces/src/api.rs:25`). A `get_auth_header` taking
+> `&ConnectorAuthType` no longer matches the trait — **E0407**.
+>
+> `ConnectorSpecificConfig` is not a small generic enum of `HeaderKey` /
+> `SignatureKey` / `BodyKey`. It has **one struct variant per connector**, named
+> after the connector and carrying exactly the credential fields that connector
+> needs, plus an optional `base_url`. You add your variant there, then match on
+> **only** that variant. The shapes below are how the old generic auth kinds map
+> onto the real enum.
+>
+> Copy the working idiom from a recent connector:
+> `crates/integrations/connector-integration/src/connectors/travelhub.rs` (the
+> `ConnectorCommon::get_auth_header`) and `.../travelhub/transformers.rs:46`
+> (the `TryFrom<&ConnectorSpecificConfig>`).
+
+### Single-key (Bearer token)
 
 ```rust
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = ConnectorError;
-    
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+// In domain_types::router_data::ConnectorSpecificConfig, add:
+//   {ConnectorName} {
+//       api_key: Secret<String>,
+//       base_url: Option<String>,
+//   },
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_token: api_key.to_owned(),
             }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
+            _ => Err(error_stack::report!(
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default(),
+                }
+            )),
         }
     }
 }
 
-// In get_auth_header:
-Ok(vec![(
-    "Authorization".to_string(),
-    format!("Bearer {}", auth.api_token.peek()).into_masked(),
-)])
+// In ConnectorCommon::get_auth_header:
+fn get_auth_header(
+    &self,
+    auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+    let auth = transformers::{ConnectorName}AuthType::try_from(auth_type)?;
+    Ok(vec![(
+        headers::AUTHORIZATION.to_string(),
+        format!("Bearer {}", auth.api_token.peek()).into_masked(),
+    )])
+}
 ```
 
-### SignatureKey Authentication (API Key + Secret)
+### Key + secret (Basic auth / signed requests)
 
 ```rust
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = IntegrationError;
-    
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+// ConnectorSpecificConfig variant:
+//   {ConnectorName} {
+//       api_key: Secret<String>,
+//       api_secret: Secret<String>,
+//       base_url: Option<String>,
+//   },
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} {
+                api_key,
+                api_secret,
+                ..
+            } => Ok(Self {
                 api_key: api_key.to_owned(),
                 api_secret: api_secret.to_owned(),
             }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
+            _ => Err(error_stack::report!(
+                IntegrationError::FailedToObtainAuthType {
+                    context: Default::default(),
+                }
+            )),
         }
     }
 }
 
-// Basic Auth generation:
+// Basic Auth generation (same shape as travelhub.rs):
 impl {ConnectorName}AuthType {
     pub fn generate_authorization_header(&self) -> String {
         let credentials = format!("{}:{}", self.api_key.peek(), self.api_secret.peek());
-        let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, credentials);
+        let encoded =
+            base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
         format!("Basic {encoded}")
     }
 }
 
 // In get_auth_header:
 Ok(vec![(
-    "Authorization".to_string(),
+    headers::AUTHORIZATION.to_string(),
     auth.generate_authorization_header().into_masked(),
 )])
 ```
 
-### BodyKey Authentication (Form-based)
+### Credentials carried in the request body
 
-```rust
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
-    type Error = IntegrationError;
-    
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
-        match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
-                merchant_id: api_key.to_owned(),
-                secret_key: key1.to_owned(),
-            }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
-        }
-    }
-}
-
-// Include in request body instead of headers
-```
+Same `TryFrom<&ConnectorSpecificConfig>` as above — name the fields after what
+the vendor calls them (e.g. `merchant_id` / `secret_key`) and put them in the
+request struct instead of a header. `get_auth_header` then returns the default
+empty `Vec`; do not override it.
 
 ## Request/Response Format Variations
 
@@ -832,6 +939,105 @@ let xml_body = connector_req.to_xml()?;
 Ok(Some(RequestContent::RawBytes(xml_body.into_bytes())))
 ```
 
+## The flow-status stub macro (`macro_connector_flow_status_impls!`)
+
+Every one of the 112 connectors at HEAD invokes this macro exactly once, in the
+main connector file, to declare the flows it does **not** implement. Without it
+the trait impls for those flows are missing and the connector will not compile.
+It lives at `crates/integrations/connector-integration/src/connectors/macros.rs`
+(~line 1827) and takes two flow lists:
+
+```rust
+// Copied from crates/integrations/connector-integration/src/connectors/travelhub.rs:455
+macros::macro_connector_flow_status_impls!(
+    connector: {ConnectorName},
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Accept,
+        ClientAuthenticationToken,
+        CreateConnectorCustomer,
+        GetConnectorCustomer,
+        DefendDispute,
+        MandateRevoke,
+        Authenticate,
+        IncrementalAuthorization,
+        CreateOrder,
+        PostAuthenticate,
+        PreAuthenticate,
+        PaymentMethodToken,
+        VoidPC,
+        RepeatPayment,
+        ServerAuthenticationToken,
+        ServerSessionAuthenticationToken,
+        // ... every flow this connector does not implement
+    ],
+    not_supported: [
+        // flows the connector's API genuinely cannot do
+    ]
+);
+```
+
+Both list keys are optional — there are separate matcher arms for
+`not_implemented` alone, `not_supported` alone, and both together — but at least
+one must be present.
+
+Two sibling macros in the same file:
+
+- `macro_connector_local_flow_implementation!` (~:2425) — flows that make **no**
+  outbound HTTP call and are resolved locally.
+- `macro_connector_payout_implementation!` (~:1448) — payout flow stubs; see
+  `travelhub.rs` for a real invocation.
+
+Read the macro's first matcher arm in `macros.rs` before inventing argument keys,
+and copy a real invocation from a connector file rather than from memory.
+
+## In-band failure inside a 2xx response
+
+A connector that answers HTTP 200 with a failure status in the body has still
+failed. That MUST be returned as `Err(ErrorResponse { .. })`, never as a
+successful `PaymentsResponseData` — otherwise a declined payment is reported as
+authorized. Branch on a success predicate; the shared helper is
+`domain_types::utils::is_payment_failure`
+(`crates/types-traits/domain_types/src/utils.rs:231`), which is `true` for
+`AuthenticationFailed`, `AuthorizationFailed`, `CaptureFailed`, `VoidFailed`,
+`Expired` and `Failure`.
+
+```rust
+let status = common_enums::AttemptStatus::from(response.status.clone());
+
+if utils::is_payment_failure(status) {
+    return Ok(Self {
+        resource_common_data: PaymentFlowData {
+            status,
+            ..router_data.resource_common_data.clone()
+        },
+        response: Err(ErrorResponse {
+            code: response
+                .error_code
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error_message
+                .clone()
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            reason: response.error_message.clone(),
+            status_code: item.http_code,
+            attempt_status: Some(FlowStatus::Payment(status)),
+            connector_transaction_id: Some(response.id.clone()),
+            ..Default::default()
+        }),
+        ..router_data.clone()
+    });
+}
+// ... otherwise build PaymentsResponseData::TransactionResponse
+```
+
+`NO_ERROR_CODE` / `NO_ERROR_MESSAGE` are in
+`crates/common/common_utils/src/consts.rs`; real connectors use them 247 times.
+Never `.unwrap_or_default()` an error code or message — an empty string tells the
+merchant nothing and buries the connector's own failure text.
+
 ## Error Handling Patterns
 
 ### Standard Error Response Mapping
@@ -840,10 +1046,13 @@ Ok(Some(RequestContent::RawBytes(xml_body.into_bytes())))
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
     ConnectorCommon for {ConnectorName}<T>
 {
+    // THREE parameters besides `&self` (interfaces/src/api.rs:50); the event type
+    // is `events::Event`, and it has no `set_error_response_body` method.
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             // Handle empty error responses
@@ -859,31 +1068,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
-
-        // Map connector-specific error codes to standard attempt statuses
+        // Map connector-specific error codes to standard attempt statuses.
+        // Flow-aware and NON-TERMINAL BY DEFAULT: only codes the vendor documents
+        // as terminal get a status. A blanket `Some(Failure)` in the catch-all is
+        // the bug that reports a charged payment as FAILURE; a blanket `None` is
+        // also wrong (a hard-declined refund then stays Pending and keeps
+        // retrying). Decide per code, and leave the rest `None`.
+        // Exemplars: connectors/flywire.rs:362-370, connectors/noon.rs:499-512.
         let attempt_status = match response.error_code.as_deref() {
             Some("INSUFFICIENT_FUNDS") => Some(common_enums::AttemptStatus::Failure),
             Some("INVALID_CARD") => Some(common_enums::AttemptStatus::Failure),
             Some("EXPIRED_CARD") => Some(common_enums::AttemptStatus::Failure),
-            Some("AUTHENTICATION_FAILED") => Some(common_enums::AttemptStatus::AuthenticationFailed),
-            Some("AUTHORIZATION_FAILED") => Some(common_enums::AttemptStatus::AuthorizationFailed),
+            Some("AUTHENTICATION_FAILED") => {
+                Some(common_enums::AttemptStatus::AuthenticationFailed)
+            }
+            Some("AUTHORIZATION_FAILED") => {
+                Some(common_enums::AttemptStatus::AuthorizationFailed)
+            }
             Some("NETWORK_ERROR") => Some(common_enums::AttemptStatus::Pending),
-            _ => Some(common_enums::AttemptStatus::Failure),
+            _ => None,
         };
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response
+                .error_code
+                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .error_message
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status,
+            // `attempt_status: Option<FlowStatus>`. FlowStatus is
+            //   Payment(AttemptStatus) | Refund(RefundStatus)
+            //   | Dispute(DisputeStatus) | Payout(PayoutStatus)
+            // — assigning a bare AttemptStatus is E0308.
+            attempt_status: attempt_status.map(FlowStatus::Payment),
             connector_transaction_id: response.transaction_id,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -958,6 +1179,9 @@ Ok(Self {
 use domain_types::connector_types::PaymentsResponseData;
 
 // Map connector status to attempt status using From trait
+// STATUS-MAPPING layer: EXHAUSTIVE, no `_ =>`. A catch-all here silently maps a
+// brand-new vendor status onto one you never verified; naming `Unknown`
+// explicitly forces a deliberate, non-terminal choice.
 impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
     fn from(status: {ConnectorName}PaymentStatus) -> Self {
         match status {
@@ -966,6 +1190,8 @@ impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
             {ConnectorName}PaymentStatus::Failed => Self::Failure,
             {ConnectorName}PaymentStatus::RequiresAction => Self::AuthenticationPending,
             {ConnectorName}PaymentStatus::Canceled => Self::Voided,
+            // An unrecognised status is NOT a success and NOT a terminal failure.
+            {ConnectorName}PaymentStatus::Unknown => Self::Pending,
         }
     }
 }
@@ -989,12 +1215,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1077,7 +1306,7 @@ mod tests {
         let router_data = create_test_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -1227,14 +1456,25 @@ pub fn convert_amount(
 ) -> Result<{AmountType}, IntegrationError> {
     amount_converter
         .convert(amount, currency)
-        .change_context(IntegrationError::RequestEncodingFailed)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })
 }
 
 // Amount validation
 pub fn validate_amount(amount: MinorUnit) -> Result<(), IntegrationError> {
     if amount.get_amount_as_i64() <= 0 {
-        return Err(IntegrationError::InvalidRequestData {
-            message: "Amount must be greater than zero".to_string(),
+        // `InvalidRequestData` does not exist. Every `IntegrationError` variant is
+        // struct-shaped with a `context: IntegrationErrorContext`; free text goes in
+        // `context.additional_context`. Real list: domain_types/src/errors.rs.
+        return Err(IntegrationError::InvalidDataFormat {
+            field_name: "amount",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Amount must be greater than zero".to_string(),
+                ),
+                ..Default::default()
+            },
         });
     }
     Ok(())
@@ -1251,7 +1491,8 @@ pub fn extract_card_data<T: PaymentMethodDataTypes>(
     match payment_method_data {
         PaymentMethodData::Card(card_data) => Ok(card_data),
         _ => Err(IntegrationError::NotImplemented(
-            "Only card payments are supported".to_string(, Default::default()),
+            "Only card payments are supported".to_string(),
+            Default::default(),
         )),
     }
 }
@@ -1345,7 +1586,7 @@ pub fn extract_transaction_reference(response: &{ConnectorName}AuthorizeResponse
 - [ ] **Integration Requirements**
   - [ ] Determine authentication type (HeaderKey, SignatureKey, BodyKey)
   - [ ] Choose request format (JSON, FormUrlEncoded, XML)
-  - [ ] Identify amount converter type (MinorUnit, StringMinorUnit, StringMajorUnit)
+  - [ ] Identify amount converter type from the vendor spec (MinorUnit | StringMinorUnit | StringMajorUnit | FloatMajorUnit | StringTwoDecimalUnit)
   - [ ] Review any special preprocessing requirements
 
 ### Implementation Checklist
@@ -1439,8 +1680,8 @@ This is the key to making this pattern work for ANY connector. Simply replace th
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Adyen`, `PayPal`, `NewPayment` | **Always required** - Used in struct names, type names |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `adyen`, `paypal`, `new_payment` | **Always required** - Used in file names, config keys |
-| `{AmountType}` | Amount type based on connector API | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Choose based on API**: See [Amount Type Guide](#amount-type-selection-guide) |
-| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Must match {AmountType}** |
+| `{AmountType}` | Amount type based on connector API | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Choose based on API**: See [Amount Type Guide](#amount-type-selection-guide) |
+| `{AmountUnit}` | Amount converter type | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Must match {AmountType}** |
 | `{content_type}` | Request content type | `"application/json"`, `"application/x-www-form-urlencoded"` | **Based on API format**: JSON = most common |
 | `{api_endpoint}` | API endpoint path | `"payments"`, `"v1/charges"`, `"transactions"` | **From API docs** - Main payment endpoint |
 | `{Major\|Minor}` | Currency unit choice | `Major` or `Minor` | **Choose one**: Minor = cents, Major = dollars |
@@ -1449,21 +1690,32 @@ This is the key to making this pattern work for ANY connector. Simply replace th
 
 Choose the right amount type based on your connector's API requirements:
 
-| API Expects | Amount Type | Example |
-|-------------|-------------|---------|
-| Integer cents (1000 for $10.00) | `MinorUnit` | Stripe, Adyen |
-| String cents ("1000" for $10.00) | `StringMinorUnit` | PayU, some legacy APIs |
-| String dollars ("10.00" for $10.00) | `StringMajorUnit` | Older banking APIs |
+**There is no safe default — read the vendor spec and match its wire format.**
+All five unit types live in `crates/common/common_utils/src/types.rs`:
+
+| API Expects | Amount Type | HEAD usage |
+|-------------|-------------|------------|
+| Integer minor units (`1000` for $10.00) | `MinorUnit` | 21 connectors |
+| String minor units (`"1000"` for $10.00) | `StringMinorUnit` | 19 connectors |
+| String major units (`"10.00"` for $10.00) | `StringMajorUnit` | 34 connectors |
+| Float major units (`10.00` for $10.00) | `FloatMajorUnit` | 26 connectors |
+| String major units, always 2 decimals | `StringTwoDecimalUnit` | rarer; some banking APIs |
+
+`StringMinorUnit` is correct for roughly 19% of connectors — picking it "when
+unclear" is wrong about four times out of five.
 
 ### Authentication Type Selection Guide
 
 Choose based on how your connector handles authentication:
 
-| API Auth Method | ConnectorAuthType | Implementation |
-|-----------------|-------------------|----------------|
-| `Authorization: Bearer token` | `HeaderKey` | Most modern APIs |
-| `Authorization: Basic base64(key:secret)` | `SignatureKey` | Traditional APIs |
-| Auth in request body | `BodyKey` | Form-based APIs |
+| API Auth Method | `ConnectorSpecificConfig::{ConnectorName}` fields | Implementation |
+|-----------------|--------------------------------------------------|----------------|
+| `Authorization: Bearer token` | `api_key`, `base_url` | Most modern APIs |
+| `Authorization: Basic base64(key:secret)` | `api_key`, `api_secret`, `base_url` | Traditional APIs |
+| Auth in request body | whatever the vendor names them, e.g. `merchant_id`, `secret_key` | Form-based APIs |
+
+There is no generic `HeaderKey` / `SignatureKey` / `BodyKey` any more — each
+connector gets its own struct variant of `ConnectorSpecificConfig`.
 
 ### Real-World Examples
 

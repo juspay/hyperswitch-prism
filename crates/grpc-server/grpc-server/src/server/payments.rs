@@ -470,6 +470,17 @@ impl CustomerService for Customer {
 }
 impl Payments {
     #[allow(clippy::too_many_arguments)]
+    // Déjà call-graph skeleton span (`ucs::*` namespace): one node per pipeline
+    // hop on the execution-graph tape. cfg_attr keeps feature-off builds
+    // byte-identical — the convention for every déjà touchpoint.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(
+            name = "ucs::flow_orchestration",
+            skip_all,
+            fields(connector = ?connector, flow = "Authorize")
+        )
+    )]
     async fn process_authorization_internal<
         T: PaymentMethodDataTypes
             + Default
