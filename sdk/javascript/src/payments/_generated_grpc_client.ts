@@ -126,7 +126,6 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   WorldpayxmlDdcData: ["jwt"],
   WorldpayxmlChallengeData: ["jwt"],
   NmiData: ["publicKey"],
-  NotifyConnectorRequest: ["connectorFeatureData"],
   FrmNotificationContent: ["connectorFeatureData"],
   AdditionalCardInfo: ["cardExpMonth", "cardExpYear", "cardHolderName"],
   CustomerInfo: ["customerName", "customerEmail", "customerPhoneNumber", "customerBankId", "customerBankName"],

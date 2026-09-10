@@ -1,13 +1,12 @@
+use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
 use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck,
-        ServerAuthenticationToken,
+        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck, ServerAuthenticationToken,
     },
     connector_types::{
-        CustomerInfo,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CustomerInfo, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
     frm::frm_types::{
@@ -25,7 +24,6 @@ use domain_types::{
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
 
 type Error = error_stack::Report<errors::IntegrationError>;
 type ResponseError = error_stack::Report<errors::ConnectorError>;

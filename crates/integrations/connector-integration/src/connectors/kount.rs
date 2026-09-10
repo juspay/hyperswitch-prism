@@ -8,8 +8,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck, PreRiskCheck,
-        PreAuthenticate, ServerAuthenticationToken,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck,
+        PreAuthenticate, PreRiskCheck, ServerAuthenticationToken,
     },
     connector_types::{
         PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
