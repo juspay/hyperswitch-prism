@@ -47,7 +47,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, PrimitiveDateTime};
 use url::Url;
 
 use super::AdyenRouterData;
@@ -995,9 +995,9 @@ pub struct RiskData {
     #[serde(rename = "riskdata.deliveryMethod")]
     delivery_method: Option<String>,
     #[serde(rename = "riskdata.emailName")]
-    email_name: Option<String>,
+    email_name: Option<Secret<String>>,
     #[serde(rename = "riskdata.emailDomain")]
-    email_domain: Option<String>,
+    email_domain: Option<Secret<String>>,
     #[serde(rename = "riskdata.lastOrderDate")]
     last_order_date: Option<String>,
     #[serde(rename = "riskdata.merchantReference")]
@@ -1444,24 +1444,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// Takes the flow-agnostic PaymentFlowData (not a flow-specific RouterDataV2) so both Authorize
+// and SetupMandate can share this -- the only field ever read off it is the billing phone number.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    TryFrom<(
-        &WalletData,
-        &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-    )> for AdyenPaymentMethod<T>
+    TryFrom<(&WalletData, &PaymentFlowData)> for AdyenPaymentMethod<T>
 {
     type Error = Error;
-    fn try_from(
-        value: (
-            &WalletData,
-            &RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        ),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: (&WalletData, &PaymentFlowData)) -> Result<Self, Self::Error> {
         let (wallet_data, item) = value;
         match wallet_data {
             WalletData::GooglePay(data) => {
@@ -1541,7 +1530,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::GoPayRedirect(_) => Ok(Self::GoPay(Box::new(GoPayData {}))),
             WalletData::KakaoPayRedirect(_) => Ok(Self::Kakaopay(Box::new(KakaoPayData {}))),
             WalletData::MbWayRedirect(_) => Ok(Self::Mbway(Box::new(MbwayData {
-                telephone_number: item.resource_common_data.get_billing_phone_number()?,
+                telephone_number: item.get_billing_phone_number()?,
             }))),
             WalletData::MobilePayRedirect(_) => Ok(Self::MobilePay),
             WalletData::MomoRedirect(_) => Ok(Self::Momo(Box::new(MomoData {}))),
@@ -1577,7 +1566,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::PaymayaRedirect(_)
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::GrabpayRedirect { .. }
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )
@@ -1908,6 +1898,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Benefit {} => Ok(Self::Benefit),
             CardRedirectData::MomoAtm {} => Ok(Self::MomoAtm),
             CardRedirectData::CardRedirect {} => Err(IntegrationError::NotImplemented(
+                ("payment_method").into(),
+                Default::default(),
+            )
+            .into()),
+            CardRedirectData::Webpay {} => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )
@@ -2461,7 +2456,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let amount = get_amount_data(&item);
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
-            AdyenPaymentMethod::try_from((wallet_data, &item.router_data))?,
+            AdyenPaymentMethod::try_from((wallet_data, &item.router_data.resource_common_data))?,
         ));
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let (recurring_processing_model, store_payment_method, shopper_reference) =
@@ -2943,7 +2938,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Validate expiry_date doesn't exceed 5 days from now (Adyen requirement)
                 expiry_date
                     .map(|expiry| -> CustomResult<(), IntegrationError> {
-                        let now = OffsetDateTime::now_utc();
+                        let now = common_utils::date_time::now().assume_utc();
                         let max_expiry = now + Duration::days(5);
                         let max_expiry_primitive =
                             PrimitiveDateTime::new(max_expiry.date(), max_expiry.time());
@@ -5377,14 +5372,18 @@ pub fn get_wait_screen_metadata(
 ) -> CustomResult<Option<serde_json::Value>, ConnectorError> {
     match next_action.action.payment_method_type {
         PaymentType::Blik => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: Some(current_time + Duration::minutes(1).whole_nanoseconds())
             })))
         }
         PaymentType::Mbway => {
-            let current_time = OffsetDateTime::now_utc().unix_timestamp_nanos();
+            let current_time = common_utils::date_time::now()
+                .assume_utc()
+                .unix_timestamp_nanos();
             Ok(Some(serde_json::json!(WaitScreenData {
                 display_from_timestamp: current_time,
                 display_to_timestamp: None
@@ -5458,8 +5457,13 @@ pub fn get_wait_screen_metadata(
 pub struct AdyenErrorResponse {
     pub status: i32,
     pub error_code: String,
-    pub message: String,
-    pub error_type: String,
+    /// Optional because adyen omits it on some gateway errors, and returns `title`
+    /// instead on others. Hyperswitch models both as optional and falls back
+    /// `message` -> `title` -> placeholder; requiring either here would fail the whole
+    /// parse on bodies hyperswitch handles.
+    pub message: Option<String>,
+    pub title: Option<String>,
+    pub error_type: Option<String>,
     pub psp_reference: Option<String>,
 }
 
@@ -6040,8 +6044,8 @@ pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
         affiliate_channel,
         avg_order_value,
         delivery_method,
-        email_name,
-        email_domain,
+        email_name: email_name.map(Secret::new),
+        email_domain: email_domain.map(Secret::new),
         last_order_date,
         merchant_reference,
         payment_method,
@@ -6475,6 +6479,205 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// Wallets (Apple Pay / Google Pay decrypted tokens, plus redirect wallets like AliPayHk) can seed
+// a mandate the same way a card can, so a zero-amount SetupMandate must accept them too -- mirrors
+// how Authorize builds AdyenPaymentMethod/mpi_data for the same WalletData variants.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        AdyenRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        &WalletData,
+    )> for SetupMandateRequest<T>
+{
+    type Error = Error;
+    fn try_from(
+        value: (
+            AdyenRouterData<
+                RouterDataV2<
+                    SetupMandate,
+                    PaymentFlowData,
+                    SetupMandateRequestData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            &WalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, wallet_data) = value;
+        let amount = get_amount_data_for_setup_mandate(&item);
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
+        let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
+        // Prefer the already-known Adyen shopper reference (connector_customer) over deriving
+        // one from customer_id, matching the Card arm above -- otherwise a Wallet and a Card
+        // SetupMandate for the same customer would send Adyen two different shopperReference
+        // values.
+        let shopper_reference = match item
+            .router_data
+            .resource_common_data
+            .connector_customer
+            .clone()
+        {
+            Some(connector_customer_id) => Some(connector_customer_id),
+            None => match item.router_data.request.customer_id.clone() {
+                Some(customer_id) => Some(format!(
+                    "{}_{}",
+                    item.router_data
+                        .resource_common_data
+                        .merchant_id
+                        .get_string_repr(),
+                    customer_id.get_string_repr()
+                )),
+                None => None,
+            },
+        };
+        let (recurring_processing_model, store_payment_method, _) =
+            get_recurring_processing_model_for_setup_mandate(&item.router_data)?;
+
+        let return_url = item.router_data.request.router_return_url.clone().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: Default::default(),
+            },
+        )?;
+
+        let billing_address = get_address_info(
+            item.router_data
+                .resource_common_data
+                .address
+                .get_payment_billing(),
+        )
+        .and_then(Result::ok);
+
+        let additional_data = get_additional_data_for_setup_mandate(&item.router_data)?;
+
+        let adyen_metadata =
+            get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
+        let device_fingerprint = adyen_metadata.device_fingerprint.clone();
+        let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
+
+        let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
+            AdyenPaymentMethod::try_from((wallet_data, &item.router_data.resource_common_data))?,
+        ));
+
+        let mpi_data = match wallet_data {
+            WalletData::ApplePay(apple_data) => {
+                if let ApplePayPaymentData::Decrypted(decrypt_data) = &apple_data.payment_data {
+                    Some(AdyenMpiData {
+                        directory_response: common_enums::TransactionStatus::Success,
+                        authentication_response: common_enums::TransactionStatus::Success,
+                        cavv: Some(decrypt_data.payment_data.online_payment_cryptogram.clone()),
+                        token_authentication_verification_value: None,
+                        eci: decrypt_data.payment_data.eci_indicator.clone(),
+                        ds_trans_id: None,
+                        three_ds_version: None,
+                        challenge_cancel: None,
+                        risk_score: None,
+                        cavv_algorithm: None,
+                    })
+                } else {
+                    None
+                }
+            }
+            WalletData::GooglePay(gpay_data) => {
+                if let GpayTokenizationData::Decrypted(decrypt_data) = &gpay_data.tokenization_data
+                {
+                    match (
+                        decrypt_data.cryptogram.clone(),
+                        decrypt_data.eci_indicator.clone(),
+                    ) {
+                        (Some(cryptogram), Some(eci_indicator)) => Some(AdyenMpiData {
+                            directory_response: common_enums::TransactionStatus::Success,
+                            authentication_response: common_enums::TransactionStatus::Success,
+                            cavv: Some(cryptogram),
+                            token_authentication_verification_value: None,
+                            eci: Some(eci_indicator),
+                            ds_trans_id: None,
+                            three_ds_version: None,
+                            challenge_cancel: None,
+                            risk_score: None,
+                            cavv_algorithm: None,
+                        }),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        Ok(Self(AdyenPaymentRequest {
+            amount,
+            merchant_account: auth_type.merchant_account,
+            payment_method,
+            reference: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            return_url,
+            shopper_interaction,
+            recurring_processing_model,
+            browser_info: get_browser_info_for_setup_mandate(&item.router_data)?,
+            additional_data,
+            mpi_data,
+            telephone_number: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_phone_number(),
+            shopper_name: get_shopper_name(
+                item.router_data
+                    .resource_common_data
+                    .address
+                    .get_payment_billing(),
+            ),
+            shopper_email: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_email(),
+            shopper_locale: item.router_data.request.locale.clone(),
+            social_security_number: None,
+            billing_address,
+            delivery_address: get_address_info(
+                item.router_data
+                    .resource_common_data
+                    .get_optional_shipping(),
+            )
+            .and_then(Result::ok),
+            country_code: get_country_code(
+                item.router_data.resource_common_data.get_optional_billing(),
+            ),
+            line_items: None,
+            shopper_reference,
+            store_payment_method,
+            channel: None,
+            shopper_statement: item
+                .router_data
+                .request
+                .billing_descriptor
+                .clone()
+                .and_then(|descriptor| descriptor.statement_descriptor),
+            shopper_ip: item.router_data.request.get_ip_address_as_optional(),
+            merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
+            store: None,
+            splits: None,
+            device_fingerprint,
+            metadata: None,
+            platform_chargeback_logic,
+            session_validity: None,
+            application_info: None,
+        }))
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AdyenRouterData<
@@ -6514,8 +6717,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .into()),
             None => match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(ref card) => Self::try_from((item, card)),
-                PaymentMethodData::Wallet(_)
-                | PaymentMethodData::PayLater(_)
+                PaymentMethodData::Wallet(ref wallet_data) => Self::try_from((item, wallet_data)),
+                PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
                 | PaymentMethodData::BankDebit(_)
                 | PaymentMethodData::BankTransfer(_)

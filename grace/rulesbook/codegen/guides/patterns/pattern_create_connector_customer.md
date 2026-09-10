@@ -278,7 +278,7 @@ The transformer `TryFrom<ResponseRouterData<..., Self>> for RouterDataV2<F, Paym
 impl<F, T> TryFrom<ResponseRouterData<Shift4CreateCustomerResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, ConnectorCustomerResponse>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<Shift4CreateCustomerResponse, Self>,

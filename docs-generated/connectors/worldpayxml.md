@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -27,6 +27,9 @@ config = sdk_config_pb2.ConnectorConfig(
             api_username=payment_methods_pb2.SecretString(value="YOUR_API_USERNAME"),
             api_password=payment_methods_pb2.SecretString(value="YOUR_API_PASSWORD"),
             merchant_code=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_CODE"),
+            issuer_id=payment_methods_pb2.SecretString(value="YOUR_ISSUER_ID"),
+            organizational_unit_id=payment_methods_pb2.SecretString(value="YOUR_ORGANIZATIONAL_UNIT_ID"),
+            jwt_mac_key=payment_methods_pb2.SecretString(value="YOUR_JWT_MAC_KEY"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -53,6 +56,9 @@ const config = ConnectorConfig.create({
             apiUsername: { value: 'YOUR_API_USERNAME' },
             apiPassword: { value: 'YOUR_API_PASSWORD' },
             merchantCode: { value: 'YOUR_MERCHANT_CODE' },
+            issuerId: { value: 'YOUR_ISSUER_ID' },
+            organizationalUnitId: { value: 'YOUR_ORGANIZATIONAL_UNIT_ID' },
+            jwtMacKey: { value: 'YOUR_JWT_MAC_KEY' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -75,6 +81,9 @@ val config = ConnectorConfig.newBuilder()
                 .setApiUsername(SecretString.newBuilder().setValue("YOUR_API_USERNAME").build())
                 .setApiPassword(SecretString.newBuilder().setValue("YOUR_API_PASSWORD").build())
                 .setMerchantCode(SecretString.newBuilder().setValue("YOUR_MERCHANT_CODE").build())
+                .setIssuerId(SecretString.newBuilder().setValue("YOUR_ISSUER_ID").build())
+                .setOrganizationalUnitId(SecretString.newBuilder().setValue("YOUR_ORGANIZATIONAL_UNIT_ID").build())
+                .setJwtMacKey(SecretString.newBuilder().setValue("YOUR_JWT_MAC_KEY").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -99,6 +108,9 @@ let config = ConnectorConfig {
                 api_username: Some(hyperswitch_masking::Secret::new("YOUR_API_USERNAME".to_string())),  // Authentication credential
                 api_password: Some(hyperswitch_masking::Secret::new("YOUR_API_PASSWORD".to_string())),  // Authentication credential
                 merchant_code: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_CODE".to_string())),  // Authentication credential
+                issuer_id: Some(hyperswitch_masking::Secret::new("YOUR_ISSUER_ID".to_string())),  // Authentication credential
+                organizational_unit_id: Some(hyperswitch_masking::Secret::new("YOUR_ORGANIZATIONAL_UNIT_ID".to_string())),  // Authentication credential
+                jwt_mac_key: Some(hyperswitch_masking::Secret::new("YOUR_JWT_MAC_KEY".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),
@@ -131,7 +143,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L213) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L124) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L270)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L221) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L129) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L280)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +157,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L232) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L140) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L286)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L240) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L145) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L296)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L257) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L162) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L309)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L265) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L167) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L319)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L282) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L184) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L332)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L290) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L189) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L342)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L304) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L203) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L351)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L312) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L208) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L361)
 
 ## API Reference
 
@@ -172,6 +184,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
@@ -213,7 +226,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | x |
 | MiFinity | x |
 | Bluecode | x |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | x |
 | MB Way | x |
 | Satispay | x |
@@ -240,8 +253,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | x |
 | Slovakia | x |
 | UK | x |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | x |
+| WebPay | x |
 | Local | x |
 | iDEAL | x |
 | Sofort | x |
@@ -254,7 +268,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | x |
 | Bizum | x |
 | EFT | x |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | x |
 | SEPA | x |
 | BACS | x |
@@ -277,9 +291,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | x |
 | BECS | x |
 | SEPA Guaranteed | x |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | x |
-| Givex | x |
+| Givex | ⚠ |
 | PaySafeCard | x |
 | E-Voucher | x |
 | Boleto | x |
@@ -352,7 +366,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L339) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L221) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L347) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L226) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Capture
 
@@ -363,7 +377,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L348) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L233) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L356) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L238) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Get
 
@@ -374,7 +388,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L357) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L243) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L365) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L248) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -385,7 +399,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L366) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L251) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L383) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L266) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -396,7 +410,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L375) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L280) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L392) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L295) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Refund
 
@@ -407,7 +421,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L393) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L346) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L410) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L361) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Reverse
 
@@ -418,7 +432,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L411) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L368) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L428) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L383) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -429,7 +443,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L420) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L376) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L437) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L391) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Void
 
@@ -440,7 +454,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L418) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L433) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 ### Refunds
 
@@ -453,7 +467,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L402) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L356) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L419) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L371) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 ### Mandates
 
@@ -466,4 +480,17 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L384) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L315) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L401) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L330) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+
+### Authentication
+
+#### PaymentMethodAuthenticationService.PreAuthenticate
+
+Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
+| **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L374) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L256) · [Rust](../../examples/worldpayxml/worldpayxml.rs)

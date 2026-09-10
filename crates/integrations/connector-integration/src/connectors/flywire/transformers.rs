@@ -1034,6 +1034,7 @@ impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
     fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
         let data = body.parse_payment_data()?;
         Ok(Self {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(data.payment_id)),
             status: data.status.to_attempt_status(),
             error_code: None,

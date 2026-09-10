@@ -13,8 +13,8 @@ use domain_types::{
     },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
@@ -122,6 +122,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Worldpayxml<T>
 {
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        _completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        // Card 3DS starts with Cardinal device data collection; both the DDC return and
+        // the challenge return re-enter Authorize, which branches on the redirect payload.
+        // Wallets authorize directly: decrypted wallet tokens carry a network cryptogram,
+        // so they are already authenticated. Google Pay FPAN 3DS is supported on the
+        // granular path only, where the caller routes it through PreAuthenticate.
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+            && matches!(redirect_state, RedirectState::InitialRequest)
+        {
+            AuthenticationStep::PreAuthenticate
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -259,6 +281,15 @@ macros::macro_connector_implementation!(
                 (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
             ];
             headers.extend(self.build_auth_header(auth)?);
+            // The 3ds challenge-completion leg must reach the same Worldpay machine that
+            // issued the challenge, so replay the cookie captured from that response.
+            if worldpayxml::parse_worldpayxml_challenge_return(req.request.redirect_response.as_ref())
+                .is_some()
+            {
+                let cookie =
+                    worldpayxml::get_worldpayxml_cookie(req.request.connector_feature_data.as_ref())?;
+                headers.push(("Cookie".to_string(), cookie.into_masked()));
+            }
             Ok(headers)
         }
 
@@ -638,6 +669,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Worldpayxml<T>
+{
+}
+
+macros::macro_connector_local_flow_implementation!(
+    connector: Worldpayxml,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    handle_response: worldpayxml::handle_pre_authenticate_response,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+);
+
 macros::macro_connector_flow_status_impls!(
     connector: Worldpayxml,
     generic_type: T,
@@ -646,7 +693,6 @@ macros::macro_connector_flow_status_impls!(
         IncrementalAuthorization,
         PostAuthenticate,
         Authenticate,
-        PreAuthenticate,
         SubmitEvidence,
         DefendDispute,
         PaymentMethodToken,

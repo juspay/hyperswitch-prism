@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -150,7 +150,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | ⚠ |
 | MB Way | ⚠ |
 | Satispay | ⚠ |
@@ -177,8 +177,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | x |
 | Slovakia | x |
 | UK | x |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | x |
+| WebPay | ⚠ |
 | Local | x |
 | iDEAL | x |
 | Sofort | x |
@@ -191,7 +192,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | ✓ |
 | Bizum | x |
 | EFT | x |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
@@ -214,9 +215,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | ⚠ |
 | BECS | ⚠ |
 | SEPA Guaranteed | ⚠ |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | ⚠ |
-| Givex | x |
+| Givex | ⚠ |
 | PaySafeCard | ⚠ |
 | E-Voucher | ⚠ |
 | Boleto | ⚠ |
@@ -245,4 +246,4 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L50) · [Rust](../../examples/loonio/loonio.rs)
+**Examples:** [Python](../../examples/loonio/loonio.py) · [TypeScript](../../examples/loonio/loonio.ts#L40) · [Kotlin](../../examples/loonio/loonio.kt#L51) · [Rust](../../examples/loonio/loonio.rs)

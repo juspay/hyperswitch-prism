@@ -461,6 +461,7 @@ pub fn build_webhook_payment_response(
     // for status mapping (succeeded -> Charged, requires_capture -> Authorized).
     let status = map_intent_status(&payment.status, true);
     Ok(WebhookDetailsResponse {
+        connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(
             payment.payment_id.clone(),
         )),

@@ -13,7 +13,13 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { pinelabsonline: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        pinelabsOnline: {
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            clientSecret: { value: 'YOUR_CLIENT_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

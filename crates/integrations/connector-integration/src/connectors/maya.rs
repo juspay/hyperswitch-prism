@@ -324,6 +324,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let connector_request_reference_id = body.request_reference_number.clone();
 
         Ok(WebhookDetailsResponse {
+            connector_returned_payment_method_details: None,
             resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
             status,
             connector_response_reference_id: None,

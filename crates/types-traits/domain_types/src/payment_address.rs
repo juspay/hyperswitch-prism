@@ -130,6 +130,25 @@ impl Address {
             .ok_or_else(missing_field_err("phone"))
     }
 
+    /// The phone number on its own, without the country code.
+    ///
+    /// Unlike [`Self::get_phone_with_country_code`], which returns the two
+    /// joined into one string and errors when absent, this leaves them separate
+    /// for connectors that model them as distinct fields.
+    pub fn get_optional_phone_number(&self) -> Option<Secret<String>> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.number.clone())
+    }
+
+    /// The dialling code on its own. Pairs with
+    /// [`Self::get_optional_phone_number`].
+    pub fn get_optional_phone_country_code(&self) -> Option<String> {
+        self.phone
+            .as_ref()
+            .and_then(|phone_details| phone_details.country_code.clone())
+    }
+
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.address
             .as_ref()
@@ -310,6 +329,22 @@ impl AddressDetails {
         )))
     }
 
+    /// Join `line1` and `line2` into a single street line, space-separated.
+    ///
+    /// Unlike [`Self::get_combined_address_line`], this never errors: it returns
+    /// whichever line is present, or `None` when neither is. Use it for
+    /// connectors that model the street as one optional field, where a missing
+    /// `line2` — the common case — must not fail the request.
+    pub fn get_optional_combined_address_line(&self) -> Option<Secret<String>> {
+        match (self.line1.as_ref(), self.line2.as_ref()) {
+            (Some(line1), Some(line2)) => {
+                Some(Secret::new(format!("{} {}", line1.peek(), line2.peek())))
+            }
+            (Some(line), None) | (None, Some(line)) => Some(line.clone()),
+            (None, None) => None,
+        }
+    }
+
     pub fn get_optional_line1(&self) -> Option<Secret<String>> {
         self.line1.clone()
     }
@@ -321,6 +356,9 @@ impl AddressDetails {
     }
     pub fn get_optional_country(&self) -> Option<common_enums::CountryAlpha2> {
         self.country
+    }
+    pub fn get_optional_state(&self) -> Option<Secret<String>> {
+        self.state.clone()
     }
 
     pub fn to_state_code(&self) -> Result<Secret<String>, Error> {

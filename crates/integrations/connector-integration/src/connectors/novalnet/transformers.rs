@@ -490,7 +490,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                     Default::default(),
                 )
@@ -2236,7 +2237,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                | WalletDataPaymentMethod::Skrill(_)
+                | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("novalnet"),
                     Default::default(),
                 ))?,
@@ -2500,6 +2502,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         let transaction_status = response.status;
 
                         Ok(Self {
+                            connector_returned_payment_method_details: None,
                             status: common_enums::AttemptStatus::from(transaction_status),
                             resource_id: Some(
                                 transaction_id
@@ -2539,6 +2542,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                         })
                     }
                     NovalnetAPIStatus::Failure => Ok(Self {
+                        connector_returned_payment_method_details: None,
                         status: common_enums::AttemptStatus::Failure,
                         resource_id: Some(
                             transaction_id

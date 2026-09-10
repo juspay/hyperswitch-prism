@@ -2305,6 +2305,7 @@ pub(super) fn build_finix_payment_webhook_response(
     let status = get_finix_webhook_attempt_status(&resource.state, flow, resource.is_void);
 
     Ok(WebhookDetailsResponse {
+        connector_returned_payment_method_details: None,
         resource_id: Some(ResponseId::ConnectorTransactionId(resource.id.clone())),
         status,
         connector_response_reference_id: Some(resource.id.clone()),

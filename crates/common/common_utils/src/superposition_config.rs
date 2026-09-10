@@ -82,15 +82,23 @@ impl SuperpositionConfig {
         connector: &str,
         environment: &str,
     ) -> Result<HashMap<String, Value>, SuperpositionConfigError> {
+        self.resolve_with(&[
+            (DIMENSION_CONNECTOR, connector),
+            (DIMENSION_ENVIRONMENT, environment),
+        ])
+    }
+
+    /// Resolve with caller-supplied dimensions. `resolve` delegates here; callers
+    /// with other dimension sets (the déjà sampler's `environment` × `rpc_method`)
+    /// use this directly.
+    pub fn resolve_with(
+        &self,
+        dimensions: &[(&str, &str)],
+    ) -> Result<HashMap<String, Value>, SuperpositionConfigError> {
         let mut dims: Map<String, Value> = Map::new();
-        dims.insert(
-            DIMENSION_CONNECTOR.to_string(),
-            Value::String(connector.to_string()),
-        );
-        dims.insert(
-            DIMENSION_ENVIRONMENT.to_string(),
-            Value::String(environment.to_string()),
-        );
+        for (key, value) in dimensions {
+            dims.insert((*key).to_string(), Value::String((*value).to_string()));
+        }
 
         // Convert DefaultConfigsWithSchema to Map<String, Value> by extracting the value field
         let default_configs: Map<String, Value> = self

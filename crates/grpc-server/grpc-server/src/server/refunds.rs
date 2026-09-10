@@ -45,7 +45,7 @@ impl RefundOperationsInternal for Refunds {
         request_data_constructor: RefundSyncData::foreign_try_from,
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: domain_types::types::generate_refund_sync_response,
-        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -61,7 +61,7 @@ impl RefundOperationsInternal for Refunds {
         request_data_constructor: RefundVoidPostRefundData::foreign_try_from,
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: domain_types::types::generate_void_post_refund_response,
-        connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>],
         all_keys_required: None
     );
 }

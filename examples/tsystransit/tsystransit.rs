@@ -16,7 +16,30 @@ pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "refund", "refund_get",
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::TsysTransit(
+                TsysTransitConfig {
+                    device_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_DEVICE_ID".to_string(),
+                    )), // Authentication credential
+                    transaction_key: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_TRANSACTION_KEY".to_string(),
+                    )), // Authentication credential
+                    developer_id: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_DEVELOPER_ID".to_string(),
+                    )), // Authentication credential
+                    merchant_street_address: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_MERCHANT_STREET_ADDRESS".to_string(),
+                    )), // Authentication credential
+                    customer_service_phone_number: Some(hyperswitch_masking::Secret::new(
+                        "YOUR_CUSTOMER_SERVICE_PHONE_NUMBER".to_string(),
+                    )), // Authentication credential
+                    merchant_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                    ..Default::default()
+                },
+            )),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),

@@ -29,68 +29,12 @@
         "error": "This feature is not implemented: payment_method"
       },
       "AliPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ali_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "AmazonPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "amazon_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "ApplePay": {
         "status": "supported",
@@ -131,14 +75,10 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_debit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: Apple pay encrypted data — Missing required field: Apple pay encrypted data"
-      },
-      "ApplePayThirdPartySdk": {
         "status": "supported",
         "proto_request": {
           "merchant_transaction_id": "probe_txn_001",
@@ -147,8 +87,24 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay_third_party_sdk": {
-              "token": "probe_apple_pay_third_party_token"
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
             }
           },
           "capture_method": "AUTOMATIC",
@@ -169,8 +125,12 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_debit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"apple_pay\",\"details\":{\"decrypted_data\":{\"applicationPrimaryAccountNumber\":\"4111111111111111\",\"applicationExpirationDate\":\"300331\",\"currencyCode\":\"840\",\"transactionAmount\":1000,\"paymentDataType\":\"3DSecure\",\"paymentData\":{\"onlinePaymentCryptogram\":\"AAAAAA==\",\"eciIndicator\":\"05\"}},\"brand_data\":{\"displayName\":\"Visa 1111\",\"network\":\"Visa\",\"type\":\"debit\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -193,36 +153,8 @@
         "error": "This feature is not implemented: payment_method"
       },
       "BillDeskRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "billdesk_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -233,36 +165,8 @@
         "error": "This feature is not implemented: payment_method"
       },
       "Bluecode": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bluecode_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -315,68 +219,12 @@
         }
       },
       "CashappQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "cashapp_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "CashfreeRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "cashfree_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -387,84 +235,28 @@
         "error": "This feature is not implemented: payment_method"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "dana_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "EaseBuzzRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "easebuzz_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -483,76 +275,20 @@
         "error": "This feature is not implemented: payment_method"
       },
       "GCash": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "gcash_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Giropay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "go_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "GooglePay": {
         "status": "supported",
@@ -596,14 +332,10 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_credit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":\"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\"}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
-      },
-      "GooglePayThirdPartySdk": {
         "status": "supported",
         "proto_request": {
           "merchant_transaction_id": "probe_txn_001",
@@ -612,8 +344,22 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay_third_party_sdk": {
-              "token": "probe_google_pay_third_party_token"
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
             }
           },
           "capture_method": "AUTOMATIC",
@@ -634,8 +380,12 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"in_credit_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":{\"type\":\"google_pay\",\"details\":{\"decrypted_data\":{\"gatewayMerchantId\":\"probe_key\",\"paymentMethod\":\"CARD\",\"paymentMethodDetails\":{\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"pan\":\"4111111111111111\",\"authMethod\":\"CRYPTOGRAM_3DS\",\"eciIndicator\":\"05\",\"cryptogram\":\"AAAAAA==\"}},\"brand_data\":{\"cardDetails\":\"1111\",\"cardNetwork\":\"Visa\"}}}},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -666,36 +416,8 @@
         "error": "This feature is not implemented: payment_method"
       },
       "KakaoPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "kakao_pay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Klarna": {
         "status": "not_implemented",
@@ -706,36 +428,8 @@
         "error": "This feature is not implemented: payment_method"
       },
       "LazyPayRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "lazypay_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -750,111 +444,24 @@
         "error": "This feature is not implemented: payment_method"
       },
       "MbWay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mb_way": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Mifinity": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "mifinity_redirect": {
-              "date_of_birth": "1990-01-01",
-              "language_preference": "en"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "MiniStop": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "momo_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -893,8 +500,8 @@
         "error": "This feature is not implemented: payment_method"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -917,148 +524,32 @@
         "error": "This feature is not implemented: payment_method"
       },
       "PayURedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "payu_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "PaypalRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_redirect": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "PaypalSdk": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_sdk": {
-              "token": "probe_paypal_sdk_token"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is empty or not supported by this flow"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "PhonePeRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "phonepe_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Pix": {
         "status": "not_implemented",
@@ -1081,112 +572,16 @@
         "error": "This feature is not implemented: payment_method"
       },
       "RevolutPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "revolut_pay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "SamsungPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "samsung_pay_sdk": {
-              "payment_credential": {
-                "method": "3DS",
-                "recurring_payment": false,
-                "card_brand": "VISA",
-                "card_last_four_digits": "1234",
-                "token_data": {
-                  "type": "S",
-                  "version": "100",
-                  "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Satispay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "satispay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -1209,140 +604,28 @@
         "error": "This feature is not implemented: payment_method"
       },
       "Skrill": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "skrill_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "Swish": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "swish_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "TouchNGo": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "touch_n_go_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "Trustly": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method"
       },
       "Twint": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "twint_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -1357,100 +640,20 @@
         "error": "This feature is not implemented: payment_method"
       },
       "Vipps": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "vipps_redirect": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       },
       "WeChatPayQr": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "we_chat_pay_qr": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
+      },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method"
       },
       "Wero": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "wero": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandboxapi.rapyd.net/v1/payments",
-          "method": "Post",
-          "headers": {
-            "access_key": "probe_key",
-            "content-type": "application/json",
-            "salt": "probeSaltVal0001",
-            "signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "timestamp": "0000000000",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":{\"type\":\"by_visa_card\",\"fields\":null,\"address\":null,\"digital_wallet\":null},\"payment_method_options\":null,\"merchant_reference_id\":\"probe_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_supported",
+        "error": "Selected wallet is not supported by rapyd is not supported by rapyd"
       }
     },
     "capture": {
@@ -1667,8 +870,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Card issuer detection is not supported for vault token placeholders"
+        "status": "error",
+        "error": "Stuck on field: return_url — Missing required field: return_url"
       }
     },
     "recurring_charge": {
@@ -1707,7 +910,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/recurring-return\",\"error_payment_url\":\"https://example.com/recurring-return\",\"customer\":\"cust_probe_123\",\"initiation_type\":\"recurring\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"probe-mandate-123\",\"payment_method_options\":{\"3d_required\":false},\"merchant_reference_id\":\"\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/recurring-return\",\"error_payment_url\":\"https://example.com/recurring-return\",\"initiation_type\":\"recurring\"}"
         }
       }
     },
@@ -1812,7 +1015,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":null,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
+          "body": "{\"amount\":\"10.00\",\"currency\":\"USD\",\"payment_method\":\"pm_1AbcXyzStripeTestToken\",\"payment_method_options\":null,\"merchant_reference_id\":\"probe_tokenized_txn_001\",\"capture\":true,\"description\":null,\"complete_payment_url\":\"https://example.com/return\",\"error_payment_url\":\"https://example.com/return\"}"
         }
       }
     },
@@ -1836,7 +1039,7 @@
         },
         "sample": {
           "url": "https://sandboxapi.rapyd.net/v1/payments/probe_connector_txn_001",
-          "method": "Post",
+          "method": "Delete",
           "headers": {
             "access_key": "probe_key",
             "content-type": "application/json",

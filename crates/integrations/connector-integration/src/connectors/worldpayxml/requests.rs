@@ -52,19 +52,74 @@ pub struct WorldpayxmlSubmit {
 pub struct WorldpayxmlOrder {
     #[serde(rename = "@orderCode")]
     pub order_code: String,
-    #[serde(rename = "@captureDelay")]
-    pub capture_delay: String,
-    pub description: String,
-    pub amount: WorldpayxmlAmount,
-    #[serde(rename = "paymentDetails")]
-    pub payment_details: WorldpayxmlPaymentDetails,
-    pub shopper: WorldpayxmlShopper,
+    #[serde(rename = "@captureDelay", skip_serializing_if = "Option::is_none")]
+    pub capture_delay: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<WorldpayxmlAmount>,
+    #[serde(rename = "paymentDetails", skip_serializing_if = "Option::is_none")]
+    pub payment_details: Option<WorldpayxmlPaymentDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper: Option<WorldpayxmlShopper>,
     #[serde(rename = "billingAddress", skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<WorldpayxmlBillingAddress>,
-    // NOTE: must stay the LAST field — quick-xml emits elements in declaration
-    // order and the WPG DTD expects <createToken> after <billingAddress>
+    // NOTE: field order below is wire order — quick-xml emits elements in declaration
+    // order and the WPG DTD expects info3DSecure, session, createToken, additional3DSData
+    // after <billingAddress>.
+    #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
+    pub info_threed_secure: Option<WorldpayxmlInfo3DSecure>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<WorldpayxmlCompleteAuthSession>,
     #[serde(rename = "createToken", skip_serializing_if = "Option::is_none")]
     pub create_token: Option<WorldpayxmlCreateToken>,
+    #[serde(rename = "additional3DSData", skip_serializing_if = "Option::is_none")]
+    pub additional_threeds_data: Option<WorldpayxmlAdditionalThreeDSData>,
+    #[serde(rename = "fundingTransfer", skip_serializing_if = "Option::is_none")]
+    pub funding_transfer: Option<WorldpayxmlFundingTransfer>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlInfo3DSecure {
+    #[serde(rename = "completedAuthentication")]
+    pub completed_authentication: WorldpayxmlCompletedAuthentication,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCompletedAuthentication {}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlSession {
+    #[serde(rename = "@id")]
+    pub id: String,
+    #[serde(rename = "@shopperIPAddress")]
+    pub shopper_ip_address: Secret<String, common_utils::pii::IpAddress>,
+}
+
+/// Order-level session reference sent on the challenge-completion leg, where only the
+/// session id is echoed back.
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCompleteAuthSession {
+    #[serde(rename = "@id")]
+    pub id: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlAdditionalThreeDSData {
+    #[serde(rename = "@dfReferenceId", skip_serializing_if = "Option::is_none")]
+    pub df_reference_id: Option<Secret<String>>,
+    #[serde(rename = "@javaScriptEnabled")]
+    pub javascript_enabled: bool,
+    #[serde(rename = "@deviceChannel")]
+    pub device_channel: String,
+    #[serde(rename = "@challengePreference")]
+    pub challenge_preference: WorldpayxmlChallengePreference,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WorldpayxmlChallengePreference {
+    ChallengeMandated,
 }
 
 #[derive(Debug, Serialize)]
@@ -95,6 +150,44 @@ pub struct WorldpayxmlPaymentDetails {
     pub payment_method: WorldpayxmlPaymentMethod,
     #[serde(rename = "storedCredentials", skip_serializing_if = "Option::is_none")]
     pub stored_credentials: Option<WorldpayxmlStoredCredentials>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub session: Option<WorldpayxmlSession>,
+    #[serde(rename = "info3DSecure", skip_serializing_if = "Option::is_none")]
+    pub info_3d_secure: Option<WorldpayxmlExternalInfo3DSecure>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlExternalInfo3DSecure {
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: String,
+    #[serde(rename = "dsTransactionId", skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(rename = "transactionStatus", skip_serializing_if = "Option::is_none")]
+    pub transaction_status: Option<WorldpayxmlTransactionStatus>,
+}
+
+#[derive(Debug, Serialize)]
+pub enum WorldpayxmlTransactionStatus {
+    #[serde(rename = "Y")]
+    Success,
+    #[serde(rename = "N")]
+    Failure,
+    #[serde(rename = "U")]
+    VerificationNotPerformed,
+    #[serde(rename = "A")]
+    NotVerified,
+    #[serde(rename = "R")]
+    Rejected,
+    #[serde(rename = "C")]
+    ChallengeRequired,
+    #[serde(rename = "D")]
+    ChallengeRequiredDecoupledAuthentication,
+    #[serde(rename = "I")]
+    InformationOnly,
 }
 
 /// Flags the authorisation as part of a stored-credential agreement.
@@ -242,6 +335,141 @@ pub struct WorldpayxmlDate {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingTransfer {
+    #[serde(rename = "@type")]
+    pub transfer_type: String,
+    #[serde(rename = "@category")]
+    pub category: String,
+    pub payment_purpose: String,
+    pub funding_party: Vec<WorldpayxmlFundingParty>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WorldpayxmlFundingPartyType {
+    Sender,
+    Recipient,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingParty {
+    #[serde(rename = "@type")]
+    pub party_type: WorldpayxmlFundingPartyType,
+    pub account_reference: WorldpayxmlAccountReference,
+    pub full_name: WorldpayxmlFullName,
+    pub funding_address: WorldpayxmlFundingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub funding_data: Option<WorldpayxmlFundingData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlAccountReference {
+    #[serde(rename = "@accountType")]
+    pub account_type: String,
+    #[serde(rename = "$text")]
+    pub value: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFullName {
+    pub first: Secret<String>,
+    pub last: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingAddress {
+    pub address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    pub city: String,
+    pub state: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFundingData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth_date: Option<WorldpayxmlBirthDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telephone_number: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlBirthDate {
+    pub date: WorldpayxmlFundingDate,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlFundingDate {
+    #[serde(rename = "@dayOfMonth")]
+    pub day_of_month: Secret<String>,
+    #[serde(rename = "@month")]
+    pub month: Secret<String>,
+    #[serde(rename = "@year")]
+    pub year: Secret<String>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlFundingTransactionType {
+    CreditCardBillRepayment,
+    GiftCardPurchase,
+    GiftCardPurchaseForAnother,
+    NonReloadablePrepaidCard,
+    ReloadablePrepaidCardOrAccount,
+    GamingChipsPurchase,
+    GamingStoredValueWallet,
+    GamingStagedDigitalWallet,
+    LiquidAndCryptoAssetsPurchase,
+    LiquidAndCryptoStoredValueWalletLoad,
+    StoredValueDigitalWalletLoad,
+    StoredValueDigitalWalletLoadNonSecurities,
+    SecuritiesStoredValueDigitalWalletLoad,
+    SecuritiesStagedDigitalWalletLoad,
+    SingleMerchantWalletLoad,
+    DebitCardLoad,
+    TransferToOwnDebitAccount,
+    FundsTransferMeToMe,
+    AccountToAccount,
+    BackToBackP2pWithoutWallet,
+    BackToBackP2pWithWallet,
+    AgentCashOut,
+    StagedDigitalWalletLoad,
+    StagedDigitalWalletPurchase,
+    BackToBackCardPurchase,
+    PayrollDisbursementFunding,
+    BusinessToConsumerDisbursement,
+    BusinessToBusinessInvoicePayment,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorldpayxmlPaymentPurpose {
+    FamilySupport,
+    RegularLabourTransfers,
+    TravelAndTourism,
+    Education,
+    HospitalisationAndMedicalTreatment,
+    EmergencyNeed,
+    Savings,
+    Gifts,
+    Other,
+    Salary,
+    CrowdLending,
+    CryptoCurrency,
+    HighRiskSecurities,
+}
+
+#[derive(Debug, Serialize)]
 pub struct WorldpayxmlShopper {
     #[serde(
         rename = "shopperEmailAddress",
@@ -268,6 +496,8 @@ pub struct WorldpayxmlBrowser {
     pub user_agent_header: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub http_accept_language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_referer: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_zone: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -625,4 +855,38 @@ pub struct WorldpayxmlVoidPCOrderModification {
 #[derive(Debug, Serialize)]
 pub struct WorldpayxmlCancelOrRefund {
     // Empty struct - generates <cancelOrRefund/> element
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlChallengeJwtPayload {
+    #[serde(rename = "ACSUrl")]
+    pub acs_url: String,
+    #[serde(rename = "Payload")]
+    pub payload: Secret<String>,
+    #[serde(rename = "TransactionId")]
+    pub transaction_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlChallengeJwt {
+    pub jti: String,
+    pub iat: u64,
+    pub iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    pub org_unit_id: Secret<String>,
+    #[serde(rename = "ReturnUrl")]
+    pub return_url: String,
+    #[serde(rename = "Payload")]
+    pub payload: WorldpayxmlChallengeJwtPayload,
+    #[serde(rename = "ObjectifyPayload")]
+    pub objectify_payload: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlDdcJwt {
+    pub jti: String,
+    pub iat: u64,
+    pub iss: Secret<String>,
+    #[serde(rename = "OrgUnitId")]
+    pub org_unit_id: Secret<String>,
 }

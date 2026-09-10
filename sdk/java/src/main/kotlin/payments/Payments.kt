@@ -113,6 +113,7 @@ typealias ConnectorSpecificConfig = types.Payment.ConnectorSpecificConfig
 typealias Currency = types.Payment.Currency
 typealias CaptureMethod = types.Payment.CaptureMethod
 typealias AuthenticationType = types.Payment.AuthenticationType
+typealias DocumentKind = types.Payment.DocumentKind
 typealias PaymentMethodType = types.Payment.PaymentMethodType
 typealias PaymentStatus = types.Payment.PaymentStatus
 typealias RefundStatus = types.Payment.RefundStatus
