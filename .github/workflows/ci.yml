@@ -714,7 +714,7 @@ jobs:
           # connector-service report pipeline reads. Both consumers now expect
           # it: the harness loader, and the grpc-server tests via
           # credential_utils, which forward it as x-connector-config.
-          S3_SOURCE_FILE_NAME: "a0aedbb0-1f81-4c38-b3bc-786e96461c91.json.gpg"
+          S3_SOURCE_FILE_NAME: "c66ba935-61a1-4a96-95cf-5ee5120813a3.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
