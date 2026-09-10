@@ -746,7 +746,7 @@ examples_python: examples/revolut/revolut.py
 connector_id: revolv3
 doc: docs/connectors/revolv3.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/revolv3/revolv3.py
 
