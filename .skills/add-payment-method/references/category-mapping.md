@@ -9,7 +9,7 @@ method belongs to before implementing it.
 | Payment Method Name | Category | PaymentMethodData Variant | Inner Enum Variant |
 |---------------------|----------|---------------------------|--------------------|
 | Credit Card / Debit Card | Card | `PaymentMethodData::Card(card)` | N/A (struct, not enum) |
-| Apple Pay | Wallet | `PaymentMethodData::Wallet(w)` | `WalletData::ApplePay(ApplePayWalletData)` |
+| Apple Pay | Wallet | `PaymentMethodData::Wallet(w)` | `WalletData::ApplePay(ApplePayWalletData)` -- the decrypted/encrypted split is inside `ApplePayWalletData.payment_data: ApplePayPaymentData`, not on the router data |
 | Apple Pay (redirect) | Wallet | `PaymentMethodData::Wallet(w)` | `WalletData::ApplePayRedirect(Box<ApplePayRedirectData>)` |
 | Apple Pay (3rd party SDK) | Wallet | `PaymentMethodData::Wallet(w)` | `WalletData::ApplePayThirdPartySdk(Box<ApplePayThirdPartySdkData>)` |
 | Google Pay | Wallet | `PaymentMethodData::Wallet(w)` | `WalletData::GooglePay(GooglePayWalletData)` |
@@ -48,6 +48,40 @@ method belongs to before implementing it.
 | PaySafeCard | GiftCard | `PaymentMethodData::GiftCard(gc)` | `GiftCardData::PaySafeCard {}` |
 | Carrier Billing | MobilePayment | `PaymentMethodData::MobilePayment(mp)` | `MobilePaymentData::DirectCarrierBilling { msisdn, client_uid }` |
 | Loyalty / Reward | Reward | `PaymentMethodData::Reward` | N/A (unit variant, no inner data) |
+| Boleto | Voucher | `PaymentMethodData::Voucher(v)` | `VoucherData::Boleto(Box<BoletoVoucherData>)` |
+| OXXO | Voucher | `PaymentMethodData::Voucher(v)` | `VoucherData::Oxxo` (unit variant) |
+| Alfamart / Indomaret | Voucher | `PaymentMethodData::Voucher(v)` | `VoucherData::Alfamart(Box<AlfamartVoucherData>)`, `VoucherData::Indomaret(Box<IndomaretVoucherData>)` |
+| 7-Eleven / Lawson / MiniStop / FamilyMart / Seicomart / PayEasy (konbini) | Voucher | `PaymentMethodData::Voucher(v)` | `VoucherData::SevenEleven(Box<JCSVoucherData>)`, `VoucherData::Lawson(..)`, `VoucherData::MiniStop(..)`, `VoucherData::FamilyMart(..)`, `VoucherData::Seicomart(..)`, `VoucherData::PayEasy(..)` -- all six wrap the same `JCSVoucherData` |
+| Efecty / PagoEfectivo / RedCompra / RedPagos | Voucher | `PaymentMethodData::Voucher(v)` | `VoucherData::Efecty`, `VoucherData::PagoEfectivo`, `VoucherData::RedCompra`, `VoucherData::RedPagos` -- all unit variants |
+| Card without CVC | Card (no CVC) | `PaymentMethodData::CardWithNoCvc(card)` | N/A (struct `CardWithNoCvc`, 11 fields, **no `card_cvc`**) |
+| Stored card + network transaction ID (MIT) | Card (stored NTID) | `PaymentMethodData::CardDetailsForNetworkTransactionId(c)` | N/A (struct `CardDetailsForNetworkTransactionId`, 10 fields, no CVC) |
+| Decrypted wallet token + network transaction ID (MIT) | Wallet token (stored NTID) | `PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(d)` | N/A (struct: `decrypted_token`, `token_exp_month`, `token_exp_year`, `card_holder_name`, `eci`, `token_source: Option<TokenSource>` where `TokenSource` is `GooglePay` / `ApplePay`) |
+| KNET | CardRedirect | `PaymentMethodData::CardRedirect(cr)` | `CardRedirectData::Knet {}` |
+| Benefit | CardRedirect | `PaymentMethodData::CardRedirect(cr)` | `CardRedirectData::Benefit {}` |
+| MoMo ATM | CardRedirect | `PaymentMethodData::CardRedirect(cr)` | `CardRedirectData::MomoAtm {}` |
+| Generic card redirect | CardRedirect | `PaymentMethodData::CardRedirect(cr)` | `CardRedirectData::CardRedirect {}` |
+| Mandate-only / stored-mandate charge | MandatePayment | `PaymentMethodData::MandatePayment` | N/A (unit variant, no inner data -- the mandate ID travels on the request, not here) |
+| DuitNow | RealTimePayment | `PaymentMethodData::RealTimePayment(rtp)` (Box) | `RealTimePaymentData::DuitNow {}` |
+| FPS (Hong Kong) | RealTimePayment | `PaymentMethodData::RealTimePayment(rtp)` (Box) | `RealTimePaymentData::Fps {}` |
+| PromptPay | RealTimePayment | `PaymentMethodData::RealTimePayment(rtp)` (Box) | `RealTimePaymentData::PromptPay {}` |
+| VietQR | RealTimePayment | `PaymentMethodData::RealTimePayment(rtp)` (Box) | `RealTimePaymentData::VietQr {}` |
+| Connector-side payment token (Apple Pay / Google Pay token handoff) | PaymentMethodToken | `PaymentMethodData::PaymentMethodToken(t)` | N/A (struct: `token: Secret<String>`, `token_payment_method_type: Option<TokenPaymentMethod>` where `TokenPaymentMethod` is `ApplePay` / `GooglePay`) |
+| Open Banking PIS | OpenBanking | `PaymentMethodData::OpenBanking(ob)` | `OpenBankingData::OpenBankingPIS {}` (the only variant) |
+| Network token (token PAN + cryptogram) | NetworkToken | `PaymentMethodData::NetworkToken(nt)` | N/A (struct `NetworkTokenData`: `token_number: cards::NetworkToken`, `token_exp_month`, `token_exp_year`, `token_cryptogram`, `eci`, plus card metadata) |
+
+## Category → Pattern File
+
+Once you have the category, the pattern file is
+`references/payment-method-patterns/<category>.md` (kebab-case), and the full 21-row
+category → file table lives in `SKILL.md`. Several of those files are symlinks into the
+wider rulesbook corpus at `grace/rulesbook/codegen/guides/patterns/authorize/<category>/`
+(snake_case dir, `pattern_authorize_<category>.md`) -- that corpus is the authoritative,
+longer-form set. Read it whenever the skill-local file is too thin.
+
+Worked examples:
+- "add Pix to X" → Pix is BankTransfer → `references/payment-method-patterns/bank-transfer.md`
+- "add Boleto to X" → Boleto is Voucher → `references/payment-method-patterns/voucher.md`
+  (symlink → `grace/rulesbook/codegen/guides/patterns/authorize/voucher/pattern_authorize_voucher.md`)
 
 ## How to Determine Category from a Payment Method Name
 
@@ -66,8 +100,15 @@ method belongs to before implementing it.
    - "Pix" is **BankTransfer**, not BankRedirect, even though it involves a QR code.
 
 3. **If the payment method is not in the table**, check the `PaymentMethodData` enum
-   directly in `crates/types-traits/domain_types/src/payment_method_data.rs` to find
-   the correct variant.
+   directly in `crates/types-traits/domain_types/src/payment_method_data.rs`
+   (`pub enum PaymentMethodData<T: PaymentMethodDataTypes>`) to find the correct variant.
+   At HEAD it has 21 variants and this table now has at least one row for every one of them,
+   so a miss means either a new variant landed or the name maps to a sub-variant of an
+   existing category. Two shapes are routinely mis-modelled:
+   `PaymentMethodData::PaymentMethodToken` wraps a **struct** (`token`,
+   `token_payment_method_type`), not an enum of decrypted wallet payloads; and
+   `PaymentMethodData::MandatePayment` and `PaymentMethodData::Reward` are **unit** variants
+   with no inner data at all.
 
 ## Special Cases
 
@@ -78,6 +119,11 @@ method belongs to before implementing it.
 | Paze | Wallet (`WalletData::Paze`) | Not recognizing it as a wallet |
 | Pix | BankTransfer (`BankTransferData::Pix`) | Putting it under BankRedirect |
 | Bancontact | BankRedirect (`BankRedirectData::BancontactCard`) | Putting it under Card (it has card fields but is a redirect) |
-| Boleto | Voucher (`VoucherData::Boleto`) | Putting it under BankTransfer |
-| OXXO | Voucher (`VoucherData::Oxxo`) | Putting it under BankTransfer |
+| Boleto | Voucher (`VoucherData::Boleto(Box<BoletoVoucherData>)`) | Putting it under BankTransfer |
+| OXXO | Voucher (`VoucherData::Oxxo`, a unit variant) | Putting it under BankTransfer |
 | Reward / Loyalty | Reward (`PaymentMethodData::Reward`) | Creating a new variant (Reward is a unit variant, no inner data) |
+| KNET / Benefit / MoMo ATM | CardRedirect (`CardRedirectData::Knet {}` etc.) | Putting them under Card because the name says "card" |
+| PromptPay / DuitNow / FPS / VietQR | RealTimePayment (Box-wrapped) | Putting them under BankTransfer or Wallet |
+| Card details with no CVC | `PaymentMethodData::CardWithNoCvc` | Routing to `PaymentMethodData::Card` and synthesising a CVC -- never fabricate one |
+| MIT re-use of a stored card | `PaymentMethodData::CardDetailsForNetworkTransactionId` | Confusing it with `CardWithNoCvc`; the NTID variant is keyed on a stored network transaction ID |
+| Apple Pay / Google Pay token handed straight to the connector | `PaymentMethodData::PaymentMethodToken` (struct) | Treating it as a `WalletData` sub-variant |

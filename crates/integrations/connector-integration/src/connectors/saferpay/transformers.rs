@@ -1498,7 +1498,7 @@ type RefundSyncRouterData =
 /// Without this, a Saferpay refund can never reach `Success` through the normal
 /// refund lifecycle.
 pub fn refund_needs_settlement(request: &RefundSyncData) -> bool {
-    !request
+    request
         .refund_connector_metadata
         .as_ref()
         .and_then(|metadata| {
@@ -1507,7 +1507,7 @@ pub fn refund_needs_settlement(request: &RefundSyncData) -> bool {
                 .get(SAFERPAY_STAGE_METADATA_KEY)
                 .and_then(serde_json::Value::as_str)
         })
-        .is_some_and(|stage| stage == STAGE_REFUND_SETTLED)
+        .is_none_or(|stage| stage != STAGE_REFUND_SETTLED)
 }
 
 fn settled_refund_metadata(request: &RefundSyncData) -> common_utils::pii::SecretSerdeValue {

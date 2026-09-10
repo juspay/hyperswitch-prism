@@ -25,6 +25,9 @@
     "celero": {},
     "checkout": {},
     "cryptopay": {},
+    "d24": {
+      "reason": "No Directa24 sandbox credentials are configured in CI, so certification cannot run; WebPay Authorize, PSync, Refund and RSync were validated end to end against a local mock Directa24 server instead (HMAC signature, X-Login write/read-only key split, all 8 deposit statuses and all 6 refund statuses). Remove this entry once credentials are added so CI starts certifying it."
+    },
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
@@ -39,6 +42,9 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
+    "globalpayments_heartland": {
+      "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
+    },
     "glomopay": {},
     "grabpay": {},
     "helcim": {},
@@ -71,8 +77,14 @@
     "nuvei": {},
     "paybox": {},
     "payconex": {},
+    "paydotcom": {
+      "reason": "No Pay.com sandbox credentials are available; the integration is verified end to end from Hyperswitch through UCS against a mock Pay.com server, with request shapes checked against apiref.pay.com. See PR #2223."
+    },
     "payload": {},
     "payme": {},
+    "paynearme": {
+      "reason": "No PayNearMe sandbox credentials exist; the integration was verified against a local spec-shaped mock server (outbound request + response parsing) rather than the live sandbox."
+    },
     "paypal": {},
     "paysafe": {},
     "paytm": {},

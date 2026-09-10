@@ -55,7 +55,9 @@ pub use responses::{
 const DISPLAY_METADATA: &str = "Y";
 
 fn convert_metadata_to_request_metadata(metadata: serde_json::Value) -> Vec<RequestMetadata> {
-    let hashmap: std::collections::HashMap<Option<String>, Option<serde_json::Value>> =
+    // BTreeMap, not HashMap: this map's iteration order becomes the ORDER of the
+    // metaData ARRAY in the request body, so it must not vary per process.
+    let hashmap: std::collections::BTreeMap<Option<String>, Option<serde_json::Value>> =
         serde_json::from_str(&metadata.to_string()).unwrap_or_default();
 
     hashmap

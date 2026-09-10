@@ -130,12 +130,18 @@ fn parse_patch_config(contents: &str, path: &str) -> PatchConfig {
 ///
 /// Fields under `[connector_overrides.<flow>.<connector>]` are pre-applied to the base request
 /// before probing begins, so the probe never gets stuck on connector-specific required fields.
+///
+/// Values keep their TOML type, so a proto enum or numeric field can be pre-set
+/// as a bare integer (`country_alpha2_code = 46`) while string fields stay
+/// quoted. Only pre-sets can express these: the patcher fires on
+/// *missing-field* errors, so a connector that rejects a present-but-wrong
+/// value (e.g. a country it does not serve) is unreachable by patching.
 #[derive(Debug, Deserialize, Clone, Default)]
 pub(crate) struct ConnectorRequestOverrides {
     /// Per-flow field pre-sets keyed as [connector_overrides."flow1,flow2".<connector>].
     /// These are pre-applied to the base request before probing begins.
     #[serde(flatten)]
-    pub(crate) flow_overrides: HashMap<String, HashMap<String, String>>,
+    pub(crate) flow_overrides: HashMap<String, HashMap<String, toml::Value>>,
 }
 
 /// Configuration for the field-probe, loaded from probe-config.toml
@@ -300,7 +306,7 @@ pub(crate) fn connector_access_token_override(connector: &ConnectorEnum) -> Opti
 pub(crate) fn connector_flow_overrides(
     connector: &ConnectorEnum,
     flow: &str,
-) -> Option<&'static HashMap<String, String>> {
+) -> Option<&'static HashMap<String, toml::Value>> {
     let config = get_config();
     let name = format!("{connector:?}").to_lowercase();
     // Pass 1: exact flow key  →  [connector_overrides.<flow>.<connector>]

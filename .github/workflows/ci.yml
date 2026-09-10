@@ -25,17 +25,19 @@ permissions:
 #            ├─ auto-fix           (PR only: format + generate + docs → bot commit if needed)
 #            │   ├─ check          (if rust changed AND auto-fix didn't push, ~11min)
 #            │   ├─ test           (parallel with check, ~15min)
-#            │   └─ sdk-test       (if sdk/rust-core/proto changed: FFI+gRPC tests, ~25min)
+#            │   └─ sdk-build      (if sdk/rust-core/proto changed: build SDK binaries once)
+#            │       └─ sdk-test   (matrix: gRPC + FFI per SDK + mock, all parallel)
 #            └─ ci-gate            (always — single required status check)
 #
 # Auto-fix runs first on PRs: formats code + generates docs. If changes are
 # found, it commits them and the remaining jobs SKIP (a new CI run triggers
 # on the bot commit with clean code). If no changes needed, checks proceed.
 # check and test run in PARALLEL with separate caches (faster wall clock).
-# sdk-test runs FFI and gRPC tests sequentially in one job: ffi binaries are
-# built first so Cargo caches external-services (no injector-client), then
-# grpc-server is built (with injector-client) as a separate artifact — no
-# recompile when switching between test suites.
+# sdk-build compiles all SDK binaries in ONE cargo invocation so both
+# external-services feature variants (ffi without injector-client, grpc-server
+# with injector-client) are stored together — no feature-unification recompile.
+# The sdk-test matrix restores those binaries from the actions cache and runs
+# each suite (gRPC/FFI per SDK language + mock) in parallel without compiling.
 # For connector-only PRs, tests are scoped to changed connectors.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -900,16 +902,15 @@ jobs:
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }
 
-  # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
-  # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
-  # and mock tests. Running in a single job avoids the external-services feature
-  # recompile that occurs when ffi (no injector-client) and grpc-server (with
-  # injector-client) are built in separate jobs with separate Rust caches.
-  # Build order: ffi first → grpc-server second, so Cargo stores both
-  # external-services feature variants before any tests run.
+  # ── SDK Binaries Build ────────────────────────────────────────────────────
+  # Builds all SDK binaries once in a single cargo invocation so both
+  # external-services feature variants (ffi without injector-client,
+  # grpc-server with injector-client) are compiled together with unified
+  # features — no recompile between suites. The binaries are cached and the
+  # parallel sdk-test matrix jobs restore them without compiling any Rust.
 
-  sdk-test:
-    name: SDK Tests
+  sdk-build:
+    name: Build SDK Binaries
     needs: [changes, auto-fix]
     if: >-
       !github.event.pull_request.draft &&
@@ -926,6 +927,9 @@ jobs:
       RUSTFLAGS: "-D warnings"
       PROFILE: release-fast
 
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -940,51 +944,14 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            sdk/javascript/package-lock.json
-            sdk/tests/package.json
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('sdk/python/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Install Python codegen dependencies
-        run: |
-          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
-          make -C sdk install-deps
-
-      - name: Install Node dependencies
-        run: |
-          cd sdk/javascript && npm ci && cd ../..
-          cd sdk/tests && npm install && cd ../..
-
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          shared-key: "ci-release-fast"
-          cache-targets: true
-
-      - name: Generate flows.json
-        run: python3 scripts/generators/code/generate.py --lang rust
+      - name: Compute SDK binaries cache key
+        id: cache-key
+        run: echo "key=sdk-v2-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}" >> "$GITHUB_OUTPUT"
 
       - name: Restore SDK binaries cache
         id: sdk-cache-restore
@@ -999,7 +966,22 @@ jobs:
             target/*/*/uniffi-bindgen
             target/*/*/hyperswitch-smoke-test
             target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
+            target/*/*/smoke-test-webhook
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - uses: Swatinem/rust-cache@v2.7.8
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        with:
+          shared-key: "ci-release-fast"
+          cache-targets: true
+
+      - name: Install Python codegen dependencies
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        run: make -C sdk install-deps
+
+      - name: Generate flows.json
+        if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
+        run: python3 scripts/generators/code/generate.py --lang rust
 
       - name: Build SDK binaries (cache miss)
         if: steps.sdk-cache-restore.outputs.cache-hit != 'true'
@@ -1022,7 +1004,128 @@ jobs:
             target/*/*/uniffi-bindgen
             target/*/*/hyperswitch-smoke-test
             target/*/*/grpc-smoke-test
-          key: sdk-${{ runner.os }}-${{ hashFiles('crates/ffi/**/*.rs', 'sdk/grpc-ffi/**/*.rs', 'crates/internal/uniffi-bindgen/**/*.rs', 'sdk/rust/smoke-test/**/*.rs', 'crates/grpc-server/**/*.rs', 'crates/types-traits/grpc-api-types/proto/**') }}
+            target/*/*/smoke-test-webhook
+          key: ${{ steps.cache-key.outputs.key }}
+
+  # ── SDK Tests (FFI + gRPC + Mock) ─────────────────────────────────────────
+  # Runs each SDK's gRPC and FFI suites plus the mock suite as parallel matrix
+  # jobs. All Rust binaries come pre-built from sdk-build (restored from the
+  # actions cache), and every cargo invocation in the test paths is skipped
+  # via FFI_SKIP_BUILD / GRPC_SKIP_BUILD, so no job compiles Rust and the
+  # external-services feature-unification recompile can never trigger.
+
+  sdk-test:
+    name: SDK Tests (${{ matrix.name }})
+    needs: [sdk-build]
+    if: needs.sdk-build.result == 'success'
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: gRPC Rust
+            run: GRPC_SKIP_BUILD=1 FFI_SKIP_BUILD=1 make -C sdk test-grpc-single GRPC_SDK=rust PROFILE=release-fast
+          - name: gRPC JavaScript
+            node: true
+            run: GRPC_SKIP_BUILD=1 FFI_SKIP_BUILD=1 make -C sdk test-grpc-single GRPC_SDK=javascript PROFILE=release-fast
+          - name: gRPC Python
+            run: GRPC_SKIP_BUILD=1 FFI_SKIP_BUILD=1 make -C sdk test-grpc-single GRPC_SDK=python PROFILE=release-fast
+          - name: gRPC Kotlin
+            java: true
+            run: GRPC_SKIP_BUILD=1 FFI_SKIP_BUILD=1 make -C sdk test-grpc-single GRPC_SDK=kotlin PROFILE=release-fast
+          - name: FFI Rust
+            run: FFI_SKIP_BUILD=1 make -C sdk test-rust PROFILE=release-fast
+          - name: FFI JavaScript
+            node: true
+            run: FFI_SKIP_BUILD=1 make -C sdk test-javascript PROFILE=release-fast
+          - name: FFI Python
+            run: FFI_SKIP_BUILD=1 make -C sdk test-python PROFILE=release-fast
+          - name: FFI Kotlin
+            java: true
+            run: FFI_SKIP_BUILD=1 make -C sdk test-java PROFILE=release-fast
+          - name: Mock
+            node: true
+            java: true
+            run: FFI_SKIP_BUILD=1 python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+
+    env:
+      RUSTFLAGS: "-D warnings"
+      PROFILE: release-fast
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Java
+        if: matrix.java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        if: matrix.node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            sdk/javascript/package-lock.json
+            sdk/tests/package.json
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('sdk/python/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python codegen dependencies
+        run: |
+          pip install -r sdk/python/requirements.txt grpcio-tools protobuf
+          make -C sdk install-deps
+
+      - name: Install Node dependencies
+        if: matrix.node
+        run: |
+          cd sdk/javascript && npm ci && cd ../..
+          cd sdk/tests && npm install && cd ../..
+
+      - name: Generate flows.json
+        run: python3 scripts/generators/code/generate.py --lang rust
+
+      - name: Restore SDK binaries cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            target/*/*/libconnector_service_ffi.so
+            target/*/*/libconnector_service_ffi.dylib
+            target/*/*/libhyperswitch_grpc_ffi.so
+            target/*/*/libhyperswitch_grpc_ffi.dylib
+            target/*/*/grpc-server
+            target/*/*/uniffi-bindgen
+            target/*/*/hyperswitch-smoke-test
+            target/*/*/grpc-smoke-test
+            target/*/*/smoke-test-webhook
+          key: ${{ needs.sdk-build.outputs.cache-key }}
+          fail-on-cache-miss: true
 
       - name: Create connector credentials
         shell: bash
@@ -1036,27 +1139,9 @@ jobs:
             echo "No CONNECTOR_SPECIFIC_AUTH secret found, running in dry-run mode"
           fi
 
-      - name: Run SDK gRPC Tests
+      - name: Run ${{ matrix.name }} tests
         shell: bash
-        run: |
-          echo "Running SDK gRPC tests"
-          GRPC_SKIP_BUILD=1 make -C sdk test-grpc PROFILE=release-fast
-
-      - name: Run SDK FFI Tests
-        shell: bash
-        run: |
-          if [[ -f "creds.json" ]]; then
-            echo "Running SDK FFI tests with connector credentials"
-          else
-            echo "Running SDK FFI tests without connector credentials (dry-run mode)"
-          fi
-          FFI_SKIP_BUILD=1 make -C sdk test PROFILE=release-fast
-
-      - name: Run SDK Mock Tests
-        shell: bash
-        run: |
-          echo "Running SDK mock tests (no real HTTP calls)"
-          python3 scripts/run_smoke_tests_parallel.py --mock --connectors stripe --sdks python,javascript,kotlin,rust
+        run: ${{ matrix.run }}
 
   # ── CI Gate ───────────────────────────────────────────────────────────────
   # Single required status check. Passes if all jobs succeeded, were skipped,
@@ -1064,7 +1149,7 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-test]
+    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-build, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results
@@ -1076,6 +1161,7 @@ jobs:
           echo "  auto-fix:      ${{ needs.auto-fix.result }}"
           echo "  check:         ${{ needs.check.result }}"
           echo "  test:          ${{ needs.test.result }}"
+          echo "  sdk-build:     ${{ needs.sdk-build.result }}"
           echo "  sdk-test:      ${{ needs.sdk-test.result }}"
           echo "  auto-fix pushed: ${{ needs.auto-fix.outputs.pushed }}"
           echo ""
@@ -1094,6 +1180,7 @@ jobs:
             "${{ needs.auto-fix.result }}"
             "${{ needs.check.result }}"
             "${{ needs.test.result }}"
+            "${{ needs.sdk-build.result }}"
             "${{ needs.sdk-test.result }}"
           )
           for result in "${results[@]}"; do

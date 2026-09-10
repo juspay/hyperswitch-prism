@@ -904,7 +904,8 @@ fn get_wallet_details<
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
         | WalletData::QwikcilverWalletDirect(_)
-        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::Skrill(_)
+        | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,

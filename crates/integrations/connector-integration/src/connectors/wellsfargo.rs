@@ -256,7 +256,7 @@ macros::create_all_prerequisites!(
             Self: ConnectorIntegrationV2<F, FlowData, Req, Res>,
             FlowData: FlowDataBase,
         {
-            let date = OffsetDateTime::now_utc();
+            let date = common_utils::date_time::now().assume_utc();
             let auth = transformers::WellsfargoAuthType::try_from(&req.connector_config)?;
             let merchant_account = auth.merchant_account.clone().expose();
 
