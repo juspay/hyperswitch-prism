@@ -2,10 +2,12 @@ use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck, ServerAuthenticationToken,
+        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck,
+        ServerAuthenticationToken,
     },
     connector_types::{
-        CustomerInfo, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CustomerInfo,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
     frm::frm_types::{
@@ -23,7 +25,6 @@ use domain_types::{
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
-
 use crate::{connectors::kount::KountRouterData, types::ResponseRouterData};
 
 type Error = error_stack::Report<errors::IntegrationError>;
@@ -742,6 +743,9 @@ pub fn hash_session_id(raw: &str) -> String {
         .map(|digest| hex::encode(digest).chars().take(32).collect())
         .unwrap_or_else(|_| to_session_id(raw))
 }
+
+/// Locally builds the Kount device-data-collection (DDC) response: no outbound
+/// call is made, the DDC script is embedded for the shopper's browser.
 
 /// Round a Kount omniscore (a 0–99 float) to the integer FRM risk score.
 /// `f64 -> i32` has no safe `TryFrom`, and the value is bounded, so the cast is
@@ -1881,7 +1885,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             billed_person,
         }];
 
-        let creation_date_time = OffsetDateTime::now_utc()
+        let creation_date_time = common_utils::date_time::now()
+            .assume_utc()
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_default();
 

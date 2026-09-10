@@ -117,7 +117,8 @@ impl TryFrom<&GiftCardData> for OtherConnectorRequest<T> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
                 Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("ConnectorName", Default::default()),
+                    get_unimplemented_payment_method_error_message("ConnectorName"),
+                    Default::default(),
                 ).into())
             }
         }

@@ -623,6 +623,7 @@ fn handle_cards_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -654,6 +655,7 @@ fn handle_bank_redirects_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -705,6 +707,7 @@ fn handle_bank_redirects_error_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -775,6 +778,7 @@ fn handle_bank_redirects_sync_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -832,6 +836,7 @@ pub fn handle_webhook_response(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -897,6 +902,7 @@ pub fn handle_webhook_response_incoming_webhook(
         incremental_authorization_allowed: None,
         status_code,
         splits: None,
+        payment_account_reference: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -2865,6 +2871,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -3031,6 +3038,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

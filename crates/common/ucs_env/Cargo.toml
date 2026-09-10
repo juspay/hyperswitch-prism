@@ -3,7 +3,6 @@ name = "ucs_env"
 version = "0.1.0"
 edition = "2021"
 
-
 [dependencies]
 # First-party dependencies
 grpc-api-types = { path = "../../types-traits/grpc-api-types" }
@@ -56,6 +55,8 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc
     "cargo-workspace",
     "framework-libs-members-env",
 ] }
+deja = { git = "https://github.com/juspay/deja", rev = "389ad83f3c5bd9cd4b123c8afc8630177bdd4151", optional = true, default-features = false }
+deja-core = { git = "https://github.com/juspay/deja", rev = "389ad83f3c5bd9cd4b123c8afc8630177bdd4151", package = "deja-core", optional = true, default-features = false }
 
 [build-dependencies]
 build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc24b461917b29641942b04f3aef8110b1adf", package = "build_info", features = [
@@ -64,11 +65,17 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "3cdcc
     "framework-libs-members-env",
 ] }
 
+[dev-dependencies]
+toml = "0.8"
+
 [features]
 default = []
 kafka = ["tracing-kafka"]
 otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
 log-transformations = ["common_utils/log-transformations"]
+# Déjà record/replay. Gates the typed `[deja]` config surface (plain serde types, no deja
+# symbols) and the correlation + execution-graph tracing layers installed in `logger::setup`.
+deja = ["dep:deja", "dep:deja-core"]
 
 [lints]
 workspace = true

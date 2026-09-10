@@ -23,7 +23,7 @@ use grpc_api_types::{
         PaymentStatus, RefundResponse, RefundServiceGetRequest, RefundStatus,
     },
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use tonic::{transport::Channel, Request};
 
 // Helper function to get current timestamp
@@ -50,25 +50,19 @@ const TEST_EMAIL: &str = "test@t.com";
 const TEST_REQUEST_REF_ID: &str = "12345678_123";
 
 fn add_xendit_metadata<T>(request: &mut Request<T>) {
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load xendit credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let api_key = match auth {
-        domain_types::router_data::ConnectorAuthType::HeaderKey { api_key } => api_key.expose(),
-        _ => panic!("Expected HeaderKey auth type for xendit"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request.metadata_mut().append(
-        "x-auth",
-        "header-key".parse().expect("Failed to parse x-auth"),
-    );
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
     );
     request.metadata_mut().append(
         "x-merchant-id",
@@ -148,6 +142,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             first_name: None,
             last_name: None,
             salutation: None,
+            date_of_birth: None,
         }),
         // browser_info: TODO - BrowserInfo type not available in grpc_api_types
         capture_method: Some(i32::from(capture_method)),

@@ -9,7 +9,6 @@
       },
       "reason": "Additional authorization for tip",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -22,8 +21,7 @@
     "assert": {
       "status": {
         "one_of": [
-          "SUCCESS",
-          "AUTHORIZED"
+          "AUTHORIZATION_SUCCESS"
         ]
       },
       "connector_authorization_id": {
@@ -46,7 +44,6 @@
       },
       "reason": "Gratuity tip added",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -59,8 +56,7 @@
     "assert": {
       "status": {
         "one_of": [
-          "SUCCESS",
-          "AUTHORIZED"
+          "AUTHORIZATION_SUCCESS"
         ]
       },
       "connector_authorization_id": {
@@ -82,7 +78,6 @@
       },
       "reason": "Second incremental authorization",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -95,9 +90,8 @@
     "assert": {
       "status": {
         "one_of": [
-          "SUCCESS",
-          "AUTHORIZED",
-          "FAILED"
+          "AUTHORIZATION_SUCCESS",
+          "AUTHORIZATION_FAILURE"
         ]
       }
     },
@@ -113,7 +107,6 @@
       },
       "reason": "Invalid transaction test",
       "state": {
-        "connector_customer_id": "",
         "access_token": {
           "token": {
             "value": ""
@@ -126,8 +119,8 @@
     "assert": {
       "status": {
         "one_of": [
-          "FAILED",
-          "PROCESSING_ERROR"
+          "AUTHORIZATION_FAILURE",
+          "AUTHORIZATION_PROCESSING"
         ]
       },
       "error": {

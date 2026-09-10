@@ -13,8 +13,8 @@ use crate::utils::{
     connector_and_config_from_metadata, connector_variant_from_metadata, MetadataPayload,
 };
 use ucs_interface_common::metadata::{
-    merchant_id_from_metadata, proxy_name_from_metadata, request_id_from_metadata,
-    tenant_id_from_metadata,
+    merchant_id_from_metadata, org_id_from_metadata, proxy_name_from_metadata,
+    request_id_from_metadata, tenant_id_from_metadata,
 };
 
 /// Deprecated header carrying the typed connector config (kept for backward compatibility).
@@ -123,11 +123,13 @@ fn extract_routing_metadata_only(
         .map(|s| s.to_string());
 
     let proxy_name = proxy_name_from_metadata(metadata);
+    let org_id = org_id_from_metadata(metadata);
 
     Ok(MetadataPayload {
         tenant_id,
         request_id,
         merchant_id,
+        org_id,
         connector,
         lineage_ids: common_utils::lineage::LineageIds::empty(""),
         connector_config,

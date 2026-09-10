@@ -18,7 +18,12 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<{{FlowName}}, {{FlowData}}, {{RequestData}}, {{ResponseData}}>,
         ),
     ],
-    amount_converters: [amount_converter: StringMinorUnit],
+    // Pick the unit that matches the vendor's documented wire format. FIVE unit types exist in
+    // common_utils/src/types.rs: MinorUnit(:170) `1250`, StringMinorUnit(:305) `"1250"`,
+    // FloatMajorUnit(:336) `12.50`, StringMajorUnit(:374) `"12.50"`,
+    // StringTwoDecimalUnit(:443) `"12.50"` zero-padded. Do NOT default to StringMinorUnit —
+    // on HEAD the split is StringMajorUnit 24 / FloatMajorUnit 22 / MinorUnit 11 / StringMinorUnit 8.
+    amount_converters: [amount_converter: {AmountType}],
     member_functions: { /* helper functions */ }
 );
 ```
@@ -239,7 +244,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, errors::IntegrationError> {
             let id = match &req.request.connector_transaction_id {
                 ResponseId::ConnectorTransactionId(id) => id,
-                _ => return Err(errors::IntegrationError::MissingConnectorTransactionID.into())
+                _ => return Err(errors::IntegrationError::MissingConnectorTransactionID { context: Default::default() }.into())
             };
             Ok(format!("{}/v1/payments/{}/capture", self.connector_base_url_payments(req), id))
         }
@@ -384,6 +389,21 @@ macros::macro_connector_implementation!(
 
 ---
 
+## The three macros that are NOT `macro_connector_implementation!`
+
+`macro_connector_implementation!` covers a flow that makes an outbound HTTP call. Three other
+macros in `crates/integrations/connector-integration/src/connectors/macros.rs` cover the rest;
+see `macro_patterns_reference.md` §3-§5 for full argument lists and real invocations.
+
+| Macro | Where | Use it for |
+|---|---|---|
+| `macro_connector_flow_status_impls!` | `macros.rs:1827` | Every flow you did NOT implement. Keys: `not_implemented: [...]` (the API could do it, nobody wrote it) and `not_supported: [...]` (the API cannot do it). **All 111 connectors on HEAD invoke this** (111 of the 111 files in `connectors/` excluding `macros.rs`) — without it the connector does not compile, because `ConnectorServiceTrait` demands a `ConnectorIntegrationV2` impl per flow. |
+| `macro_connector_local_flow_implementation!` | `macros.rs:2425` | A flow resolved entirely inside UCS with no outbound call. Sets `CallConnectorAction::HandleResponseWithoutBuildRequest`, `build_request_v2 -> Ok(None)`, and dispatches to the free function named in `handle_response`. Real invocation: `connectors/kount.rs:390`. |
+| `macro_connector_payout_implementation!` | `macros.rs:1448` | Payout flow stubs. Invoked with no `payout_flows:` key it covers all nine payout flows (`macros.rs:1460-1470`). Real invocation: `connectors/travelhub.rs:187`. |
+
+A flow must appear in exactly ONE of these plus `macro_connector_implementation!` — listing it
+twice produces conflicting trait impls.
+
 ## Common Patterns and Tips
 
 ### When to Use Generic `<T>`
@@ -430,7 +450,7 @@ Ok(format!("{}/v1/payments/{}", self.connector_base_url_payments(req), id))
 ```rust
 let id = match &req.request.connector_transaction_id {
     ResponseId::ConnectorTransactionId(id) => id,
-    _ => return Err(errors::IntegrationError::MissingConnectorTransactionID.into())
+    _ => return Err(errors::IntegrationError::MissingConnectorTransactionID { context: Default::default() }.into())
 };
 Ok(format!("{}/v1/payments/{}/action", self.connector_base_url_payments(req), id))
 ```
@@ -467,7 +487,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
             Ok(header)
         }
@@ -560,19 +580,33 @@ impl<T: PaymentMethodDataTypes> TryFrom<ExamplePayRouterData<RouterDataV2<Author
     }
 }
 
-impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>>) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;
 
-        router_data.response = PaymentsResponseData::TransactionResponse {
-            connector_transaction_id: ResponseId::ConnectorTransactionId(item.response.id),
-            status: get_payment_status(&item.response.status),
-            // ... map other fields
-        };
+        // `PaymentsResponseData::TransactionResponse` is an enum struct-variant with 11 fields
+        // (domain_types/src/connector_types.rs:2009). There is no `..` functional update for
+        // enum variants, so list every field. There is no `connector_transaction_id` or `status`
+        // field on the variant: the id is `resource_id: ResponseId`, and the attempt status lives
+        // on `resource_common_data.status`, not here.
+        router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+            resource_id: ResponseId::ConnectorTransactionId(item.response.id),
+            redirection_data: None,
+            connector_metadata: None,
+            mandate_reference: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id: None,
+            incremental_authorization_allowed: None,
+            splits: None,
+            status_code: item.http_code,
+            payment_account_reference: None,
+        });
+        router_data.resource_common_data.status = get_payment_status(&item.response.status);
 
         Ok(router_data)
     }
@@ -596,8 +630,26 @@ After implementing a flow with macros, verify:
 - [ ] `get_url` correctly constructs endpoint
 - [ ] Request transformer implemented (if request body exists)
 - [ ] Response transformer implemented
-- [ ] Status mapping function exists
-- [ ] Error handling complete
+- [ ] Status mapping function exists, and it has BOTH halves: `#[serde(other)] Unknown` on the
+      connector status enum (deserialization layer) AND an exhaustive `match` with an explicit
+      `Unknown` arm and no `_ =>` (status-mapping layer). Exemplars:
+      `connectors/travelhub/transformers.rs:494-568`.
+- [ ] Every flow the connector does NOT implement is listed in `macro_connector_flow_status_impls!`
+- [ ] Exactly ONE non-generic `SourceVerification` impl and ONE non-generic `BodyDecoding` impl
+      for the whole connector — never one per flow (`interfaces/src/verification.rs:20`,
+      `interfaces/src/decode.rs:6`; exemplar `connectors/travelhub.rs:174-183`)
+- [ ] `get_auth_header` takes `&ConnectorSpecificConfig` (`interfaces/src/api.rs:25`) and auth is
+      read from `req.connector_config` — `RouterDataV2::connector_auth_type` no longer exists
+- [ ] `build_error_response` takes three parameters — `res`, `Option<&mut events::Event>`,
+      `&ConnectorSpecificConfig` (`interfaces/src/api.rs:50`); same for `get_error_response_v2`
+      and `get_5xx_error_response` (`interfaces/src/connector_integration_v2.rs:187,200`)
+- [ ] Error handling complete: `ErrorResponse.code`/`message` fall back to `NO_ERROR_CODE` /
+      `NO_ERROR_MESSAGE` (`common_utils/src/consts.rs:154-156`), never `unwrap_or_default()`
+- [ ] `ErrorResponse.attempt_status` is `Option<FlowStatus>` and is left `None` unless the
+      connector's own payload proves a terminal outcome for THIS flow
+      (`connectors/noon.rs:498`, `connectors/flywire.rs:355`)
+- [ ] In-band 2xx failures return `Err(ErrorResponse { .. })`, branching on a success predicate
+      (`domain_types::utils::is_payment_failure`, `domain_types/src/utils.rs:231`)
 
 ---
 

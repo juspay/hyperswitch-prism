@@ -1,0 +1,18 @@
+# Entropy/clock guardrail for connector code — the enforcement half of the
+# deterministic-entropy refactor (#2224), and the check its helper docs
+# promise. Every wall-clock read and every random value a connector produces
+# must flow through the sanctioned helpers, so the 60+ sites fixed there
+# cannot regress and a new connector cannot reintroduce the pattern. CI runs
+# clippy with `-D warnings`, so a listed call is a build failure, not advice.
+#
+# Deliberately NOT listed: `ring::rand::SystemRandom` — PKCS#1 v1.5 signing
+# uses it for blinding only (the signature output is deterministic), and
+# banning it would force allow-attributes onto legitimate signing code.
+disallowed-methods = [
+    { path = "uuid::Uuid::new_v4", reason = "use common_utils::fp_utils::generate_uuid_v4 — one auditable entropy source" },
+    { path = "uuid::Uuid::now_v7", reason = "use common_utils::fp_utils::generate_uuid_v7 — one auditable entropy source" },
+    { path = "std::time::SystemTime::now", reason = "use common_utils::date_time (now / now_unix_millis) — one clock source" },
+    { path = "time::OffsetDateTime::now_utc", reason = "use common_utils::date_time (now / now_unix_millis) — one clock source" },
+    { path = "rand::thread_rng", reason = "use domain_types::utils::generate_random_bytes — one auditable entropy source" },
+    { path = "openssl::rand::rand_bytes", reason = "use domain_types::utils::generate_random_bytes — one auditable entropy source" },
+]

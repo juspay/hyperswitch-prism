@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from payments.generated import payment_pb2
+from payments.generated import {{ pb2_imports | join(', ') }}
 
 
 @dataclass
@@ -110,12 +110,12 @@ class Grpc{{ service[:-7] if service.endswith('Service') else service }}Client:
         self._config = config
 
 {% for f in groups[service] %}
-    def {{ f.name }}(self, req: payment_pb2.{{ f.request }}) -> payment_pb2.{{ f.response }}:
+    def {{ f.name }}(self, req: {{ pb2(f.request) }}.{{ f.request }}) -> {{ pb2(f.response) }}.{{ f.response }}:
         """{{ f.service }}.{{ f.rpc }} — {{ f.description }}"""
         return _call_grpc(
             self._ffi, self._config,
             "{{ grpc_method_path(f.service, f.name) }}",
-            req, payment_pb2.{{ f.response }},
+            req, {{ pb2(f.response) }}.{{ f.response }},
         )
 {% endfor %}
 

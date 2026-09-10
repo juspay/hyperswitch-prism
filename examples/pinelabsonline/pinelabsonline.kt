@@ -8,18 +8,29 @@
 package examples.pinelabsonline
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.MerchantAuthenticationClient
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.PinelabsOnlineConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("create_server_authentication_token")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Pinelabsonline credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPinelabsOnline(PinelabsOnlineConfig.newBuilder()
+                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setClientSecret(SecretString.newBuilder().setValue("YOUR_CLIENT_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 

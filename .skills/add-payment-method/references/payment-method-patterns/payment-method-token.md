@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/payment_method_token/pattern_authorize_payment_method_token.md

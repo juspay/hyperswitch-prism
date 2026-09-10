@@ -3,6 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use crate::{
     implement_connector_operation,
     request::RequestData,
+    resolve_connector_integration,
     utils::{self, get_config_from_request, grpc_logging_wrapper},
 };
 use common_enums;
@@ -123,6 +124,7 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    org_id: &'a str,
     connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
@@ -353,7 +355,7 @@ impl CustomerOperationsInternal for Customer {
         request_data_constructor: ConnectorCustomerData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_connector_customer_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -369,7 +371,7 @@ impl CustomerOperationsInternal for Customer {
         request_data_constructor: ConnectorCustomerData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_get_connector_customer_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -468,6 +470,17 @@ impl CustomerService for Customer {
 }
 impl Payments {
     #[allow(clippy::too_many_arguments)]
+    // Déjà call-graph skeleton span (`ucs::*` namespace): one node per pipeline
+    // hop on the execution-graph tape. cfg_attr keeps feature-off builds
+    // byte-identical — the convention for every déjà touchpoint.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(
+            name = "ucs::flow_orchestration",
+            skip_all,
+            fields(connector = ?connector, flow = "Authorize")
+        )
+    )]
     async fn process_authorization_internal<
         T: PaymentMethodDataTypes
             + Default
@@ -577,7 +590,9 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -717,7 +732,9 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -761,7 +778,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentVoidData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -777,7 +794,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: RefundsData::foreign_try_from,
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: generate_refund_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -793,7 +810,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_capture_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -809,7 +826,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsIncrementalAuthorizationData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_incremental_authorization_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -825,7 +842,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentsCancelPostCaptureData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_post_capture_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -841,7 +858,7 @@ impl PaymentOperationsInternal for Payments {
         request_data_constructor: PaymentCreateOrderData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_order_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -1134,7 +1151,9 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -1611,7 +1630,7 @@ impl PaymentService for Payments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1717,7 +1736,7 @@ impl PaymentService for Payments {
                 Ok(tonic::Response::new(setup_mandate_response))
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -2408,7 +2427,7 @@ impl PaymentMethod {
         request_data_constructor: RechargeRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_recharge_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -2424,12 +2443,12 @@ impl PaymentMethod {
         request_data_constructor: CreatePaymentMethodData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_payment_method_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
     implement_connector_operation!(
-        fn_name: internal_get_payment_method_payment,
+        fn_name: internal_get_payment_method,
         log_prefix: "GET_PAYMENT_METHOD",
         request_type: PaymentMethodServiceGetRequest,
         response_type: PaymentMethodServiceGetResponse,
@@ -2440,43 +2459,9 @@ impl PaymentMethod {
         request_data_constructor: GetPaymentMethodData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_get_payment_method_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
         all_keys_required: None
     );
-
-    implement_connector_operation!(
-        fn_name: internal_get_payment_method_authenticator,
-        log_prefix: "GET_PAYMENT_METHOD",
-        request_type: PaymentMethodServiceGetRequest,
-        response_type: PaymentMethodServiceGetResponse,
-        flow_marker: GetPaymentMethod,
-        resource_common_data_type: PaymentFlowData,
-        request_data_type: GetPaymentMethodData,
-        response_data_type: GetPaymentMethodResponseData,
-        request_data_constructor: GetPaymentMethodData::foreign_try_from,
-        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
-        generate_response_fn: generate_get_payment_method_response,
-        connector_data_type: AuthenticatorConnectorData,
-        all_keys_required: None
-    );
-
-    async fn internal_get_payment_method(
-        &self,
-        request: RequestData<PaymentMethodServiceGetRequest>,
-    ) -> Result<
-        tonic::Response<PaymentMethodServiceGetResponse>,
-        error_stack::Report<ucs_env::error::GrpcError>,
-    > {
-        if matches!(
-            request.extracted_metadata.connector,
-            ConnectorVariant::Authenticator(_)
-        ) {
-            self.internal_get_payment_method_authenticator(request)
-                .await
-        } else {
-            self.internal_get_payment_method_payment(request).await
-        }
-    }
 
     implement_connector_operation!(
         fn_name: internal_refresh_payment_method,
@@ -2490,7 +2475,7 @@ impl PaymentMethod {
         request_data_constructor: RefreshPaymentMethodData::foreign_try_from,
         common_flow_data_constructor: RefreshPaymentMethodFlowData::foreign_try_from,
         generate_response_fn: generate_refresh_payment_method_response,
-        connector_data: ConnectorData,
+        connector_data_types: [ConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -2507,7 +2492,7 @@ impl PaymentMethod {
         request_data_constructor: PaymentMethodEligibilityData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_method_eligibility_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 
@@ -2617,7 +2602,9 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -2681,9 +2668,13 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
         .to_grpc_error()?;
 
@@ -2694,6 +2685,7 @@ impl PaymentMethod {
         // Authenticator connectors use PaymentMethodType instead of PMData
         let dummy_pm_data = payment_method_data::PaymentMethodData::PaymentMethodToken(
             payment_method_data::PaymentMethodToken {
+                token_payment_method_type: None,
                 token: Secret::new(String::new()),
             },
         );
@@ -2755,7 +2747,9 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
+            org_id: metadata_payload.org_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: metadata_payload.connector_latency.clone(),
             runtime_metadata: &config.runtime_metadata,
             log_fields_enabled: config.log_fields.enabled,
@@ -2875,7 +2869,9 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -2931,39 +2927,37 @@ impl MerchantAuthentication {
         ServerAuthenticationTokenRequestData:
             for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = IntegrationError>,
     {
-        // Resolve connector integration for ServerAuthenticationToken flow
+        // Resolve connector integration for ServerAuthenticationToken flow. Tries
+        // each family in order via the shared `resolve_connector_integration!`
+        // primitive — no hand-written match on `ConnectorVariant` needed; growing
+        // support to another family is just adding it to this list.
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerAuthenticationToken,
             MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
-        > = match connector_variant {
-            ConnectorVariant::Payment(conn) => {
-                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(conn)
-                    .connector
-                    .get_connector_integration_v2()
-            }
-            ConnectorVariant::Frm(conn) => FrmConnectorData::get_connector_by_name(conn)
-                .connector
-                .get_connector_integration_v2(),
-            ConnectorVariant::Payout(conn) => PayoutConnectorData::get_connector_by_name(conn)
-                .connector
-                .get_connector_integration_v2(),
-            ConnectorVariant::Surcharge(_) | ConnectorVariant::Authenticator(_) => {
-                return Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
-                    IntegrationError::NotSupported {
-                        message: "Surcharge/Authenticator connectors do not support server authentication tokens"
-                            .to_string(),
-                        connector: "N/A",
-                        context: domain_types::errors::IntegrationErrorContext {
-                            suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
-                            ..Default::default()
-                        },
+        > = resolve_connector_integration!(
+            connector_variant,
+            [
+                ConnectorData::<DefaultPCIHolder>,
+                FrmConnectorData,
+                PayoutConnectorData
+            ]
+        )
+        .ok_or_else(|| {
+            error_stack::Report::new(ucs_env::error::GrpcError::from(
+                IntegrationError::NotSupported {
+                    message: "Surcharge/Authenticator connectors do not support server authentication tokens"
+                        .to_string(),
+                    connector: "N/A",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                        ..Default::default()
                     },
-                )));
-            }
-        };
+                },
+            ))
+        })?;
 
         // Create access token request data - grant type determined by connector
         let access_token_request_data = ServerAuthenticationTokenRequestData::foreign_try_from(
@@ -3019,7 +3013,9 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
+            org_id: event_params.org_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            masking_keys: &config.masking_keys,
             connector_latency: event_params.connector_latency.clone(),
             log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3044,9 +3040,11 @@ impl MerchantAuthentication {
         // Use generate_access_token_response for consistency
         domain_types::types::generate_access_token_response(response).to_grpc_error()
     }
+}
 
+impl MerchantAuthenticationOperational for MerchantAuthentication {
     implement_connector_operation!(
-        fn_name: internal_sdk_session_token_payment,
+        fn_name: internal_sdk_session_token,
         log_prefix: "SDK_SESSION",
         request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
@@ -3057,60 +3055,9 @@ impl MerchantAuthentication {
         request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
         common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
         generate_response_fn: generate_payment_sdk_session_token_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>, AuthenticatorConnectorData],
         all_keys_required: None
     );
-
-    implement_connector_operation!(
-        fn_name: internal_sdk_session_token_authenticator,
-        log_prefix: "SDK_SESSION_AUTHENTICATOR",
-        request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
-        response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
-        flow_marker: ClientAuthenticationToken,
-        resource_common_data_type: MerchantAuthenticationFlowData,
-        request_data_type: ClientAuthenticationTokenRequestData,
-        response_data_type: PaymentsResponseData,
-        request_data_constructor: ClientAuthenticationTokenRequestData::foreign_try_from,
-        common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
-        generate_response_fn: generate_payment_sdk_session_token_response,
-        connector_data_type: AuthenticatorConnectorData,
-        all_keys_required: None
-    );
-}
-
-impl MerchantAuthenticationOperational for MerchantAuthentication {
-    async fn internal_sdk_session_token(
-        &self,
-        request: RequestData<MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest>,
-    ) -> Result<
-        tonic::Response<MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse>,
-        error_stack::Report<ucs_env::error::GrpcError>,
-    > {
-        match &request.extracted_metadata.connector {
-            ConnectorVariant::Authenticator(_) => {
-                self.internal_sdk_session_token_authenticator(request).await
-            }
-            ConnectorVariant::Payment(_) => {
-                self.internal_sdk_session_token_payment(request).await
-            }
-            ConnectorVariant::Payout(_)
-            | ConnectorVariant::Frm(_)
-            | ConnectorVariant::Surcharge(_) => Err(error_stack::Report::new(
-                ucs_env::error::GrpcError::from(IntegrationError::NotSupported {
-                    message: "Payout/FRM/Surcharge connectors do not support SDK session tokens"
-                        .to_string(),
-                    connector: "N/A",
-                    context: domain_types::errors::IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Check connector rollout/configuration and call only flows implemented for this connector"
-                                .to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                }),
-            )),
-        }
-    }
 }
 
 #[tonic::async_trait]
@@ -3249,6 +3196,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3365,6 +3313,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
@@ -3400,7 +3349,7 @@ impl RecurringPaymentOperational for RecurringPayments {
         request_data_constructor: MandateRevokeRequestData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_mandate_revoke_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data_types: [ConnectorData<DefaultPCIHolder>],
         all_keys_required: None
     );
 }
@@ -3437,7 +3386,7 @@ impl RecurringPaymentService for RecurringPayments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -3601,7 +3550,9 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        org_id: metadata_payload.org_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        masking_keys: &config.masking_keys,
                 connector_latency: metadata_payload.connector_latency.clone(),
                         log_fields_enabled: config.log_fields.enabled,
             log_fields: &config.log_fields.outgoing,
@@ -3630,7 +3581,7 @@ impl RecurringPaymentService for RecurringPayments {
                     Ok(tonic::Response::new(repeat_payment_response))
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -3689,7 +3640,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data: ConnectorData,
+        connector_data_types: [ConnectorData, FrmConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3706,7 +3657,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data: ConnectorData,
+        connector_data_types: [ConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3723,7 +3674,7 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data: ConnectorData,
+        connector_data_types: [ConnectorData],
         all_keys_required: None,
         has_payment_method_data: option
     );

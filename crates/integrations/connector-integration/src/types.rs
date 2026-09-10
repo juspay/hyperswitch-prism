@@ -12,7 +12,9 @@ use interfaces::connector_types::{
     BoxedSurchargeConnector,
 };
 
-use crate::{authenticator_connectors, connectors, payout_connectors, surcharge_connectors};
+use crate::{
+    authenticator_connectors, connectors, frm_connectors, payout_connectors, surcharge_connectors,
+};
 
 #[derive(Clone)]
 pub struct ConnectorData<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static> {
@@ -103,6 +105,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Barclaycard => Box::new(connectors::Barclaycard::new()),
             ConnectorEnum::Billwerk => Box::new(connectors::Billwerk::new()),
             ConnectorEnum::Payme => Box::new(connectors::Payme::new()),
+            ConnectorEnum::Moneris => Box::new(connectors::Moneris::new()),
             ConnectorEnum::Nuvei => Box::new(connectors::Nuvei::new()),
             ConnectorEnum::Airwallex => Box::new(connectors::Airwallex::new()),
             ConnectorEnum::Bambora => Box::new(connectors::Bambora::new()),
@@ -143,6 +146,14 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tesouro => Box::new(connectors::Tesouro::<T>::new()),
             ConnectorEnum::Boost => Box::new(connectors::Boost::<T>::new()),
             ConnectorEnum::Citigate => Box::new(connectors::Citigate::<T>::new()),
+            ConnectorEnum::Ilixium => Box::new(connectors::Ilixium::<T>::new()),
+            ConnectorEnum::Worldpayraft => Box::new(connectors::Worldpayraft::<T>::new()),
+            ConnectorEnum::JpmorganOrbital => Box::new(connectors::JpmorganOrbital::<T>::new()),
+            ConnectorEnum::Saferpay => Box::new(connectors::Saferpay::<T>::new()),
+            ConnectorEnum::Travelhub => Box::new(connectors::Travelhub::<T>::new()),
+            ConnectorEnum::Paynearme => Box::new(connectors::Paynearme::<T>::new()),
+            ConnectorEnum::D24 => Box::new(connectors::D24::<T>::new()),
+            ConnectorEnum::Paydotcom => Box::new(connectors::Paydotcom::<T>::new()),
         }
     }
 }
@@ -182,7 +193,16 @@ impl FrmConnectorData {
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
+            // FRM-only connectors live in `frm_connectors`, alongside the
+            // `surcharge_connectors` / `payout_connectors` / `authenticator_connectors`
+            // split. Kount is the exception: it is dual-registered as a payment
+            // connector too (`ConnectorEnum::Kount`, for its PreAuthenticate DDC
+            // and ServerAuthenticationToken flows), so it stays in `connectors`
+            // and is reached from both dispatch tables.
             FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+            FrmConnectorEnum::Nsure => Box::new(frm_connectors::Nsure::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
         }
@@ -232,6 +252,14 @@ impl PayoutConnectorData {
             }
             PayoutConnectorEnum::Santander => Box::new(payout_connectors::SantanderPayouts::new()),
             PayoutConnectorEnum::Truelayer => Box::new(payout_connectors::TruelayerPayouts::new()),
+            PayoutConnectorEnum::Trustly => Box::new(payout_connectors::TrustlyPayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+            PayoutConnectorEnum::GotymeSanlam => {
+                Box::new(payout_connectors::GotymeSanlamPayouts::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::new())
+            }
         }
     }
 }

@@ -80,6 +80,9 @@ pub enum Bank {
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
     OpenBanking(OpenBanking),
+    Trustly(TrustlyBankTransfer),
+    Payshap(PayshapBankTransfer),
+    PayshapProxy(PayshapProxyBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -177,6 +180,46 @@ pub struct PixKeyBankTransfer {
 pub struct PixEmvBankTransfer {
     /// EMV data for pix
     pub emv: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+// Trustly bank transfer destination. The account can be identified either by an
+// IBAN or by a bank_account_number + bank_number pair.
+pub struct TrustlyBankTransfer {
+    /// International Bank Account Number (IBAN). When present, it is used as the
+    /// account number and no separate bank number is required.
+    pub iban: Option<Secret<String>>,
+
+    /// Bank account number, used when an IBAN is not available.
+    pub bank_account_number: Option<Secret<String>>,
+
+    /// Bank/clearing number identifying the destination bank.
+    pub bank_number: Option<Secret<String>>,
+
+    /// Bank country code. Maps to Trustly's `ClearingHouse` (the English country
+    /// name in upper case).
+    pub bank_country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PayshapBankTransfer {
+    /// Bank account number is a unique identifier assigned by a bank to a customer.
+    pub bank_account_number: Secret<String>,
+
+    /// Bank account holder name.
+    pub account_holder_name: Option<Secret<String>>,
+
+    /// Bank name.
+    pub bank_name: Option<common_enums::BankNames>,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct PayshapProxyBankTransfer {
+    /// Cellphone number.
+    pub cellphone: Option<Secret<String>>,
+
+    /// Shap ID.
+    pub shap_id: Option<Secret<String>>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

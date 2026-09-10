@@ -3,6 +3,14 @@
 # for powerful contextual configuration overrides
 
 [default-configs]
+# Deja per-request recording decision - default SKIP. Production records
+# nothing until a deliberate override samples something in.
+deja_record = { value = false, schema = { type = "boolean" } }
+# Percentage gate over the remainder (0-100): the request id hashes to a stable
+# bucket, so e.g. deja_record_percent = 8 under a rpc_service context records a
+# deterministic 8% of that class. 0 = boolean-only.
+deja_record_percent = { value = 0, schema = { type = "integer" } }
+
 # Common configuration
 common_environment = { value = "sandbox", schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
@@ -84,8 +92,16 @@ api_tags_tags_psync = { value = "", schema = { type = "string" } }
 # Environment dimension - determines which environment configuration to use
 environment = { position = 1, schema = { type = "string", enum = ["sandbox", "development", "production"] } }
 
+# Full rpc path as observed at deja ingress, e.g. "/types.PaymentService/Authorize".
+rpc_method = { position = 3, schema = { type = "string" } }
+
+# Service class derived from the rpc path ("/types.PaymentService/Authorize" ->
+# "payment") - per-class sampling without a maintained path map, the file-side
+# analogue of hyperswitch's deja_dimension cohort.
+rpc_service = { position = 4, schema = { type = "string" } }
+
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24"] } }
 
 # ============================================================================
 # Development Environment Overrides
@@ -373,6 +389,12 @@ _context_ = { connector = "jpmorgan" }
 connector_base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 connector_secondary_base_url = "https://id.payments.jpmorgan.com"
 
+# JP Morgan Orbital (Chase Paymentech Orbital Gateway JSON API v4) - the published
+# VAR/sandbox host. A different product from "jpmorgan" above (Payments API v2).
+[[overrides]]
+_context_ = { connector = "jpmorgan_orbital" }
+connector_base_url = "https://orbitalvar1.chasepaymentech.com/gwapi/v4/gateway"
+
 # NMI
 [[overrides]]
 _context_ = { connector = "nmi" }
@@ -585,6 +607,13 @@ connector_base_url = "https://api.zift.io/"
 _context_ = { connector = "boost" }
 connector_base_url = "https://stage-api.boostconnect.biz/gateway"
 
+# Ilixium Direct API — sandbox host. Ilixium does not publish a production
+# host; it is supplied per merchant at onboarding, so there is deliberately no
+# production override here (see tech spec UNDECIDED #4).
+[[overrides]]
+_context_ = { connector = "ilixium" }
+connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
+
 # ============================================================================
 # Production Environment Overrides
 # ============================================================================
@@ -752,6 +781,14 @@ connector_base_url = "https://iata-pay.iata.org/api/v1"
 [[overrides]]
 _context_ = { connector = "jpmorgan", environment = "production" }
 connector_base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
+
+# JP Morgan Orbital Production
+# NOTE: UNCONFIRMED - JPMorgan does not publish the production Orbital hostname
+# anywhere. Inferred from the Chase Paymentech naming convention and corroborated
+# only by public DNS. Confirm with JPMorgan Merchant Services during onboarding.
+[[overrides]]
+_context_ = { connector = "jpmorgan_orbital", environment = "production" }
+connector_base_url = "https://orbital1.chasepaymentech.com/gwapi/v4/gateway"
 
 # Nexi XPay Production
 [[overrides]]
@@ -925,6 +962,16 @@ connector_base_url = "https://api-platform.flywire.com"
 _context_ = { connector = "flywire", environment = "development" }
 connector_base_url = "https://api-platform-sandbox.flywire.com"
 
+# Travelhub Production
+[[overrides]]
+_context_ = { connector = "travelhub", environment = "production" }
+connector_base_url = "https://prod.travel.worldline-solutions.com/travelhub"
+
+# Travelhub Development
+[[overrides]]
+_context_ = { connector = "travelhub", environment = "development" }
+connector_base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
+
 # Boost Connect (BCPG) Production
 [[overrides]]
 _context_ = { connector = "boost", environment = "production" }
@@ -949,3 +996,23 @@ connector_base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 [[overrides]]
 _context_ = { connector = "maya", environment = "production" }
 connector_base_url = "https://pg.maya.ph"
+
+# Moneris
+[[overrides]]
+_context_ = { connector = "moneris" }
+connector_base_url = "https://api.sb.moneris.io"
+
+# Moneris Production
+[[overrides]]
+_context_ = { connector = "moneris", environment = "production" }
+connector_base_url = "https://api.moneris.io"
+
+# D24
+[[overrides]]
+_context_ = { connector = "d24" }
+connector_base_url = "https://api-stg.directa24.com"
+
+# D24 Production
+[[overrides]]
+_context_ = { connector = "d24", environment = "production" }
+connector_base_url = "https://api.directa24.com"

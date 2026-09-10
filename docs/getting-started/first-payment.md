@@ -166,45 +166,6 @@ public String createClientAuthenticationToken() {
 
 {% endtab %}
 
-{% tab title="PHP" %}
-
-```php
-<?php
-use HyperswitchPrism\MerchantAuthenticationClient;
-
-// Reuse $stripeConfig from installation.md
-$authClient = new MerchantAuthenticationClient($stripeConfig);
-
-function createClientAuthenticationToken($authClient) {
-    try {
-        $response = $authClient->createClientAuthenticationToken([
-            'merchantClientSessionId' => 'client_session_001',
-            'payment' => [
-                'amount' => [
-                    'minorAmount' => 1000,
-                    'currency' => 'USD'
-                ]
-            ],
-            'testMode' => true
-        ]);
-
-        $clientSecret = $response->getSessionData()
-            ->getConnectorSpecific()
-            ->getStripe()
-            ->getClientSecret()
-            ->getValue();
-
-        echo "Client secret: " . $clientSecret . "\n";
-        return $clientSecret;
-    } catch (\Throwable $error) {
-        echo "Client auth token creation failed: " . $error->getMessage() . "\n";
-        throw $error;
-    }
-}
-```
-
-{% endtab %}
-
 {% endtabs %}
 
 ### 2. Use the `client_secret` in Stripe.js / Stripe Elements
@@ -393,41 +354,6 @@ public void authorizePayment(String paymentMethodId) {
 
 {% endtab %}
 
-{% tab title="PHP" %}
-
-```php
-<?php
-function authorizePayment($paymentMethodId, $stripeClient) {
-    try {
-        $auth = $stripeClient->tokenAuthorize([
-            'merchantTransactionId' => 'txn_tokenized_001',
-            'merchantOrderId' => 'order-456',
-            'amount' => [
-                'minorAmount' => 1000,
-                'currency' => 'USD'
-            ],
-            'connectorToken' => [
-                'value' => $paymentMethodId // e.g. pm_1234...
-            ],
-            'address' => [
-                'billingAddress' => []
-            ],
-            'captureMethod' => 'MANUAL',
-            'description' => 'First tokenized payment',
-            'testMode' => true
-        ]);
-
-        echo "Authorized: " . $auth->getConnectorTransactionId() . ", " . $auth->getStatus() . "\n";
-        return $auth;
-    } catch (\Throwable $error) {
-        echo "Authorization failed: " . $error->getMessage() . "\n";
-        throw $error;
-    }
-}
-```
-
-{% endtab %}
-
 {% endtabs %}
 
 ## Authorize with Raw Card Details (PCI Compliant)
@@ -518,36 +444,6 @@ requestBuilder.setCaptureMethod(CaptureMethod.AUTOMATIC);
 requestBuilder.setTestMode(true);
 
 var auth = stripeClient.authorize(requestBuilder.build());
-```
-
-{% endtab %}
-
-{% tab title="PHP" %}
-
-```php
-<?php
-// Reuse $stripeClient from installation.md
-$auth = $stripeClient->authorize([
-    'merchantTransactionId' => 'txn_raw_card_001',
-    'merchantOrderId' => 'order-456',
-    'amount' => [
-        'minorAmount' => 1000,
-        'currency' => 'USD'
-    ],
-    'paymentMethod' => [
-        'card' => [
-            'cardNumber' => ['value' => '4242424242424242'],
-            'cardExpMonth' => ['value' => '12'],
-            'cardExpYear' => ['value' => '2027'],
-            'cardCvc' => ['value' => '123'],
-            'cardHolderName' => ['value' => 'Jane Doe']
-        ]
-    ],
-    'authType' => 'NO_THREE_DS',
-    'address' => [],
-    'captureMethod' => 'AUTOMATIC',
-    'testMode' => true
-]);
 ```
 
 {% endtab %}
@@ -655,36 +551,6 @@ PaymentServiceRefundRequest refundRequest = PaymentServiceRefundRequest.newBuild
     .build();
 var refund = stripeClient.refund(refundRequest);
 System.out.println("Refund ID: " + refund.getConnectorRefundId());
-```
-
-{% endtab %}
-
-{% tab title="PHP" %}
-
-```php
-// 1. Check payment status
-$status = $stripeClient->get([
-    'merchantTransactionId' => 'txn_tokenized_001',
-    'connectorTransactionId' => $auth->getConnectorTransactionId()
-]);
-echo "Status: " . $status->getStatus() . "\n";
-
-// 2. Capture the funds
-$capture = $stripeClient->capture([
-    'merchantCaptureId' => 'capture_001',
-    'connectorTransactionId' => $auth->getConnectorTransactionId(),
-    'amountToCapture' => ['minorAmount' => 1000, 'currency' => 'USD']
-]);
-echo "Captured: " . $capture->status . "\n";
-
-// 3. Process a partial refund
-$refund = $stripeClient->refund([
-    'merchantRefundId' => 'refund_001',
-    'connectorTransactionId' => $auth->getConnectorTransactionId(),
-    'refundAmount' => ['minorAmount' => 500, 'currency' => 'USD'],
-    'reason' => 'Customer return'
-]);
-echo "Refund ID: " . $refund->getConnectorRefundId() . "\n";
 ```
 
 {% endtab %}

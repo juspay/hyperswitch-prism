@@ -492,6 +492,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AffirmPaymentsRespons
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data.clone()
                 })
@@ -518,6 +519,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AffirmPaymentsRespons
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
                         splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data.clone()
                 })
@@ -562,6 +564,7 @@ impl TryFrom<ResponseRouterData<AffirmSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -667,6 +670,7 @@ impl TryFrom<ResponseRouterData<AffirmCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })
@@ -736,6 +740,7 @@ impl TryFrom<ResponseRouterData<AffirmVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             ..item.router_data.clone()
         })

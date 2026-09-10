@@ -5,9 +5,9 @@
         "minor_amount": 6000,
         "currency": "USD"
       },
-      "payment_method_type": "CARD",
-      "country_code": "US",
-      "currency": "USD"
+      "order_details": [],
+      "country": "US",
+      "payment_method_type": "CREDIT"
     },
     "assert": {
       "eligible": {
@@ -23,9 +23,9 @@
         "minor_amount": 6000,
         "currency": "USD"
       },
-      "payment_method_type": "WALLET",
-      "country_code": "US",
-      "currency": "USD"
+      "order_details": [],
+      "country": "US",
+      "payment_method_type": "GOOGLE_PAY"
     },
     "assert": {
       "eligible": {

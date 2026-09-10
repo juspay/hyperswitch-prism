@@ -121,46 +121,6 @@ PaymentClient adyenClient = new PaymentClient(adyenConfig);
 
 {% endtab %}
 
-{% tab title="PHP" %}
-
-{% code title="Terminal" overflow="wrap" %}
-```bash
-composer require hyperswitch-prism
-```
-{% endcode %}
-
-{% code title="index.php" overflow="wrap" lineNumbers="true" %}
-```php
-<?php
-require_once 'vendor/autoload.php';
-
-use HyperswitchPrism\PaymentClient;
-
-// Configure Stripe client
-$stripeConfig = [
-    'connectorConfig' => [
-        'stripe' => [
-            'apiKey' => ['value' => $_ENV['STRIPE_API_KEY']]
-        ]
-    ]
-];
-$stripeClient = new PaymentClient($stripeConfig);
-
-// Configure Adyen client
-$adyenConfig = [
-    'connectorConfig' => [
-        'adyen' => [
-            'apiKey' => ['value' => $_ENV['ADYEN_API_KEY']],
-            'merchantAccount' => $_ENV['ADYEN_MERCHANT_ACCOUNT']
-        ]
-    ]
-];
-$adyenClient = new PaymentClient($adyenConfig);
-```
-{% endcode %}
-
-{% endtab %}
-
 {% endtabs %}
 
 That would be all. The SDK handles native library loading automatically. Start building in the [First Payment](./first-payment.md).
@@ -171,4 +131,3 @@ The prerequisites are:
 - **Node.js**: 16+ (FFI bindings require native compilation)
 - **Python**: 3.9+ (uses `ctypes` for FFI)
 - **Java**: 11+ (uses JNI bindings)
-- **PHP**: 8.0+ (uses FFI extension)

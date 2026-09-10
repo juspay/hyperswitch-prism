@@ -4,6 +4,7 @@
 package payments
 
 import types.Payment.*
+import types.Events.*
 import types.Payouts.*
 import types.PaymentMethods.*
 import types.Surcharge.*

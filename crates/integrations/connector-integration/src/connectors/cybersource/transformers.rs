@@ -80,12 +80,16 @@ pub struct CybersourceConnectorMetadataObject {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for CybersourceConnectorMetadataObject {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(IntegrationError::InvalidConnectorConfig {
-                config: "metadata",
-                context: Default::default(),
-            })?;
-        Ok(metadata)
+        // Cybersource metadata is optional (all fields are optional), so treat an absent
+        // metadata object as the default rather than a missing required field.
+        match meta_data {
+            Some(_) => utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                .change_context(IntegrationError::InvalidConnectorConfig {
+                    config: "metadata",
+                    context: Default::default(),
+                }),
+            None => Ok(Self::default()),
+        }
     }
 }
 
@@ -318,7 +322,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::EaseBuzzRedirect(_)
                     | WalletData::PaymayaRedirect(_)
                     | WalletData::QwikcilverWalletDirect(_)
-                    | WalletData::Skrill(_) => {
+                    | WalletData::Skrill(_)
+                    | WalletData::Neteller(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2536,7 +2541,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => {
+                | WalletData::Skrill(_)
+                | WalletData::Neteller(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -3497,6 +3503,7 @@ fn get_payment_response(
                 incremental_authorization_allowed,
                 status_code: http_code,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -4498,6 +4505,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ),
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
             },
             ..item.router_data
@@ -4576,6 +4584,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                             incremental_authorization_allowed,
                             status_code: item.http_code,
                             splits: None,
+                            payment_account_reference: None,
                         }),
                         ..item.router_data
                     })
@@ -4597,6 +4606,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
                     splits: None,
+                    payment_account_reference: None,
                 }),
                 ..item.router_data
             }),
@@ -4831,6 +4841,8 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+    #[serde(other)]
+    Unknown,
 }
 
 /// std `TryFrom<&Response>` can't be implemented for the foreign `ErrorResponse`
@@ -4861,7 +4873,10 @@ impl ForeignTryFrom<&Response> for ErrorResponse {
             Some(Reason::SystemError) => {
                 Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
             }
-            Some(Reason::ServerTimeout) | Some(Reason::ServiceTimeout) | None => None,
+            Some(Reason::ServerTimeout)
+            | Some(Reason::ServiceTimeout)
+            | Some(Reason::Unknown)
+            | None => None,
         };
         Ok(Self {
             status_code: res.status_code,

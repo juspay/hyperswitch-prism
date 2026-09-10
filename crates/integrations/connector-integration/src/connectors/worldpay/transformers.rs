@@ -236,7 +236,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
             | WalletDataPaymentMethod::PaymayaRedirect(_)
             | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-            | WalletDataPaymentMethod::Skrill(_) => {
+            | WalletDataPaymentMethod::Skrill(_)
+            | WalletDataPaymentMethod::Neteller(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -1099,6 +1100,7 @@ impl<F, T>
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -1203,6 +1205,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1275,6 +1278,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -1410,6 +1414,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             incremental_authorization_allowed: None,
             status_code: item.http_code,
             splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {

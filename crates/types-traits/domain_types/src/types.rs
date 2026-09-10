@@ -30,9 +30,10 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use grpc_api_types::payments::{
-    self as grpc_payment_types, AuthenticationType, ConnectorState, DisputeResponse,
-    DisputeServiceAcceptResponse, DisputeServiceDefendRequest, DisputeServiceDefendResponse,
-    DisputeServiceSubmitEvidenceResponse,
+    self as grpc_payment_types, recipient_account::AccountType as RecipientAccountType,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType, AuthenticationType,
+    ConnectorState, DisputeResponse, DisputeServiceAcceptResponse, DisputeServiceDefendRequest,
+    DisputeServiceDefendResponse, DisputeServiceSubmitEvidenceResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -404,6 +405,7 @@ pub struct Connectors {
     pub trustly: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub absa_sanlam: ConnectorParams,
+    pub gotyme_sanlam: ConnectorParams,
     pub pinelabs_online: ConnectorParams,
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
@@ -422,13 +424,23 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
+    pub ilixium: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
+    pub moneris: ConnectorParams,
+    pub worldpayraft: ConnectorParams,
+    pub jpmorganorbital: ConnectorParams,
+    pub saferpay: ConnectorParams,
+    pub travelhub: ConnectorParams,
+    pub paynearme: ConnectorParams,
+    pub d24: ConnectorParams,
+    pub paydotcom: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -697,6 +709,9 @@ impl Connectors {
             ConnectorEnum::Mollie => {
                 patched.mollie.apply(params_patch);
             }
+            ConnectorEnum::Moneris => {
+                patched.moneris.apply(params_patch);
+            }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);
             }
@@ -789,11 +804,23 @@ impl Connectors {
             ConnectorEnum::Boost => {
                 patched.boost.apply(params_patch);
             }
+            ConnectorEnum::JpmorganOrbital => {
+                patched.jpmorganorbital.apply(params_patch);
+            }
+            ConnectorEnum::Ilixium => {
+                patched.ilixium.apply(params_patch);
+            }
             ConnectorEnum::Maya => {
                 patched.maya.apply(params_patch);
             }
             ConnectorEnum::Grabpay => {
                 patched.grabpay.apply(params_patch);
+            }
+            ConnectorEnum::Travelhub => {
+                patched.travelhub.apply(params_patch);
+            }
+            ConnectorEnum::D24 => {
+                patched.d24.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -802,7 +829,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24",
                             connector
                         )),
                         ..Default::default()
@@ -833,6 +860,8 @@ impl Connectors {
             PayoutConnectorEnum::Worldpayxml => patched.worldpayxml.apply(params_patch),
             PayoutConnectorEnum::Cybersource => patched.cybersource.apply(params_patch),
             PayoutConnectorEnum::Santander => patched.santander.apply(params_patch),
+            PayoutConnectorEnum::Trustly => patched.trustly.apply(params_patch),
+            PayoutConnectorEnum::GotymeSanlam => patched.gotyme_sanlam.apply(params_patch),
             // Deutschebank uses `ConnectorParamsWithCaBundle`, so patch the resolved
             // URLs while leaving its `server_ca_bundle` untouched.
             PayoutConnectorEnum::Deutschebank => {
@@ -865,6 +894,7 @@ impl Connectors {
         };
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
+            FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
         }
         Ok(patched)
     }
@@ -1368,6 +1398,7 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
                 iban,
                 account_holder_name,
                 additional_details,
+                bank_name,
             }) => {
                 let additional_details = additional_details
                     .map(|details| {
@@ -1391,6 +1422,8 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
                     sort_code,
                     account_holder_name,
                     additional_details,
+                    bank_name: bank_name
+                        .map(|bn| grpc_api_types::payments::BankNames::foreign_from(bn) as i32),
                 })
             }
             _ => {
@@ -1408,6 +1441,26 @@ impl ForeignTryFrom<PaymentMethodData<DefaultPCIHolder>>
 
         Ok(Self {
             payment_method: Some(payment_method),
+        })
+    }
+}
+
+/// Converts connector-returned payment method details to the proto representation for the
+/// returning-customer flow, dropping them with a warning if the payment method has no proto
+/// equivalent yet. Shared by the PSync and incoming-webhook response builders.
+impl ForeignFrom<Option<PaymentMethodData<DefaultPCIHolder>>>
+    for Option<grpc_api_types::payments::PaymentMethod>
+{
+    fn foreign_from(payment_method_data: Option<PaymentMethodData<DefaultPCIHolder>>) -> Self {
+        payment_method_data.and_then(|payment_method_data| {
+            grpc_api_types::payments::PaymentMethod::foreign_try_from(payment_method_data)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to convert connector_returned_payment_method_details; omitting it"
+                    );
+                })
+                .ok()
         })
     }
 }
@@ -1467,6 +1520,9 @@ impl<
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
                             payment_method_data::CardRedirectData::CardRedirect {}
                         }
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
+                            payment_method_data::CardRedirectData::Webpay {}
+                        }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
                             return Err(report!(IntegrationError::InvalidDataFormat { field_name: "payment_method.card_redirect.type", context: IntegrationErrorContext { additional_context: Some("Card redirect type cannot be unspecified".to_string()), ..Default::default() } }))
                         }
@@ -1475,6 +1531,15 @@ impl<
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::Token(token) => {
                     Ok(Self::PaymentMethodToken(payment_method_data::PaymentMethodToken {
+                        token_payment_method_type: match token.token_payment_method_type() {
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::ApplePay => {
+                                Some(payment_method_data::TokenPaymentMethod::ApplePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::GooglePay => {
+                                Some(payment_method_data::TokenPaymentMethod::GooglePay)
+                            }
+                            grpc_api_types::payments::token_payment_method_type::TokenPaymentMethod::Unspecified => None,
+                        },
                         token: token
                             .token
                             .ok_or_else(|| report!(IntegrationError::MissingRequiredField {
@@ -1701,12 +1766,13 @@ impl<
                     mifinity_data,
                 ) => Ok(Self::Wallet(payment_method_data::WalletData::Mifinity(
                     payment_method_data::MifinityData {
-                        date_of_birth: Secret::<time::Date>::foreign_try_from(
+                        date_of_birth: Secret::<time::Date>::foreign_try_from((
                             mifinity_data
                                 .date_of_birth
                                 .ok_or(IntegrationError::InvalidDataFormat { field_name: "payment_method.mifinity.date_of_birth", context: IntegrationErrorContext { additional_context: Some("Missing Date of Birth".to_string()), ..Default::default() } })?
                                 .expose(),
-                        )?,
+                            "payment_method.mifinity.date_of_birth",
+                        ))?,
                         language_preference: mifinity_data.language_preference,
                     },
                 ))),
@@ -1870,6 +1936,11 @@ impl<
                         payment_method_data::SkrillData {},
                     )),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(
+                    Self::Wallet(payment_method_data::WalletData::Neteller(
+                        payment_method_data::NetellerData {},
+                    )),
+                ),
                 grpc_api_types::payments::payment_method::PaymentMethod::PazeSdk(paze_wallet) => {
                     let paze_wallet_data = match paze_wallet.paze_data {
                         Some(grpc_api_types::payments::paze_wallet::PazeData::CompleteResponse(
@@ -1968,6 +2039,10 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::OpenBanking(open_banking) => {
                     Ok(PaymentMethodData::BankRedirect(
                         payment_method_data::BankRedirectData::OpenBanking {
+                            bank_name: match open_banking.bank_name() {
+                                grpc_payment_types::BankNames::Unspecified => None,
+                                bank => Some(common_enums::BankNames::foreign_try_from(bank)?),
+                            },
                             account_number: open_banking.account_number,
                             sort_code: open_banking.sort_code,
                             iban: open_banking.iban,
@@ -2772,6 +2847,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::QwikcilverWallet)
             }
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(PaymentMethodType::Skrill),
+            grpc_api_types::payments::PaymentMethodType::Neteller => {
+                Ok(PaymentMethodType::Neteller)
+            }
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(PaymentMethodType::Interac),
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
@@ -2926,6 +3004,47 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::DirectCarrierBilling => {
                 Ok(PaymentMethodType::DirectCarrierBilling)
             }
+            grpc_api_types::payments::PaymentMethodType::Klarna => Ok(PaymentMethodType::Klarna),
+            grpc_api_types::payments::PaymentMethodType::Bluecode => {
+                Ok(PaymentMethodType::Bluecode)
+            }
+            grpc_api_types::payments::PaymentMethodType::IndonesianBankTransfer => {
+                Ok(PaymentMethodType::IndonesianBankTransfer)
+            }
+            grpc_api_types::payments::PaymentMethodType::Mifinity => {
+                Ok(PaymentMethodType::Mifinity)
+            }
+            grpc_api_types::payments::PaymentMethodType::Paysera => Ok(PaymentMethodType::Paysera),
+            grpc_api_types::payments::PaymentMethodType::SepaGuaranteedDebit => {
+                Ok(PaymentMethodType::SepaGuaranteedDebit)
+            }
+            // Proto values without a common_enums::PaymentMethodType counterpart yet.
+            // They can be forwarded from hyperswitch but UCS has no domain mapping,
+            // so encoding a request for one is rejected rather than silently coerced.
+            grpc_api_types::payments::PaymentMethodType::BhnCardNetwork
+            | grpc_api_types::payments::PaymentMethodType::Breadpay
+            | grpc_api_types::payments::PaymentMethodType::EftDebitOrder
+            | grpc_api_types::payments::PaymentMethodType::Flexiti
+            | grpc_api_types::payments::PaymentMethodType::Payjustnow
+            | grpc_api_types::payments::PaymentMethodType::Payshap
+            | grpc_api_types::payments::PaymentMethodType::PayshapProxy
+            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoPush
+            | grpc_api_types::payments::PaymentMethodType::PixAutomaticoQr
+            | grpc_api_types::payments::PaymentMethodType::PixEmv
+            | grpc_api_types::payments::PaymentMethodType::PixKey
+            | grpc_api_types::payments::PaymentMethodType::PixQr
+            | grpc_api_types::payments::PaymentMethodType::Qris => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "PaymentMethodType {value:?} is not yet supported in UCS"
+                        )),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
         }
     }
 }
@@ -2976,6 +3095,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                             Ok(Some(PaymentMethodType::MomoAtm))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::CardRedirect => {
+                            Ok(Some(PaymentMethodType::CardRedirect))
+                        }
+                        // WebPay is distinguished at the connector, not by
+                        // routing/analytics: it keeps the generic
+                        // `CardRedirect` payment method type.
+                        grpc_api_types::payments::card_redirect::CardRedirectType::Webpay => {
                             Ok(Some(PaymentMethodType::CardRedirect))
                         }
                         grpc_api_types::payments::card_redirect::CardRedirectType::Unspecified => {
@@ -3041,6 +3166,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::MobilePayRedirect(_) => Ok(Some(PaymentMethodType::MobilePay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::VenmoRedirect(_) => Ok(Some(PaymentMethodType::Venmo)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_) => Ok(Some(PaymentMethodType::Skrill)),
+                grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
@@ -3433,11 +3559,18 @@ pub struct AuthorizationRequest {
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
     pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
+    pub split_settlement: Option<grpc_payment_types::SplitSettlement>,
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     /// Dynamic currency conversion decision and quote supplied for authorization.
     pub currency_conversion_data: Option<grpc_payment_types::CurrencyConversionData>,
+    pub is_account_funding_transaction: Option<bool>,
+    pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Merchant business country (ISO 3166-1 alpha-2) for country-specific connector rules.
+    pub business_country: Option<String>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3477,6 +3610,14 @@ pub struct SetupRecurringRequest {
     pub mit_category: Option<common_enums::MitCategory>,
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    pub is_account_funding_transaction: Option<bool>,
+    pub recipient_details: Option<grpc_payment_types::RecipientDetails>,
+    /// Connector-specific additional details (e.g. purpose of payment for Checkout.com).
+    pub additional_connector_details: Option<grpc_payment_types::AdditionalConnectorDetails>,
+    /// Sandbox/test mode flag (true for test environment). Connectors that branch
+    /// endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
+    /// the real value; defaulting to `None`/test mode breaks live-URL substitution.
+    pub test_mode: Option<bool>,
 }
 
 /// ============================================================================
@@ -3541,8 +3682,13 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: req.split_payments,
+            split_settlement: req.split_settlement,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             currency_conversion_data: req.currency_conversion_data,
+            is_account_funding_transaction: req.is_account_funding_transaction,
+            recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
+            business_country: req.business_country,
         }
     }
 }
@@ -3611,8 +3757,13 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: None,
+            split_settlement: None,
             partner_merchant_identifier_details: None,
             currency_conversion_data: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
+            additional_connector_details: None,
+            business_country: None,
         }
     }
 }
@@ -3659,6 +3810,10 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             l2_l3_data: req.l2_l3_data,
             mit_category,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            is_account_funding_transaction: req.is_account_funding_transaction,
+            recipient_details: req.recipient_details,
+            additional_connector_details: req.additional_connector_details,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -3709,6 +3864,10 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             l2_l3_data: None,
             mit_category: None,
             partner_merchant_identifier_details: None,
+            is_account_funding_transaction: None,
+            recipient_details: None,
+            additional_connector_details: None,
+            test_mode: req.test_mode,
         }
     }
 }
@@ -4455,6 +4614,11 @@ impl<
 {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::request_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, payment_method_data): (AuthorizationRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -4493,6 +4657,19 @@ impl<
             .as_ref()
             .and_then(|customer| customer.customer_document_details.as_ref())
             .and_then(map_customer_document_details);
+        // ISO-8601 on the wire (see `Customer.date_of_birth` in payment.proto); the shared
+        // parser below is the same one `CustomerInfo` uses, so both paths accept one format.
+        let customer_date_of_birth = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.date_of_birth.clone())
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
         let connector_feature_data = value
@@ -4572,6 +4749,12 @@ impl<
         };
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             authentication_data,
             capture_method: Some(CaptureMethod::foreign_try_from(value.capture_method)?),
             payment_method_data,
@@ -4599,6 +4782,7 @@ impl<
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             email,
             customer_document_details,
+            customer_date_of_birth,
             customer_name: value
                 .customer
                 .as_ref()
@@ -4679,6 +4863,10 @@ impl<
             threeds_method_comp_ind: value.threeds_completion_indicator.and_then(|i| {
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
+            business_country: value
+                .business_country
+                .as_ref()
+                .and_then(|c| common_enums::CountryAlpha2::from_str(c).ok()),
             tokenization,
             mit_category: value.mit_category,
             domain_data: value
@@ -4692,6 +4880,19 @@ impl<
             currency_conversion_data: value
                 .currency_conversion_data
                 .map(connector_types::CurrencyConversionData::foreign_try_from)
+                .transpose()?,
+            is_account_funding_transaction: value.is_account_funding_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -4821,7 +5022,8 @@ impl<
                 .map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.connector_customer_id)
+                .as_ref()
+                .and_then(|customer| customer.connector_customer_id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -4846,6 +5048,19 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            is_account_funding_transaction: value.is_account_funding_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -5326,7 +5541,7 @@ impl
             return_url: None,
             connector_feature_data,
             test_mode: value.test_mode,
-            connectors,
+            connectors: connectors.into(),
             order_details: None,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -5455,7 +5670,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -5478,6 +5693,11 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::flow_data_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -5549,7 +5769,16 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(|money| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                    })
+                })
+                .transpose()?,
             access_token,
             session_token: value.session_token,
             reference_id: value.merchant_order_id.clone(),
@@ -5559,7 +5788,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -5652,10 +5881,10 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             connector_order_id: value.order_id,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -5766,7 +5995,16 @@ impl
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
-            amount: None,
+            amount: value
+                .amount
+                .as_ref()
+                .map(|money| {
+                    Ok::<_, error_stack::Report<IntegrationError>>(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                    })
+                })
+                .transpose()?,
             access_token,
             session_token: None,
             reference_id: None,
@@ -5776,7 +6014,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -5874,7 +6112,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -5953,7 +6191,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -6051,7 +6289,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -6702,6 +6940,11 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::response_generate", skip_all)
+)]
 #[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
@@ -6783,6 +7026,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -6804,6 +7048,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     .transpose()?;
 
                 PaymentServiceAuthorizeResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -6847,6 +7092,11 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
+                    payment_account_reference,
+                    sender_payment_instrument_id: router_data_v2
+                        .resource_common_data
+                        .sender_payment_instrument_id
+                        .clone(),
                 }
             }
             _ => {
@@ -6872,6 +7122,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
             };
 
             PaymentServiceAuthorizeResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -6912,6 +7163,8 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
+                payment_account_reference: None,
+                sender_payment_instrument_id: None,
             }
         }
     };
@@ -6940,6 +7193,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(_)),
+            } => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(_)),
             } => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -7004,6 +7261,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::SkrillRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -7403,6 +7664,24 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PaySafeCard(_)),
             } => Ok(Self::GiftCard),
+            // A present-but-unmapped variant is a real, known payment method this classifier
+            // simply hasn't been taught yet -- that's a NotImplemented gap, not bad input.
+            grpc_api_types::payments::PaymentMethod {
+                payment_method: Some(_),
+            } => Err(report!(IntegrationError::NotImplemented(
+                "payment_method".to_owned(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
+                            .to_owned(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "The provided payment method variant is not yet supported by this flow"
+                            .to_owned(),
+                    ),
+                },
+            ))),
             _ => Err(report!(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
@@ -7412,7 +7691,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                     ),
                     doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is empty or not supported by this flow"
+                        "The provided payment method variant is empty"
                             .to_owned(),
                     ),
                 },
@@ -7661,9 +7940,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::PaymentS
             }
             // For Refund/Dispute in payment context, this shouldn't happen
             // but we provide sensible defaults
-            router_data::FlowStatus::Refund(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::Unspecified
-            }
+            router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::Unspecified,
         }
     }
 }
@@ -7676,9 +7955,9 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::RefundSt
                 grpc_api_types::payments::RefundStatus::foreign_from(refund_status)
             }
             // For Payment/Dispute in refund context, map to failure
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Dispute(_) => {
-                Self::RefundFailure
-            }
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Dispute(_)
+            | router_data::FlowStatus::Payout(_) => Self::RefundFailure,
         }
     }
 }
@@ -7691,9 +7970,24 @@ impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payments::DisputeS
                 grpc_api_types::payments::DisputeStatus::foreign_from(dispute_status)
             }
             // For Payment/Refund in dispute context, map to default/unspecified
-            router_data::FlowStatus::Payment(_) | router_data::FlowStatus::Refund(_) => {
-                Self::default()
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Payout(_) => Self::default(),
+        }
+    }
+}
+
+// Map FlowStatus to PayoutStatus (for payout flow errors)
+impl ForeignFrom<router_data::FlowStatus> for grpc_api_types::payouts::payout_enums::PayoutStatus {
+    fn foreign_from(status: router_data::FlowStatus) -> Self {
+        match status {
+            router_data::FlowStatus::Payout(payout_status) => {
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(payout_status)
             }
+            // For Payment/Refund in dispute context, map to default/unspecified
+            router_data::FlowStatus::Payment(_)
+            | router_data::FlowStatus::Refund(_)
+            | router_data::FlowStatus::Dispute(_) => Self::default(),
         }
     }
 }
@@ -7733,6 +8027,9 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
                         ),
                     ),
                 }
+            }
+            router_data::FlowStatus::Payout(_) => {
+                grpc_api_types::payments::FlowStatus { status: None }
             }
         }
     }
@@ -7813,6 +8110,7 @@ pub fn generate_payment_void_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -7870,6 +8168,7 @@ pub fn generate_payment_void_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7933,6 +8232,7 @@ pub fn generate_payment_void_response(
                 incremental_authorization_allowed: None,
                 connector_feature_data: None,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -8000,6 +8300,7 @@ pub fn generate_payment_void_post_capture_response(
                 mandate_reference: _,
                 status_code,
                 splits: _,
+                payment_account_reference: _,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8280,6 +8581,7 @@ pub fn generate_payment_sync_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -8313,6 +8615,7 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -8377,22 +8680,12 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
-                    connector_returned_payment_method_details: router_data_v2
-                        .resource_common_data
-                        .connector_returned_payment_method_details
-                        .clone()
-                        .and_then(|payment_method_data| {
-                            grpc_api_types::payments::PaymentMethod::foreign_try_from(
-                                payment_method_data,
-                            )
-                            .map_err(|error| {
-                                tracing::warn!(
-                                    ?error,
-                                    "Failed to convert connector_returned_payment_method_details; omitting it"
-                                );
-                            })
-                            .ok()
-                        }),
+                    connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                        router_data_v2
+                            .resource_common_data
+                            .connector_returned_payment_method_details,
+                    ),
+                    payment_account_reference,
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -8453,6 +8746,7 @@ pub fn generate_payment_sync_response(
                     .transpose()?;
 
                 Ok(PaymentServiceGetResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -8505,6 +8799,7 @@ pub fn generate_payment_sync_response(
                     ),
                     connector_feature_data: None,
                     connector_returned_payment_method_details: None,
+                    payment_account_reference: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8540,6 +8835,7 @@ pub fn generate_payment_sync_response(
                 })
                 .transpose()?;
             Ok(PaymentServiceGetResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -8603,6 +8899,7 @@ pub fn generate_payment_sync_response(
                 settlement_status: None,
                 connector_feature_data: None,
                 connector_returned_payment_method_details: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -8704,7 +9001,7 @@ impl
 
             status: common_enums::RefundStatus::Pending,
             refund_id: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -8753,7 +9050,7 @@ impl
             merchant_id: merchant_id_from_header,
             status: common_enums::RefundStatus::Success,
             refund_id: Some(value.connector_refund_id.clone()),
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_refund_id,
             ),
@@ -8820,7 +9117,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(&refund_id),
             status: common_enums::RefundStatus::Pending,
             refund_id,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -8866,7 +9163,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Paymaya => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -9052,6 +9351,23 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                     ),
                 ),
             }),
+            router_response_types::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => Ok(Self {
+                form_type: Some(
+                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlDdc(
+                        grpc_api_types::payments::WorldpayxmlDdcData {
+                            bin,
+                            jwt: Some(jwt),
+                        },
+                    ),
+                ),
+            }),
+            router_response_types::RedirectForm::WorldpayxmlRedirectForm { jwt } => Ok(Self {
+                form_type: Some(
+                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlChallenge(
+                        grpc_api_types::payments::WorldpayxmlChallengeData { jwt: Some(jwt) },
+                    ),
+                ),
+            }),
             // Variants not supported in gRPC proto
             router_response_types::RedirectForm::BlueSnap { .. }
             | router_response_types::RedirectForm::CybersourceAuthSetup { .. }
@@ -9150,7 +9466,7 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             dispute_id: None,
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: None,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -9186,7 +9502,7 @@ impl
                 &value.merchant_dispute_id.clone(),
             ),
             dispute_id: None,
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: None,
             raw_connector_response: None,
@@ -9285,7 +9601,7 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             dispute_id: None,
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: None,
             connector_request_reference_id: value.merchant_dispute_id.unwrap_or_default(),
@@ -9320,7 +9636,7 @@ impl
             ),
 
             dispute_id: None,
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: None,
             raw_connector_response: None,
@@ -9335,6 +9651,21 @@ impl
 pub fn generate_refund_sync_response(
     router_data_v2: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
 ) -> Result<RefundResponse, error_stack::Report<ConnectorError>> {
+    let refund_metadata = router_data_v2
+        .request
+        .refund_connector_metadata
+        .as_ref()
+        .map(serde_json::to_string)
+        .transpose()
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(
+                    "Refund sync: failed to serialise connector refund metadata".to_string(),
+                ),
+            },
+        })?
+        .map(Secret::new);
     let refunds_response = router_data_v2.response;
     let raw_connector_response = router_data_v2
         .resource_common_data
@@ -9360,6 +9691,7 @@ pub fn generate_refund_sync_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map();
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9392,7 +9724,7 @@ pub fn generate_refund_sync_response(
                 email: None,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 raw_connector_response,
                 typed_connector_response,
                 status_code: response.status_code as u32,
@@ -9418,6 +9750,7 @@ pub fn generate_refund_sync_response(
                 .get_connector_response_headers_as_map();
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9452,7 +9785,7 @@ pub fn generate_refund_sync_response(
                 typed_connector_response,
                 merchant_order_id: None,
                 metadata: None,
-                refund_metadata: None,
+                refund_metadata,
                 status_code: e.status_code as u32,
                 response_headers,
                 state: None,
@@ -9518,6 +9851,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             }
         });
         Ok(Self {
+            split_settlement: None,
             raw_connector_status: None,
             connector_transaction_id: extract_connector_request_reference_id(
                 &value
@@ -9575,7 +9909,10 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             splits: None,
             settlement_status: None,
             connector_feature_data: None,
-            connector_returned_payment_method_details: None,
+            connector_returned_payment_method_details: ForeignFrom::foreign_from(
+                value.connector_returned_payment_method_details,
+            ),
+            payment_account_reference: None,
         })
     }
 }
@@ -9791,6 +10128,7 @@ pub fn generate_void_post_refund_response(
             })?;
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -9843,6 +10181,7 @@ pub fn generate_void_post_refund_response(
             })
         }
         Err(e) => Ok(RefundResponse {
+            split_settlement: None,
             raw_connector_status: router_data_v2
                 .resource_common_data
                 .raw_connector_status
@@ -9985,10 +10324,10 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -10101,10 +10440,10 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -10122,6 +10461,47 @@ impl
             sender_payment_instrument_id: None,
             connector_returned_payment_method_details: None,
             settlement_status: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<crate::connector_types::PayoutWebhookDetailsResponse>
+    for grpc_api_types::payouts::PayoutServiceGetResponse
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: crate::connector_types::PayoutWebhookDetailsResponse,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Only surface an error object when the connector actually reported a
+        // failure; a successful payout webhook carries no error fields.
+        let error = (value.error_code.is_some() || value.error_message.is_some()).then(|| {
+            grpc_api_types::payouts::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payouts::ConnectorErrorDetails {
+                    code: value.error_code.clone(),
+                    message: value.error_message.clone(),
+                    reason: None,
+                    // Left unset: this field carries a *transaction* id (the sync
+                    // path sources it from `err.connector_transaction_id`), and a
+                    // payout webhook has no such id. The payout id is already on
+                    // the response as `connector_payout_id`.
+                    connector_transaction_id: None,
+                    status: None,
+                }),
+                issuer_details: None,
+            }
+        });
+
+        Ok(Self {
+            merchant_payout_id: value.merchant_payout_id,
+            payout_status: Some(
+                grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(value.status)
+                    as i32,
+            ),
+            connector_payout_id: value.connector_payout_id,
+            error,
+            status_code: u32::from(value.status_code),
         })
     }
 }
@@ -10149,6 +10529,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             .unwrap_or_default();
 
         Ok(Self {
+            split_settlement: None,
             raw_connector_status: None,
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
@@ -10512,6 +10893,217 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
     }
 }
 
+// ---- Unified split settlement (proto -> domain) ----
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlement>
+    for connector_types::SplitSettlement
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlement,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            marketplace_split_details: value
+                .marketplace_split_details
+                .map(connector_types::SplitSettlementMarketplace::foreign_try_from)
+                .transpose()?,
+            vendor_split_details: value
+                .vendor_split_details
+                .into_iter()
+                .map(connector_types::SplitSettlementVendor::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementMarketplace>
+    for connector_types::SplitSettlementMarketplace
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementMarketplace,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_marketplace::SplitValue::Amount(
+                money,
+            )) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
+            Some(
+                grpc_api_types::payments::split_settlement_marketplace::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "marketplace_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementVendor>
+    for connector_types::SplitSettlementVendor
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementVendor,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Amount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
+            }
+            Some(grpc_api_types::payments::split_settlement_vendor::SplitValue::Percentage(
+                percentage,
+            )) => connector_types::SplitValue::Percentage(percentage),
+            None => return Err(IntegrationError::MissingRequiredField {
+                field_name: "vendor_split_value",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "vendor split value must be provided as either an amount or a percentage"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }
+            .into()),
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+            merchant_commission: value
+                .merchant_commission
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
+            description: value.description,
+            merchant_reference_id: value.merchant_reference_id,
+            split_metadata: value.split_metadata,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefund>
+    for connector_types::SplitSettlementRefund
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefund,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            marketplace_split_details: value
+                .marketplace_split_details
+                .map(connector_types::SplitSettlementRefundMarketplace::foreign_try_from)
+                .transpose()?,
+            vendor_split_details: value
+                .vendor_split_details
+                .into_iter()
+                .map(connector_types::SplitSettlementRefundVendor::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundMarketplace>
+    for connector_types::SplitSettlementRefundMarketplace
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefundMarketplace,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::RefundAmount(money)) => {
+                connector_types::SplitValue::Amount(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                    currency: common_enums::Currency::foreign_try_from(money.currency())?,
+                })
+            }
+            Some(grpc_api_types::payments::split_settlement_refund_marketplace::SplitValue::Percentage(percentage)) => {
+                connector_types::SplitValue::Percentage(percentage)
+            }
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "refund_marketplace_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund marketplace split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitSettlementRefundVendor>
+    for connector_types::SplitSettlementRefundVendor
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitSettlementRefundVendor,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let split_value = match value.split_value {
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::RefundAmount(
+                    money,
+                ),
+            ) => connector_types::SplitValue::Amount(common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(money.minor_amount),
+                currency: common_enums::Currency::foreign_try_from(money.currency())?,
+            }),
+            Some(
+                grpc_api_types::payments::split_settlement_refund_vendor::SplitValue::Percentage(
+                    percentage,
+                ),
+            ) => connector_types::SplitValue::Percentage(percentage),
+            None => {
+                return Err(IntegrationError::MissingRequiredField {
+                    field_name: "refund_vendor_split_value",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "refund vendor split value must be provided as either an amount or a percentage"
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        };
+        Ok(Self {
+            split_value,
+            connector_sub_account_id: value.connector_sub_account_id,
+            merchant_commission: value
+                .merchant_commission
+                .map(|commission| common_utils::types::MinorUnit::new(commission.minor_amount)),
+            merchant_reference_id: value.merchant_reference_id,
+            split_metadata: value.split_metadata,
+        })
+    }
+}
+
 impl ForeignFrom<common_enums::AdyenSplitType> for grpc_api_types::payments::AdyenSplitType {
     fn foreign_from(split_type: common_enums::AdyenSplitType) -> Self {
         match split_type {
@@ -10628,6 +11220,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
         let connector_transaction_id = value.connector_transaction_id;
 
         Ok(Self {
+            split_settlement_refund: value
+                .split_settlement_refund
+                .clone()
+                .map(connector_types::SplitSettlementRefund::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             refund_id: extract_connector_request_reference_id(&value.merchant_refund_id.clone()),
             connector_transaction_id,
             connector_refund_id: None, // refund_id field is used as refund_id, not connector_refund_id
@@ -10852,6 +11450,7 @@ pub fn generate_refund_response(
             let grpc_status = grpc_api_types::payments::RefundStatus::foreign_from(status);
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -10906,6 +11505,7 @@ pub fn generate_refund_response(
                 .unwrap_or_default();
 
             Ok(RefundResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -10999,6 +11599,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country_codes,
                     locale: auth_ctx.locale,
                     permissions,
+                    native_app_identifier: auth_ctx.native_app_identifier,
                 })
             }
             Some(DomainContext::Payment(payment_ctx)) => {
@@ -11052,6 +11653,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     webhook_url: None,
                     country_codes: vec![],
                     locale: None,
+                    native_app_identifier: None,
                 })
             }
             _ => Err(report!(IntegrationError::InvalidDataFormat {
@@ -11101,6 +11703,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
         }?;
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             amount_to_capture: amount.amount.get_amount_as_i64(),
             minor_amount_to_capture: amount.amount,
             currency: amount.currency,
@@ -11188,7 +11796,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -11250,7 +11858,7 @@ impl
                 })?,
             return_url,
             test_mode: value.test_mode,
-            connectors,
+            connectors: connectors.into(),
             merchant_request_id: None,
             order_details: None,
             raw_connector_response: None,
@@ -11456,6 +12064,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -11474,6 +12083,7 @@ pub fn generate_payment_capture_response(
                 });
 
                 Ok(PaymentServiceCaptureResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -11509,6 +12119,7 @@ pub fn generate_payment_capture_response(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -11531,6 +12142,7 @@ pub fn generate_payment_capture_response(
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
             Ok(PaymentServiceCaptureResponse {
+                split_settlement: None,
                 raw_connector_status: router_data_v2
                     .resource_common_data
                     .raw_connector_status
@@ -11569,6 +12181,7 @@ pub fn generate_payment_capture_response(
                 connector_feature_data: None,
                 connector_response,
                 splits: None,
+                payment_account_reference: None,
             })
         }
     }
@@ -11673,7 +12286,7 @@ impl
             test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -11775,7 +12388,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -11940,8 +12553,8 @@ impl<
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
             customer_id: value
                 .customer
-                .and_then(|customer| customer.id)
-                .clone()
+                .as_ref()
+                .and_then(|customer| customer.id.clone())
                 .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
                 .transpose()
                 .change_context(IntegrationError::InvalidDataFormat {
@@ -11972,6 +12585,19 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            is_account_funding_transaction: value.is_account_funding_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -12223,6 +12849,12 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             None => None,
         };
 
+        let date_of_birth = value
+            .date_of_birth
+            .clone()
+            .map(|s| Secret::<time::Date>::foreign_try_from((s.expose(), "customer.date_of_birth")))
+            .transpose()?;
+
         Ok(Self {
             customer_id,
             customer_email,
@@ -12232,6 +12864,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number.clone(),
             customer_phone_country_code: value.phone_country_code.clone(),
             salutation: value.salutation.clone(),
+            date_of_birth,
         })
     }
 }
@@ -12249,6 +12882,13 @@ impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Cu
             phone_number: info.customer_phone_number,
             phone_country_code: info.customer_phone_country_code,
             salutation: info.salutation,
+            date_of_birth: info.date_of_birth.map(|dob| {
+                Secret::new(
+                    dob.expose()
+                        .format(&time::format_description::well_known::Iso8601::DATE)
+                        .expect("formatting a valid time::Date with Iso8601::DATE is infallible"),
+                )
+            }),
             ..Default::default()
         }
     }
@@ -12553,6 +13193,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 splits,
+                payment_account_reference,
             } => {
                 let mandate_reference_details = mandate_reference
                     .as_ref()
@@ -12677,6 +13318,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                             split_response,
                         )
                     }),
+                    payment_account_reference,
                 }
             }
             _ => {
@@ -12740,6 +13382,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 connector_feature_data: None,
                 captured_amount: None,
                 splits: None,
+                payment_account_reference: None,
             }
         }
     };
@@ -12754,7 +13397,7 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors)> for DisputeFlowDa
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             dispute_id: Some(value.dispute_id.clone()),
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: Some(value.reason_code.unwrap_or_default()),
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -12782,7 +13425,7 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors, &MaskedMetadata)>
                 &value.merchant_dispute_id,
             ),
             dispute_id: Some(value.dispute_id.clone()),
-            connectors,
+            connectors: connectors.into(),
             connector_dispute_id: value.dispute_id,
             defense_reason_code: Some(value.reason_code.unwrap_or_default()),
             raw_connector_response: None,
@@ -13037,7 +13680,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -13320,28 +13963,307 @@ pub enum PaymentMethodDataType {
     Netbanking,
     QwikcilverWalletDirect,
     Skrill,
+    Neteller,
     CardWithNoCvc,
 }
 
-impl ForeignTryFrom<String> for Secret<time::Date> {
+/// Parses an ISO-8601 date, naming the field it came from.
+///
+/// The field name is threaded in by the caller — the same shape
+/// `ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue` uses — because
+/// `InvalidDataFormat::field_name` is `&'static str` and every caller knows its own path.
+/// Without it a malformed date reports `field_name: "unknown"`, which tells an integrator
+/// nothing about which of several dates on a request was rejected.
+impl ForeignTryFrom<(String, &'static str)> for Secret<time::Date> {
     type Error = IntegrationError;
 
-    fn foreign_try_from(date_string: String) -> Result<Self, error_stack::Report<Self::Error>> {
-        let date = time::Date::parse(
+    fn foreign_try_from(
+        (date_string, field_name): (String, &'static str),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        time::Date::parse(
             &date_string,
             &time::format_description::well_known::Iso8601::DATE,
         )
-        .map_err(|err| {
-            tracing::error!("Failed to parse date string: {}", err);
-            IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Invalid date format".to_string()),
-                    ..Default::default()
-                },
+        .map(Self::new)
+        // `change_context` rather than `map_err`: it keeps the underlying `time::error::Parse`
+        // in the report, which says *why* the date was rejected.
+        .change_context(IntegrationError::InvalidDataFormat {
+            field_name,
+            context: IntegrationErrorContext {
+                additional_context: Some("Expected an ISO-8601 date (YYYY-MM-DD)".to_string()),
+                ..Default::default()
+            },
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientBankAccount>
+    for connector_types::RecipientBankAccount
+{
+    type Error = IntegrationError;
+
+    // prost wraps every sub-message field in Option<T> regardless of whether
+    // the field is semantically required, so each leaf must be explicitly unwrapped.
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientBankAccount,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value.bank_account_type {
+            Some(RecipientBankAccountType::Iban(iban_account)) => Ok(Self::Iban {
+                iban: iban_account.iban.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.iban",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "iban is required for the Iban bank account variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid IBAN in recipient_bank_account.iban".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
+            }),
+            Some(RecipientBankAccountType::RoutingNumber(routing_account)) => {
+                Ok(Self::RoutingNumber {
+                    account_number: routing_account.account_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "account_number is required for the RoutingNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the recipient bank account number".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                    routing_number: routing_account.routing_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.routing_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "routing_number is required for the RoutingNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the ABA routing number of the recipient's bank"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
             }
-        })?;
-        Ok(Self::new(date))
+            Some(RecipientBankAccountType::Bic(bic_account)) => Ok(Self::Bic {
+                account_number: bic_account.account_number.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.account_number",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "account_number is required for the Bic variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the recipient bank account number".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
+                bic: bic_account.bic.ok_or_else(|| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_bank_account.bic",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "bic is required for the Bic variant".to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the BIC/SWIFT code of the recipient's bank".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?,
+            }),
+            Some(RecipientBankAccountType::AccountNumber(bare_account)) => {
+                Ok(Self::AccountNumber {
+                    account_number: bare_account.account_number.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.account_number",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "account_number is required for the AccountNumber variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the recipient bare account number".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
+            }
+            Some(RecipientBankAccountType::TruncatedPan(truncated_pan)) => {
+                Ok(Self::TruncatedPan {
+                    card_isin: truncated_pan.card_isin.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.card_isin",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "card_isin (first 6 PAN digits) is required for the TruncatedPan variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the first 6 digits of the recipient's PAN".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                    last4: truncated_pan.last4.ok_or_else(|| {
+                        report!(IntegrationError::InvalidDataFormat {
+                            field_name: "recipient_bank_account.last4",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "last4 (final 4 PAN digits) is required for the TruncatedPan variant"
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Provide the last 4 digits of the recipient's PAN".to_string(),
+                                ),
+                                doc_url: None,
+                            },
+                        })
+                    })?,
+                })
+            }
+            None => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "recipient_bank_account.bank_account_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "No bank account variant was set; exactly one of iban, routing_number, \
+                         bic, account_number, or truncated_pan must be provided"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set exactly one bank_account_type variant in RecipientBankAccount"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientAccount>
+    for connector_types::RecipientAccount
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientAccount,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value.account_type {
+            Some(RecipientAccountType::BankAccount(bank_account)) => Ok(Self::BankAccount(
+                connector_types::RecipientBankAccount::foreign_try_from(bank_account)?,
+            )),
+            Some(RecipientAccountType::CardNumber(card_number)) => Ok(Self::Card { card_number }),
+            Some(RecipientAccountType::WalletId(wallet_id_secret)) => Ok(Self::Wallet {
+                wallet_id: wallet_id_secret,
+            }),
+            Some(RecipientAccountType::Email(email_secret)) => {
+                let email = Email::try_from(email_secret.expose()).map_err(|_| {
+                    report!(IntegrationError::InvalidDataFormat {
+                        field_name: "recipient_account.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "The provided value is not a valid RFC 5322 email address"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide a valid email address for the recipient account"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?;
+                Ok(Self::Email { email })
+            }
+            Some(RecipientAccountType::PhoneNumber(phone_secret)) => Ok(Self::Phone {
+                phone_number: phone_secret,
+            }),
+            Some(RecipientAccountType::SocialNetworkId(network_id_secret)) => {
+                Ok(Self::SocialNetwork {
+                    social_network_id: network_id_secret,
+                })
+            }
+            None => Err(report!(IntegrationError::InvalidDataFormat {
+                field_name: "recipient_account.account_type",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "No account variant was set; exactly one of bank_account, card_number, \
+                         wallet_id, email, phone_number, or social_network_id must be provided"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Set exactly one account_type variant in RecipientAccount".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::RecipientDetails>
+    for connector_types::RecipientDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::RecipientDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let account = value
+            .account
+            .map(connector_types::RecipientAccount::foreign_try_from)
+            .transpose()?;
+        let address = value
+            .address
+            .map(AddressDetails::foreign_try_from)
+            .transpose()?;
+        Ok(Self {
+            account,
+            phone_number: value.phone_number,
+            tax_id: value.tax_id,
+            address,
+        })
+    }
+}
+
+impl ForeignFrom<grpc_api_types::payments::AdditionalConnectorDetails>
+    for connector_types::AdditionalConnectorDetails
+{
+    fn foreign_from(value: grpc_api_types::payments::AdditionalConnectorDetails) -> Self {
+        Self {
+            checkout: value
+                .checkout
+                .map(|c| connector_types::CheckoutAdditionalInformation {
+                    purpose_of_payment: c.purpose_of_payment,
+                }),
+            worldpayxml: value.worldpayxml.map(|w| {
+                connector_types::WorldpayxmlAdditionalInformation {
+                    funding_transaction_type: w.funding_transaction_type,
+                    payment_purpose: w.payment_purpose,
+                }
+            }),
+        }
     }
 }
 
@@ -13626,7 +14548,7 @@ impl
             connector_feature_data,
             return_url: None,
             test_mode: value.test_mode,
-            connectors,
+            connectors: connectors.into(),
             merchant_request_id: None,
             order_details: None,
             raw_connector_response: None,
@@ -13708,16 +14630,28 @@ impl<
         }?;
         let currency = money.currency;
 
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            fu => Some(common_enums::FutureUsage::foreign_try_from(fu)?),
+        };
+        let customer_acceptance = value
+            .customer_acceptance
+            .map(mandates::CustomerAcceptance::foreign_try_from)
+            .transpose()?;
+        let setup_mandate_details = value
+            .setup_mandate_details
+            .map(MandateData::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             amount: money.amount,
             currency,
             payment_method_data,
             browser_info: None,
             capture_method: None,
-            customer_acceptance: None,
-            setup_future_usage: None,
+            customer_acceptance,
+            setup_future_usage,
             mandate_id: None,
-            setup_mandate_details: None,
+            setup_mandate_details,
             integrity_object: None,
             split_payments: value
                 .split_payments
@@ -13814,7 +14748,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -13996,7 +14930,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors: _connectors,
+            connectors: _connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -14112,7 +15046,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors: _connectors,
+            connectors: _connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -14224,7 +15158,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors: _connectors,
+            connectors: _connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -14297,7 +15231,7 @@ impl
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            connectors,
+            connectors: connectors.into(),
             connector_request_reference_id: String::new(),
             raw_connector_response: None,
             raw_connector_request: None,
@@ -14523,7 +15457,7 @@ impl
             test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -14614,7 +15548,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -14842,6 +15776,12 @@ impl<
         }?;
 
         Ok(Self {
+            split_settlement: value
+                .split_settlement
+                .clone()
+                .map(connector_types::SplitSettlement::foreign_try_from)
+                .transpose()?
+                .map(Box::new),
             mandate_reference: mandate_ref,
             amount: amount.amount.get_amount_as_i64(),
             minor_amount: amount.amount,
@@ -14905,6 +15845,19 @@ impl<
             partner_merchant_identifier_details: value
                 .partner_merchant_identifier_details
                 .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
+            is_account_funding_transaction: value.is_account_funding_transaction,
+            recipient_details: value
+                .recipient_details
+                .map(connector_types::RecipientDetails::foreign_try_from)
+                .transpose()?,
+            additional_connector_details: value
+                .additional_connector_details
+                .map(connector_types::AdditionalConnectorDetails::foreign_from),
+            customer: value
+                .customer
+                .as_ref()
+                .map(connector_types::CustomerInfo::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -14994,6 +15947,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 status_code,
                 incremental_authorization_allowed,
                 splits,
+                payment_account_reference,
                 ..
             } => {
                 let mandate_reference_details = mandate_reference
@@ -15010,6 +15964,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
 
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                        split_settlement: None,
                         raw_connector_status: router_data_v2
                             .resource_common_data
                             .raw_connector_status
@@ -15052,6 +16007,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                                 split_response,
                             )
                         }),
+                        payment_account_reference,
                     },
                 )
             }
@@ -15076,6 +16032,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             };
             Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
+                    split_settlement: None,
                     raw_connector_status: router_data_v2
                         .resource_common_data
                         .raw_connector_status
@@ -15100,7 +16057,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     merchant_charge_id: err.connector_transaction_id,
                     connector_feature_data: None,
                     mandate_reference_details: None,
-                    raw_connector_response: None,
+                    raw_connector_response,
                     status_code: err.status_code as u32,
                     response_headers: router_data_v2
                         .resource_common_data
@@ -15114,6 +16071,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     captured_amount: None,
                     incremental_authorization_allowed: None,
                     splits: None,
+                    payment_account_reference: None,
                 },
             )
         }
@@ -15927,6 +16885,7 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             }
             grpc_api_types::payments::BankNames::Barclays => Ok(Self::Barclays),
             grpc_api_types::payments::BankNames::BlikPsp => Ok(Self::BlikPSP),
+            grpc_api_types::payments::BankNames::BlikPoland => Ok(Self::Blik),
             grpc_api_types::payments::BankNames::CapitalOne => Ok(Self::CapitalOne),
             grpc_api_types::payments::BankNames::Chase => Ok(Self::Chase),
             grpc_api_types::payments::BankNames::Citi => Ok(Self::Citi),
@@ -16061,7 +17020,6 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             grpc_api_types::payments::BankNames::BankiSpbdzielcze => Ok(Self::BankiSpbdzielcze),
             grpc_api_types::payments::BankNames::BankNowyBfgSa => Ok(Self::BankNowyBfgSa),
             grpc_api_types::payments::BankNames::GetinBank => Ok(Self::GetinBank),
-            grpc_api_types::payments::BankNames::BlikPoland => Ok(Self::Blik),
             grpc_api_types::payments::BankNames::NoblePay => Ok(Self::NoblePay),
             grpc_api_types::payments::BankNames::IdeaBank => Ok(Self::IdeaBank),
             grpc_api_types::payments::BankNames::EnveloBank => Ok(Self::EnveloBank),
@@ -16174,6 +17132,1459 @@ impl ForeignTryFrom<grpc_api_types::payments::BankNames> for common_enums::BankN
             }
             grpc_api_types::payments::BankNames::CimbNiaga => Ok(Self::CimbNiaga),
             grpc_api_types::payments::BankNames::PermataBank => Ok(Self::PermataBank),
+            // European banks
+            grpc_api_types::payments::BankNames::AibBusiness => Ok(Self::AibBusiness),
+            grpc_api_types::payments::BankNames::Aktia => Ok(Self::Aktia),
+            grpc_api_types::payments::BankNames::Alandsbanken => Ok(Self::Alandsbanken),
+            grpc_api_types::payments::BankNames::AllianzBankFinancialAdvisorsSpa => {
+                Ok(Self::AllianzBankFinancialAdvisorsSpa)
+            }
+            grpc_api_types::payments::BankNames::AllianzBanque => Ok(Self::AllianzBanque),
+            grpc_api_types::payments::BankNames::AlliedIrishBank => Ok(Self::AlliedIrishBank),
+            grpc_api_types::payments::BankNames::AlliedIrishBankCorporate => {
+                Ok(Self::AlliedIrishBankCorporate)
+            }
+            grpc_api_types::payments::BankNames::AltoAdige => Ok(Self::AltoAdige),
+            grpc_api_types::payments::BankNames::AltoAdigeBancaSuedtirolBank => {
+                Ok(Self::AltoAdigeBancaSuedtirolBank)
+            }
+            grpc_api_types::payments::BankNames::Argenta => Ok(Self::Argenta),
+            grpc_api_types::payments::BankNames::ArkeaBanqueEntreprisesEtInstitutionnels => {
+                Ok(Self::ArkeaBanqueEntreprisesEtInstitutionnels)
+            }
+            grpc_api_types::payments::BankNames::ArkeaBanquePrivee => Ok(Self::ArkeaBanquePrivee),
+            grpc_api_types::payments::BankNames::AxaBanque => Ok(Self::AxaBanque),
+            grpc_api_types::payments::BankNames::Banca360CreditoCooperativoFvg => {
+                Ok(Self::Banca360CreditoCooperativoFvg)
+            }
+            grpc_api_types::payments::BankNames::BancaAdriaColliEuganei => {
+                Ok(Self::BancaAdriaColliEuganei)
+            }
+            grpc_api_types::payments::BankNames::BancaAgricolaPopolareDiRagusa => {
+                Ok(Self::BancaAgricolaPopolareDiRagusa)
+            }
+            grpc_api_types::payments::BankNames::BancaAlpiMarittimeCcCarru => {
+                Ok(Self::BancaAlpiMarittimeCcCarru)
+            }
+            grpc_api_types::payments::BankNames::BancaAltaToscana => Ok(Self::BancaAltaToscana),
+            grpc_api_types::payments::BankNames::BancaAnnia => Ok(Self::BancaAnnia),
+            grpc_api_types::payments::BankNames::BancaCentroEmilia => Ok(Self::BancaCentroEmilia),
+            grpc_api_types::payments::BankNames::BancaCentroLazio => Ok(Self::BancaCentroLazio),
+            grpc_api_types::payments::BankNames::BancaCentroToscanaUmbria => {
+                Ok(Self::BancaCentroToscanaUmbria)
+            }
+            grpc_api_types::payments::BankNames::BancaCentropadana => Ok(Self::BancaCentropadana),
+            grpc_api_types::payments::BankNames::BancaCesarePonti => Ok(Self::BancaCesarePonti),
+            grpc_api_types::payments::BankNames::BancaDelCatanzarese => {
+                Ok(Self::BancaDelCatanzarese)
+            }
+            grpc_api_types::payments::BankNames::BancaDelCilentoDiSassanoEv => {
+                Ok(Self::BancaDelCilentoDiSassanoEV)
+            }
+            grpc_api_types::payments::BankNames::BancaDelPiceno => Ok(Self::BancaDelPiceno),
+            grpc_api_types::payments::BankNames::BancaDelPiemonte => Ok(Self::BancaDelPiemonte),
+            grpc_api_types::payments::BankNames::BancaDelTerritorioLombardo => {
+                Ok(Self::BancaDelTerritorioLombardo)
+            }
+            grpc_api_types::payments::BankNames::BancaDelVenetoCentrale => {
+                Ok(Self::BancaDelVenetoCentrale)
+            }
+            grpc_api_types::payments::BankNames::BancaDellaMarcaCredcooperativo => {
+                Ok(Self::BancaDellaMarcaCredcooperativo)
+            }
+            grpc_api_types::payments::BankNames::BancaDelleTerreVenete => {
+                Ok(Self::BancaDelleTerreVenete)
+            }
+            grpc_api_types::payments::BankNames::BancaDiAlbaCreditoCooperativo => {
+                Ok(Self::BancaDiAlbaCreditoCooperativo)
+            }
+            grpc_api_types::payments::BankNames::BancaDiAnghiariEStiaCc => {
+                Ok(Self::BancaDiAnghiariEStiaCc)
+            }
+            grpc_api_types::payments::BankNames::BancaDiBologna => Ok(Self::BancaDiBologna),
+            grpc_api_types::payments::BankNames::BancaDiCaraglio => Ok(Self::BancaDiCaraglio),
+            grpc_api_types::payments::BankNames::BancaDiCreditoPopolareScpa => {
+                Ok(Self::BancaDiCreditoPopolareScpa)
+            }
+            grpc_api_types::payments::BankNames::BancaDiImolaSpa => Ok(Self::BancaDiImolaSpa),
+            grpc_api_types::payments::BankNames::BancaDiPesaro => Ok(Self::BancaDiPesaro),
+            grpc_api_types::payments::BankNames::BancaDiPesciaECascina => {
+                Ok(Self::BancaDiPesciaECascina)
+            }
+            grpc_api_types::payments::BankNames::BancaDiPiacenzaScpa => {
+                Ok(Self::BancaDiPiacenzaScpa)
+            }
+            grpc_api_types::payments::BankNames::BancaDiTarantoBcc => Ok(Self::BancaDiTarantoBcc),
+            grpc_api_types::payments::BankNames::BancaDiUdineCreditoCoop => {
+                Ok(Self::BancaDiUdineCreditoCoop)
+            }
+            grpc_api_types::payments::BankNames::BancaDonRizzo => Ok(Self::BancaDonRizzo),
+            grpc_api_types::payments::BankNames::BancaFideuram => Ok(Self::BancaFideuram),
+            grpc_api_types::payments::BankNames::BancaFinnatEuramericaSpa => {
+                Ok(Self::BancaFinnatEuramericaSpa)
+            }
+            grpc_api_types::payments::BankNames::BancaGeneraliSpa => Ok(Self::BancaGeneraliSpa),
+            grpc_api_types::payments::BankNames::BancaLazioNord => Ok(Self::BancaLazioNord),
+            grpc_api_types::payments::BankNames::BancaMalatestiana => Ok(Self::BancaMalatestiana),
+            grpc_api_types::payments::BankNames::BancaMonteDeiPaschiDiSiena => {
+                Ok(Self::BancaMonteDeiPaschiDiSiena)
+            }
+            grpc_api_types::payments::BankNames::BancaPassadore => Ok(Self::BancaPassadore),
+            grpc_api_types::payments::BankNames::BancaPatavina => Ok(Self::BancaPatavina),
+            grpc_api_types::payments::BankNames::BancaPatrimoniSella => {
+                Ok(Self::BancaPatrimoniSella)
+            }
+            grpc_api_types::payments::BankNames::BancaPerIlTrentinoaltoadige => {
+                Ok(Self::BancaPerIlTrentinoaltoadige)
+            }
+            grpc_api_types::payments::BankNames::BancaPopolareDelLazioScpa => {
+                Ok(Self::BancaPopolareDelLazioScpa)
+            }
+            grpc_api_types::payments::BankNames::BancaPopolareDellAltoAdige => {
+                Ok(Self::BancaPopolareDellAltoAdige)
+            }
+            grpc_api_types::payments::BankNames::BancaPopolareDiSondrio => {
+                Ok(Self::BancaPopolareDiSondrio)
+            }
+            grpc_api_types::payments::BankNames::BancaPopolarePugliese => {
+                Ok(Self::BancaPopolarePugliese)
+            }
+            grpc_api_types::payments::BankNames::BancaPopolareValconcaScpa => {
+                Ok(Self::BancaPopolareValconcaScpa)
+            }
+            grpc_api_types::payments::BankNames::BancaSanFrancescoCreditoCoop => {
+                Ok(Self::BancaSanFrancescoCreditoCoop)
+            }
+            grpc_api_types::payments::BankNames::BancaSella => Ok(Self::BancaSella),
+            grpc_api_types::payments::BankNames::BancaSistemaSpa => Ok(Self::BancaSistemaSpa),
+            grpc_api_types::payments::BankNames::BancaSviluppoCooperazCredito => {
+                Ok(Self::BancaSviluppoCooperazCredito)
+            }
+            grpc_api_types::payments::BankNames::BancaTema => Ok(Self::BancaTema),
+            grpc_api_types::payments::BankNames::BancaTerreEtruscheEDiMaremma => {
+                Ok(Self::BancaTerreEtruscheEDiMaremma)
+            }
+            grpc_api_types::payments::BankNames::BancaTerritoriDelMonviso => {
+                Ok(Self::BancaTerritoriDelMonviso)
+            }
+            grpc_api_types::payments::BankNames::BancaValsabbina => Ok(Self::BancaValsabbina),
+            grpc_api_types::payments::BankNames::BancaVeroneseCcDiConcamarise => {
+                Ok(Self::BancaVeroneseCcDiConcamarise)
+            }
+            grpc_api_types::payments::BankNames::BancoAzzoaglio => Ok(Self::BancoAzzoaglio),
+            grpc_api_types::payments::BankNames::BancoBpmSpaServizioWebank => {
+                Ok(Self::BancoBpmSpaServizioWebank)
+            }
+            grpc_api_types::payments::BankNames::BancoBpmSpaServizioYouweb => {
+                Ok(Self::BancoBpmSpaServizioYouweb)
+            }
+            grpc_api_types::payments::BankNames::BancoBpmSpaYoubusinessWeb => {
+                Ok(Self::BancoBpmSpaYoubusinessWeb)
+            }
+            grpc_api_types::payments::BankNames::BancoBpmWeBank => Ok(Self::BancoBpmWeBank),
+            grpc_api_types::payments::BankNames::BancoBpmYouWeb => Ok(Self::BancoBpmYouWeb),
+            grpc_api_types::payments::BankNames::BancoDeSabadell => Ok(Self::BancoDeSabadell),
+            grpc_api_types::payments::BankNames::BancoDesioBrianza => Ok(Self::BancoDesioBrianza),
+            grpc_api_types::payments::BankNames::BancoDiSardegna => Ok(Self::BancoDiSardegna),
+            grpc_api_types::payments::BankNames::BancoMarchigiano => Ok(Self::BancoMarchigiano),
+            grpc_api_types::payments::BankNames::BancoPosta => Ok(Self::BancoPosta),
+            grpc_api_types::payments::BankNames::BancoSantander => Ok(Self::BancoSantander),
+            grpc_api_types::payments::BankNames::BankOfIreland => Ok(Self::BankOfIreland),
+            grpc_api_types::payments::BankNames::BankOfIrelandBusiness => {
+                Ok(Self::BankOfIrelandBusiness)
+            }
+            grpc_api_types::payments::BankNames::BankOfIrelandUk => Ok(Self::BankOfIrelandUk),
+            grpc_api_types::payments::BankNames::BankOfScotlandBusiness => {
+                Ok(Self::BankOfScotlandBusiness)
+            }
+            grpc_api_types::payments::BankNames::Bankinter => Ok(Self::Bankinter),
+            grpc_api_types::payments::BankNames::BanqueDeSavoie => Ok(Self::BanqueDeSavoie),
+            grpc_api_types::payments::BankNames::BanquePopulaire => Ok(Self::BanquePopulaire),
+            grpc_api_types::payments::BankNames::Barclaycard => Ok(Self::Barclaycard),
+            grpc_api_types::payments::BankNames::BarclaysBusiness => Ok(Self::BarclaysBusiness),
+            grpc_api_types::payments::BankNames::BawagPsk => Ok(Self::BawagPsk),
+            grpc_api_types::payments::BankNames::Bbva => Ok(Self::Bbva),
+            grpc_api_types::payments::BankNames::BccAbruzzeseCappelleSulTavo => {
+                Ok(Self::BccAbruzzeseCappelleSulTavo)
+            }
+            grpc_api_types::payments::BankNames::BccAbruzziEMolise => Ok(Self::BccAbruzziEMolise),
+            grpc_api_types::payments::BankNames::BccAdriaticoTeramano => {
+                Ok(Self::BccAdriaticoTeramano)
+            }
+            grpc_api_types::payments::BankNames::BccAgroBresciano => Ok(Self::BccAgroBresciano),
+            grpc_api_types::payments::BankNames::BccAgroPontino => Ok(Self::BccAgroPontino),
+            grpc_api_types::payments::BankNames::BccAlberobelloSammicheleMonopoli => {
+                Ok(Self::BccAlberobelloSammicheleMonopoli)
+            }
+            grpc_api_types::payments::BankNames::BccAltoTirrenoDellaCalabria => {
+                Ok(Self::BccAltoTirrenoDellaCalabria)
+            }
+            grpc_api_types::payments::BankNames::BccAnagni => Ok(Self::BccAnagni),
+            grpc_api_types::payments::BankNames::BccBasilicata => Ok(Self::BccBasilicata),
+            grpc_api_types::payments::BankNames::BccBellegra => Ok(Self::BccBellegra),
+            grpc_api_types::payments::BankNames::BccBrescia => Ok(Self::BccBrescia),
+            grpc_api_types::payments::BankNames::BccBrianzaELaghi => Ok(Self::BccBrianzaELaghi),
+            grpc_api_types::payments::BankNames::BccCampaniaCentro => Ok(Self::BccCampaniaCentro),
+            grpc_api_types::payments::BankNames::BccCapaccioPaestum => Ok(Self::BccCapaccioPaestum),
+            grpc_api_types::payments::BankNames::BccCastelliRomaniETuscolo => {
+                Ok(Self::BccCastelliRomaniETuscolo)
+            }
+            grpc_api_types::payments::BankNames::BccCentroCalabria => Ok(Self::BccCentroCalabria),
+            grpc_api_types::payments::BankNames::BccConversano => Ok(Self::BccConversano),
+            grpc_api_types::payments::BankNames::BccDegliUliviTerraDiBari => {
+                Ok(Self::BccDegliUliviTerraDiBari)
+            }
+            grpc_api_types::payments::BankNames::BccDeiCastelliEDegliIblei => {
+                Ok(Self::BccDeiCastelliEDegliIblei)
+            }
+            grpc_api_types::payments::BankNames::BccDeiColliAlbani => Ok(Self::BccDeiColliAlbani),
+            grpc_api_types::payments::BankNames::BccDelCirceoEPrivernate => {
+                Ok(Self::BccDelCirceoEPrivernate)
+            }
+            grpc_api_types::payments::BankNames::BccDelGarda => Ok(Self::BccDelGarda),
+            grpc_api_types::payments::BankNames::BccDelMetauro => Ok(Self::BccDelMetauro),
+            grpc_api_types::payments::BankNames::BccDelVelino => Ok(Self::BccDelVelino),
+            grpc_api_types::payments::BankNames::BccDellAltaMurgia => Ok(Self::BccDellAltaMurgia),
+            grpc_api_types::payments::BankNames::BccDellaProvinciaRomana => {
+                Ok(Self::BccDellaProvinciaRomana)
+            }
+            grpc_api_types::payments::BankNames::BccDellaRomagnaOccidentale => {
+                Ok(Self::BccDellaRomagnaOccidentale)
+            }
+            grpc_api_types::payments::BankNames::BccDelleMadonie => Ok(Self::BccDelleMadonie),
+            grpc_api_types::payments::BankNames::BccDiAltofonteECaccamo => {
+                Ok(Self::BccDiAltofonteECaccamo)
+            }
+            grpc_api_types::payments::BankNames::BccDiAquara => Ok(Self::BccDiAquara),
+            grpc_api_types::payments::BankNames::BccDiArborea => Ok(Self::BccDiArborea),
+            grpc_api_types::payments::BankNames::BccDiBari => Ok(Self::BccDiBari),
+            grpc_api_types::payments::BankNames::BccDiBarlassina => Ok(Self::BccDiBarlassina),
+            grpc_api_types::payments::BankNames::BccDiBeneVagienna => Ok(Self::BccDiBeneVagienna),
+            grpc_api_types::payments::BankNames::BccDiBinasco => Ok(Self::BccDiBinasco),
+            grpc_api_types::payments::BankNames::BccDiBuccinoEComuniCilentani => {
+                Ok(Self::BccDiBuccinoEComuniCilentani)
+            }
+            grpc_api_types::payments::BankNames::BccDiBustoGarolfoEBuguggiate => {
+                Ok(Self::BccDiBustoGarolfoEBuguggiate)
+            }
+            grpc_api_types::payments::BankNames::BccDiCagliari => Ok(Self::BccDiCagliari),
+            grpc_api_types::payments::BankNames::BccDiCanosaLoconia => Ok(Self::BccDiCanosaLoconia),
+            grpc_api_types::payments::BankNames::BccDiCaravaggio => Ok(Self::BccDiCaravaggio),
+            grpc_api_types::payments::BankNames::BccDiCassanoDelleMurgeETolve => {
+                Ok(Self::BccDiCassanoDelleMurgeETolve)
+            }
+            grpc_api_types::payments::BankNames::BccDiCherasco => Ok(Self::BccDiCherasco),
+            grpc_api_types::payments::BankNames::BccDiFilottrano => Ok(Self::BccDiFilottrano),
+            grpc_api_types::payments::BankNames::BccDiFlumeri => Ok(Self::BccDiFlumeri),
+            grpc_api_types::payments::BankNames::BccDiGambatesa => Ok(Self::BccDiGambatesa),
+            grpc_api_types::payments::BankNames::BccDiGaudianoDiLavello => {
+                Ok(Self::BccDiGaudianoDiLavello)
+            }
+            grpc_api_types::payments::BankNames::BccDiLeverano => Ok(Self::BccDiLeverano),
+            grpc_api_types::payments::BankNames::BccDiLocorotondo => Ok(Self::BccDiLocorotondo),
+            grpc_api_types::payments::BankNames::BccDiMontepaone => Ok(Self::BccDiMontepaone),
+            grpc_api_types::payments::BankNames::BccDiNapoli => Ok(Self::BccDiNapoli),
+            grpc_api_types::payments::BankNames::BccDiOstraEMorroDAlba => {
+                Ok(Self::BccDiOstraEMorroDAlba)
+            }
+            grpc_api_types::payments::BankNames::BccDiOstuni => Ok(Self::BccDiOstuni),
+            grpc_api_types::payments::BankNames::BccDiPachino => Ok(Self::BccDiPachino),
+            grpc_api_types::payments::BankNames::BccDiPergolaECorinaldo => {
+                Ok(Self::BccDiPergolaECorinaldo)
+            }
+            grpc_api_types::payments::BankNames::BccDiPianfeiERoccaDeBaldi => {
+                Ok(Self::BccDiPianfeiERoccaDeBaldi)
+            }
+            grpc_api_types::payments::BankNames::BccDiPontassieve => Ok(Self::BccDiPontassieve),
+            grpc_api_types::payments::BankNames::BccDiRecanatiEColmurano => {
+                Ok(Self::BccDiRecanatiEColmurano)
+            }
+            grpc_api_types::payments::BankNames::BccDiRoma => Ok(Self::BccDiRoma),
+            grpc_api_types::payments::BankNames::BccDiSanGiovanniRotondo => {
+                Ok(Self::BccDiSanGiovanniRotondo)
+            }
+            grpc_api_types::payments::BankNames::BccDiSanMarzanoDiSanGiuseppe => {
+                Ok(Self::BccDiSanMarzanoDiSanGiuseppe)
+            }
+            grpc_api_types::payments::BankNames::BccDiSanteramoInColle => {
+                Ok(Self::BccDiSanteramoInColle)
+            }
+            grpc_api_types::payments::BankNames::BccDiSarsina => Ok(Self::BccDiSarsina),
+            grpc_api_types::payments::BankNames::BccDiScafatiECetara => {
+                Ok(Self::BccDiScafatiECetara)
+            }
+            grpc_api_types::payments::BankNames::BccDiSmarcoDeiCavoti => {
+                Ok(Self::BccDiSmarcoDeiCavoti)
+            }
+            grpc_api_types::payments::BankNames::BccDiSpelloEDelVelino => {
+                Ok(Self::BccDiSpelloEDelVelino)
+            }
+            grpc_api_types::payments::BankNames::BccDiTerraDOtranto => Ok(Self::BccDiTerraDOtranto),
+            grpc_api_types::payments::BankNames::BccFelsinea => Ok(Self::BccFelsinea),
+            grpc_api_types::payments::BankNames::BccGTonioloDiSanCataldo => {
+                Ok(Self::BccGTonioloDiSanCataldo)
+            }
+            grpc_api_types::payments::BankNames::BccGranSassoDItalia => {
+                Ok(Self::BccGranSassoDItalia)
+            }
+            grpc_api_types::payments::BankNames::BccLaRiscossaDiRegalbuto => {
+                Ok(Self::BccLaRiscossaDiRegalbuto)
+            }
+            grpc_api_types::payments::BankNames::BccLodi => Ok(Self::BccLodi),
+            grpc_api_types::payments::BankNames::BccMilano => Ok(Self::BccMilano),
+            grpc_api_types::payments::BankNames::BccMontePruno => Ok(Self::BccMontePruno),
+            grpc_api_types::payments::BankNames::BccNettuno => Ok(Self::BccNettuno),
+            grpc_api_types::payments::BankNames::BccOglioESerio => Ok(Self::BccOglioESerio),
+            grpc_api_types::payments::BankNames::BccPordenoneseEMonsile => {
+                Ok(Self::BccPordenoneseEMonsile)
+            }
+            grpc_api_types::payments::BankNames::BccPratolaPeligna => Ok(Self::BccPratolaPeligna),
+            grpc_api_types::payments::BankNames::BccPrealpiSanBiagio => {
+                Ok(Self::BccPrealpiSanBiagio)
+            }
+            grpc_api_types::payments::BankNames::BccRavennaForliImola => {
+                Ok(Self::BccRavennaForliImola)
+            }
+            grpc_api_types::payments::BankNames::BccSanGiuseppeDiMussomeli => {
+                Ok(Self::BccSanGiuseppeDiMussomeli)
+            }
+            grpc_api_types::payments::BankNames::BccTerraDiLavoro => Ok(Self::BccTerraDiLavoro),
+            grpc_api_types::payments::BankNames::BccTriuggioValleDelLambro => {
+                Ok(Self::BccTriuggioValleDelLambro)
+            }
+            grpc_api_types::payments::BankNames::BccValdarnoFiorentino => {
+                Ok(Self::BccValdarnoFiorentino)
+            }
+            grpc_api_types::payments::BankNames::BccValdostana => Ok(Self::BccValdostana),
+            grpc_api_types::payments::BankNames::BccValleDelTorto => Ok(Self::BccValleDelTorto),
+            grpc_api_types::payments::BankNames::BccVeneta => Ok(Self::BccVeneta),
+            grpc_api_types::payments::BankNames::BccVeneziaGiulia => Ok(Self::BccVeneziaGiulia),
+            grpc_api_types::payments::BankNames::BccVersiliaLunigianaEGarfagnana => {
+                Ok(Self::BccVersiliaLunigianaEGarfagnana)
+            }
+            grpc_api_types::payments::BankNames::BccVicentinoPojanaMaggiore => {
+                Ok(Self::BccVicentinoPojanaMaggiore)
+            }
+            grpc_api_types::payments::BankNames::Belfius => Ok(Self::Belfius),
+            grpc_api_types::payments::BankNames::Beobank => Ok(Self::Beobank),
+            grpc_api_types::payments::BankNames::BiBanca => Ok(Self::BiBanca),
+            grpc_api_types::payments::BankNames::BluBancaSpa => Ok(Self::BluBancaSpa),
+            grpc_api_types::payments::BankNames::Bnl => Ok(Self::Bnl),
+            grpc_api_types::payments::BankNames::BnpParibasFortis => Ok(Self::BnpParibasFortis),
+            grpc_api_types::payments::BankNames::BoursoBank => Ok(Self::BoursoBank),
+            grpc_api_types::payments::BankNames::Bozen => Ok(Self::Bozen),
+            grpc_api_types::payments::BankNames::Bpe => Ok(Self::Bpe),
+            grpc_api_types::payments::BankNames::BperBanca => Ok(Self::BperBanca),
+            grpc_api_types::payments::BankNames::BvrBancaBancheVeneteRiunite => {
+                Ok(Self::BvrBancaBancheVeneteRiunite)
+            }
+            grpc_api_types::payments::BankNames::CaisseDEpargne => Ok(Self::CaisseDEpargne),
+            grpc_api_types::payments::BankNames::Caixa => Ok(Self::Caixa),
+            grpc_api_types::payments::BankNames::CajaRural => Ok(Self::CajaRural),
+            grpc_api_types::payments::BankNames::Cajamar => Ok(Self::Cajamar),
+            grpc_api_types::payments::BankNames::CassaCentraleBanca => Ok(Self::CassaCentraleBanca),
+            grpc_api_types::payments::BankNames::CassaDiRisparmioDiBolzano => {
+                Ok(Self::CassaDiRisparmioDiBolzano)
+            }
+            grpc_api_types::payments::BankNames::CassaDiRisparmioDiFermoSpa => {
+                Ok(Self::CassaDiRisparmioDiFermoSpa)
+            }
+            grpc_api_types::payments::BankNames::CassaDiRisparmioDiSavigliano => {
+                Ok(Self::CassaDiRisparmioDiSavigliano)
+            }
+            grpc_api_types::payments::BankNames::CassaPadana => Ok(Self::CassaPadana),
+            grpc_api_types::payments::BankNames::CassaRuraleAltaValsugana => {
+                Ok(Self::CassaRuraleAltaValsugana)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleAltoGardaRovereto => {
+                Ok(Self::CassaRuraleAltoGardaRovereto)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleDiLedro => Ok(Self::CassaRuraleDiLedro),
+            grpc_api_types::payments::BankNames::CassaRuraleDiTreviglio => {
+                Ok(Self::CassaRuraleDiTreviglio)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleFvg => Ok(Self::CassaRuraleFvg),
+            grpc_api_types::payments::BankNames::CassaRuraleRenon => Ok(Self::CassaRuraleRenon),
+            grpc_api_types::payments::BankNames::CassaRuraleValDiFiemme => {
+                Ok(Self::CassaRuraleValDiFiemme)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleValDiSole => {
+                Ok(Self::CassaRuraleValDiSole)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleVallagarina => {
+                Ok(Self::CassaRuraleVallagarina)
+            }
+            grpc_api_types::payments::BankNames::CassaRuraleValsuganaETesino => {
+                Ok(Self::CassaRuraleValsuganaETesino)
+            }
+            grpc_api_types::payments::BankNames::CastagnetoBanca1910 => {
+                Ok(Self::CastagnetoBanca1910)
+            }
+            grpc_api_types::payments::BankNames::CbcBanque => Ok(Self::CbcBanque),
+            grpc_api_types::payments::BankNames::CentromarcaBanca => Ok(Self::CentromarcaBanca),
+            grpc_api_types::payments::BankNames::ChiantibancaCreditoCooperativo => {
+                Ok(Self::ChiantibancaCreditoCooperativo)
+            }
+            grpc_api_types::payments::BankNames::Cic => Ok(Self::Cic),
+            grpc_api_types::payments::BankNames::ClydesdaleBank => Ok(Self::ClydesdaleBank),
+            grpc_api_types::payments::BankNames::Comdirect => Ok(Self::Comdirect),
+            grpc_api_types::payments::BankNames::Commerzbank => Ok(Self::Commerzbank),
+            grpc_api_types::payments::BankNames::Cortinabanca => Ok(Self::Cortinabanca),
+            grpc_api_types::payments::BankNames::Coutts => Ok(Self::Coutts),
+            grpc_api_types::payments::BankNames::CrValDiNonRotalianaEGiovo => {
+                Ok(Self::CrValDiNonRotalianaEGiovo)
+            }
+            grpc_api_types::payments::BankNames::CraBccDiCantu => Ok(Self::CraBccDiCantu),
+            grpc_api_types::payments::BankNames::CraDiBorgoSanGiacomo => {
+                Ok(Self::CraDiBorgoSanGiacomo)
+            }
+            grpc_api_types::payments::BankNames::CraDiBoves => Ok(Self::CraDiBoves),
+            grpc_api_types::payments::BankNames::CraDiPaliano => Ok(Self::CraDiPaliano),
+            grpc_api_types::payments::BankNames::Credem => Ok(Self::Credem),
+            grpc_api_types::payments::BankNames::Credifriuli => Ok(Self::Credifriuli),
+            grpc_api_types::payments::BankNames::CreditMutuel => Ok(Self::CreditMutuel),
+            grpc_api_types::payments::BankNames::CreditMutuelDeBretagne => {
+                Ok(Self::CreditMutuelDeBretagne)
+            }
+            grpc_api_types::payments::BankNames::CreditMutuelDuSudOuest => {
+                Ok(Self::CreditMutuelDuSudOuest)
+            }
+            grpc_api_types::payments::BankNames::CreditoCooperativoAgrigentino => {
+                Ok(Self::CreditoCooperativoAgrigentino)
+            }
+            grpc_api_types::payments::BankNames::CreditoCooperativoMediocrati => {
+                Ok(Self::CreditoCooperativoMediocrati)
+            }
+            grpc_api_types::payments::BankNames::CreditoCooperativoRomagnolo => {
+                Ok(Self::CreditoCooperativoRomagnolo)
+            }
+            grpc_api_types::payments::BankNames::CreditoDiRomagna => Ok(Self::CreditoDiRomagna),
+            grpc_api_types::payments::BankNames::CreditoLombardoVeneto => {
+                Ok(Self::CreditoLombardoVeneto)
+            }
+            grpc_api_types::payments::BankNames::DanskeBankBusiness => Ok(Self::DanskeBankBusiness),
+            grpc_api_types::payments::BankNames::Desio => Ok(Self::Desio),
+            grpc_api_types::payments::BankNames::DeutscheBank => Ok(Self::DeutscheBank),
+            grpc_api_types::payments::BankNames::Dkb => Ok(Self::Dkb),
+            grpc_api_types::payments::BankNames::EasyBank => Ok(Self::EasyBank),
+            grpc_api_types::payments::BankNames::Ebs => Ok(Self::Ebs),
+            grpc_api_types::payments::BankNames::EmilbancaCc => Ok(Self::EmilbancaCc),
+            grpc_api_types::payments::BankNames::ErsteBank => Ok(Self::ErsteBank),
+            grpc_api_types::payments::BankNames::EvoBanco => Ok(Self::EvoBanco),
+            grpc_api_types::payments::BankNames::Fineco => Ok(Self::Fineco),
+            grpc_api_types::payments::BankNames::Fintro => Ok(Self::Fintro),
+            grpc_api_types::payments::BankNames::Fortuneo => Ok(Self::Fortuneo),
+            grpc_api_types::payments::BankNames::FpbCassaDiFassaPrimieroBelluno => {
+                Ok(Self::FpbCassaDiFassaPrimieroBelluno)
+            }
+            grpc_api_types::payments::BankNames::HelloBank => Ok(Self::HelloBank),
+            grpc_api_types::payments::BankNames::Hsbc => Ok(Self::Hsbc),
+            grpc_api_types::payments::BankNames::HsbcBusiness => Ok(Self::HsbcBusiness),
+            grpc_api_types::payments::BankNames::Hype => Ok(Self::Hype),
+            grpc_api_types::payments::BankNames::HypoVereinsbank => Ok(Self::HypoVereinsbank),
+            grpc_api_types::payments::BankNames::Ibercaja => Ok(Self::Ibercaja),
+            grpc_api_types::payments::BankNames::IccreaBancaSpa => Ok(Self::IccreaBancaSpa),
+            grpc_api_types::payments::BankNames::Illimity => Ok(Self::Illimity),
+            grpc_api_types::payments::BankNames::Imagin => Ok(Self::Imagin),
+            grpc_api_types::payments::BankNames::ImprebancaSpa => Ok(Self::ImprebancaSpa),
+            grpc_api_types::payments::BankNames::IntesaSanpaolo => Ok(Self::IntesaSanpaolo),
+            grpc_api_types::payments::BankNames::IntesaSanpaoloInbiz => {
+                Ok(Self::IntesaSanpaoloInbiz)
+            }
+            grpc_api_types::payments::BankNames::IntesaSanpaoloPrivateBankingSpa => {
+                Ok(Self::IntesaSanpaoloPrivateBankingSpa)
+            }
+            grpc_api_types::payments::BankNames::Isybank => Ok(Self::Isybank),
+            grpc_api_types::payments::BankNames::Kbc => Ok(Self::Kbc),
+            grpc_api_types::payments::BankNames::KbcBrussels => Ok(Self::KbcBrussels),
+            grpc_api_types::payments::BankNames::Kutxabank => Ok(Self::Kutxabank),
+            grpc_api_types::payments::BankNames::LaBanquePostale => Ok(Self::LaBanquePostale),
+            grpc_api_types::payments::BankNames::LaBanquePostaleBusiness => {
+                Ok(Self::LaBanquePostaleBusiness)
+            }
+            grpc_api_types::payments::BankNames::LaCassaDiRavennaSpa => {
+                Ok(Self::LaCassaDiRavennaSpa)
+            }
+            grpc_api_types::payments::BankNames::LaCassaRurale => Ok(Self::LaCassaRurale),
+            grpc_api_types::payments::BankNames::LaboralKutxa => Ok(Self::LaboralKutxa),
+            grpc_api_types::payments::BankNames::Lcl => Ok(Self::Lcl),
+            grpc_api_types::payments::BankNames::LisPaySpa => Ok(Self::LisPaySpa),
+            grpc_api_types::payments::BankNames::LloydsBusiness => Ok(Self::LloydsBusiness),
+            grpc_api_types::payments::BankNames::LloydsCommercial => Ok(Self::LloydsCommercial),
+            grpc_api_types::payments::BankNames::MsBank => Ok(Self::MSBank),
+            grpc_api_types::payments::BankNames::Mbna => Ok(Self::Mbna),
+            grpc_api_types::payments::BankNames::MettleBank => Ok(Self::MettleBank),
+            grpc_api_types::payments::BankNames::Monabanq => Ok(Self::Monabanq),
+            grpc_api_types::payments::BankNames::Mooney => Ok(Self::Mooney),
+            grpc_api_types::payments::BankNames::Mps => Ok(Self::Mps),
+            grpc_api_types::payments::BankNames::NatWestBankline => Ok(Self::NatWestBankline),
+            grpc_api_types::payments::BankNames::Nationwide => Ok(Self::Nationwide),
+            grpc_api_types::payments::BankNames::Nordea => Ok(Self::Nordea),
+            grpc_api_types::payments::BankNames::OmaSp => Ok(Self::OmaSp),
+            grpc_api_types::payments::BankNames::Op => Ok(Self::Op),
+            grpc_api_types::payments::BankNames::Openbank => Ok(Self::Openbank),
+            grpc_api_types::payments::BankNames::PopPankki => Ok(Self::PopPankki),
+            grpc_api_types::payments::BankNames::PostePayEvolution => Ok(Self::PostePayEvolution),
+            grpc_api_types::payments::BankNames::PrimacassaFvg => Ok(Self::PrimacassaFvg),
+            grpc_api_types::payments::BankNames::Ptsb => Ok(Self::Ptsb),
+            grpc_api_types::payments::BankNames::RaiffeisenAlgund => Ok(Self::RaiffeisenAlgund),
+            grpc_api_types::payments::BankNames::RaiffeisenAltaPusteria => {
+                Ok(Self::RaiffeisenAltaPusteria)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenAltaVenosta => {
+                Ok(Self::RaiffeisenAltaVenosta)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenAltoAdige => {
+                Ok(Self::RaiffeisenAltoAdige)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenBassaAtesina => {
+                Ok(Self::RaiffeisenBassaAtesina)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenBassaValleIsarco => {
+                Ok(Self::RaiffeisenBassaValleIsarco)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenBassaVenosta => {
+                Ok(Self::RaiffeisenBassaVenosta)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenBolzano => Ok(Self::RaiffeisenBolzano),
+            grpc_api_types::payments::BankNames::RaiffeisenBozen => Ok(Self::RaiffeisenBozen),
+            grpc_api_types::payments::BankNames::RaiffeisenBruneck => Ok(Self::RaiffeisenBruneck),
+            grpc_api_types::payments::BankNames::RaiffeisenBrunico => Ok(Self::RaiffeisenBrunico),
+            grpc_api_types::payments::BankNames::RaiffeisenCampoDiTrens => {
+                Ok(Self::RaiffeisenCampoDiTrens)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenCassaCentrAltoAdige => {
+                Ok(Self::RaiffeisenCassaCentrAltoAdige)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenCastelrottoortisei => {
+                Ok(Self::RaiffeisenCastelrottoortisei)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenDeutschnofenaldein => {
+                Ok(Self::RaiffeisenDeutschnofenaldein)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenDobbiaco => Ok(Self::RaiffeisenDobbiaco),
+            grpc_api_types::payments::BankNames::RaiffeisenEisacktal => {
+                Ok(Self::RaiffeisenEisacktal)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenEtschtal => Ok(Self::RaiffeisenEtschtal),
+            grpc_api_types::payments::BankNames::RaiffeisenFreienfeld => {
+                Ok(Self::RaiffeisenFreienfeld)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenFunes => Ok(Self::RaiffeisenFunes),
+            grpc_api_types::payments::BankNames::RaiffeisenGadertal => Ok(Self::RaiffeisenGadertal),
+            grpc_api_types::payments::BankNames::RaiffeisenGroeden => Ok(Self::RaiffeisenGroeden),
+            grpc_api_types::payments::BankNames::RaiffeisenHochpustertal => {
+                Ok(Self::RaiffeisenHochpustertal)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenKastelruthstulrich => {
+                Ok(Self::RaiffeisenKastelruthstulrich)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenLaas => Ok(Self::RaiffeisenLaas),
+            grpc_api_types::payments::BankNames::RaiffeisenLaces => Ok(Self::RaiffeisenLaces),
+            grpc_api_types::payments::BankNames::RaiffeisenLagundo => Ok(Self::RaiffeisenLagundo),
+            grpc_api_types::payments::BankNames::RaiffeisenLana => Ok(Self::RaiffeisenLana),
+            grpc_api_types::payments::BankNames::RaiffeisenLandesbankSuedtirol => {
+                Ok(Self::RaiffeisenLandesbankSuedtirol)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenLasa => Ok(Self::RaiffeisenLasa),
+            grpc_api_types::payments::BankNames::RaiffeisenLatsch => Ok(Self::RaiffeisenLatsch),
+            grpc_api_types::payments::BankNames::RaiffeisenMarlengo => Ok(Self::RaiffeisenMarlengo),
+            grpc_api_types::payments::BankNames::RaiffeisenMarling => Ok(Self::RaiffeisenMarling),
+            grpc_api_types::payments::BankNames::RaiffeisenMeran => Ok(Self::RaiffeisenMeran),
+            grpc_api_types::payments::BankNames::RaiffeisenMerano => Ok(Self::RaiffeisenMerano),
+            grpc_api_types::payments::BankNames::RaiffeisenMonguelfocasiestesido => {
+                Ok(Self::RaiffeisenMonguelfocasiestesido)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenNiederdorf => {
+                Ok(Self::RaiffeisenNiederdorf)
+            }
+            grpc_api_types::payments::BankNames::Raiffeisenbank => Ok(Self::Raiffeisenbank),
+            grpc_api_types::payments::BankNames::RoyalBankOfScotlandBankline => {
+                Ok(Self::RoyalBankOfScotlandBankline)
+            }
+            grpc_api_types::payments::BankNames::SPankki => Ok(Self::SPankki),
+            grpc_api_types::payments::BankNames::Saastopankki => Ok(Self::Saastopankki),
+            grpc_api_types::payments::BankNames::Santander => Ok(Self::Santander),
+            grpc_api_types::payments::BankNames::SantanderBusiness => Ok(Self::SantanderBusiness),
+            grpc_api_types::payments::BankNames::SantanderPersonal => Ok(Self::SantanderPersonal),
+            grpc_api_types::payments::BankNames::Sparkasse => Ok(Self::Sparkasse),
+            grpc_api_types::payments::BankNames::TargoBank => Ok(Self::TargoBank),
+            grpc_api_types::payments::BankNames::Tide => Ok(Self::Tide),
+            grpc_api_types::payments::BankNames::Triodos => Ok(Self::Triodos),
+            grpc_api_types::payments::BankNames::Tsb => Ok(Self::Tsb),
+            grpc_api_types::payments::BankNames::UlsterBankline => Ok(Self::UlsterBankline),
+            grpc_api_types::payments::BankNames::Unicaja => Ok(Self::Unicaja),
+            grpc_api_types::payments::BankNames::VirginMoney => Ok(Self::VirginMoney),
+            grpc_api_types::payments::BankNames::VirginMoneyMerged => Ok(Self::VirginMoneyMerged),
+            grpc_api_types::payments::BankNames::VolksbankenRaiffeisenbanken => {
+                Ok(Self::VolksbankenRaiffeisenbanken)
+            }
+            grpc_api_types::payments::BankNames::Wise => Ok(Self::Wise),
+            grpc_api_types::payments::BankNames::YorkshireBank => Ok(Self::YorkshireBank),
+            grpc_api_types::payments::BankNames::Zempler => Ok(Self::Zempler),
+            grpc_api_types::payments::BankNames::RaiffeisenNovaLevante => {
+                Ok(Self::RaiffeisenNovaLevante)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenNovaPonentealdino => {
+                Ok(Self::RaiffeisenNovaPonentealdino)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenObervinschgau => {
+                Ok(Self::RaiffeisenObervinschgau)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenOltradige => {
+                Ok(Self::RaiffeisenOltradige)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenParcines => Ok(Self::RaiffeisenParcines),
+            grpc_api_types::payments::BankNames::RaiffeisenPartschins => {
+                Ok(Self::RaiffeisenPartschins)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenPasseier => Ok(Self::RaiffeisenPasseier),
+            grpc_api_types::payments::BankNames::RaiffeisenPradtaufers => {
+                Ok(Self::RaiffeisenPradtaufers)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenPratotubre => {
+                Ok(Self::RaiffeisenPratotubre)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenSalorno => Ok(Self::RaiffeisenSalorno),
+            grpc_api_types::payments::BankNames::RaiffeisenSalurn => Ok(Self::RaiffeisenSalurn),
+            grpc_api_types::payments::BankNames::RaiffeisenSanMartinoInPassiria => {
+                Ok(Self::RaiffeisenSanMartinoInPassiria)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenSarntal => Ok(Self::RaiffeisenSarntal),
+            grpc_api_types::payments::BankNames::RaiffeisenScena => Ok(Self::RaiffeisenScena),
+            grpc_api_types::payments::BankNames::RaiffeisenSchenna => Ok(Self::RaiffeisenSchenna),
+            grpc_api_types::payments::BankNames::RaiffeisenSchlanders => {
+                Ok(Self::RaiffeisenSchlanders)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenSchlernrosengarten => {
+                Ok(Self::RaiffeisenSchlernrosengarten)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenSilandro => Ok(Self::RaiffeisenSilandro),
+            grpc_api_types::payments::BankNames::RaiffeisenSuedtirol => {
+                Ok(Self::RaiffeisenSuedtirol)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenTaufererahrntal => {
+                Ok(Self::RaiffeisenTaufererahrntal)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenTesimo => Ok(Self::RaiffeisenTesimo),
+            grpc_api_types::payments::BankNames::RaiffeisenTirol => Ok(Self::RaiffeisenTirol),
+            grpc_api_types::payments::BankNames::RaiffeisenTirolo => Ok(Self::RaiffeisenTirolo),
+            grpc_api_types::payments::BankNames::RaiffeisenTisens => Ok(Self::RaiffeisenTisens),
+            grpc_api_types::payments::BankNames::RaiffeisenToblach => Ok(Self::RaiffeisenToblach),
+            grpc_api_types::payments::BankNames::RaiffeisenTuresaurina => {
+                Ok(Self::RaiffeisenTuresaurina)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUeberetsch => {
+                Ok(Self::RaiffeisenUeberetsch)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUltenstpankrazlaurein => {
+                Ok(Self::RaiffeisenUltenstpankrazlaurein)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUltimospancrlaur => {
+                Ok(Self::RaiffeisenUltimospancrlaur)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUntereisacktal => {
+                Ok(Self::RaiffeisenUntereisacktal)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUnterland => {
+                Ok(Self::RaiffeisenUnterland)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenUntervinschgau => {
+                Ok(Self::RaiffeisenUntervinschgau)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenValBadia => Ok(Self::RaiffeisenValBadia),
+            grpc_api_types::payments::BankNames::RaiffeisenValGardena => {
+                Ok(Self::RaiffeisenValGardena)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenValPassiria => {
+                Ok(Self::RaiffeisenValPassiria)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenValSarentino => {
+                Ok(Self::RaiffeisenValSarentino)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenValleIsarco => {
+                Ok(Self::RaiffeisenValleIsarco)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenVandoies => Ok(Self::RaiffeisenVandoies),
+            grpc_api_types::payments::BankNames::RaiffeisenVillabassa => {
+                Ok(Self::RaiffeisenVillabassa)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenVillnoess => {
+                Ok(Self::RaiffeisenVillnoess)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenVintl => Ok(Self::RaiffeisenVintl),
+            grpc_api_types::payments::BankNames::RaiffeisenWelsberggsiestaisten => {
+                Ok(Self::RaiffeisenWelsberggsiestaisten)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenWelschnofen => {
+                Ok(Self::RaiffeisenWelschnofen)
+            }
+            grpc_api_types::payments::BankNames::RaiffeisenWipptal => Ok(Self::RaiffeisenWipptal),
+            grpc_api_types::payments::BankNames::RaiffeisenkasseRitten => {
+                Ok(Self::RaiffeisenkasseRitten)
+            }
+            grpc_api_types::payments::BankNames::RivieraBanca => Ok(Self::RivieraBanca),
+            grpc_api_types::payments::BankNames::RomagnaBanca => Ok(Self::RomagnaBanca),
+            grpc_api_types::payments::BankNames::Sella => Ok(Self::Sella),
+            grpc_api_types::payments::BankNames::Sicilbanca => Ok(Self::Sicilbanca),
+            grpc_api_types::payments::BankNames::SolutionBank => Ok(Self::SolutionBank),
+            grpc_api_types::payments::BankNames::Suedtiroler => Ok(Self::Suedtiroler),
+            grpc_api_types::payments::BankNames::SuedtirolerSparkasse => {
+                Ok(Self::SuedtirolerSparkasse)
+            }
+            grpc_api_types::payments::BankNames::SuedtirolerVolksbank => {
+                Ok(Self::SuedtirolerVolksbank)
+            }
+            grpc_api_types::payments::BankNames::Unicredit => Ok(Self::Unicredit),
+            grpc_api_types::payments::BankNames::UnicreditOnlineBanking => {
+                Ok(Self::UnicreditOnlineBanking)
+            }
+            grpc_api_types::payments::BankNames::UnicreditUniwebCorporate => {
+                Ok(Self::UnicreditUniwebCorporate)
+            }
+            grpc_api_types::payments::BankNames::ValpolicellaBenacoBanca => {
+                Ok(Self::ValpolicellaBenacoBanca)
+            }
+            grpc_api_types::payments::BankNames::Volksbank => Ok(Self::Volksbank),
+            grpc_api_types::payments::BankNames::VolksbankBancaPopolare => {
+                Ok(Self::VolksbankBancaPopolare)
+            }
+            grpc_api_types::payments::BankNames::Widiba => Ok(Self::Widiba),
+            grpc_api_types::payments::BankNames::ZkbCredcoopdiTriesteEGorizia => {
+                Ok(Self::ZkbCredcoopdiTriesteEGorizia)
+            }
+            grpc_api_types::payments::BankNames::Asn => Ok(Self::Asn),
+            grpc_api_types::payments::BankNames::Sns => Ok(Self::Sns),
+            grpc_api_types::payments::BankNames::Seb => Ok(Self::Seb),
+            grpc_api_types::payments::BankNames::Swedbank => Ok(Self::Swedbank),
+            grpc_api_types::payments::BankNames::MockUkPayments => Ok(Self::MockUkPayments),
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::BankNames> for grpc_api_types::payments::BankNames {
+    fn foreign_from(value: common_enums::BankNames) -> Self {
+        match value {
+            common_enums::BankNames::AmericanExpress => Self::AmericanExpress,
+            common_enums::BankNames::AffinBank => Self::AffinBank,
+            common_enums::BankNames::AgroBank => Self::AgroBank,
+            common_enums::BankNames::AllianceBank => Self::AllianceBank,
+            common_enums::BankNames::AmBank => Self::AmBank,
+            common_enums::BankNames::BankOfAmerica => Self::BankOfAmerica,
+            common_enums::BankNames::BankOfChina => Self::BankOfChina,
+            common_enums::BankNames::BankIslam => Self::BankIslam,
+            common_enums::BankNames::BankMuamalat => Self::BankMuamalat,
+            common_enums::BankNames::BankRakyat => Self::BankRakyat,
+            common_enums::BankNames::BankSimpananNasional => Self::BankSimpananNasional,
+            common_enums::BankNames::Barclays => Self::Barclays,
+            common_enums::BankNames::BlikPSP => Self::BlikPsp,
+            common_enums::BankNames::CapitalOne => Self::CapitalOne,
+            common_enums::BankNames::Chase => Self::Chase,
+            common_enums::BankNames::Citi => Self::Citi,
+            common_enums::BankNames::CimbBank => Self::CimbBank,
+            common_enums::BankNames::Discover => Self::Discover,
+            common_enums::BankNames::NavyFederalCreditUnion => Self::NavyFederalCreditUnion,
+            common_enums::BankNames::PentagonFederalCreditUnion => Self::PentagonFederalCreditUnion,
+            common_enums::BankNames::SynchronyBank => Self::SynchronyBank,
+            common_enums::BankNames::WellsFargo => Self::WellsFargo,
+            common_enums::BankNames::AbnAmro => Self::AbnAmro,
+            common_enums::BankNames::AsnBank => Self::AsnBank,
+            common_enums::BankNames::Bunq => Self::Bunq,
+            common_enums::BankNames::Handelsbanken => Self::Handelsbanken,
+            common_enums::BankNames::HongLeongBank => Self::HongLeongBank,
+            common_enums::BankNames::HsbcBank => Self::HsbcBank,
+            common_enums::BankNames::Ing => Self::Ing,
+            common_enums::BankNames::Knab => Self::Knab,
+            common_enums::BankNames::KuwaitFinanceHouse => Self::KuwaitFinanceHouse,
+            common_enums::BankNames::Moneyou => Self::Moneyou,
+            common_enums::BankNames::Rabobank => Self::Rabobank,
+            common_enums::BankNames::Regiobank => Self::Regiobank,
+            common_enums::BankNames::Revolut => Self::Revolut,
+            common_enums::BankNames::SnsBank => Self::SnsBank,
+            common_enums::BankNames::TriodosBank => Self::TriodosBank,
+            common_enums::BankNames::VanLanschot => Self::VanLanschot,
+            common_enums::BankNames::ArzteUndApothekerBank => Self::ArzteUndApothekerBank,
+            common_enums::BankNames::AustrianAnadiBankAg => Self::AustrianAnadiBankAg,
+            common_enums::BankNames::BankAustria => Self::BankAustria,
+            common_enums::BankNames::Bank99Ag => Self::Bank99Ag,
+            common_enums::BankNames::BankhausCarlSpangler => Self::BankhausCarlSpangler,
+            common_enums::BankNames::BankhausSchelhammerUndSchatteraAg => {
+                Self::BankhausSchelhammerUndSchatteraAg
+            }
+            common_enums::BankNames::BankMillennium => Self::BankMillennium,
+            common_enums::BankNames::BankPEKAOSA => Self::Unspecified,
+            common_enums::BankNames::BawagPskAg => Self::BawagPskAg,
+            common_enums::BankNames::BksBankAg => Self::BksBankAg,
+            common_enums::BankNames::BrullKallmusBankAg => Self::BrullKallmusBankAg,
+            common_enums::BankNames::BtvVierLanderBank => Self::BtvVierLanderBank,
+            common_enums::BankNames::CapitalBankGraweGruppeAg => Self::CapitalBankGraweGruppeAg,
+            common_enums::BankNames::CeskaSporitelna => Self::CeskaSporitelna,
+            common_enums::BankNames::Dolomitenbank => Self::Dolomitenbank,
+            common_enums::BankNames::EasybankAg => Self::EasybankAg,
+            common_enums::BankNames::EPlatbyVUB => Self::EPlatbyVub,
+            common_enums::BankNames::ErsteBankUndSparkassen => Self::ErsteBankUndSparkassen,
+            common_enums::BankNames::FrieslandBank => Self::FrieslandBank,
+            common_enums::BankNames::HypoAlpeadriabankInternationalAg => {
+                Self::HypoAlpeadriabankInternationalAg
+            }
+            common_enums::BankNames::HypoNoeLbFurNiederosterreichUWien => {
+                Self::HypoNoeLbFurNiederosterreichUWien
+            }
+            common_enums::BankNames::HypoOberosterreichSalzburgSteiermark => {
+                Self::HypoOberosterreichSalzburgSteiermark
+            }
+            common_enums::BankNames::HypoTirolBankAg => Self::HypoTirolBankAg,
+            common_enums::BankNames::HypoVorarlbergBankAg => Self::HypoVorarlbergBankAg,
+            common_enums::BankNames::HypoBankBurgenlandAktiengesellschaft => {
+                Self::HypoBankBurgenlandAktiengesellschaft
+            }
+            common_enums::BankNames::KomercniBanka => Self::KomercniBanka,
+            common_enums::BankNames::MBank => Self::MBank,
+            common_enums::BankNames::MarchfelderBank => Self::MarchfelderBank,
+            common_enums::BankNames::Maybank => Self::Maybank,
+            common_enums::BankNames::OberbankAg => Self::OberbankAg,
+            common_enums::BankNames::OsterreichischeArzteUndApothekerbank => {
+                Self::OsterreichischeArzteUndApothekerbank
+            }
+            common_enums::BankNames::OcbcBank => Self::OcbcBank,
+            common_enums::BankNames::PayWithING => Self::PayWithIng,
+            common_enums::BankNames::PlaceZIPKO => Self::PlaceZipko,
+            common_enums::BankNames::PlatnoscOnlineKartaPlatnicza => {
+                Self::PlatnoscOnlineKartaPlatnicza
+            }
+            common_enums::BankNames::PosojilnicaBankEGen => Self::PosojilnicaBankEGen,
+            common_enums::BankNames::PostovaBanka => Self::PostovaBanka,
+            common_enums::BankNames::PublicBank => Self::PublicBank,
+            common_enums::BankNames::RaiffeisenBankengruppeOsterreich => {
+                Self::RaiffeisenBankengruppeOsterreich
+            }
+            common_enums::BankNames::RhbBank => Self::RhbBank,
+            common_enums::BankNames::SchelhammerCapitalBankAg => Self::SchelhammerCapitalBankAg,
+            common_enums::BankNames::StandardCharteredBank => Self::StandardCharteredBank,
+            common_enums::BankNames::SchoellerbankAg => Self::SchoellerbankAg,
+            common_enums::BankNames::SpardaBankWien => Self::SpardaBankWien,
+            common_enums::BankNames::SporoPay => Self::SporoPay,
+            common_enums::BankNames::SantanderPrzelew24 => Self::SantanderPrzelew24,
+            common_enums::BankNames::TatraPay => Self::TatraPay,
+            common_enums::BankNames::Viamo => Self::Viamo,
+            common_enums::BankNames::VolksbankGruppe => Self::VolksbankGruppe,
+            common_enums::BankNames::VolkskreditbankAg => Self::VolkskreditbankAg,
+            common_enums::BankNames::VrBankBraunau => Self::VrBankBraunau,
+            common_enums::BankNames::UobBank => Self::UobBank,
+            common_enums::BankNames::PayWithAliorBank => Self::PayWithAliorBank,
+            common_enums::BankNames::BankiSpoldzielcze => Self::BankiSpoldzielcze,
+            common_enums::BankNames::PayWithInteligo => Self::PayWithInteligo,
+            common_enums::BankNames::BNPParibasPoland => Self::BnpParibasPoland,
+            common_enums::BankNames::BankNowySA => Self::BankNowySa,
+            common_enums::BankNames::CreditAgricole => Self::CreditAgricole,
+            common_enums::BankNames::PayWithBOS => Self::PayWithBos,
+            common_enums::BankNames::PayWithCitiHandlowy => Self::PayWithCitiHandlowy,
+            common_enums::BankNames::PayWithPlusBank => Self::PayWithPlusBank,
+            common_enums::BankNames::ToyotaBank => Self::ToyotaBank,
+            common_enums::BankNames::VeloBank => Self::VeloBank,
+            common_enums::BankNames::ETransferPocztowy24 => Self::ETransferPocztowy24,
+            common_enums::BankNames::PlusBank => Self::PlusBank,
+            common_enums::BankNames::EtransferPocztowy24 => Self::Unspecified,
+            common_enums::BankNames::BankiSpbdzielcze => Self::BankiSpbdzielcze,
+            common_enums::BankNames::BankNowyBfgSa => Self::BankNowyBfgSa,
+            common_enums::BankNames::GetinBank => Self::GetinBank,
+            common_enums::BankNames::Blik => Self::BlikPoland,
+            common_enums::BankNames::NoblePay => Self::NoblePay,
+            common_enums::BankNames::IdeaBank => Self::IdeaBank,
+            common_enums::BankNames::EnveloBank => Self::EnveloBank,
+            common_enums::BankNames::NestPrzelew => Self::NestPrzelew,
+            common_enums::BankNames::MbankMtransfer => Self::MbankMtransfer,
+            common_enums::BankNames::Inteligo => Self::Inteligo,
+            common_enums::BankNames::PbacZIpko => Self::PbacZIpko,
+            common_enums::BankNames::BnpParibas => Self::BnpParibas,
+            common_enums::BankNames::BankPekaoSa => Self::BankPekaoSa,
+            common_enums::BankNames::VolkswagenBank => Self::VolkswagenBank,
+            common_enums::BankNames::AliorBank => Self::AliorBank,
+            common_enums::BankNames::Boz => Self::Boz,
+            common_enums::BankNames::BangkokBank => Self::BangkokBank,
+            common_enums::BankNames::KrungsriBank => Self::KrungsriBank,
+            common_enums::BankNames::KrungThaiBank => Self::KrungThaiBank,
+            common_enums::BankNames::TheSiamCommercialBank => Self::TheSiamCommercialBank,
+            common_enums::BankNames::KasikornBank => Self::KasikornBank,
+            common_enums::BankNames::OpenBankSuccess => Self::OpenBankSuccess,
+            common_enums::BankNames::OpenBankFailure => Self::OpenBankFailure,
+            common_enums::BankNames::OpenBankCancelled => Self::OpenBankCancelled,
+            common_enums::BankNames::Aib => Self::Aib,
+            common_enums::BankNames::BankOfScotland => Self::BankOfScotland,
+            common_enums::BankNames::DanskeBank => Self::DanskeBank,
+            common_enums::BankNames::FirstDirect => Self::FirstDirect,
+            common_enums::BankNames::FirstTrust => Self::FirstTrust,
+            common_enums::BankNames::Halifax => Self::Halifax,
+            common_enums::BankNames::Lloyds => Self::Lloyds,
+            common_enums::BankNames::Monzo => Self::Monzo,
+            common_enums::BankNames::NatWest => Self::NatWest,
+            common_enums::BankNames::NationwideBank => Self::NationwideBank,
+            common_enums::BankNames::RoyalBankOfScotland => Self::RoyalBankOfScotland,
+            common_enums::BankNames::Starling => Self::Starling,
+            common_enums::BankNames::TsbBank => Self::TsbBank,
+            common_enums::BankNames::TescoBank => Self::TescoBank,
+            common_enums::BankNames::UlsterBank => Self::UlsterBank,
+            common_enums::BankNames::Yoursafe => Self::Yoursafe,
+            common_enums::BankNames::N26 => Self::N26,
+            common_enums::BankNames::NationaleNederlanden => Self::NationaleNederlanden,
+            common_enums::BankNames::StateBank => Self::StateBank,
+            common_enums::BankNames::HdfcBank => Self::HdfcBank,
+            common_enums::BankNames::IciciBank => Self::IciciBank,
+            common_enums::BankNames::AxisBank => Self::AxisBank,
+            common_enums::BankNames::KotakMahindraBank => Self::KotakMahindraBank,
+            common_enums::BankNames::PunjabNationalBank => Self::PunjabNationalBank,
+            common_enums::BankNames::BankOfBaroda => Self::BankOfBaroda,
+            common_enums::BankNames::UnionBankOfIndia => Self::UnionBankOfIndia,
+            common_enums::BankNames::CanaraBank => Self::CanaraBank,
+            common_enums::BankNames::IndusIndBank => Self::IndusIndBank,
+            common_enums::BankNames::YesBank => Self::YesBank,
+            common_enums::BankNames::IdbiBank => Self::IdbiBank,
+            common_enums::BankNames::FederalBank => Self::FederalBank,
+            common_enums::BankNames::IndianOverseasBank => Self::IndianOverseasBank,
+            common_enums::BankNames::CentralBankOfIndia => Self::CentralBankOfIndia,
+            common_enums::BankNames::Absa => Self::Absa,
+            common_enums::BankNames::AccessBank => Self::AccessBank,
+            common_enums::BankNames::Albaraka => Self::Albaraka,
+            common_enums::BankNames::ChinaConstructionBank => Self::ChinaConstructionBank,
+            common_enums::BankNames::Discovery => Self::Discovery,
+            common_enums::BankNames::EnlBank => Self::EnlBank,
+            common_enums::BankNames::FirstNationalBank => Self::FirstNationalBank,
+            common_enums::BankNames::GotymeBank => Self::GotymeBank,
+            common_enums::BankNames::HabibOverseas => Self::HabibOverseas,
+            common_enums::BankNames::HbzBank => Self::HbzBank,
+            common_enums::BankNames::Investec => Self::Investec,
+            common_enums::BankNames::JpMorganChase => Self::JpMorganChase,
+            common_enums::BankNames::MtnBanking => Self::MtnBanking,
+            common_enums::BankNames::Olympus => Self::Olympus,
+            common_enums::BankNames::OldMutual => Self::OldMutual,
+            common_enums::BankNames::PermanentBank => Self::PermanentBank,
+            common_enums::BankNames::SocieteGenerale => Self::SocieteGenerale,
+            common_enums::BankNames::StandardBank => Self::StandardBank,
+            common_enums::BankNames::StateBankOfIndia => Self::StateBankOfIndia,
+            common_enums::BankNames::Ubank => Self::Ubank,
+            common_enums::BankNames::VbsMutualBank => Self::VbsMutualBank,
+            common_enums::BankNames::BankZero => Self::BankZero,
+            common_enums::BankNames::BidvestBank => Self::BidvestBank,
+            common_enums::BankNames::BidvestBankAlliances => Self::BidvestBankAlliances,
+            common_enums::BankNames::FbcFidelityBank => Self::FbcFidelityBank,
+            common_enums::BankNames::FinbondEpe => Self::FinbondEpe,
+            common_enums::BankNames::FinbondMutualBank => Self::FinbondMutualBank,
+            common_enums::BankNames::Ithala => Self::Ithala,
+            common_enums::BankNames::PeoplesBankPepBank => Self::PeoplesBankPepBank,
+            common_enums::BankNames::PeoplesBank => Self::PeoplesBank,
+            common_enums::BankNames::PostBank => Self::PostBank,
+            common_enums::BankNames::Nedbank => Self::Nedbank,
+            common_enums::BankNames::Capitec => Self::Capitec,
+            common_enums::BankNames::CapitecBusiness => Self::CapitecBusiness,
+            common_enums::BankNames::AfricanBank => Self::AfricanBank,
+            common_enums::BankNames::AfricanBankBusiness => Self::AfricanBankBusiness,
+            common_enums::BankNames::BankMandiri => Self::BankMandiri,
+            common_enums::BankNames::BankDanamon => Self::BankDanamon,
+            common_enums::BankNames::BankNegaraIndonesia => Self::BankNegaraIndonesia,
+            common_enums::BankNames::BankRakyatIndonesia => Self::BankRakyatIndonesia,
+            common_enums::BankNames::CimbNiaga => Self::CimbNiaga,
+            common_enums::BankNames::PermataBank => Self::PermataBank,
+            common_enums::BankNames::AibBusiness => Self::AibBusiness,
+            common_enums::BankNames::Aktia => Self::Aktia,
+            common_enums::BankNames::Alandsbanken => Self::Alandsbanken,
+            common_enums::BankNames::AllianzBankFinancialAdvisorsSpa => {
+                Self::AllianzBankFinancialAdvisorsSpa
+            }
+            common_enums::BankNames::AllianzBanque => Self::AllianzBanque,
+            common_enums::BankNames::AlliedIrishBank => Self::AlliedIrishBank,
+            common_enums::BankNames::AlliedIrishBankCorporate => Self::AlliedIrishBankCorporate,
+            common_enums::BankNames::AltoAdige => Self::AltoAdige,
+            common_enums::BankNames::AltoAdigeBancaSuedtirolBank => {
+                Self::AltoAdigeBancaSuedtirolBank
+            }
+            common_enums::BankNames::Argenta => Self::Argenta,
+            common_enums::BankNames::ArkeaBanqueEntreprisesEtInstitutionnels => {
+                Self::ArkeaBanqueEntreprisesEtInstitutionnels
+            }
+            common_enums::BankNames::ArkeaBanquePrivee => Self::ArkeaBanquePrivee,
+            common_enums::BankNames::AxaBanque => Self::AxaBanque,
+            common_enums::BankNames::Banca360CreditoCooperativoFvg => {
+                Self::Banca360CreditoCooperativoFvg
+            }
+            common_enums::BankNames::BancaAdriaColliEuganei => Self::BancaAdriaColliEuganei,
+            common_enums::BankNames::BancaAgricolaPopolareDiRagusa => {
+                Self::BancaAgricolaPopolareDiRagusa
+            }
+            common_enums::BankNames::BancaAlpiMarittimeCcCarru => Self::BancaAlpiMarittimeCcCarru,
+            common_enums::BankNames::BancaAltaToscana => Self::BancaAltaToscana,
+            common_enums::BankNames::BancaAnnia => Self::BancaAnnia,
+            common_enums::BankNames::BancaCentroEmilia => Self::BancaCentroEmilia,
+            common_enums::BankNames::BancaCentroLazio => Self::BancaCentroLazio,
+            common_enums::BankNames::BancaCentroToscanaUmbria => Self::BancaCentroToscanaUmbria,
+            common_enums::BankNames::BancaCentropadana => Self::BancaCentropadana,
+            common_enums::BankNames::BancaCesarePonti => Self::BancaCesarePonti,
+            common_enums::BankNames::BancaDelCatanzarese => Self::BancaDelCatanzarese,
+            common_enums::BankNames::BancaDelCilentoDiSassanoEV => Self::BancaDelCilentoDiSassanoEv,
+            common_enums::BankNames::BancaDelPiceno => Self::BancaDelPiceno,
+            common_enums::BankNames::BancaDelPiemonte => Self::BancaDelPiemonte,
+            common_enums::BankNames::BancaDelTerritorioLombardo => Self::BancaDelTerritorioLombardo,
+            common_enums::BankNames::BancaDelVenetoCentrale => Self::BancaDelVenetoCentrale,
+            common_enums::BankNames::BancaDellaMarcaCredcooperativo => {
+                Self::BancaDellaMarcaCredcooperativo
+            }
+            common_enums::BankNames::BancaDelleTerreVenete => Self::BancaDelleTerreVenete,
+            common_enums::BankNames::BancaDiAlbaCreditoCooperativo => {
+                Self::BancaDiAlbaCreditoCooperativo
+            }
+            common_enums::BankNames::BancaDiAnghiariEStiaCc => Self::BancaDiAnghiariEStiaCc,
+            common_enums::BankNames::BancaDiBologna => Self::BancaDiBologna,
+            common_enums::BankNames::BancaDiCaraglio => Self::BancaDiCaraglio,
+            common_enums::BankNames::BancaDiCreditoPopolareScpa => Self::BancaDiCreditoPopolareScpa,
+            common_enums::BankNames::BancaDiImolaSpa => Self::BancaDiImolaSpa,
+            common_enums::BankNames::BancaDiPesaro => Self::BancaDiPesaro,
+            common_enums::BankNames::BancaDiPesciaECascina => Self::BancaDiPesciaECascina,
+            common_enums::BankNames::BancaDiPiacenzaScpa => Self::BancaDiPiacenzaScpa,
+            common_enums::BankNames::BancaDiTarantoBcc => Self::BancaDiTarantoBcc,
+            common_enums::BankNames::BancaDiUdineCreditoCoop => Self::BancaDiUdineCreditoCoop,
+            common_enums::BankNames::BancaDonRizzo => Self::BancaDonRizzo,
+            common_enums::BankNames::BancaFideuram => Self::BancaFideuram,
+            common_enums::BankNames::BancaFinnatEuramericaSpa => Self::BancaFinnatEuramericaSpa,
+            common_enums::BankNames::BancaGeneraliSpa => Self::BancaGeneraliSpa,
+            common_enums::BankNames::BancaLazioNord => Self::BancaLazioNord,
+            common_enums::BankNames::BancaMalatestiana => Self::BancaMalatestiana,
+            common_enums::BankNames::BancaMonteDeiPaschiDiSiena => Self::BancaMonteDeiPaschiDiSiena,
+            common_enums::BankNames::BancaPassadore => Self::BancaPassadore,
+            common_enums::BankNames::BancaPatavina => Self::BancaPatavina,
+            common_enums::BankNames::BancaPatrimoniSella => Self::BancaPatrimoniSella,
+            common_enums::BankNames::BancaPerIlTrentinoaltoadige => {
+                Self::BancaPerIlTrentinoaltoadige
+            }
+            common_enums::BankNames::BancaPopolareDelLazioScpa => Self::BancaPopolareDelLazioScpa,
+            common_enums::BankNames::BancaPopolareDellAltoAdige => Self::BancaPopolareDellAltoAdige,
+            common_enums::BankNames::BancaPopolareDiSondrio => Self::BancaPopolareDiSondrio,
+            common_enums::BankNames::BancaPopolarePugliese => Self::BancaPopolarePugliese,
+            common_enums::BankNames::BancaPopolareValconcaScpa => Self::BancaPopolareValconcaScpa,
+            common_enums::BankNames::BancaSanFrancescoCreditoCoop => {
+                Self::BancaSanFrancescoCreditoCoop
+            }
+            common_enums::BankNames::BancaSella => Self::BancaSella,
+            common_enums::BankNames::BancaSistemaSpa => Self::BancaSistemaSpa,
+            common_enums::BankNames::BancaSviluppoCooperazCredito => {
+                Self::BancaSviluppoCooperazCredito
+            }
+            common_enums::BankNames::BancaTema => Self::BancaTema,
+            common_enums::BankNames::BancaTerreEtruscheEDiMaremma => {
+                Self::BancaTerreEtruscheEDiMaremma
+            }
+            common_enums::BankNames::BancaTerritoriDelMonviso => Self::BancaTerritoriDelMonviso,
+            common_enums::BankNames::BancaValsabbina => Self::BancaValsabbina,
+            common_enums::BankNames::BancaVeroneseCcDiConcamarise => {
+                Self::BancaVeroneseCcDiConcamarise
+            }
+            common_enums::BankNames::BancoAzzoaglio => Self::BancoAzzoaglio,
+            common_enums::BankNames::BancoBpmSpaServizioWebank => Self::BancoBpmSpaServizioWebank,
+            common_enums::BankNames::BancoBpmSpaServizioYouweb => Self::BancoBpmSpaServizioYouweb,
+            common_enums::BankNames::BancoBpmSpaYoubusinessWeb => Self::BancoBpmSpaYoubusinessWeb,
+            common_enums::BankNames::BancoBpmWeBank => Self::BancoBpmWeBank,
+            common_enums::BankNames::BancoBpmYouWeb => Self::BancoBpmYouWeb,
+            common_enums::BankNames::BancoDeSabadell => Self::BancoDeSabadell,
+            common_enums::BankNames::BancoDesioBrianza => Self::BancoDesioBrianza,
+            common_enums::BankNames::BancoDiSardegna => Self::BancoDiSardegna,
+            common_enums::BankNames::BancoMarchigiano => Self::BancoMarchigiano,
+            common_enums::BankNames::BancoPosta => Self::BancoPosta,
+            common_enums::BankNames::BancoSantander => Self::BancoSantander,
+            common_enums::BankNames::BankOfIreland => Self::BankOfIreland,
+            common_enums::BankNames::BankOfIrelandBusiness => Self::BankOfIrelandBusiness,
+            common_enums::BankNames::BankOfIrelandUk => Self::BankOfIrelandUk,
+            common_enums::BankNames::BankOfScotlandBusiness => Self::BankOfScotlandBusiness,
+            common_enums::BankNames::Bankinter => Self::Bankinter,
+            common_enums::BankNames::BanqueDeSavoie => Self::BanqueDeSavoie,
+            common_enums::BankNames::BanquePopulaire => Self::BanquePopulaire,
+            common_enums::BankNames::Barclaycard => Self::Barclaycard,
+            common_enums::BankNames::BarclaysBusiness => Self::BarclaysBusiness,
+            common_enums::BankNames::BawagPsk => Self::BawagPsk,
+            common_enums::BankNames::Bbva => Self::Bbva,
+            common_enums::BankNames::BccAbruzzeseCappelleSulTavo => {
+                Self::BccAbruzzeseCappelleSulTavo
+            }
+            common_enums::BankNames::BccAbruzziEMolise => Self::BccAbruzziEMolise,
+            common_enums::BankNames::BccAdriaticoTeramano => Self::BccAdriaticoTeramano,
+            common_enums::BankNames::BccAgroBresciano => Self::BccAgroBresciano,
+            common_enums::BankNames::BccAgroPontino => Self::BccAgroPontino,
+            common_enums::BankNames::BccAlberobelloSammicheleMonopoli => {
+                Self::BccAlberobelloSammicheleMonopoli
+            }
+            common_enums::BankNames::BccAltoTirrenoDellaCalabria => {
+                Self::BccAltoTirrenoDellaCalabria
+            }
+            common_enums::BankNames::BccAnagni => Self::BccAnagni,
+            common_enums::BankNames::BccBasilicata => Self::BccBasilicata,
+            common_enums::BankNames::BccBellegra => Self::BccBellegra,
+            common_enums::BankNames::BccBrescia => Self::BccBrescia,
+            common_enums::BankNames::BccBrianzaELaghi => Self::BccBrianzaELaghi,
+            common_enums::BankNames::BccCampaniaCentro => Self::BccCampaniaCentro,
+            common_enums::BankNames::BccCapaccioPaestum => Self::BccCapaccioPaestum,
+            common_enums::BankNames::BccCastelliRomaniETuscolo => Self::BccCastelliRomaniETuscolo,
+            common_enums::BankNames::BccCentroCalabria => Self::BccCentroCalabria,
+            common_enums::BankNames::BccConversano => Self::BccConversano,
+            common_enums::BankNames::BccDegliUliviTerraDiBari => Self::BccDegliUliviTerraDiBari,
+            common_enums::BankNames::BccDeiCastelliEDegliIblei => Self::BccDeiCastelliEDegliIblei,
+            common_enums::BankNames::BccDeiColliAlbani => Self::BccDeiColliAlbani,
+            common_enums::BankNames::BccDelCirceoEPrivernate => Self::BccDelCirceoEPrivernate,
+            common_enums::BankNames::BccDelGarda => Self::BccDelGarda,
+            common_enums::BankNames::BccDelMetauro => Self::BccDelMetauro,
+            common_enums::BankNames::BccDelVelino => Self::BccDelVelino,
+            common_enums::BankNames::BccDellAltaMurgia => Self::BccDellAltaMurgia,
+            common_enums::BankNames::BccDellaProvinciaRomana => Self::BccDellaProvinciaRomana,
+            common_enums::BankNames::BccDellaRomagnaOccidentale => Self::BccDellaRomagnaOccidentale,
+            common_enums::BankNames::BccDelleMadonie => Self::BccDelleMadonie,
+            common_enums::BankNames::BccDiAltofonteECaccamo => Self::BccDiAltofonteECaccamo,
+            common_enums::BankNames::BccDiAquara => Self::BccDiAquara,
+            common_enums::BankNames::BccDiArborea => Self::BccDiArborea,
+            common_enums::BankNames::BccDiBari => Self::BccDiBari,
+            common_enums::BankNames::BccDiBarlassina => Self::BccDiBarlassina,
+            common_enums::BankNames::BccDiBeneVagienna => Self::BccDiBeneVagienna,
+            common_enums::BankNames::BccDiBinasco => Self::BccDiBinasco,
+            common_enums::BankNames::BccDiBuccinoEComuniCilentani => {
+                Self::BccDiBuccinoEComuniCilentani
+            }
+            common_enums::BankNames::BccDiBustoGarolfoEBuguggiate => {
+                Self::BccDiBustoGarolfoEBuguggiate
+            }
+            common_enums::BankNames::BccDiCagliari => Self::BccDiCagliari,
+            common_enums::BankNames::BccDiCanosaLoconia => Self::BccDiCanosaLoconia,
+            common_enums::BankNames::BccDiCaravaggio => Self::BccDiCaravaggio,
+            common_enums::BankNames::BccDiCassanoDelleMurgeETolve => {
+                Self::BccDiCassanoDelleMurgeETolve
+            }
+            common_enums::BankNames::BccDiCherasco => Self::BccDiCherasco,
+            common_enums::BankNames::BccDiFilottrano => Self::BccDiFilottrano,
+            common_enums::BankNames::BccDiFlumeri => Self::BccDiFlumeri,
+            common_enums::BankNames::BccDiGambatesa => Self::BccDiGambatesa,
+            common_enums::BankNames::BccDiGaudianoDiLavello => Self::BccDiGaudianoDiLavello,
+            common_enums::BankNames::BccDiLeverano => Self::BccDiLeverano,
+            common_enums::BankNames::BccDiLocorotondo => Self::BccDiLocorotondo,
+            common_enums::BankNames::BccDiMontepaone => Self::BccDiMontepaone,
+            common_enums::BankNames::BccDiNapoli => Self::BccDiNapoli,
+            common_enums::BankNames::BccDiOstraEMorroDAlba => Self::BccDiOstraEMorroDAlba,
+            common_enums::BankNames::BccDiOstuni => Self::BccDiOstuni,
+            common_enums::BankNames::BccDiPachino => Self::BccDiPachino,
+            common_enums::BankNames::BccDiPergolaECorinaldo => Self::BccDiPergolaECorinaldo,
+            common_enums::BankNames::BccDiPianfeiERoccaDeBaldi => Self::BccDiPianfeiERoccaDeBaldi,
+            common_enums::BankNames::BccDiPontassieve => Self::BccDiPontassieve,
+            common_enums::BankNames::BccDiRecanatiEColmurano => Self::BccDiRecanatiEColmurano,
+            common_enums::BankNames::BccDiRoma => Self::BccDiRoma,
+            common_enums::BankNames::BccDiSanGiovanniRotondo => Self::BccDiSanGiovanniRotondo,
+            common_enums::BankNames::BccDiSanMarzanoDiSanGiuseppe => {
+                Self::BccDiSanMarzanoDiSanGiuseppe
+            }
+            common_enums::BankNames::BccDiSanteramoInColle => Self::BccDiSanteramoInColle,
+            common_enums::BankNames::BccDiSarsina => Self::BccDiSarsina,
+            common_enums::BankNames::BccDiScafatiECetara => Self::BccDiScafatiECetara,
+            common_enums::BankNames::BccDiSmarcoDeiCavoti => Self::BccDiSmarcoDeiCavoti,
+            common_enums::BankNames::BccDiSpelloEDelVelino => Self::BccDiSpelloEDelVelino,
+            common_enums::BankNames::BccDiTerraDOtranto => Self::BccDiTerraDOtranto,
+            common_enums::BankNames::BccFelsinea => Self::BccFelsinea,
+            common_enums::BankNames::BccGTonioloDiSanCataldo => Self::BccGTonioloDiSanCataldo,
+            common_enums::BankNames::BccGranSassoDItalia => Self::BccGranSassoDItalia,
+            common_enums::BankNames::BccLaRiscossaDiRegalbuto => Self::BccLaRiscossaDiRegalbuto,
+            common_enums::BankNames::BccLodi => Self::BccLodi,
+            common_enums::BankNames::BccMilano => Self::BccMilano,
+            common_enums::BankNames::BccMontePruno => Self::BccMontePruno,
+            common_enums::BankNames::BccNettuno => Self::BccNettuno,
+            common_enums::BankNames::BccOglioESerio => Self::BccOglioESerio,
+            common_enums::BankNames::BccPordenoneseEMonsile => Self::BccPordenoneseEMonsile,
+            common_enums::BankNames::BccPratolaPeligna => Self::BccPratolaPeligna,
+            common_enums::BankNames::BccPrealpiSanBiagio => Self::BccPrealpiSanBiagio,
+            common_enums::BankNames::BccRavennaForliImola => Self::BccRavennaForliImola,
+            common_enums::BankNames::BccSanGiuseppeDiMussomeli => Self::BccSanGiuseppeDiMussomeli,
+            common_enums::BankNames::BccTerraDiLavoro => Self::BccTerraDiLavoro,
+            common_enums::BankNames::BccTriuggioValleDelLambro => Self::BccTriuggioValleDelLambro,
+            common_enums::BankNames::BccValdarnoFiorentino => Self::BccValdarnoFiorentino,
+            common_enums::BankNames::BccValdostana => Self::BccValdostana,
+            common_enums::BankNames::BccValleDelTorto => Self::BccValleDelTorto,
+            common_enums::BankNames::BccVeneta => Self::BccVeneta,
+            common_enums::BankNames::BccVeneziaGiulia => Self::BccVeneziaGiulia,
+            common_enums::BankNames::BccVersiliaLunigianaEGarfagnana => {
+                Self::BccVersiliaLunigianaEGarfagnana
+            }
+            common_enums::BankNames::BccVicentinoPojanaMaggiore => Self::BccVicentinoPojanaMaggiore,
+            common_enums::BankNames::Belfius => Self::Belfius,
+            common_enums::BankNames::Beobank => Self::Beobank,
+            common_enums::BankNames::BiBanca => Self::BiBanca,
+            common_enums::BankNames::BluBancaSpa => Self::BluBancaSpa,
+            common_enums::BankNames::Bnl => Self::Bnl,
+            common_enums::BankNames::BnpParibasFortis => Self::BnpParibasFortis,
+            common_enums::BankNames::BoursoBank => Self::BoursoBank,
+            common_enums::BankNames::Bozen => Self::Bozen,
+            common_enums::BankNames::Bpe => Self::Bpe,
+            common_enums::BankNames::BperBanca => Self::BperBanca,
+            common_enums::BankNames::BvrBancaBancheVeneteRiunite => {
+                Self::BvrBancaBancheVeneteRiunite
+            }
+            common_enums::BankNames::CaisseDEpargne => Self::CaisseDEpargne,
+            common_enums::BankNames::Caixa => Self::Caixa,
+            common_enums::BankNames::CajaRural => Self::CajaRural,
+            common_enums::BankNames::Cajamar => Self::Cajamar,
+            common_enums::BankNames::CassaCentraleBanca => Self::CassaCentraleBanca,
+            common_enums::BankNames::CassaDiRisparmioDiBolzano => Self::CassaDiRisparmioDiBolzano,
+            common_enums::BankNames::CassaDiRisparmioDiFermoSpa => Self::CassaDiRisparmioDiFermoSpa,
+            common_enums::BankNames::CassaDiRisparmioDiSavigliano => {
+                Self::CassaDiRisparmioDiSavigliano
+            }
+            common_enums::BankNames::CassaPadana => Self::CassaPadana,
+            common_enums::BankNames::CassaRuraleAltaValsugana => Self::CassaRuraleAltaValsugana,
+            common_enums::BankNames::CassaRuraleAltoGardaRovereto => {
+                Self::CassaRuraleAltoGardaRovereto
+            }
+            common_enums::BankNames::CassaRuraleDiLedro => Self::CassaRuraleDiLedro,
+            common_enums::BankNames::CassaRuraleDiTreviglio => Self::CassaRuraleDiTreviglio,
+            common_enums::BankNames::CassaRuraleFvg => Self::CassaRuraleFvg,
+            common_enums::BankNames::CassaRuraleRenon => Self::CassaRuraleRenon,
+            common_enums::BankNames::CassaRuraleValDiFiemme => Self::CassaRuraleValDiFiemme,
+            common_enums::BankNames::CassaRuraleValDiSole => Self::CassaRuraleValDiSole,
+            common_enums::BankNames::CassaRuraleVallagarina => Self::CassaRuraleVallagarina,
+            common_enums::BankNames::CassaRuraleValsuganaETesino => {
+                Self::CassaRuraleValsuganaETesino
+            }
+            common_enums::BankNames::CastagnetoBanca1910 => Self::CastagnetoBanca1910,
+            common_enums::BankNames::CbcBanque => Self::CbcBanque,
+            common_enums::BankNames::CentromarcaBanca => Self::CentromarcaBanca,
+            common_enums::BankNames::ChiantibancaCreditoCooperativo => {
+                Self::ChiantibancaCreditoCooperativo
+            }
+            common_enums::BankNames::Cic => Self::Cic,
+            common_enums::BankNames::ClydesdaleBank => Self::ClydesdaleBank,
+            common_enums::BankNames::Comdirect => Self::Comdirect,
+            common_enums::BankNames::Commerzbank => Self::Commerzbank,
+            common_enums::BankNames::Cortinabanca => Self::Cortinabanca,
+            common_enums::BankNames::Coutts => Self::Coutts,
+            common_enums::BankNames::CrValDiNonRotalianaEGiovo => Self::CrValDiNonRotalianaEGiovo,
+            common_enums::BankNames::CraBccDiCantu => Self::CraBccDiCantu,
+            common_enums::BankNames::CraDiBorgoSanGiacomo => Self::CraDiBorgoSanGiacomo,
+            common_enums::BankNames::CraDiBoves => Self::CraDiBoves,
+            common_enums::BankNames::CraDiPaliano => Self::CraDiPaliano,
+            common_enums::BankNames::Credem => Self::Credem,
+            common_enums::BankNames::Credifriuli => Self::Credifriuli,
+            common_enums::BankNames::CreditMutuel => Self::CreditMutuel,
+            common_enums::BankNames::CreditMutuelDeBretagne => Self::CreditMutuelDeBretagne,
+            common_enums::BankNames::CreditMutuelDuSudOuest => Self::CreditMutuelDuSudOuest,
+            common_enums::BankNames::CreditoCooperativoAgrigentino => {
+                Self::CreditoCooperativoAgrigentino
+            }
+            common_enums::BankNames::CreditoCooperativoMediocrati => {
+                Self::CreditoCooperativoMediocrati
+            }
+            common_enums::BankNames::CreditoCooperativoRomagnolo => {
+                Self::CreditoCooperativoRomagnolo
+            }
+            common_enums::BankNames::CreditoDiRomagna => Self::CreditoDiRomagna,
+            common_enums::BankNames::CreditoLombardoVeneto => Self::CreditoLombardoVeneto,
+            common_enums::BankNames::DanskeBankBusiness => Self::DanskeBankBusiness,
+            common_enums::BankNames::Desio => Self::Desio,
+            common_enums::BankNames::DeutscheBank => Self::DeutscheBank,
+            common_enums::BankNames::Dkb => Self::Dkb,
+            common_enums::BankNames::EasyBank => Self::EasyBank,
+            common_enums::BankNames::Ebs => Self::Ebs,
+            common_enums::BankNames::EmilbancaCc => Self::EmilbancaCc,
+            common_enums::BankNames::ErsteBank => Self::ErsteBank,
+            common_enums::BankNames::EvoBanco => Self::EvoBanco,
+            common_enums::BankNames::Fineco => Self::Fineco,
+            common_enums::BankNames::Fintro => Self::Fintro,
+            common_enums::BankNames::Fortuneo => Self::Fortuneo,
+            common_enums::BankNames::FpbCassaDiFassaPrimieroBelluno => {
+                Self::FpbCassaDiFassaPrimieroBelluno
+            }
+            common_enums::BankNames::HelloBank => Self::HelloBank,
+            common_enums::BankNames::Hsbc => Self::Hsbc,
+            common_enums::BankNames::HsbcBusiness => Self::HsbcBusiness,
+            common_enums::BankNames::Hype => Self::Hype,
+            common_enums::BankNames::HypoVereinsbank => Self::HypoVereinsbank,
+            common_enums::BankNames::Ibercaja => Self::Ibercaja,
+            common_enums::BankNames::IccreaBancaSpa => Self::IccreaBancaSpa,
+            common_enums::BankNames::Illimity => Self::Illimity,
+            common_enums::BankNames::Imagin => Self::Imagin,
+            common_enums::BankNames::ImprebancaSpa => Self::ImprebancaSpa,
+            common_enums::BankNames::IntesaSanpaolo => Self::IntesaSanpaolo,
+            common_enums::BankNames::IntesaSanpaoloInbiz => Self::IntesaSanpaoloInbiz,
+            common_enums::BankNames::IntesaSanpaoloPrivateBankingSpa => {
+                Self::IntesaSanpaoloPrivateBankingSpa
+            }
+            common_enums::BankNames::Isybank => Self::Isybank,
+            common_enums::BankNames::Kbc => Self::Kbc,
+            common_enums::BankNames::KbcBrussels => Self::KbcBrussels,
+            common_enums::BankNames::Kutxabank => Self::Kutxabank,
+            common_enums::BankNames::LaBanquePostale => Self::LaBanquePostale,
+            common_enums::BankNames::LaBanquePostaleBusiness => Self::LaBanquePostaleBusiness,
+            common_enums::BankNames::LaCassaDiRavennaSpa => Self::LaCassaDiRavennaSpa,
+            common_enums::BankNames::LaCassaRurale => Self::LaCassaRurale,
+            common_enums::BankNames::LaboralKutxa => Self::LaboralKutxa,
+            common_enums::BankNames::Lcl => Self::Lcl,
+            common_enums::BankNames::LisPaySpa => Self::LisPaySpa,
+            common_enums::BankNames::LloydsBusiness => Self::LloydsBusiness,
+            common_enums::BankNames::LloydsCommercial => Self::LloydsCommercial,
+            common_enums::BankNames::MSBank => Self::MsBank,
+            common_enums::BankNames::Mbna => Self::Mbna,
+            common_enums::BankNames::MettleBank => Self::MettleBank,
+            common_enums::BankNames::Monabanq => Self::Monabanq,
+            common_enums::BankNames::Mooney => Self::Mooney,
+            common_enums::BankNames::Mps => Self::Mps,
+            common_enums::BankNames::NatWestBankline => Self::NatWestBankline,
+            common_enums::BankNames::Nationwide => Self::Nationwide,
+            common_enums::BankNames::Nordea => Self::Nordea,
+            common_enums::BankNames::OmaSp => Self::OmaSp,
+            common_enums::BankNames::Op => Self::Op,
+            common_enums::BankNames::Openbank => Self::Openbank,
+            common_enums::BankNames::PopPankki => Self::PopPankki,
+            common_enums::BankNames::PostePayEvolution => Self::PostePayEvolution,
+            common_enums::BankNames::PrimacassaFvg => Self::PrimacassaFvg,
+            common_enums::BankNames::Ptsb => Self::Ptsb,
+            common_enums::BankNames::RaiffeisenAlgund => Self::RaiffeisenAlgund,
+            common_enums::BankNames::RaiffeisenAltaPusteria => Self::RaiffeisenAltaPusteria,
+            common_enums::BankNames::RaiffeisenAltaVenosta => Self::RaiffeisenAltaVenosta,
+            common_enums::BankNames::RaiffeisenAltoAdige => Self::RaiffeisenAltoAdige,
+            common_enums::BankNames::RaiffeisenBassaAtesina => Self::RaiffeisenBassaAtesina,
+            common_enums::BankNames::RaiffeisenBassaValleIsarco => Self::RaiffeisenBassaValleIsarco,
+            common_enums::BankNames::RaiffeisenBassaVenosta => Self::RaiffeisenBassaVenosta,
+            common_enums::BankNames::RaiffeisenBolzano => Self::RaiffeisenBolzano,
+            common_enums::BankNames::RaiffeisenBozen => Self::RaiffeisenBozen,
+            common_enums::BankNames::RaiffeisenBruneck => Self::RaiffeisenBruneck,
+            common_enums::BankNames::RaiffeisenBrunico => Self::RaiffeisenBrunico,
+            common_enums::BankNames::RaiffeisenCampoDiTrens => Self::RaiffeisenCampoDiTrens,
+            common_enums::BankNames::RaiffeisenCassaCentrAltoAdige => {
+                Self::RaiffeisenCassaCentrAltoAdige
+            }
+            common_enums::BankNames::RaiffeisenCastelrottoortisei => {
+                Self::RaiffeisenCastelrottoortisei
+            }
+            common_enums::BankNames::RaiffeisenDeutschnofenaldein => {
+                Self::RaiffeisenDeutschnofenaldein
+            }
+            common_enums::BankNames::RaiffeisenDobbiaco => Self::RaiffeisenDobbiaco,
+            common_enums::BankNames::RaiffeisenEisacktal => Self::RaiffeisenEisacktal,
+            common_enums::BankNames::RaiffeisenEtschtal => Self::RaiffeisenEtschtal,
+            common_enums::BankNames::RaiffeisenFreienfeld => Self::RaiffeisenFreienfeld,
+            common_enums::BankNames::RaiffeisenFunes => Self::RaiffeisenFunes,
+            common_enums::BankNames::RaiffeisenGadertal => Self::RaiffeisenGadertal,
+            common_enums::BankNames::RaiffeisenGroeden => Self::RaiffeisenGroeden,
+            common_enums::BankNames::RaiffeisenHochpustertal => Self::RaiffeisenHochpustertal,
+            common_enums::BankNames::RaiffeisenKastelruthstulrich => {
+                Self::RaiffeisenKastelruthstulrich
+            }
+            common_enums::BankNames::RaiffeisenLaas => Self::RaiffeisenLaas,
+            common_enums::BankNames::RaiffeisenLaces => Self::RaiffeisenLaces,
+            common_enums::BankNames::RaiffeisenLagundo => Self::RaiffeisenLagundo,
+            common_enums::BankNames::RaiffeisenLana => Self::RaiffeisenLana,
+            common_enums::BankNames::RaiffeisenLandesbankSuedtirol => {
+                Self::RaiffeisenLandesbankSuedtirol
+            }
+            common_enums::BankNames::RaiffeisenLasa => Self::RaiffeisenLasa,
+            common_enums::BankNames::RaiffeisenLatsch => Self::RaiffeisenLatsch,
+            common_enums::BankNames::RaiffeisenMarlengo => Self::RaiffeisenMarlengo,
+            common_enums::BankNames::RaiffeisenMarling => Self::RaiffeisenMarling,
+            common_enums::BankNames::RaiffeisenMeran => Self::RaiffeisenMeran,
+            common_enums::BankNames::RaiffeisenMerano => Self::RaiffeisenMerano,
+            common_enums::BankNames::RaiffeisenMonguelfocasiestesido => {
+                Self::RaiffeisenMonguelfocasiestesido
+            }
+            common_enums::BankNames::RaiffeisenNiederdorf => Self::RaiffeisenNiederdorf,
+            common_enums::BankNames::Raiffeisenbank => Self::Raiffeisenbank,
+            common_enums::BankNames::RoyalBankOfScotlandBankline => {
+                Self::RoyalBankOfScotlandBankline
+            }
+            common_enums::BankNames::SPankki => Self::SPankki,
+            common_enums::BankNames::Saastopankki => Self::Saastopankki,
+            common_enums::BankNames::Santander => Self::Santander,
+            common_enums::BankNames::SantanderBusiness => Self::SantanderBusiness,
+            common_enums::BankNames::SantanderPersonal => Self::SantanderPersonal,
+            common_enums::BankNames::Sparkasse => Self::Sparkasse,
+            common_enums::BankNames::TargoBank => Self::TargoBank,
+            common_enums::BankNames::Tide => Self::Tide,
+            common_enums::BankNames::Triodos => Self::Triodos,
+            common_enums::BankNames::Tsb => Self::Tsb,
+            common_enums::BankNames::UlsterBankline => Self::UlsterBankline,
+            common_enums::BankNames::Unicaja => Self::Unicaja,
+            common_enums::BankNames::VirginMoney => Self::VirginMoney,
+            common_enums::BankNames::VirginMoneyMerged => Self::VirginMoneyMerged,
+            common_enums::BankNames::VolksbankenRaiffeisenbanken => {
+                Self::VolksbankenRaiffeisenbanken
+            }
+            common_enums::BankNames::Wise => Self::Wise,
+            common_enums::BankNames::YorkshireBank => Self::YorkshireBank,
+            common_enums::BankNames::Zempler => Self::Zempler,
+            common_enums::BankNames::RaiffeisenNovaLevante => Self::RaiffeisenNovaLevante,
+            common_enums::BankNames::RaiffeisenNovaPonentealdino => {
+                Self::RaiffeisenNovaPonentealdino
+            }
+            common_enums::BankNames::RaiffeisenObervinschgau => Self::RaiffeisenObervinschgau,
+            common_enums::BankNames::RaiffeisenOltradige => Self::RaiffeisenOltradige,
+            common_enums::BankNames::RaiffeisenParcines => Self::RaiffeisenParcines,
+            common_enums::BankNames::RaiffeisenPartschins => Self::RaiffeisenPartschins,
+            common_enums::BankNames::RaiffeisenPasseier => Self::RaiffeisenPasseier,
+            common_enums::BankNames::RaiffeisenPradtaufers => Self::RaiffeisenPradtaufers,
+            common_enums::BankNames::RaiffeisenPratotubre => Self::RaiffeisenPratotubre,
+            common_enums::BankNames::RaiffeisenSalorno => Self::RaiffeisenSalorno,
+            common_enums::BankNames::RaiffeisenSalurn => Self::RaiffeisenSalurn,
+            common_enums::BankNames::RaiffeisenSanMartinoInPassiria => {
+                Self::RaiffeisenSanMartinoInPassiria
+            }
+            common_enums::BankNames::RaiffeisenSarntal => Self::RaiffeisenSarntal,
+            common_enums::BankNames::RaiffeisenScena => Self::RaiffeisenScena,
+            common_enums::BankNames::RaiffeisenSchenna => Self::RaiffeisenSchenna,
+            common_enums::BankNames::RaiffeisenSchlanders => Self::RaiffeisenSchlanders,
+            common_enums::BankNames::RaiffeisenSchlernrosengarten => {
+                Self::RaiffeisenSchlernrosengarten
+            }
+            common_enums::BankNames::RaiffeisenSilandro => Self::RaiffeisenSilandro,
+            common_enums::BankNames::RaiffeisenSuedtirol => Self::RaiffeisenSuedtirol,
+            common_enums::BankNames::RaiffeisenTaufererahrntal => Self::RaiffeisenTaufererahrntal,
+            common_enums::BankNames::RaiffeisenTesimo => Self::RaiffeisenTesimo,
+            common_enums::BankNames::RaiffeisenTirol => Self::RaiffeisenTirol,
+            common_enums::BankNames::RaiffeisenTirolo => Self::RaiffeisenTirolo,
+            common_enums::BankNames::RaiffeisenTisens => Self::RaiffeisenTisens,
+            common_enums::BankNames::RaiffeisenToblach => Self::RaiffeisenToblach,
+            common_enums::BankNames::RaiffeisenTuresaurina => Self::RaiffeisenTuresaurina,
+            common_enums::BankNames::RaiffeisenUeberetsch => Self::RaiffeisenUeberetsch,
+            common_enums::BankNames::RaiffeisenUltenstpankrazlaurein => {
+                Self::RaiffeisenUltenstpankrazlaurein
+            }
+            common_enums::BankNames::RaiffeisenUltimospancrlaur => Self::RaiffeisenUltimospancrlaur,
+            common_enums::BankNames::RaiffeisenUntereisacktal => Self::RaiffeisenUntereisacktal,
+            common_enums::BankNames::RaiffeisenUnterland => Self::RaiffeisenUnterland,
+            common_enums::BankNames::RaiffeisenUntervinschgau => Self::RaiffeisenUntervinschgau,
+            common_enums::BankNames::RaiffeisenValBadia => Self::RaiffeisenValBadia,
+            common_enums::BankNames::RaiffeisenValGardena => Self::RaiffeisenValGardena,
+            common_enums::BankNames::RaiffeisenValPassiria => Self::RaiffeisenValPassiria,
+            common_enums::BankNames::RaiffeisenValSarentino => Self::RaiffeisenValSarentino,
+            common_enums::BankNames::RaiffeisenValleIsarco => Self::RaiffeisenValleIsarco,
+            common_enums::BankNames::RaiffeisenVandoies => Self::RaiffeisenVandoies,
+            common_enums::BankNames::RaiffeisenVillabassa => Self::RaiffeisenVillabassa,
+            common_enums::BankNames::RaiffeisenVillnoess => Self::RaiffeisenVillnoess,
+            common_enums::BankNames::RaiffeisenVintl => Self::RaiffeisenVintl,
+            common_enums::BankNames::RaiffeisenWelsberggsiestaisten => {
+                Self::RaiffeisenWelsberggsiestaisten
+            }
+            common_enums::BankNames::RaiffeisenWelschnofen => Self::RaiffeisenWelschnofen,
+            common_enums::BankNames::RaiffeisenWipptal => Self::RaiffeisenWipptal,
+            common_enums::BankNames::RaiffeisenkasseRitten => Self::RaiffeisenkasseRitten,
+            common_enums::BankNames::RivieraBanca => Self::RivieraBanca,
+            common_enums::BankNames::RomagnaBanca => Self::RomagnaBanca,
+            common_enums::BankNames::Sella => Self::Sella,
+            common_enums::BankNames::Sicilbanca => Self::Sicilbanca,
+            common_enums::BankNames::SolutionBank => Self::SolutionBank,
+            common_enums::BankNames::Suedtiroler => Self::Suedtiroler,
+            common_enums::BankNames::SuedtirolerSparkasse => Self::SuedtirolerSparkasse,
+            common_enums::BankNames::SuedtirolerVolksbank => Self::SuedtirolerVolksbank,
+            common_enums::BankNames::Unicredit => Self::Unicredit,
+            common_enums::BankNames::UnicreditOnlineBanking => Self::UnicreditOnlineBanking,
+            common_enums::BankNames::UnicreditUniwebCorporate => Self::UnicreditUniwebCorporate,
+            common_enums::BankNames::ValpolicellaBenacoBanca => Self::ValpolicellaBenacoBanca,
+            common_enums::BankNames::Volksbank => Self::Volksbank,
+            common_enums::BankNames::VolksbankBancaPopolare => Self::VolksbankBancaPopolare,
+            common_enums::BankNames::Widiba => Self::Widiba,
+            common_enums::BankNames::ZkbCredcoopdiTriesteEGorizia => {
+                Self::ZkbCredcoopdiTriesteEGorizia
+            }
+            common_enums::BankNames::Asn => Self::Asn,
+            common_enums::BankNames::Sns => Self::Sns,
+            common_enums::BankNames::Seb => Self::Seb,
+            common_enums::BankNames::Swedbank => Self::Swedbank,
+            common_enums::BankNames::MockUkPayments => Self::MockUkPayments,
         }
     }
 }
@@ -16204,6 +18615,18 @@ impl<
             Option<PaymentMethodData<T>>,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read before the `email` binding below, which consumes `value.customer`.
+        let customer_date_of_birth = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.date_of_birth.clone())
+            .map(|date_of_birth| {
+                Secret::<time::Date>::foreign_try_from((
+                    date_of_birth.expose(),
+                    "customer.date_of_birth",
+                ))
+            })
+            .transpose()?;
         let email: Option<Email> = match value.customer.and_then(|c| c.email) {
             Some(ref email_str) => {
                 Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
@@ -16284,6 +18707,11 @@ impl<
                 .transpose()?,
             mandate_reference: None,
             merchant_transaction_id: value.merchant_transaction_id,
+            metadata: value
+                .metadata
+                .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
+            customer_date_of_birth,
         })
     }
 }
@@ -16545,6 +18973,7 @@ impl<
                     )
                 })
                 .transpose()?,
+            connector_order_reference_id: value.connector_order_reference_id,
         })
     }
 }
@@ -16605,8 +19034,24 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id.clone(),
             ),
-            customer_id: None,
-            connector_customer: None,
+            customer_id: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id)
+                .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
+                .transpose()
+                .change_context(IntegrationError::InvalidDataFormat {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Failed to parse Customer Id".to_string()),
+                        suggested_action: Some("Provide a valid connector customer ID".to_string()),
+                        doc_url: None,
+                    },
+                })?,
+            connector_customer: value
+                .customer
+                .clone()
+                .and_then(|customer| customer.connector_customer_id),
             description: value.description,
             return_url: value.return_url.clone(),
             connector_feature_data: value
@@ -16626,7 +19071,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             connector_response_headers: None,
             vault_headers,
@@ -16738,7 +19183,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             connector_response_headers: None,
             vault_headers,
@@ -16816,9 +19261,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Post-auth uses 3DS
@@ -16844,7 +19291,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             connector_response_headers: None,
             vault_headers,
@@ -16928,7 +19375,7 @@ impl
             test_mode: None,
             connector_http_status_code: None,
             external_latency: None,
-            connectors,
+            connectors: connectors.into(),
             raw_connector_response: None,
             raw_connector_request: None,
             typed_connector_request: None,
@@ -17129,6 +19576,29 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             ),
                         }),
+                        router_response_types::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlDdc(
+                                        grpc_api_types::payments::WorldpayxmlDdcData {
+                                            bin,
+                                            jwt: Some(jwt),
+                                        },
+                                    ),
+                                ),
+                            })
+                        }
+                        router_response_types::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
+                            Ok(grpc_api_types::payments::RedirectForm {
+                                form_type: Some(
+                                    grpc_api_types::payments::redirect_form::FormType::WorldpayxmlChallenge(
+                                        grpc_api_types::payments::WorldpayxmlChallengeData {
+                                            jwt: Some(jwt),
+                                        },
+                                    ),
+                                ),
+                            })
+                        }
                         router_response_types::RedirectForm::CybersourceAuthSetup {
                             access_token,
                             ddc_url,
@@ -17525,6 +19995,35 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 response_headers,
                 state: None,
             },
+            // Payment-confirmation flows (e.g. APM confirm via PostAuthenticate) return
+            // TransactionResponse rather than PostAuthenticateResponse.
+            PaymentsResponseData::TransactionResponse {
+                resource_id,
+                connector_response_reference_id,
+                network_txn_id,
+                status_code,
+                ..
+            } => PaymentMethodAuthenticationServicePostAuthenticateResponse {
+                connector_transaction_id: match resource_id {
+                    ResponseId::ConnectorTransactionId(id) => Some(id),
+                    ResponseId::EncodedData(data) => Some(data),
+                    ResponseId::NoResponseId => None,
+                },
+                redirection_data: None,
+                connector_feature_data,
+                network_transaction_id: network_txn_id,
+                merchant_order_id: connector_response_reference_id,
+                authentication_data: None,
+                incremental_authorization_allowed: None,
+                status: grpc_status.into(),
+                error: None,
+                raw_connector_response,
+                typed_connector_response,
+                raw_connector_status,
+                status_code: status_code.into(),
+                response_headers,
+                state: None,
+            },
             _ => {
                 return Err(report!(ConnectorError::UnexpectedResponseError {
                     context: ResponseTransformationErrorContext {
@@ -17599,12 +20098,14 @@ pub fn tokenized_authorize_to_base(
     v: grpc_payment_types::PaymentServiceTokenAuthorizeRequest,
 ) -> PaymentServiceAuthorizeRequest {
     PaymentServiceAuthorizeRequest {
+        split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    token_payment_method_type: None,
                 },
             )),
         }),
@@ -17657,6 +20158,10 @@ pub fn tokenized_authorize_to_base(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
+        additional_connector_details: None,
+        business_country: None,
     }
 }
 
@@ -17698,6 +20203,7 @@ pub fn tokenized_setup_recurring_to_base(
             payment_method: Some(grpc_payment_types::payment_method::PaymentMethod::Token(
                 grpc_payment_types::TokenPaymentMethodType {
                     token: v.connector_token.clone(),
+                    token_payment_method_type: None,
                 },
             )),
         }),
@@ -17735,6 +20241,11 @@ pub fn tokenized_setup_recurring_to_base(
         shipping_cost: None,
         mit_category: None,
         partner_merchant_identifier_details: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
+        additional_connector_details: None,
+        // TokenSetupRecurringRequest has no test_mode field
+        test_mode: None,
     }
 }
 
@@ -17781,6 +20292,7 @@ pub fn proxied_authorize_to_base(
         })
     })?;
     Ok(PaymentServiceAuthorizeRequest {
+        split_settlement: None,
         merchant_transaction_id: v.merchant_transaction_id,
         amount: v.amount,
         payment_method: Some(grpc_payment_types::PaymentMethod {
@@ -17836,6 +20348,10 @@ pub fn proxied_authorize_to_base(
         domain_data: None,
         partner_merchant_identifier_details: None,
         currency_conversion_data: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
+        additional_connector_details: None,
+        business_country: None,
     })
 }
 
@@ -17951,6 +20467,10 @@ pub fn proxied_setup_recurring_to_base(
         shipping_cost: None,
         mit_category: None,
         partner_merchant_identifier_details: None,
+        is_account_funding_transaction: None,
+        recipient_details: None,
+        additional_connector_details: None,
+        test_mode: v.test_mode,
     })
 }
 

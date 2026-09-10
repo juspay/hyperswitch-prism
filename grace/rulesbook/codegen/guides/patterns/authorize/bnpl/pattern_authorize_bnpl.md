@@ -140,7 +140,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -235,7 +235,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::Atome)
             }
             _ => Err(IntegrationError::NotImplemented(
-                "BNPL variant not supported".to_string(, Default::default())
+                "BNPL variant not supported".to_string(), Default::default()
             )),
         }
     }
@@ -270,10 +270,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // Create redirect form if URL is present
+        // `redirection_data` on TransactionResponse is `Option<Box<RedirectForm>>`.
         let redirection_data = response.redirect_url.as_ref().map(|url| {
-            RedirectForm::Uri {
+            Box::new(RedirectForm::Uri {
                 uri: url.clone(),
-            }
+            })
         });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -282,9 +283,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.reference.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -452,7 +456,7 @@ fn validate_shipping_address_against_payment_method(
             }
             None => Err(IntegrationError::MissingRequiredField {
                 field_name: "shipping address",
-            , context: Default::default() })?,
+                context: Default::default() })?,
         },
         _ => Ok(()),
     }
@@ -595,7 +599,7 @@ PayLaterData::KlarnaSdk { token } => {
     if token.is_empty() {
         return Err(IntegrationError::MissingRequiredField {
             field_name: "token",
-        , context: Default::default() }.into());
+            context: Default::default() }.into());
     }
     Ok(Self::Klarna)  // Same connector type, different validation
 }
@@ -623,7 +627,7 @@ PayLaterData::KlarnaRedirect { .. } => {
         .clone()
         .ok_or_else(|| IntegrationError::MissingRequiredField {
             field_name: "customer_id",
-        , context: Default::default() })?;
+            context: Default::default() })?;
     Ok(Self::Klarna)
 }
 ```
@@ -649,19 +653,19 @@ let status = match response.status {
 // ❌ WRONG: Ignoring redirect URL
 let payments_response_data = PaymentsResponseData::TransactionResponse {
     redirection_data: None,  // Customer won't be redirected!
-    // ...
+    // ... (the remaining 10 fields; enum struct-variants have no `..` shortcut)
 };
 
 // ✅ RIGHT: Include redirect data
 let redirection_data = response.action.as_ref().map(|action| {
-    RedirectForm::Uri {
+    Box::new(RedirectForm::Uri {
         uri: action.url.clone(),
-    }
+    })
 });
 
 let payments_response_data = PaymentsResponseData::TransactionResponse {
-    redirection_data,
-    // ...
+    redirection_data,  // Option<Box<RedirectForm>>
+    // ... (the remaining 10 fields; enum struct-variants have no `..` shortcut)
 };
 ```
 

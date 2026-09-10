@@ -687,6 +687,7 @@ fn wallet_to_juspay(
         | WalletData::Paze(_)
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)
+        | WalletData::Neteller(_)
         | WalletData::PaymayaRedirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
@@ -878,6 +879,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -997,6 +999,7 @@ impl TryFrom<ResponseRouterData<JuspayOrderStatusResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1089,6 +1092,7 @@ impl TryFrom<ResponseRouterData<JuspayCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1339,6 +1343,7 @@ impl TryFrom<ResponseRouterData<JuspayVoidResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

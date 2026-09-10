@@ -97,7 +97,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -108,7 +108,10 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types,
-    events::connector_api_logs::ConnectorEvent,
+};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    events,
 };
 use serde::Serialize;
 use transformers::{
@@ -187,7 +190,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -247,7 +250,9 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // Use dispute-specific base URL
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
 
             // Extract connector dispute ID for URL construction
             let dispute_id = &req.request.connector_dispute_id;
@@ -272,7 +277,7 @@ use domain_types::{
     },
     errors::{self, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -298,7 +303,9 @@ impl {ConnectorName}DefendDisputeRequest {
     // Helper to construct request from router data
     pub fn try_from_router_data(
         router_data: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
-        auth_type: &ConnectorAuthType,
+        // `ConnectorAuthType` no longer exists; auth is a `ConnectorSpecificConfig`
+        // variant (domain_types/src/router_data.rs:301).
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Self, IntegrationError> {
         let auth = {ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -320,7 +327,7 @@ impl TryFrom<&RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, Di
     fn try_from(
         router_data: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
     ) -> Result<Self, Self::Error> {
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
             dispute_id: router_data.request.connector_dispute_id.clone(),
@@ -349,15 +356,26 @@ pub enum {ConnectorName}DisputeStatus {
     Lost,
     Pending,
     // Add other statuses as needed
+    /// REQUIRED at the DESERIALIZATION layer: absorbs a status string the vendor
+    /// adds after this file was written, so it does not fail the whole parse.
+    /// Reviewers demand BOTH this and an exhaustive (no `_ =>`) status mapping.
+    #[serde(other)]
+    Unknown,
 }
 
 // Status mapping from connector to standard
+// STATUS-MAPPING layer: EXHAUSTIVE, no `_ =>` arm. A catch-all here silently
+// maps a brand-new vendor state onto a status you never verified.
+// `common_enums::DisputeStatus` variants: DisputeOpened, DisputeExpired,
+// DisputeAccepted, DisputeCancelled, DisputeChallenged, DisputeWon, DisputeLost.
 impl From<{ConnectorName}DisputeStatus> for common_enums::DisputeStatus {
     fn from(status: {ConnectorName}DisputeStatus) -> Self {
         match status {
             {ConnectorName}DisputeStatus::Won => Self::DisputeWon,
             {ConnectorName}DisputeStatus::Lost => Self::DisputeLost,
             {ConnectorName}DisputeStatus::Pending => Self::DisputeChallenged,
+            // Named explicitly: unrecognised is neither won nor lost.
+            {ConnectorName}DisputeStatus::Unknown => Self::DisputeOpened,
         }
     }
 }
@@ -427,9 +445,8 @@ impl TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, RouterData
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(result.psp_reference.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    // 13 fields + `impl Default` — see domain_types/src/router_data.rs
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             }),
@@ -532,7 +549,7 @@ impl TryFrom<&RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, Di
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(router_data: &RouterDataV2<...>) -> Result<Self, Self::Error> {
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
             dispute_id: router_data.request.connector_dispute_id.clone(),
@@ -550,7 +567,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<...>, T>>
 
     fn try_from(item: {ConnectorName}RouterData<...>) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
             dispute_id: router_data.request.connector_dispute_id.clone(),
@@ -631,9 +648,8 @@ impl<F, Req> TryFrom<ResponseRouterData<{ConnectorName}DefendDisputeResponse, Se
                     status_code: http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(result.psp_reference),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    // 13 fields + `impl Default` — see domain_types/src/router_data.rs
+                    ..Default::default()
                 }),
                 ..router_data
             }),
@@ -671,10 +687,17 @@ impl Default for {ConnectorName}ErrorResponse {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for {ConnectorName}<T>
 {
+    // Real signature: crates/types-traits/interfaces/src/api.rs:50 — THREE
+    // parameters besides `&self`. The event type is `events::Event`; there is no
+    // `ConnectorEvent` in the connector crate, and `events::Event` has no
+    // `set_error_response_body` method. The same third parameter was added to
+    // `get_error_response_v2` and `get_5xx_error_response`
+    // (interfaces/src/connector_integration_v2.rs).
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
@@ -684,20 +707,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
-
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
             attempt_status: None,
             connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            // `ErrorResponse` has 13 fields and an `impl Default`
+            // (domain_types/src/router_data.rs) — prefer `..Default::default()`.
+            ..Default::default()
         })
     }
 }
@@ -780,7 +799,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 | `{ConnectorName}` | Connector name in PascalCase | `Adyen`, `Stripe`, `Checkout` |
 | `{connector_name}` | Connector name in snake_case | `adyen`, `stripe`, `checkout` |
 | `{dispute_endpoint}` | API endpoint path | `disputes/defend`, `v1/disputes/defend` |
-| `{AmountType}` | Amount type (rarely needed for disputes) | `MinorUnit`, `StringMinorUnit` |
+| `{AmountType}` | Amount type (rarely needed for disputes) | one of `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` — read the vendor spec, there is no safe default (`common_utils/src/types.rs`) |
 
 ## Real-World Example: Adyen Implementation
 
@@ -810,7 +829,9 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let dispute_url = self.connector_base_url_disputes(req)
-                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl)?;
+                .ok_or(errors::IntegrationError::FailedToObtainIntegrationUrl {
+            context: Default::default(),
+        })?;
             Ok(format!("{dispute_url}ca/services/DisputeService/v30/defendDispute"))
         }
     }

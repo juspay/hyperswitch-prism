@@ -10,7 +10,7 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["get", "parse_event", "refund", "refund_get"];
+pub const SUPPORTED_FLOWS: &[&str] = &["get", "parse_event", "refund_get"];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -23,6 +23,9 @@ fn build_client() -> ConnectorClient {
                 )), // Authentication credential
                 merchant_secret: Some(hyperswitch_masking::Secret::new(
                     "YOUR_MERCHANT_SECRET".to_string(),
+                )), // Authentication credential
+                public_key: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_PUBLIC_KEY".to_string(),
                 )), // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
@@ -51,7 +54,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 #[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
-        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        merchant_event_id: Some("probe_event_001".to_string()),
         request_details: Some(RequestDetails {
             method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
@@ -72,20 +75,6 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             body: "{\"timestamp\":\"2025-09-09T01:22:50.650398229Z\",\"uuid\":\"5e3cc113-0426-44e2-985b-f90bdddd06e8\",\"amount\":1,\"currency\":\"MYR\",\"created\":\"2025-09-09T01:22:06.739Z\",\"description\":\"Payment\",\"status\":\"succeeded\",\"paymentMethod\":\"card\",\"referenceId\":\"Llof2a6I0EdVmURL7YoL\"}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
-    }
-}
-
-pub fn build_refund_request(connector_transaction_id: &str) -> PaymentServiceRefundRequest {
-    PaymentServiceRefundRequest {
-        merchant_refund_id: Some("probe_refund_001".to_string()), // Identification.
-        connector_transaction_id: connector_transaction_id.to_string(),
-        payment_amount: 1000, // Amount Information.
-        refund_amount: Some(Money {
-            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        reason: Some("customer_request".to_string()), // Reason for the refund.
-        ..Default::default()
     }
 }
 
@@ -124,22 +113,6 @@ pub async fn process_parse_event(
     Ok(format!("{response:?}"))
 }
 
-// Flow: PaymentService.Refund
-#[allow(dead_code)]
-pub async fn process_refund(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .refund(
-            build_refund_request("probe_connector_txn_001"),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: RefundService.Get
 #[allow(dead_code)]
 pub async fn process_refund_get(
@@ -162,10 +135,12 @@ async fn main() {
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
-        "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_get, process_parse_event, process_refund, process_refund_get", flow);
+            eprintln!(
+                "Unknown flow: {}. Available: process_get, process_parse_event, process_refund_get",
+                flow
+            );
             return;
         }
     };
