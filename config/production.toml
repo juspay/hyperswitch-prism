@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+payhere.base_url = "https://www.payhere.lk"
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api.directa24.com"
 citigate.base_url = "https://gw.cgate.tech"

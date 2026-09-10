@@ -1077,6 +1077,18 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// PayHere (payhere.lk) Merchant API.
+    /// `app_id`         = App ID (OAuth client_id for `/merchant/v1/oauth/token` Basic auth)
+    /// `app_secret`     = App Secret (OAuth client_secret)
+    /// `merchant_id`    = Merchant ID (checkout form `merchant_id`, hash input)
+    /// `merchant_secret` = Merchant Secret (checkout + webhook hash secret). Never transmitted.
+    Payhere {
+        app_id: Secret<String>,
+        merchant_id: Secret<String>,
+        app_secret: Secret<String>,
+        merchant_secret: Secret<String>,
+        base_url: Option<String>,
+    },
     /// Global Payments — Heartland (Portico PosGateway).
     /// `api_key` = Portico SecretAPIKey; it travels in the SOAP body at
     /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
@@ -1500,6 +1512,13 @@ impl ConnectorSpecificConfig {
             },
             Paynearme { api_key, key1 },
             GlobalpaymentsHeartland { api_key },
+            Payhere {
+                app_id,
+                merchant_id,
+                app_secret,
+                merchant_secret,
+                base_url
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
@@ -2014,6 +2033,13 @@ impl ConnectorSpecificConfig {
                 },
                 Paynearme { api_key, key1 },
                 GlobalpaymentsHeartland { api_key },
+                Payhere {
+                    app_id,
+                    merchant_id,
+                    app_secret,
+                    merchant_secret,
+                    base_url
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
@@ -2715,6 +2741,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: d24.key1.ok_or_else(err)?,
                 api_secret: d24.api_secret.ok_or_else(err)?,
                 base_url: d24.base_url,
+            }),
+            AuthType::Payhere(payhere) => Ok(Self::Payhere {
+                app_id: payhere.app_id.ok_or_else(err)?,
+                merchant_id: payhere.merchant_id.ok_or_else(err)?,
+                app_secret: payhere.app_secret.ok_or_else(err)?,
+                merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
+                base_url: payhere.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -4060,6 +4093,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payhere => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Payhere {
+                        app_id: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        app_secret: api_secret.clone(),
+                        merchant_secret: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -489,6 +489,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -2236,6 +2237,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::PaymayaRedirect(_)
+                | WalletDataPaymentMethod::PayhereRedirect {}
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
                 | WalletDataPaymentMethod::Skrill(_)
                 | WalletDataPaymentMethod::Neteller(_) => Err(IntegrationError::NotImplemented(
