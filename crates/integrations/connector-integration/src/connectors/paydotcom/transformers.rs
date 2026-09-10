@@ -113,8 +113,6 @@ impl TryFrom<&ConnectorSpecificConfig> for PaydotcomAuthType {
     }
 }
 
-// ===== SHARED HELPERS =====
-
 fn amount_conversion_error(context: &str) -> IntegrationError {
     IntegrationError::AmountConversionFailed {
         context: IntegrationErrorContext {
@@ -171,7 +169,6 @@ mod paydotcom_currency {
 /// identical payload in this scope, only the URL differs (see `paydotcom.rs`).
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
-    /// Minor units, JSON integer.
     pub amount: MinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
@@ -271,22 +268,15 @@ pub enum PaydotcomSetupFutureUsage {
     OffSession,
 }
 
-// ===== WALLET SOURCE DETAILS =====
-
 /// Pre-decrypted DPAN source — used for both Apple Pay and Google Pay when the
 /// merchant has already decrypted the payment token.
 /// `source_data.type = "network_token"`
 #[derive(Debug, Serialize)]
 pub struct PaydotcomNetworkTokenDetails {
-    /// The DPAN (Device Primary Account Number).
     pub token: Secret<String>,
-    /// Discriminates between Apple Pay and Google Pay.
     pub token_type: PaydotcomNetworkTokenType,
-    /// Two digits, zero-padded (MM).
     pub expiry_month: Secret<String>,
-    /// Four digits (YYYY).
     pub expiry_year: Secret<String>,
-    /// Cryptogram + ECI from the decrypted token.
     pub three_ds: PaydotcomNetworkTokenThreeDs,
 }
 
@@ -312,9 +302,7 @@ pub struct PaydotcomNetworkTokenThreeDs {
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCardSourceDetails<T: PaymentMethodDataTypes> {
     pub number: RawCardNumber<T>,
-    /// Two digits, zero padded.
     pub expiry_month: Secret<String>,
-    /// Four digits.
     pub expiry_year: Secret<String>,
     /// `cvc`, **not** `cvv` — see the module docs.
     pub cvc: Secret<String>,
@@ -339,7 +327,6 @@ pub struct PaydotcomThreeDsRaw {
     /// surface in a log line, even though the domain model keeps this one unmasked.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_trans_id: Option<Secret<String>>,
-    /// Only meaningful for 3DS 1.0.0; UCS carries no xid, so this is always `None`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xid: Option<String>,
     /// Always sent explicitly so a 2.x authentication is not downgraded to the
@@ -1108,6 +1095,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // setup_future_usage: OffSession, tell Pay.com to store the
                         // card for future MIT. Without this, the card arm silently
                         // ignores the flag while the wallet arm honours it.
+                        // NOTE: applies only to the direct Create leg (NoThreeDs /
+                        // ExternalMPI). Gateway-3DS drives PreAuthenticate first; that
+                        // path calls build_create_resource_request with setup_future_usage:
+                        // None hardcoded, and the Authorize leg is a bodyless Confirm, so
+                        // the flag never reaches Pay.com in the gateway-3DS flow.
                         let sfu = item.request.setup_future_usage.and_then(|u| {
                             matches!(u, common_enums::FutureUsage::OffSession)
                                 .then_some(PaydotcomSetupFutureUsage::OffSession)
@@ -1395,26 +1387,50 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
 
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
-            // Charge/Hold terminal-success with no underlying_network_id means Pay.com did
-            // not store the mandate — the setup call succeeded but the result is unusable for
-            // MIT. Surface this as a failure rather than returning an empty mandate silently.
-            AttemptStatus::Charged | AttemptStatus::Authorized if mandate_reference.is_none() => {
-                Err(ErrorResponse {
-                    status_code: item.http_code,
-                    code: NO_ERROR_CODE.to_string(),
-                    message: NO_ERROR_MESSAGE.to_string(),
-                    reason: None,
-                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    connector_transaction_id: Some(item.response.id().to_string()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                })
-            }
+            // /v1/charges is auto-capture: Pay.com has already settled the funds.
+            // Returning Failure here leaves an orphaned charge — the caller must
+            // issue a manual refund. The mandate goal of SetupMandate was not met.
+            AttemptStatus::Charged if mandate_reference.is_none() => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(
+                    "Pay.com Charge succeeded but returned no underlying_network_id; mandate \
+                     not stored. The payment was already captured — a manual refund may be \
+                     required."
+                        .to_string(),
+                ),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(item.response.id().to_string()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+            // Hold terminal-success without underlying_network_id: mandate not stored.
+            // No money was captured; the Hold is still voidable.
+            AttemptStatus::Authorized if mandate_reference.is_none() => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(
+                    "Pay.com Hold succeeded but returned no underlying_network_id; mandate \
+                     not stored. No capture occurred — the Hold may be voided."
+                        .to_string(),
+                ),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(item.response.id().to_string()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
             _ => {
                 let mut transaction_response = item.response.transaction_response(item.http_code);
                 // Inject the mandate reference into the transaction response.
@@ -1627,8 +1643,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// ===== REQUEST: CAPTURE =====
-
 /// `POST /v1/holds/{id}/capture`. Every field is optional — an empty body captures the
 /// full hold.
 #[derive(Debug, Serialize)]
@@ -1676,8 +1690,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// ===== REQUEST: REFUND =====
 
 /// `POST /v1/refunds`. `charge` is the only required member and must be a `chrg_` id.
 #[derive(Debug, Serialize)]
@@ -1745,8 +1757,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// ===== STATUS ENUMS =====
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaydotcomChargeStatus {
@@ -1813,8 +1823,6 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
         }
     }
 }
-
-// ===== RESPONSE: CHARGE / HOLD =====
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomChargeResponse {
@@ -1920,7 +1928,6 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// The challenge URL, when this response is an authentication session that opened one.
     pub fn challenge_url(&self) -> Option<&str> {
         match self {
             Self::AuthenticationSession(session) => session.url.as_deref(),
@@ -1967,8 +1974,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// True while the resource is parked waiting for the shopper to authenticate — the
-    /// point at which the caller must persist the resource id and drive the next leg.
+    /// True while the resource is parked waiting for the shopper to authenticate.
     pub fn awaits_authentication(&self) -> bool {
         matches!(
             self,
@@ -1981,8 +1987,7 @@ impl PaydotcomPaymentsResponse {
         )
     }
 
-    /// Republished on every leg so the caller keeps handing the resource id back until the
-    /// journey ends. See `PAYDOTCOM_RESOURCE_METADATA_KEY`.
+    /// Republished on every leg so the caller keeps handing the resource id back until the journey ends.
     pub fn pending_metadata(&self) -> Option<serde_json::Value> {
         (self.awaits_authentication() || matches!(self, Self::AuthenticationSession(_)))
             .then(|| serde_json::json!({ PAYDOTCOM_RESOURCE_METADATA_KEY: self.id() }))
@@ -1996,14 +2001,8 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// A 2xx carrying `status: "failed"` is the normal decline path once the transaction
-    /// has reached the network, so it is turned into an `ErrorResponse` here rather than
-    /// being left to `build_error_response`.
-    ///
-    /// `attempt_status` is the status the caller derived for its own flow, not a constant:
-    /// `get_attempt_status_for_grpc` prefers this field over the `resource_common_data`
-    /// fallback, so hardcoding `Failure` would report a declined capture as a failed
-    /// payment while the hold is in fact intact and still capturable.
+    /// A 2xx carrying `status: "failed"` is the normal decline path; `attempt_status` is
+    /// caller-derived so a declined capture is not misreported as a failed payment.
     fn in_band_error(&self, http_code: u16, attempt_status: AttemptStatus) -> ErrorResponse {
         let (failure_code, failure_message) = self.failure();
         ErrorResponse {
@@ -2074,9 +2073,51 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // Keep republishing the resource id while the journey is unfinished, so the caller
         // can hand it back on the next leg (linked session, then confirm).
         let connector_feature_data = item.response.pending_metadata().map(Secret::new);
+
+        // When setup_future_usage: "off_session" was set on the request Pay.com returns
+        // underlying_network_id so RepeatPayment can reference the stored method. Extract
+        // it here so it is not silently dropped by transaction_response (which always sets
+        // mandate_reference: None). When setup_future_usage was absent the field is not
+        // returned and mandate_reference correctly stays None.
+        let mandate_reference = match &item.response {
+            PaydotcomPaymentsResponse::Charge(charge) => {
+                charge.underlying_network_id.clone().map(|id| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: charge.source.as_ref().and_then(|v| v.as_str()).map(
+                            |pm_id| Secret::new(serde_json::json!({ "payment_method_id": pm_id })),
+                        ),
+                    })
+                })
+            }
+            PaydotcomPaymentsResponse::Hold(hold) => hold.underlying_network_id.clone().map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: hold.source.as_ref().and_then(|v| v.as_str()).map(|pm_id| {
+                        Secret::new(serde_json::json!({ "payment_method_id": pm_id }))
+                    }),
+                })
+            }),
+            PaydotcomPaymentsResponse::AuthenticationSession(_) => None,
+        };
+
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
-            _ => Ok(item.response.transaction_response(item.http_code)),
+            _ => {
+                let mut transaction_response = item.response.transaction_response(item.http_code);
+                if let PaymentsResponseData::TransactionResponse {
+                    mandate_reference: ref mut mr,
+                    ..
+                } = transaction_response
+                {
+                    *mr = mandate_reference;
+                }
+                Ok(transaction_response)
+            }
         };
 
         Ok(Self {
@@ -2090,8 +2131,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         })
     }
 }
-
-// ===== RESPONSE: PRE-AUTHENTICATE (gateway 3DS, leg 1) =====
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     for RouterDataV2<
@@ -2113,17 +2152,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // else means the leg cannot be continued and the caller must not be handed a
         // resource id it would then try to authenticate.
         let pending = item.response.pending_metadata();
-        // `pending` is `Some(resource_id)` only while Pay.com is waiting for the shopper to
-        // authenticate — that is, when this Charge/Hold still needs the linked-authentication
-        // session that the following Authenticate leg creates. When it is `None` the journey
-        // is already resolved (approved or failed) and there is no id to hand forward, so
-        // both carriers below stay empty and the orchestrator stops after this leg.
-        //
-        // The id travels on `authentication_data`, the channel an orchestrator already moves
-        // from a PreAuthenticate response into the next Authenticate request, so no
-        // connector-specific metadata plumbing is needed. `connector_feature_data` carries the
-        // same id as a fallback for callers that drive the gRPC flows directly and therefore
-        // have no orchestrator doing that for them.
+        // `connector_feature_data` mirrors the pending id for callers driving gRPC flows
+        // directly; the primary channel is `authentication_data.transaction_id`.
         let connector_feature_data = pending.as_ref().cloned().map(Secret::new);
         let authentication_data = pending
             .as_ref()
@@ -2154,8 +2184,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
     }
 }
 
-// ===== RESPONSE: AUTHENTICATE (gateway 3DS, leg 2) =====
-
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     for RouterDataV2<
         Authenticate,
@@ -2172,9 +2200,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         let status = item.response.attempt_status();
         let resource_id = item.response.id().to_string();
 
-        // Republished so the settling Authorize knows what to `/confirm`. The orchestrator
-        // persists this and hands it back on CompleteAuthorize; `connector_feature_data`
-        // mirrors it for callers driving the gRPC flows directly.
         let pending = item.response.pending_metadata();
         let authentication_data = pending
             .clone()
@@ -2316,8 +2341,6 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     }
 }
 
-// ===== RESPONSE: REFUND =====
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomRefundResponse {
     pub id: String,
@@ -2336,10 +2359,7 @@ pub struct PaydotcomRefundResponse {
 }
 
 impl PaydotcomRefundResponse {
-    /// A 2xx carrying `status: "failed"` is how Pay.com reports a declined refund, so it
-    /// becomes an `ErrorResponse` here rather than an `Ok` the merchant cannot explain.
-    /// `failure_code`/`failure_message` are the only place the reason appears; the
-    /// payments path does the same with the same shape.
+    /// A 2xx carrying `status: "failed"` is how Pay.com reports a declined refund.
     fn in_band_error(&self, http_code: u16) -> ErrorResponse {
         ErrorResponse {
             status_code: http_code,
@@ -2417,8 +2437,6 @@ impl TryFrom<ResponseRouterData<PaydotcomRefundResponse, Self>>
     }
 }
 
-// ===== ERRORS =====
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomErrorResponse {
     pub error: PaydotcomError,
@@ -2475,8 +2493,7 @@ impl PaydotcomErrorResponse {
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: self.reason(),
-            // A validation or idempotency error is not a payment decline, so the attempt
-            // status is left untouched for anything but `payment_method_error`.
+            // Only `payment_method_error` maps to a payment decline; other types leave status untouched.
             attempt_status: (self.error.error_type == ERROR_TYPE_PAYMENT_METHOD)
                 .then_some(FlowStatus::Payment(AttemptStatus::Failure)),
             connector_transaction_id: self
@@ -2496,10 +2513,6 @@ impl PaydotcomErrorResponse {
 
     pub fn to_refund_error_response(&self, status_code: u16) -> ErrorResponse {
         let mut error_response = self.to_error_response(status_code);
-        // The refund error builder reads `attempt_status` alone and falls back to
-        // `REFUND_STATUS_UNSPECIFIED` — there is no `resource_common_data.status` fallback
-        // on this path the way there is for payments. So it carries the *refund* status
-        // here; a payment `AttemptStatus` would be wrong, and `None` loses the failure.
         error_response.attempt_status = Some(FlowStatus::Refund(RefundStatus::Failure));
         error_response
     }
@@ -2569,7 +2582,6 @@ pub fn hold_cancel_path(
 /// travel on the wire.
 #[derive(Debug, Serialize)]
 pub struct PaydotcomRepeatPaymentRequest {
-    /// Always `true` for MIT — signals that no cardholder interaction is available.
     pub off_session: bool,
     #[serde(serialize_with = "paydotcom_currency::serialize")]
     pub currency: common_enums::Currency,
@@ -2588,8 +2600,6 @@ pub struct PaydotcomRepeatPaymentRequest {
     pub reference: Option<String>,
 }
 
-/// `source_data` envelope used by Variant C — carries the PM id and the network mandate
-/// reference so Pay.com can route the charge through the correct recurring sequence.
 #[derive(Debug, Serialize)]
 pub struct PaydotcomMitSourceData {
     #[serde(rename = "type")]
@@ -2604,9 +2614,7 @@ pub struct PaydotcomMitSourceRef {
     pub id: Secret<String>,
 }
 
-/// RepeatPayment reuses the Charge response shape — the same `PaydotcomPaymentsResponse`.
-/// A distinct alias is required so `create_all_prerequisites!` can generate a unique
-/// `…Templating` struct for this flow.
+/// Distinct alias so `create_all_prerequisites!` can generate a unique `…Templating` struct.
 pub type PaydotcomRepeatPaymentResponse = PaydotcomPaymentsResponse;
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -2652,11 +2660,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone(),
         );
 
-        // `connector_mandate_id` carries the `underlying_network_id` Pay.com returned on the CIT.
-        // `payment_method_id` is NOT read from get_payment_method_id() because that returns
-        // Hyperswitch's own pm id — not Pay.com's pm_card_… — and Pay.com would reject it.
-        // Instead, the connector's pm id was stashed in mandate_metadata by the SetupMandate
-        // response transformer and is read back here.
+        // `payment_method_id` comes from mandate_metadata, NOT get_payment_method_id() —
+        // that returns Hyperswitch's own pm id, not Pay.com's pm_card_…, which Pay.com rejects.
         let (connector_mandate_id, payment_method_id) = match &item.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(mandate_data) => {
                 let pm_id = mandate_data.get_mandate_metadata().and_then(|meta| {
@@ -2667,11 +2672,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 (mandate_data.get_connector_mandate_id(), pm_id)
             }
-            // Pay.com's recurring model is built around its own `underlying_network_id`
-            // (a PSP-proprietary reference). It has no concept of replaying a scheme-issued
-            // NTI from another PSP, so both PSP-agnostic variants are explicitly rejected
-            // rather than silently falling through to a customer_reference_id auto-select
-            // that would likely fail at Pay.com with no useful error.
+            // Pay.com MIT uses its own underlying_network_id, not a scheme-issued NTI.
             MandateReferenceId::NetworkMandateId(_) => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "PSP-agnostic NetworkMandateId recurring is not supported by paydotcom"
@@ -2717,12 +2718,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Build the richest variant that the available data supports.
-        //
-        // Variant C — PM id + network mandate id both present: most explicit; preferred
-        //             when multiple recurring sequences may exist for the same customer.
-        // Variant B — PM id only: let Pay.com choose the correct sequence internally.
-        // Variant A — neither: Pay.com auto-selects the latest eligible PM for the customer.
+        // Variant C (pm_id + network_id) > Variant B (pm_id only) > Variant A (customer_id only).
         let (source, source_data) = match (payment_method_id, connector_mandate_id) {
             (Some(pm_id), Some(network_id)) => (
                 None,
@@ -2744,13 +2740,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .map(|id| id.get_string_repr().to_string());
 
-        // Variant A (customer_reference_id only) requires at least the customer id.
-        // Without it AND without a pm_id / mandate id, the request carries nothing
-        // to identify a payment source and Pay.com will 400.
+        // All three identifiers absent — Pay.com will 400 with no useful body.
+        // Report field_name as "customer_id" (not the compound form) so the field
+        // prober resolves it via Variant A and keeps the flow in generated docs.
         if source.is_none() && source_data.is_none() && customer_reference_id.is_none() {
             return Err(
                 error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "mandate_reference or customer_id",
+                field_name: "customer_id",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "Pay.com RepeatPayment requires at least one payment source identifier: \
@@ -2759,8 +2755,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .to_string(),
                     ),
                     suggested_action: Some(
-                        "Ensure SetupMandate completed successfully and returned an \
-                         underlying_network_id, or provide customer_id on the payment."
+                        "Provide customer_id on the payment (Variant A — Pay.com auto-selects \
+                         the latest stored method), or ensure SetupMandate returned an \
+                         underlying_network_id."
                             .to_string(),
                     ),
                     doc_url: None,
