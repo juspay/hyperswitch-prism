@@ -9,21 +9,25 @@
 #
 # Env: SUPERPOSITION_URL (default http://localhost:8080), SEED_FILE
 # (config/superposition.toml), ORG_ID (hyperswitch), WORKSPACE_ID (prism),
+# WORKSPACE_ADMIN_EMAIL (required only when the workspace does not exist yet),
 # SUPERPOSITION_TOKEN (optional bearer, for deployments fronted by an auth proxy),
 # MAX_RETRIES (60) × RETRY_INTERVAL (2s) to wait for /health.
 #
-# Order matters and mirrors the server's rules: dimensions by position first
-# (positions must stay dense; variantIds is position 0 and comes with the workspace),
-# then default-configs, then contexts. Every create carries a description and a
-# change_reason (the server requires them). 2xx or 409 (already exists) is success —
-# idempotent by 409, exactly like the reference script. Ends with a resolve
-# self-check so a mis-seeded workspace fails here, not silently at runtime.
+# The workspace is created when it does not exist yet (GET 404 -> POST), so a new
+# environment needs no dashboard step before seeding. Then, in the order the server
+# requires: dimensions by position (positions must stay dense; variantIds is
+# position 0 and comes with the workspace), default-configs, contexts. Every create
+# carries a description and a change_reason (the server requires them). 2xx or 409
+# (already exists) is success — idempotent by 409, exactly like the reference
+# script. Ends with a resolve self-check so a mis-seeded workspace fails here, not
+# silently at runtime.
 set -euo pipefail
 
 SUPERPOSITION_URL="${SUPERPOSITION_URL:-http://localhost:8080}"
 SEED_FILE="${SEED_FILE:-config/superposition.toml}"
 ORG_ID="${ORG_ID:-hyperswitch}"
 WORKSPACE_ID="${WORKSPACE_ID:-prism}"
+WORKSPACE_ADMIN_EMAIL="${WORKSPACE_ADMIN_EMAIL:-}"
 SUPERPOSITION_TOKEN="${SUPERPOSITION_TOKEN:-}"
 MAX_RETRIES="${MAX_RETRIES:-60}"
 RETRY_INTERVAL="${RETRY_INTERVAL:-2}"
@@ -69,6 +73,21 @@ done
 curl -sS -o /dev/null "$SUPERPOSITION_URL/health" || { echo "error: Superposition not healthy" >&2; exit 1; }
 
 SEED_JSON=$(toml_to_json)
+
+echo "==> workspace $ORG_ID/$WORKSPACE_ID"
+workspace_status=$(curl -sS -o /dev/null -w '%{http_code}' "$SUPERPOSITION_URL/workspaces/$WORKSPACE_ID" \
+  -H "x-org-id: $ORG_ID" "${auth_header[@]}") || { echo "error: workspace lookup: curl failed" >&2; exit 1; }
+case "$workspace_status" in
+  200) echo "  skip workspace $WORKSPACE_ID (already exists)" ;;
+  404)
+    [[ -n "$WORKSPACE_ADMIN_EMAIL" ]] || { echo "error: workspace $WORKSPACE_ID does not exist; set WORKSPACE_ADMIN_EMAIL to create it" >&2; exit 1; }
+    # strict_mode and workspace_admin_email are required by the server; the rest are defaults.
+    body=$(jq -cn --arg name "$WORKSPACE_ID" --arg admin "$WORKSPACE_ADMIN_EMAIL" \
+      '{workspace_name: $name, workspace_admin_email: $admin, workspace_status: "ENABLED", strict_mode: false}')
+    call POST /workspaces "$body" "workspace $WORKSPACE_ID"
+    ;;
+  *) echo "error: workspace lookup -> HTTP $workspace_status" >&2; exit 1 ;;
+esac
 
 echo "==> dimensions (by position; variantIds is the workspace's own, position 0)"
 echo "$SEED_JSON" | jq -c '.dimensions | to_entries | sort_by(.value.position) | .[] | select(.key != "variantIds")' | while read -r entry; do
