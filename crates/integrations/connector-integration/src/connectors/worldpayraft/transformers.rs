@@ -107,7 +107,7 @@ pub struct WorldpayraftErrorResponse {
 
 /// Returns the current UTC datetime formatted as "YYYY-MM-DDTHH:MM:SS".
 fn get_local_datetime() -> String {
-    let now = time::OffsetDateTime::now_utc();
+    let now = common_utils::date_time::now().assume_utc();
     format!(
         "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
         now.year(),

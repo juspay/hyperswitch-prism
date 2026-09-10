@@ -248,7 +248,12 @@ where
     };
 
     for (field, value) in overrides {
-        set_at_path(&mut json, field, Value::String(value.clone()));
+        // TOML types map straight onto JSON, so an override keeps whatever type
+        // it was written with: `"12345"` stays a string, `46` becomes a number.
+        let Ok(value) = serde_json::to_value(value) else {
+            continue;
+        };
+        set_at_path(&mut json, field, value);
     }
 
     if let Ok(patched) = serde_json::from_value(json) {

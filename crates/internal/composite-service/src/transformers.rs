@@ -360,6 +360,7 @@ impl
             is_account_funding_transaction: item.is_account_funding_transaction,
             recipient_details: item.recipient_details.clone(),
             additional_connector_details: item.additional_connector_details.clone(),
+            business_country: item.business_country.clone(),
         }
     }
 }
@@ -1041,6 +1042,9 @@ impl ForeignFrom<&CompositePaymentMethodGetRequest> for PaymentMethodServiceToke
             test_mode: item.test_mode,
             state: item.state.clone(),
             split_payments: item.split_payments.clone(),
+            setup_future_usage: item.setup_future_usage,
+            customer_acceptance: item.customer_acceptance.clone(),
+            setup_mandate_details: item.setup_mandate_details.clone(),
         }
     }
 }
@@ -1231,6 +1235,7 @@ impl
             is_account_funding_transaction: request.is_account_funding_transaction,
             recipient_details: request.recipient_details.clone(),
             additional_connector_details: request.additional_connector_details.clone(),
+            business_country: request.business_country.clone(),
         }
     }
 }

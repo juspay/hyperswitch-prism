@@ -265,9 +265,7 @@ use tracing::field::Empty;
 use crate::shared_metrics as metrics;
 pub type Headers = std::collections::HashSet<(String, Maskable<String>)>;
 
-#[cfg(not(feature = "connector-request-kafka"))]
 use common_enums::KafkaClientError;
-#[cfg(not(feature = "connector-request-kafka"))]
 use common_utils::request::KafkaRecord;
 #[cfg(feature = "connector-request-kafka")]
 pub use connector_request_kafka::publish_to_kafka;
@@ -276,6 +274,55 @@ pub async fn publish_to_kafka(
     _kafka_record: KafkaRecord,
 ) -> CustomResult<Result<Response, Response>, KafkaClientError> {
     Err(KafkaClientError::NotEnabled)?
+}
+
+/// The Kafka-transport egress boundary. Both the real publisher and the feature-off stub
+/// flow through this wrapper, so the déjà boundary composes with `connector-request-kafka`
+/// on or off (tapes are portable across the two). Replay substitutes the recorded delivery
+/// outcome and never publishes to a real broker.
+// Gated like its sole caller (`execute_connector_processing_step`); without it the
+// private wrapper is dead code in `injector-client`-less builds.
+#[cfg(feature = "injector-client")]
+#[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::instrument(
+        boundary = "kafka_outgoing",
+        component = "external_services::service",
+        operation = "publish_connector_record",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::kafka_args(&record),
+        codec = crate::deja_codec::KafkaOutcomeCodec,
+        replay = Substitute,
+    )
+)]
+async fn publish_connector_record(
+    record: KafkaRecord,
+) -> CustomResult<Result<Response, Response>, KafkaClientError> {
+    publish_to_kafka(record).await
+}
+
+/// The injector (vault-card-proxy) egress boundary. Args capture is digest-only — the
+/// request carries vault token data and the card-data template (`sensitivity: vault`).
+/// Replay substitutes the recorded response; the vault is never contacted.
+#[cfg(feature = "injector-client")]
+#[inline]
+#[cfg_attr(
+    feature = "deja",
+    deja::instrument(
+        boundary = "injector_outgoing",
+        component = "external_services::service",
+        operation = "call_injector_core",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::injector_args(&request),
+        codec = crate::deja_codec::InjectorOutcomeCodec,
+        replay = Substitute,
+    )
+)]
+async fn call_injector_core(
+    request: injector::InjectorRequest,
+) -> error_stack::Result<injector::InjectorResponse, injector::InjectorError> {
+    injector_core(request).await
 }
 
 /// Exposes a flow's outcome as a unified [`FlowStatus`], so the generic connector
@@ -370,6 +417,21 @@ fn capture_connector_reply<E>(
 }
 
 /// Handles the connector response, processing both successful and error responses
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(
+        name = "ucs::handle_response",
+        skip_all,
+        fields(
+            method = %method,
+            // Declared so the record() calls in the body land in the tape
+            // instead of silently no-oping against an undeclared field.
+            status_code = Empty,
+            url = Empty,
+        )
+    )
+)]
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     response: CustomResult<Result<Response, Response>, ConnectorError>,
@@ -848,7 +910,6 @@ where
                         .record("request.method", tracing::field::display(method));
 
                     let masked_headers = request.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
@@ -858,7 +919,6 @@ where
                         .typed_connector_request_value
                         .clone()
                         .unwrap_or_else(|| mask_connector_request(&request.body));
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
                     let response = if let Some(token_data) = token_data {
@@ -916,7 +976,7 @@ where
 
                         // New injector handles HTTP request internally and returns enhanced response
                         let injector_response =
-                            injector_core(injector_request).await.change_context(
+                            call_injector_core(injector_request).await.change_context(
                                 ConnectorFlowError::from(IntegrationError::RequestEncodingFailed {
                                     context: Default::default(),
                                 }),
@@ -1085,17 +1145,15 @@ where
                     tracing::Span::current().record("request.url", tracing::field::display(&topic));
 
                     let masked_headers = record.headers.clone();
-                    tracing::info!(headers=?masked_headers, "headers of connector request");
                     record_json_fields_on_span(vec![(
                         "request.headers",
                         maskable_headers_to_json(&masked_headers),
                     )]);
 
                     let masked_request = mask_connector_request(&record.payload);
-                    tracing::info!(request=?masked_request, "request of connector");
                     record_json_fields_on_span(vec![("request.body", masked_request.clone())]);
 
-                    let response = publish_to_kafka(record)
+                    let response = publish_connector_record(record)
                         .await
                         .map_err(report_kafka_client_to_flow)
                         .inspect_err(|err| {
@@ -1307,6 +1365,17 @@ pub type CustomResult<T, E> = error_stack::Result<T, E>;
 pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
 
+#[cfg_attr(
+    feature = "deja",
+    deja::http(
+        outgoing,
+        component = "external_services::service",
+        operation = "call_connector_api",
+        correlation = Option::<String>::None,
+        args = crate::deja_codec::http_args(&request),
+        codec = crate::deja_codec::HttpOutcomeCodec,
+    )
+)]
 pub async fn call_connector_api(
     proxy: &ProxyConfig,
     request: Request,
@@ -1315,6 +1384,7 @@ pub async fn call_connector_api(
     header_proxy_name: Option<&str>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
+    let connector_host = url.host_str().unwrap_or("unknown").to_string();
 
     let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
 
@@ -1461,21 +1531,23 @@ pub async fn call_connector_api(
         }
         .add_headers(headers)
     };
-    let send_request = async {
-        request.send().await.map_err(|error| {
-            let api_error = match error {
-                error if error.is_timeout() => ApiClientError::RequestTimeoutReceived,
-                _ => ApiClientError::RequestNotSent(error.to_string()),
-            };
-            info_log(
-                "REQUEST_FAILURE",
-                &json!("Unable to send request to connector."),
-            );
-            report!(api_error)
-        })
-    };
+    let (response, retried) = crate::http_client::send_request_with_retry(request).await;
 
-    let response = send_request.await;
+    if retried {
+        #[cfg(feature = "otel")]
+        crate::otel_metrics::record_auto_retry_connection_closed(&connector_host);
+        tracing::info!(
+            connector = %connector_host,
+            "Auto-retried request due to connection closed before message completed"
+        );
+    }
+
+    if response.is_err() {
+        info_log(
+            "REQUEST_FAILURE",
+            &json!("Unable to send request to connector."),
+        );
+    }
 
     handle_response(response).await
 }
