@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.10.0
+
+### Features
+
+- **Feature:** [Connector] Implementing NSure FRM Connector ([#2213](https://github.com/juspay/connector-service/pull/2213)) ([`2a722d3`](https://github.com/juspay/connector-service/commit/2a722d3540e8cff795c17becfedcebce814a2eb3))
+- **deja:** Record/replay instrumentation for UCS — ART ([#2220](https://github.com/juspay/connector-service/pull/2220)) ([`f854060`](https://github.com/juspay/connector-service/commit/f854060bbfdaaa92749cac058b8d5461adce112a))
+- **rapyd:** Mandates, zero-amount verification, decrypted wallets, DELETE void ([#2252](https://github.com/juspay/connector-service/pull/2252)) ([`dad19d0`](https://github.com/juspay/connector-service/commit/dad19d0f0a28b40c028b83deb009b75787dd0bfa))
+
+### Miscellaneous Tasks
+
+- **grace:** Realign the GRACE corpus with the current UCS contract ([#2251](https://github.com/juspay/connector-service/pull/2251)) ([`b1bc5db`](https://github.com/juspay/connector-service/commit/b1bc5db00d52b54dc050a3f647038805a5672612))
+
+**Full Changelog:** [`2026.09.09.1...2026.09.10.0`](https://github.com/juspay/connector-service/compare/2026.09.09.1...2026.09.10.0)
+
+- - -
+
 ## 2026.09.09.1
 
 ### Bug Fixes

@@ -9,7 +9,15 @@ use crate::flow_registry::{probe_flow_by_definition, FLOW_DEFINITIONS};
 use crate::types::*;
 
 pub(crate) fn probe_connector(connector: &ConnectorEnum) -> ConnectorResult {
-    let name = format!("{connector:?}").to_lowercase();
+    // `ConnectorEnum` derives `Display` with `#[strum(serialize_all = "snake_case")]`, so this
+    // yields the same id the rest of the system uses (`x-connector`, config keys,
+    // `connector_specs/`). `format!("{connector:?}").to_lowercase()` produced the Debug name
+    // lowercased, which silently dropped the underscore for every multi-word connector --
+    // `globalpaymentsheartland`, `twoctwoppaco`, `absasanlam`. Because
+    // `scripts/generators/docs/generate.py` discovers connectors by globbing this directory,
+    // each such file became a phantom connector with its own doc page, examples and
+    // `llms.txt` block, and inflated `total_connectors`.
+    let name = connector.to_string();
     let config = load_config();
     let metadata = make_masked_metadata();
     let pm_variants: HashMap<String, PaymentMethod> = get_config()

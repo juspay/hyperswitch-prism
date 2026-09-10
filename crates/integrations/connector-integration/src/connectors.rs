@@ -318,7 +318,6 @@ pub mod jpmorganorbital;
 pub use self::jpmorganorbital::JpmorganOrbital;
 pub mod saferpay;
 pub use self::saferpay::Saferpay;
-
 pub mod travelhub;
 pub use self::travelhub::Travelhub;
 pub mod paynearme;
@@ -331,3 +330,6 @@ pub use self::paydotcom::Paydotcom;
 
 pub mod payhere;
 pub use self::payhere::Payhere;
+
+pub mod globalpayments_heartland;
+pub use self::globalpayments_heartland::GlobalpaymentsHeartland;

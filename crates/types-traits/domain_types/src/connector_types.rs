@@ -173,6 +173,7 @@ pub enum ConnectorEnum {
     Paynearme,
     D24,
     Paydotcom,
+    GlobalpaymentsHeartland,
     Payhere,
 }
 
@@ -543,6 +544,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
+            grpc_api_types::payments::Connector::GlobalpaymentsHeartland => {
+                Ok(Self::GlobalpaymentsHeartland)
+            }
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
@@ -5916,6 +5920,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::GlobalpaymentsHeartland(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsHeartland))
+            }
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
