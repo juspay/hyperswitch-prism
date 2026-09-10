@@ -838,7 +838,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: mandate_reference or customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id — Missing required field: mandate_reference or customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id (underlying_network_id), a Pay.com pm_card_… id in mandate_metadata, or a customer_reference_id. All three are absent."
+        "error": "Stuck on field: customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id — Missing required field: customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id (underlying_network_id), a Pay.com pm_card_… id in mandate_metadata, or a customer_reference_id. All three are absent."
       }
     },
     "recurring_revoke": {
