@@ -21,13 +21,17 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payouts::payouts_types::{
-        PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
-        PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
-        PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutEnrollDisburseAccountRequest,
-        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
-        PayoutStageRequest, PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse,
-        PayoutVoidRequest, PayoutVoidResponse,
+    payouts::{
+        payout_method_data::{Bank, PayoutMethodData, Wallet},
+        payouts_types::{
+            PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
+            PayoutCreateRecipientResponse, PayoutCreateRequest, PayoutCreateResponse,
+            PayoutEligibilityRequest, PayoutEligibilityResponse,
+            PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse,
+            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutStageRequest,
+            PayoutStageResponse, PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest,
+            PayoutVoidResponse,
+        },
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -48,7 +52,7 @@ use interfaces::{
 
 use crate::{types::ResponseRouterData, with_error_response_body};
 use transformers::{
-    MifinityAuthType, MifinityErrorResponse, MifinityPmcRequest, MifinityPmcResponse,
+    MifinityAuthType, MifinityErrorResponse, MifinityPayoutRequest, MifinityPayoutResponse,
     MifinityStatusResponse,
 };
 
@@ -190,7 +194,9 @@ impl
     }
 }
 
-// ===== PAYOUT TRANSFER (REAL — PayMyCard / PMC card payout) =====
+// ===== PAYOUT TRANSFER (REAL — dispatched by payout method) =====
+//   * MiFinity wallet        -> POST /api/payments/acct2acct
+//   * SEPA bank transfer     -> POST /api/payments/pab (PayAnyBank)
 
 impl PayoutTransferV2 for MifinityPayouts {}
 
@@ -222,7 +228,19 @@ impl
         let base_url = self
             .base_url(&req.resource_common_data.connectors)
             .trim_end_matches('/');
-        Ok(format!("{base_url}/api/payments/pmc"))
+        let endpoint = match req.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Wallet(Wallet::Mifinity(_))) => "api/payments/acct2acct",
+            Some(PayoutMethodData::Bank(Bank::Sepa(_))) => "api/payments/pab",
+            Some(_) | None => {
+                return Err(IntegrationError::connector_feature_not_supported(
+                    self.id(),
+                    "the selected payout method (MiFinity supports the MiFinity wallet and SEPA bank transfer only)",
+                    Default::default(),
+                )
+                .into());
+            }
+        };
+        Ok(format!("{base_url}/{endpoint}"))
     }
 
     fn get_headers(
@@ -246,7 +264,7 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
-        let connector_req = MifinityPmcRequest::try_from(req)?;
+        let connector_req = MifinityPayoutRequest::try_from(req)?;
         let typed = events::MaskedSerdeValue::from_masked_optional(
             &connector_req,
             "typed_connector_request",
@@ -271,9 +289,9 @@ impl
         RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
         ConnectorError,
     > {
-        let response: MifinityPmcResponse = res
+        let response: MifinityPayoutResponse = res
             .response
-            .parse_struct("MifinityPmcResponse")
+            .parse_struct("MifinityPayoutResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: ResponseTransformationErrorContext {
                     http_status_code: Some(res.status_code),

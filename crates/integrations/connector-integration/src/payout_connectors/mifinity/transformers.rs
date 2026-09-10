@@ -4,7 +4,7 @@ use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payouts::{
-        payout_method_data::{CardPayout, PayoutMethodData},
+        payout_method_data::{Bank, PayoutMethodData, SepaBankTransfer, Wallet},
         payouts_types::{
             PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
             PayoutTransferResponse,
@@ -14,15 +14,15 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils::convert_amount,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
 
 const MIFINITY_CONNECTOR: &str = "mifinity";
-// Fallback date of birth used when the payout request does not carry the
-// cardholder DOB, which MiFinity's PayMyCard endpoint requires (YYYY-MM-DD).
-const DEFAULT_DOB: &str = "1990-01-01";
+// MiFinity's account-to-account transfer requires a description of 1-25 chars.
+const DEFAULT_DESCRIPTION: &str = "Payout";
+const MAX_DESCRIPTION_LEN: usize = 25;
 
 /// Auth material resolved from the connector configuration for the Mifinity payout connector.
 pub struct MifinityAuthType {
@@ -83,70 +83,83 @@ pub struct MifinityMoney {
     pub currency: Currency,
 }
 
-/// Request body for the MiFinity PayMyCard (PMC) card payout endpoint.
+type MifinityPayoutRouterData =
+    RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>;
+
+/// MiFinity requires a 1-25 character description. Resolve it from the request,
+/// falling back to a default, and truncate to stay within the limit.
+fn resolve_description(req: &MifinityPayoutRouterData) -> String {
+    let mut description = req
+        .resource_common_data
+        .description
+        .clone()
+        .filter(|d| !d.is_empty())
+        .unwrap_or_else(|| DEFAULT_DESCRIPTION.to_string());
+    description.truncate(MAX_DESCRIPTION_LEN);
+    description
+}
+
+/// Dispatching request body for the MiFinity PayoutTransfer flow. Serializes as
+/// the underlying request (untagged) so each payout method produces its own body.
 #[derive(Debug, Clone, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct MifinityPmcRequest {
-    pub money: MifinityMoney,
-    pub source_account: Secret<String>,
-    pub trace_id: String,
-    pub card_name: Secret<String>,
-    pub card_number: Secret<String>,
-    pub expiry_date: Secret<String>,
-    pub card_holder_country_code: String,
-    pub card_holder_nationality: String,
-    pub dob: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_street: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_city: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub card_holder_state: Option<Secret<String>>,
+#[serde(untagged)]
+pub enum MifinityPayoutRequest {
+    Acct2Acct(MifinityAcct2AcctRequest),
+    Pab(MifinityPabRequest),
 }
 
-fn build_expiry_date(card: &CardPayout) -> Secret<String> {
-    let month = card.expiry_month.peek().clone();
-    let year = card.expiry_year.peek().clone();
-    // MiFinity expects MM/YY.
-    let yy = if year.len() > 2 {
-        year[year.len() - 2..].to_string()
-    } else {
-        year
-    };
-    Secret::new(format!("{month}/{yy}"))
-}
-
-impl
-    TryFrom<
-        &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    > for MifinityPmcRequest
-{
+impl TryFrom<&MifinityPayoutRouterData> for MifinityPayoutRequest {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
+        match req.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Wallet(Wallet::Mifinity(_))) => {
+                Ok(Self::Acct2Acct(MifinityAcct2AcctRequest::try_from(req)?))
+            }
+            Some(PayoutMethodData::Bank(Bank::Sepa(_))) => {
+                Ok(Self::Pab(MifinityPabRequest::try_from(req)?))
+            }
+            Some(_) | None => Err(IntegrationError::connector_feature_not_supported(
+                MIFINITY_CONNECTOR,
+                "the selected payout method (MiFinity supports the MiFinity wallet and SEPA bank transfer only)",
+                Default::default(),
+            )
+            .into()),
+        }
+    }
+}
+
+/// Request body for the MiFinity account-to-account transfer endpoint
+/// (`POST /api/payments/acct2acct`).
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityAcct2AcctRequest {
+    /// Merchant account debited for the transfer (from the connector config).
+    pub source_account: Secret<String>,
+    /// Recipient MiFinity wallet: email address or MiFinity account number.
+    pub destination_account: Secret<String>,
+    pub money: MifinityMoney,
+    /// Transfer description (1-25 characters).
+    pub description: String,
+    /// Caller-assigned unique correlation id, echoed back and used for sync.
+    pub trace_id: String,
+}
+
+impl TryFrom<&MifinityPayoutRouterData> for MifinityAcct2AcctRequest {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
         let auth = MifinityAuthType::try_from(&req.connector_config)?;
         let source_account = auth.get_source_account()?;
 
-        let card = match req.request.payout_method_data.as_ref() {
-            Some(PayoutMethodData::Card(card)) => card,
+        let destination_account = match req.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Wallet(Wallet::Mifinity(data))) => {
+                data.destination_account.clone()
+            }
             Some(_) | None => {
                 return Err(IntegrationError::connector_feature_not_supported(
                     MIFINITY_CONNECTOR,
-                    "the selected payout method (MiFinity PayMyCard supports card payouts only)",
+                    "the selected payout method (MiFinity account-to-account transfer supports the MiFinity wallet only)",
                     Default::default(),
                 )
                 .into());
@@ -159,91 +172,180 @@ impl
             req.request.destination_currency,
         )?;
 
-        // Cardholder name: prefer the name on the card, else the billing name.
-        let card_name = card
-            .card_holder_name
-            .clone()
-            .or_else(|| {
-                req.request
-                    .address
-                    .as_ref()
-                    .and_then(|a| a.billing_address.as_ref())
-                    .and_then(|b| b.address.as_ref())
-                    .and_then(|d| match (d.first_name.as_ref(), d.last_name.as_ref()) {
-                        (Some(first), Some(last)) => Some(Secret::new(format!(
-                            "{} {}",
-                            first.clone().expose(),
-                            last.clone().expose()
-                        ))),
-                        (Some(name), None) | (None, Some(name)) => Some(name.clone()),
-                        (None, None) => None,
-                    })
-            })
-            .or_else(|| {
-                req.request
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.name.clone())
-                    .map(Secret::new)
-            })
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "card_holder_name",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "MiFinity PayMyCard requires a cardholder name (card_holder_name or billing name)."
-                            .to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })?;
+        Ok(Self {
+            source_account,
+            destination_account,
+            money: MifinityMoney {
+                amount,
+                currency: req.request.destination_currency,
+            },
+            description: resolve_description(req),
+            trace_id: req
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        })
+    }
+}
 
-        let billing_details = req
+/// Request body for the MiFinity PayAnyBank (PAB) endpoint
+/// (`POST /api/payments/pab`), used for SEPA bank payouts.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityPabRequest {
+    /// Merchant account debited for the transfer (from the connector config).
+    pub source_account: Secret<String>,
+    /// Caller-assigned unique correlation id, echoed back and used for sync.
+    pub trace_id: String,
+    /// Transfer description (1-25 characters).
+    pub description: String,
+    pub money: MifinityMoney,
+    pub bank_payee: MifinityBankPayee,
+}
+
+/// Recipient bank details for a PAB payout.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct MifinityBankPayee {
+    /// Recipient bank country (ISO 3166-1 alpha-2).
+    pub country: String,
+    pub currency: Currency,
+    pub description: String,
+    pub fields: MifinityBankFields,
+}
+
+/// MiFinity's typed bank-field bag for SEPA payouts.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct MifinityBankFields {
+    #[serde(rename = "IBAN")]
+    pub iban: Secret<String>,
+    #[serde(rename = "BIC", skip_serializing_if = "Option::is_none")]
+    pub bic: Option<Secret<String>>,
+    #[serde(rename = "BANK_NAME", skip_serializing_if = "Option::is_none")]
+    pub bank_name: Option<String>,
+    #[serde(rename = "CUSTOMER_NAME")]
+    pub customer_name: Secret<String>,
+    #[serde(rename = "CUSTOMER_ADDRESS")]
+    pub customer_address: Secret<String>,
+    #[serde(rename = "CUSTOMER_CITY")]
+    pub customer_city: Secret<String>,
+    #[serde(rename = "CUSTOMER_ZIP")]
+    pub customer_zip: Secret<String>,
+}
+
+impl TryFrom<&MifinityPayoutRouterData> for MifinityPabRequest {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(req: &MifinityPayoutRouterData) -> Result<Self, Self::Error> {
+        let auth = MifinityAuthType::try_from(&req.connector_config)?;
+        let source_account = auth.get_source_account()?;
+
+        let sepa: &SepaBankTransfer = match req.request.payout_method_data.as_ref() {
+            Some(PayoutMethodData::Bank(Bank::Sepa(sepa))) => sepa,
+            Some(_) | None => {
+                return Err(IntegrationError::connector_feature_not_supported(
+                    MIFINITY_CONNECTOR,
+                    "the selected payout method (MiFinity PayAnyBank supports SEPA bank transfers only)",
+                    Default::default(),
+                )
+                .into());
+            }
+        };
+
+        // Recipient address (customerAddress/City/Zip) is NOT carried on the
+        // SEPA method data — it comes from the payout's billing address.
+        let billing = req
             .request
             .address
             .as_ref()
             .and_then(|a| a.billing_address.as_ref())
             .and_then(|b| b.address.as_ref());
 
-        let country_code = billing_details
-            .and_then(|d| d.country)
-            .map(|c| c.to_string())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "address.billing_address.address.country",
+        let missing =
+            |field: &'static str, ctx: &'static str| IntegrationError::MissingRequiredField {
+                field_name: field,
                 context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "MiFinity PayMyCard requires the cardholder country code (ISO 3166-1)."
-                            .to_string(),
-                    ),
+                    additional_context: Some(ctx.to_string()),
                     ..Default::default()
                 },
+            };
+
+        let country = billing
+            .and_then(|d| d.country)
+            .map(|c| c.to_string())
+            .ok_or_else(|| {
+                missing(
+                    "address.billing_address.address.country",
+                    "MiFinity PayAnyBank requires the recipient bank country (ISO 3166-1).",
+                )
             })?;
 
-        let card_holder_street = billing_details.and_then(|d| d.line1.clone());
-        let card_holder_city = billing_details
-            .and_then(|d| d.city.clone())
-            .map(|c| c.expose());
-        let card_holder_state = billing_details.and_then(|d| d.state.clone());
+        // Recipient name: prefer the SEPA account holder, else the billing name.
+        let customer_name = sepa
+            .account_holder_name
+            .clone()
+            .or_else(|| billing.and_then(|d| d.get_optional_full_name()))
+            .ok_or_else(|| {
+                missing(
+                    "account_holder_name",
+                    "MiFinity PayAnyBank requires the recipient name (account_holder_name or billing name).",
+                )
+            })?;
+
+        let customer_address = billing.and_then(|d| d.line1.clone()).ok_or_else(|| {
+            missing(
+                "address.billing_address.address.line1",
+                "MiFinity PayAnyBank requires the recipient street address (billing line1).",
+            )
+        })?;
+
+        let customer_city = billing.and_then(|d| d.city.clone()).ok_or_else(|| {
+            missing(
+                "address.billing_address.address.city",
+                "MiFinity PayAnyBank requires the recipient city (billing city).",
+            )
+        })?;
+
+        let customer_zip = billing.and_then(|d| d.zip.clone()).ok_or_else(|| {
+            missing(
+                "address.billing_address.address.zip",
+                "MiFinity PayAnyBank requires the recipient postal code (billing zip).",
+            )
+        })?;
+
+        let amount = convert_amount(
+            &StringMajorUnitForConnector,
+            req.request.amount,
+            req.request.destination_currency,
+        )?;
+
+        let description = resolve_description(req);
 
         Ok(Self {
-            money: MifinityMoney {
-                amount,
-                currency: req.request.destination_currency,
-            },
             source_account,
             trace_id: req
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            card_name,
-            card_number: Secret::new(card.card_number.get_card_no()),
-            expiry_date: build_expiry_date(card),
-            card_holder_country_code: country_code.clone(),
-            card_holder_nationality: country_code,
-            dob: DEFAULT_DOB.to_string(),
-            description: req.resource_common_data.description.clone(),
-            card_holder_street,
-            card_holder_city,
-            card_holder_state,
+            description: description.clone(),
+            money: MifinityMoney {
+                amount,
+                currency: req.request.destination_currency,
+            },
+            bank_payee: MifinityBankPayee {
+                country,
+                currency: req.request.destination_currency,
+                description,
+                fields: MifinityBankFields {
+                    iban: sepa.iban.clone(),
+                    bic: sepa.bic.clone(),
+                    bank_name: sepa.bank_name.map(|b| b.to_string()),
+                    customer_name,
+                    customer_address,
+                    customer_city,
+                    customer_zip,
+                },
+            },
         })
     }
 }
@@ -256,9 +358,10 @@ pub struct MifinityMoneyResponse {
     pub presentation_amount: Option<String>,
 }
 
+/// One entry from a MiFinity payout response payload (shared by acct2acct and PAB).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct MifinityPmcPayload {
+pub struct MifinityPayoutPayload {
     pub transaction_id: String,
     pub transaction_reference: Option<String>,
     pub trace_id: Option<String>,
@@ -268,17 +371,20 @@ pub struct MifinityPmcPayload {
     pub status: Option<String>,
 }
 
+/// Response body for the MiFinity payout endpoints (acct2acct and PAB share this shape).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct MifinityPmcResponse {
-    pub payload: Vec<MifinityPmcPayload>,
+pub struct MifinityPayoutResponse {
+    pub payload: Vec<MifinityPayoutPayload>,
 }
 
-impl TryFrom<ResponseRouterData<MifinityPmcResponse, Self>>
+impl TryFrom<ResponseRouterData<MifinityPayoutResponse, Self>>
     for RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(item: ResponseRouterData<MifinityPmcResponse, Self>) -> Result<Self, Self::Error> {
+    fn try_from(
+        item: ResponseRouterData<MifinityPayoutResponse, Self>,
+    ) -> Result<Self, Self::Error> {
         // A synchronous 200 with a populated payload confirms the payout was
         // accepted/initiated. Final settlement (PROCESSED_BY_ACQUIRER) is
         // confirmed asynchronously via callback or the status-sync endpoint.
