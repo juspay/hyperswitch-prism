@@ -5857,17 +5857,17 @@ message PaydotcomConfig {
 
 message PayhereConfig {
   // PayHere App ID -- OAuth client_id, sent in the Basic auth header to
-  // /merchant/v1/oauth/token together with `api_secret`.
-  SecretString api_key = 1;
+  // /merchant/v1/oauth/token together with `app_secret`.
+  SecretString app_id = 1;
   // PayHere Merchant ID -- sent as `merchant_id` in the hosted-checkout form
   // and used as the first input of the checkout hash.
-  SecretString key1 = 2;
-  // PayHere App Secret -- OAuth client_secret, paired with `api_key` for the
+  SecretString merchant_id = 2;
+  // PayHere App Secret -- OAuth client_secret, paired with `app_id` for the
   // token endpoint Basic auth.
-  SecretString api_secret = 3;
+  SecretString app_secret = 3;
   // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
   // md5sig verification), never transmitted.
-  SecretString key2 = 4;
+  SecretString merchant_secret = 4;
   optional string base_url = 50;
 }
 

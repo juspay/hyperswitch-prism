@@ -345,7 +345,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   TravelhubConfig: ["username", "password", "merchantId"],
   D24Config: ["apiKey", "key1", "apiSecret"],
   PaydotcomConfig: ["apiKey"],
-  PayhereConfig: ["apiKey", "key1", "apiSecret", "key2"],
+  PayhereConfig: ["appId", "merchantId", "appSecret", "merchantSecret"],
   PaymentServiceTokenAuthorizeRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],

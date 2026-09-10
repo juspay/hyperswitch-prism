@@ -354,10 +354,10 @@
     "_comment": "Configuration for twoc_twop_paco connector"
     },
   "payhere": {
-    "api_key": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
-    "key1": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
-    "api_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
-    "key2": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "app_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "merchant_id": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "app_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
+    "merchant_secret": { "value": "<REPLACE_WITH_YOUR_VALUE>" },
     "_comment": "Configuration for payhere connector"
   }
 }

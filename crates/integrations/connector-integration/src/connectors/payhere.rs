@@ -134,8 +134,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
         // Euler never sends `connector_webhook_secret` — source the merchant
-        // secret from the connector account config (key2) instead, same
-        // pattern as grabpay.
+        // secret from the connector account config (merchant_secret) instead,
+        // same pattern as grabpay.
         let connector_account_details = connector_account_details.ok_or_else(|| {
             error_stack::report!(errors::WebhookError::WebhookVerificationSecretNotFound)
         })?;
@@ -273,6 +273,12 @@ macros::macro_connector_implementation!(
     }
 );
 
+// PayHere hosted-checkout Authorize is a purely LOCAL flow: no HTTP request
+// is dispatched to any gateway. The whole request — 16 fields with their MD5
+// request hash — is assembled by `handle_authorize_response` in transformers
+// and handed back as `RedirectForm::Form`; the payer's browser performs the
+// actual POST (checkout sessions must live in the browser). The macro below
+// deliberately has no `http_method`, `curl_request` or `curl_response`.
 macros::macro_connector_local_flow_implementation!(
     connector: Payhere,
     flow_name: Authorize,
@@ -312,7 +318,9 @@ macros::macro_connector_implementation!(
             let access_token = req.resource_common_data.get_access_token().map_err(|err| {
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
-                        additional_context: Some(err.to_string()),
+                        additional_context: Some(format!(
+                            "payhere: PSync needs an access token from CreateServerAuthenticationToken ({err})"
+                        )),
                         suggested_action: None,
                         doc_url: None,
                     },
