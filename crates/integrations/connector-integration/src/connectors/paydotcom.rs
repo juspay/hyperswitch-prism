@@ -369,7 +369,24 @@ macros::macro_connector_implementation!(
                     let resource = paydotcom::authorize_pending_resource_id(&req.request)
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "authentication_data.transaction_id",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Authorize reached the Confirm leg but no pending \
+                                     chrg_/hld_ resource id was found in either \
+                                     authentication_data.transaction_id or \
+                                     connector_feature_data; the resource id is set by \
+                                     the PreAuthenticate response and must be carried \
+                                     forward by the orchestrator."
+                                        .to_string(),
+                                ),
+                                suggested_action: Some(
+                                    "Ensure the PreAuthenticate → Authenticate → Authorize \
+                                     flow is driven in order and that authentication_data \
+                                     is propagated between legs."
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                            },
                         })?;
                     paydotcom::confirm_path(&resource)?
                 }

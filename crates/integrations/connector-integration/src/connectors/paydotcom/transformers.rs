@@ -972,7 +972,20 @@ fn build_wallet_source_data<T: PaymentMethodDataTypes>(
 
         _ => Err(error_stack::report!(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("paydotcom"),
-            Default::default(),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com wallet integration supports only the pre-decrypted DPAN path \
+                     for Apple Pay and Google Pay (source_data.type = \"network_token\"); \
+                     other wallet variants are out of scope."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Use WalletData::ApplePay with ApplePayPaymentData::Decrypted or \
+                     WalletData::GooglePay with GpayTokenizationData::Decrypted."
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         ))),
     }
 }
@@ -1521,7 +1534,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                  arrives on the PreAuthenticate response's authentication_data."
                                     .to_string(),
                             ),
-                            ..Default::default()
+                            suggested_action: Some(
+                                "Ensure PreAuthenticate ran before Authenticate and that \
+                                 authentication_data.transaction_id (or connector_feature_data) \
+                                 carries the chrg_/hld_ id from the PreAuthenticate response."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?;
@@ -1766,9 +1785,7 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
 pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub amount_refunded: Option<MinorUnit>,
     #[serde(
         default,
@@ -1776,25 +1793,19 @@ pub struct PaydotcomChargeResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub reference: Option<String>,
     /// Set when the Charge was produced by capturing a Hold.
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
     /// The network transaction identifier returned by Pay.com after mandate setup.
     /// Used as `connector_mandate_id` in the SetupMandate response.
-    #[serde(default)]
     pub underlying_network_id: Option<String>,
     /// Pay.com payment-method id (`pm_card_…`) tied to this charge, when the charge was
     /// created from a stored payment method. Deserialized defensively — omitted if Pay.com
     /// does not include it in the response. When present, stored in `mandate_metadata` so
     /// RepeatPayment can use it for Variant B/C without conflating it with Hyperswitch's own
     /// payment_method_id (which overwrites the field after SetupMandate).
-    #[serde(default)]
     pub source: Option<String>,
 }
 
@@ -1802,9 +1813,7 @@ pub struct PaydotcomChargeResponse {
 pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub amount_capturable: Option<MinorUnit>,
     #[serde(
         default,
@@ -1812,23 +1821,17 @@ pub struct PaydotcomHoldResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub reference: Option<String>,
-    #[serde(default)]
     pub canceled: Option<bool>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
     /// The network transaction identifier returned by Pay.com after mandate setup.
     /// Used as `connector_mandate_id` in the SetupMandate response.
-    #[serde(default)]
     pub underlying_network_id: Option<String>,
     /// Pay.com payment-method id (`pm_card_…`) tied to this hold, when the hold was
     /// created from a stored payment method. Deserialized defensively — omitted if Pay.com
     /// does not include it in the response. When present, stored in `mandate_metadata` so
     /// RepeatPayment can use it for Variant B/C (same semantics as the Charge variant).
-    #[serde(default)]
     pub source: Option<String>,
 }
 
@@ -1839,15 +1842,11 @@ pub struct PaydotcomAuthenticationSessionResponse {
     pub id: String,
     pub status: PaydotcomAuthenticationSessionStatus,
     /// The challenge page, e.g. `https://sca.pay.com/authenticate?client_secret=<jwt>`.
-    #[serde(default)]
     pub url: Option<String>,
     /// Set when the session authenticates a Charge.
-    #[serde(default)]
     pub charge: Option<String>,
     /// Set when the session authenticates a Hold.
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub return_url: Option<String>,
     // `client_secret` is a Pay Components (browser SDK) credential and is out of scope;
     // it is deliberately not deserialized so it can never reach a log.
@@ -2290,7 +2289,6 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
 pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
     #[serde(
         default,
@@ -2298,13 +2296,9 @@ pub struct PaydotcomRefundResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub charge: Option<String>,
-    #[serde(default)]
     pub reference: Option<String>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
 }
 
@@ -2402,21 +2396,14 @@ pub struct PaydotcomError {
     /// `api_error` | `payment_method_error` | `idempotency_error` | `invalid_request_error`.
     #[serde(rename = "type")]
     pub error_type: String,
-    #[serde(default)]
     pub code: Option<String>,
-    #[serde(default)]
     pub message: Option<String>,
-    #[serde(default)]
     pub decline_code: Option<String>,
     /// Present on `invalid_request_error`.
-    #[serde(default)]
     pub params: Option<Vec<PaydotcomErrorParam>>,
     /// A declined Charge still has an id — propagating it lets PSync find the attempt.
-    #[serde(default)]
     pub charge: Option<String>,
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub payment_method: Option<String>,
 }
 
@@ -2647,11 +2634,53 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 (mandate_data.get_connector_mandate_id(), pm_id)
             }
-            MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                // Pay.com uses its own connector mandate id (underlying_network_id), not a
-                // network-level mandate id. Fall through to Variant A.
-                (None, None)
+            // Pay.com's recurring model is built around its own `underlying_network_id`
+            // (a PSP-proprietary reference). It has no concept of replaying a scheme-issued
+            // NTI from another PSP, so both PSP-agnostic variants are explicitly rejected
+            // rather than silently falling through to a customer_reference_id auto-select
+            // that would likely fail at Pay.com with no useful error.
+            MandateReferenceId::NetworkMandateId(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "PSP-agnostic NetworkMandateId recurring is not supported by paydotcom"
+                        .to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com MIT uses its own underlying_network_id (returned on the \
+                             CIT response) as the mandate reference, not a scheme-issued \
+                             network transaction ID from another PSP. Use ConnectorMandateId \
+                             populated from a Pay.com SetupMandate."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Perform the CIT via Pay.com SetupMandate to obtain an \
+                             underlying_network_id, then use that as the mandate reference \
+                             for subsequent MIT charges."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                )));
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "PSP-agnostic NetworkTokenWithNTI recurring is not supported by paydotcom"
+                        .to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com MIT uses its own underlying_network_id (returned on the \
+                             CIT response) as the mandate reference. Network tokens combined \
+                             with a scheme NTI from another PSP are not accepted."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Perform the CIT via Pay.com SetupMandate to obtain an \
+                             underlying_network_id, then use that as the mandate reference \
+                             for subsequent MIT charges."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                )));
             }
         };
 
