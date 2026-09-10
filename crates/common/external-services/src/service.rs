@@ -747,7 +747,9 @@ where
     let start = tokio::time::Instant::now();
     tracing::Span::current().record(
         "api_tag",
-        api_tag.as_deref().unwrap_or(event_params.flow_name.as_str()),
+        api_tag
+            .as_deref()
+            .unwrap_or(event_params.flow_name.as_str()),
     );
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
