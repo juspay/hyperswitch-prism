@@ -18,10 +18,10 @@ _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
         payhere=payment_pb2.PayhereConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            key1=payment_methods_pb2.SecretString(value="YOUR_KEY1"),
-            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
-            key2=payment_methods_pb2.SecretString(value="YOUR_KEY2"),
+            app_id=payment_methods_pb2.SecretString(value="YOUR_APP_ID"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            app_secret=payment_methods_pb2.SecretString(value="YOUR_APP_SECRET"),
+            merchant_secret=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_SECRET"),
             base_url="YOUR_BASE_URL",
         ),
     ),

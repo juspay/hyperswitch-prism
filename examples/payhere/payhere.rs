@@ -18,12 +18,16 @@ fn build_client() -> ConnectorClient {
     let config = ConnectorConfig {
         connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Payhere(PayhereConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
-                key1: Some(hyperswitch_masking::Secret::new("YOUR_KEY1".to_string())), // Authentication credential
-                api_secret: Some(hyperswitch_masking::Secret::new(
-                    "YOUR_API_SECRET".to_string(),
+                app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())), // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_MERCHANT_ID".to_string(),
                 )), // Authentication credential
-                key2: Some(hyperswitch_masking::Secret::new("YOUR_KEY2".to_string())), // Authentication credential
+                app_secret: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_APP_SECRET".to_string(),
+                )), // Authentication credential
+                merchant_secret: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_MERCHANT_SECRET".to_string(),
+                )), // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
                 ..Default::default()
             })),

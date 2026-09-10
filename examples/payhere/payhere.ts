@@ -15,10 +15,10 @@ const _defaultConfig: types.IConnectorConfig = {
     },
     connectorConfig: {
         payhere: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            key1: { value: 'YOUR_KEY1' },
-            apiSecret: { value: 'YOUR_API_SECRET' },
-            key2: { value: 'YOUR_KEY2' },
+            appId: { value: 'YOUR_APP_ID' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            appSecret: { value: 'YOUR_APP_SECRET' },
+            merchantSecret: { value: 'YOUR_MERCHANT_SECRET' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },

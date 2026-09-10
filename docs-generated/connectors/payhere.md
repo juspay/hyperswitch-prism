@@ -24,10 +24,10 @@ config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     connector_config=payment_pb2.ConnectorSpecificConfig(
         payhere=payment_pb2.PayhereConfig(
-            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
-            key1=payment_methods_pb2.SecretString(value="YOUR_KEY1"),
-            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
-            key2=payment_methods_pb2.SecretString(value="YOUR_KEY2"),
+            app_id=payment_methods_pb2.SecretString(value="YOUR_APP_ID"),
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            app_secret=payment_methods_pb2.SecretString(value="YOUR_APP_SECRET"),
+            merchant_secret=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_SECRET"),
             base_url="YOUR_BASE_URL",
         ),
     ),
@@ -51,10 +51,10 @@ const config = ConnectorConfig.create({
     environment: Environment.SANDBOX,
     auth: {
         payhere: {
-            apiKey: { value: 'YOUR_API_KEY' },
-            key1: { value: 'YOUR_KEY1' },
-            apiSecret: { value: 'YOUR_API_SECRET' },
-            key2: { value: 'YOUR_KEY2' },
+            appId: { value: 'YOUR_APP_ID' },
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            appSecret: { value: 'YOUR_APP_SECRET' },
+            merchantSecret: { value: 'YOUR_MERCHANT_SECRET' },
             baseUrl: 'YOUR_BASE_URL',
         }
     },
@@ -74,10 +74,10 @@ val config = ConnectorConfig.newBuilder()
     .setConnectorConfig(
         ConnectorSpecificConfig.newBuilder()
             .setPayhere(PayhereConfig.newBuilder()
-                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
-                .setKey1(SecretString.newBuilder().setValue("YOUR_KEY1").build())
-                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
-                .setKey2(SecretString.newBuilder().setValue("YOUR_KEY2").build())
+                .setAppId(SecretString.newBuilder().setValue("YOUR_APP_ID").build())
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setAppSecret(SecretString.newBuilder().setValue("YOUR_APP_SECRET").build())
+                .setMerchantSecret(SecretString.newBuilder().setValue("YOUR_MERCHANT_SECRET").build())
                 .setBaseUrl("YOUR_BASE_URL")
                 .build())
             .build()
@@ -99,10 +99,10 @@ use grpc_api_types::payments::connector_specific_config;
 let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Payhere(PayhereConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                key1: Some(hyperswitch_masking::Secret::new("YOUR_KEY1".to_string())),  // Authentication credential
-                api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                key2: Some(hyperswitch_masking::Secret::new("YOUR_KEY2".to_string())),  // Authentication credential
+                app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())),  // Authentication credential
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
+                app_secret: Some(hyperswitch_masking::Secret::new("YOUR_APP_SECRET".to_string())),  // Authentication credential
+                merchant_secret: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_SECRET".to_string())),  // Authentication credential
                 base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
                 ..Default::default()
             })),

@@ -433,7 +433,7 @@
     "get": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: access_token — Failed to obtain authentication type. Missing required field: access_token"
+        "error": "Stuck on field: access_token) — Failed to obtain authentication type. payhere: PSync needs an access token from CreateServerAuthenticationToken (Missing required field: access_token)"
       }
     },
     "handle_event": {
