@@ -3,7 +3,8 @@
   "supported_suites": [
     "PaymentService/Authorize",
     "PaymentService/Get",
-    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "EventService/HandleEvent"
   ],
   "supported_payment_methods": [
     "payhere_redirect"
