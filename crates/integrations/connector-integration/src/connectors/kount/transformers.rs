@@ -742,9 +742,6 @@ pub fn hash_session_id(raw: &str) -> String {
         .unwrap_or_else(|_| to_session_id(raw))
 }
 
-/// Locally builds the Kount device-data-collection (DDC) response: no outbound
-/// call is made, the DDC script is embedded for the shopper's browser.
-
 /// Round a Kount omniscore (a 0–99 float) to the integer FRM risk score.
 /// `f64 -> i32` has no safe `TryFrom`, and the value is bounded, so the cast is
 /// scoped here behind an explicit allow.
