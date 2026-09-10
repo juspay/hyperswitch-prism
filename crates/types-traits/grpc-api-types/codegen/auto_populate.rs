@@ -127,7 +127,7 @@ fn type_name(path: &str) -> Option<&str> {
 
 fn message_field_type_name(field: &FieldDescriptorProto) -> Option<&str> {
     (field.r#type == Some(Type::Message as i32))
-        .then(|| field.type_name.as_deref())
+        .then_some(field.type_name.as_deref())
         .flatten()
         .and_then(type_name)
 }
