@@ -587,7 +587,7 @@ connector_id: paydotcom
 doc: docs/connectors/paydotcom.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
-flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/paydotcom/paydotcom.py
 
 ## Payload

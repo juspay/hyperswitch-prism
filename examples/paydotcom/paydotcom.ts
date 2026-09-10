@@ -5,9 +5,9 @@
 // Paydotcom — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx paydotcom.ts checkout_autocapture
 
-import { PaymentClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
+import { PaymentClient, PaymentMethodAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -157,26 +157,6 @@ function _buildProxySetupRecurringRequest(): types.IPaymentServiceProxySetupRecu
         },
         "authType": AuthenticationType.NO_THREE_DS,
         "setupFutureUsage": FutureUsage.OFF_SESSION
-    };
-}
-
-function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeRequest {
-    return {
-        "connectorRecurringPaymentId": {  // Reference to existing mandate.
-        },
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {  // Optional payment Method Information (for network transaction flows).
-            "token": {  // Payment tokens.
-                "token": {"value": "probe_pm_token"}  // The token string representing a payment method.
-            }
-        },
-        "returnUrl": "https://example.com/recurring-return",
-        "connectorCustomerId": "cust_probe_123",
-        "paymentMethodType": PaymentMethodType.PAY_PAL,
-        "offSession": true  // Behavioral Flags and Preferences.
     };
 }
 
@@ -411,15 +391,6 @@ async function proxySetupRecurring(merchantTransactionId: string, config: types.
     return proxyResponse;
 }
 
-// Flow: RecurringPaymentService.Charge
-async function recurringCharge(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const recurringPaymentClient = new RecurringPaymentClient(config);
-
-    const recurringResponse = await recurringPaymentClient.charge(_buildRecurringChargeRequest());
-
-    return recurringResponse;
-}
-
 // Flow: PaymentService.Refund
 async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -459,7 +430,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

@@ -837,40 +837,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "connector_recurring_payment_id": {
-            "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
-              }
-            }
-          },
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
-            }
-          },
-          "return_url": "https://example.com/recurring-return",
-          "connector_customer_id": "cust_probe_123",
-          "payment_method_type": "PAY_PAL",
-          "off_session": true
-        },
-        "sample": {
-          "url": "https://api.sandbox.pay.com/v1/charges",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "idempotency-key": "HS_probe00000000000000000",
-            "via": "HyperSwitch",
-            "x-paycom-api-key": "probe_key"
-          },
-          "body": "{\"off_session\":true,\"currency\":\"usd\",\"amount\":1000,\"reference\":\"\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: mandate_reference or customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id — Missing required field: mandate_reference or customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id (underlying_network_id), a Pay.com pm_card_… id in mandate_metadata, or a customer_reference_id. All three are absent."
       }
     },
     "recurring_revoke": {

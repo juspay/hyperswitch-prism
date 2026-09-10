@@ -12,7 +12,6 @@ import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.PaymentMethodAuthenticationClient
-import payments.RecurringPaymentClient
 import payments.RefundClient
 import payments.AcceptanceType
 import payments.AuthenticationType
@@ -20,7 +19,6 @@ import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
-import payments.PaymentMethodType
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
@@ -28,7 +26,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaydotcomConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "refund", "refund_get", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -342,37 +340,6 @@ fun proxySetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
     println("Status: ${response.status.name}")
 }
 
-// Flow: RecurringPaymentService.Charge
-fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = RecurringPaymentClient(config)
-    val request = RecurringPaymentServiceChargeRequest.newBuilder().apply {
-        connectorRecurringPaymentIdBuilder.apply {  // Reference to existing mandate.
-            connectorMandateIdBuilder.apply {  // mandate_id sent by the connector.
-                connectorMandateIdBuilder.apply {
-                    connectorMandateId = "probe-mandate-123"
-                }
-            }
-        }
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {  // Optional payment Method Information (for network transaction flows).
-            tokenBuilder.apply {  // Payment tokens.
-                tokenBuilder.value = "probe_pm_token"  // The token string representing a payment method.
-            }
-        }
-        returnUrl = "https://example.com/recurring-return"
-        connectorCustomerId = "cust_probe_123"
-        paymentMethodType = PaymentMethodType.PAY_PAL
-        offSession = true  // Behavioral Flags and Preferences.
-    }.build()
-    val response = client.charge(request)
-    if (response.status.name == "FAILED")
-        throw RuntimeException("Recurring_Charge failed: ${response.error.unifiedDetails.message}")
-    println("Done: ${response.status.name}")
-}
-
 // Flow: PaymentService.Refund
 fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -460,11 +427,10 @@ fun main(args: Array<String>) {
         "preAuthenticate" -> preAuthenticate(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "proxySetupRecurring" -> proxySetupRecurring(txnId)
-        "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, refund, refundGet, setupRecurring, void")
     }
 }
