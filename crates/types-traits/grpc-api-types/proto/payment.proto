@@ -536,6 +536,7 @@ enum WebhookEventType {
   PAYMENT_INTENT_CAPTURE_FAILURE = 10;      // Capture failure
   PAYMENT_INTENT_EXPIRED = 11;              // Payment intent expired
   PAYMENT_ACTION_REQUIRED = 12; // Payment requires additional action
+  PAYMENT_ASSOCIATED_DATA_UPDATE = 43; // Associated data events. Data about a payment shared out of band, typically after the payment has reached a terminal state. Carries no status change.
 
   SOURCE_CHARGEABLE = 13;          // Source is chargeable
   SOURCE_TRANSACTION_CREATED = 14; // Source transaction created
