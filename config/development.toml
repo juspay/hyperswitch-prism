@@ -60,6 +60,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 [connectors]
 travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api-stg.directa24.com"
+elavon_pg.base_url = "https://api.sandbox.elavonpayments.com"
 payhere.base_url = "https://sandbox.payhere.lk"
 citigate.base_url = "https://gw-test.cgate.tech"
 paynearme.base_url = "https://api.paynearme-sandbox.com/json-api"

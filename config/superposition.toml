@@ -101,7 +101,7 @@ rpc_method = { position = 3, schema = { type = "string" } }
 rpc_service = { position = 4, schema = { type = "string" } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere", "elavon_pg"] } }
 # ============================================================================
 # Development Environment Overrides
 # ============================================================================
@@ -1036,3 +1036,15 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
+# Elavon Payment Gateway (EPG) — sandbox host.
+[[overrides]]
+_context_ = { connector = "elavon_pg" }
+connector_base_url = "https://api.sandbox.elavonpayments.com"
+
+# Elavon Payment Gateway (EPG) Production — EU/global host.
+# EPG production is region-dependent and the region is a merchant-onboarding
+# property, not a request property. NA-onboarded merchants must instead point at
+# https://api.na.elavonpayments.com via a per-merchant base-url override.
+[[overrides]]
+_context_ = { connector = "elavon_pg", environment = "production" }
+connector_base_url = "https://api.eu.convergepay.com"

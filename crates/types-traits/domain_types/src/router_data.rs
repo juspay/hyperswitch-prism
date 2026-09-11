@@ -1028,6 +1028,15 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Elavon Payment Gateway (EPG) — JSON REST gateway, HTTP Basic auth.
+    /// Distinct from `Elavon` (Elavon Converge, an XML API).
+    /// `api_key` = merchant alias (Basic-auth username)
+    /// `key1`    = secret API key `sk_…` (Basic-auth password)
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     Worldpayraft {
         license: Secret<String>,
         merchant_id: Secret<String>,
@@ -1119,6 +1128,7 @@ fn connector_patch_key(variant: &str) -> String {
         "PinelabsOnline" => "pinelabs_online",
         "TwocTwopPaco" => "twoc_twop_paco",
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        "ElavonPg" => "elavon_pg",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1511,6 +1521,7 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Paynearme { api_key, key1 },
+            ElavonPg { api_key, key1 },
             GlobalpaymentsHeartland { api_key },
             Payhere {
                 app_id,
@@ -2032,6 +2043,7 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Paynearme { api_key, key1 },
+                ElavonPg { api_key, key1 },
                 GlobalpaymentsHeartland { api_key },
                 Payhere {
                     app_id,
@@ -2741,6 +2753,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: d24.key1.ok_or_else(err)?,
                 api_secret: d24.api_secret.ok_or_else(err)?,
                 base_url: d24.base_url,
+            }),
+            AuthType::ElavonPg(elavon_pg) => Ok(Self::ElavonPg {
+                api_key: elavon_pg.api_key.ok_or_else(err)?,
+                key1: elavon_pg.key1.ok_or_else(err)?,
+                base_url: elavon_pg.base_url,
             }),
             AuthType::Payhere(payhere) => Ok(Self::Payhere {
                 app_id: payhere.app_id.ok_or_else(err)?,
@@ -4005,6 +4022,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::ElavonPg => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

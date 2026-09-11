@@ -260,5 +260,23 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "ElavonPg": [
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/api-reference",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/api-reference#tag/Transactions",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/sending-api-requests",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/create-account",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/Integration_Options",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/direct-api-overview",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/sale_transaction",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/void-transaction",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/refund_transaction",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/error-codes",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/testing",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/fraud-prevention-overview",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/hosted-payments-overview",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/rawprocessorresponseinfo",
+    "https://developer.elavon.com/products/elavon-payment-gateway/v1/expand-query-parameter"
   ]
 }
