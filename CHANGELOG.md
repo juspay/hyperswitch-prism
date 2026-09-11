@@ -19,6 +19,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.11.0
+
+### Bug Fixes
+
+- **worldpayxml:** Map ISO8583 return code to network decline details ([#2289](https://github.com/juspay/connector-service/pull/2289)) ([`80e0874`](https://github.com/juspay/connector-service/commit/80e08745bb997532a49d64fad3b37ae1c24bb94c))
+
+**Full Changelog:** [`2026.09.10.1...2026.09.11.0`](https://github.com/juspay/connector-service/compare/2026.09.10.1...2026.09.11.0)
+
+- - -
+
+## 2026.09.10.1
+
+### Features
+
+- **PAYHERE:** PayHere connector integration ([#2253](https://github.com/juspay/connector-service/pull/2253)) ([`d7a8d36`](https://github.com/juspay/connector-service/commit/d7a8d360a155023a78e121e77803d8035bf4235d))
+- **connector:** Implement Authorize, PSync, Capture, Void, Refund, RSync for globalpaymentsheartland ([#2207](https://github.com/juspay/connector-service/pull/2207)) ([`beefc07`](https://github.com/juspay/connector-service/commit/beefc079dea399ed19099fb65c3c0bfd574bc6ed))
+
+### Bug Fixes
+
+- **ucs:** Record euler-assigned api_tag on outgoing golden log span ([#2284](https://github.com/juspay/connector-service/pull/2284)) ([`1b03823`](https://github.com/juspay/connector-service/commit/1b03823d2f74b0be25e19a0191927c0901bec217))
+- **worldpayxml:** Surface approval code as auth_code, not network_txn_id ([#2272](https://github.com/juspay/connector-service/pull/2272)) ([`a64a96a`](https://github.com/juspay/connector-service/commit/a64a96a75ea47b2c23b6fdcca983898146cbe147))
+
+**Full Changelog:** [`2026.09.10.0...2026.09.10.1`](https://github.com/juspay/connector-service/compare/2026.09.10.0...2026.09.10.1)
+
+- - -
+
+## 2026.09.10.0
+
+### Features
+
+- **Feature:** [Connector] Implementing NSure FRM Connector ([#2213](https://github.com/juspay/connector-service/pull/2213)) ([`2a722d3`](https://github.com/juspay/connector-service/commit/2a722d3540e8cff795c17becfedcebce814a2eb3))
+- **deja:** Record/replay instrumentation for UCS — ART ([#2220](https://github.com/juspay/connector-service/pull/2220)) ([`f854060`](https://github.com/juspay/connector-service/commit/f854060bbfdaaa92749cac058b8d5461adce112a))
+- **rapyd:** Mandates, zero-amount verification, decrypted wallets, DELETE void ([#2252](https://github.com/juspay/connector-service/pull/2252)) ([`dad19d0`](https://github.com/juspay/connector-service/commit/dad19d0f0a28b40c028b83deb009b75787dd0bfa))
+
+### Miscellaneous Tasks
+
+- **grace:** Realign the GRACE corpus with the current UCS contract ([#2251](https://github.com/juspay/connector-service/pull/2251)) ([`b1bc5db`](https://github.com/juspay/connector-service/commit/b1bc5db00d52b54dc050a3f647038805a5672612))
+
+**Full Changelog:** [`2026.09.09.1...2026.09.10.0`](https://github.com/juspay/connector-service/compare/2026.09.09.1...2026.09.10.0)
+
+- - -
+
+## 2026.09.09.1
+
+### Bug Fixes
+
+- **external-services:** Retry once on connection closed before message completed ([#2257](https://github.com/juspay/connector-service/pull/2257)) ([`25df70b`](https://github.com/juspay/connector-service/commit/25df70b7bcaeef9c513d11f44541be75ed3ed201))
+
+**Full Changelog:** [`2026.09.09.0...2026.09.09.1`](https://github.com/juspay/connector-service/compare/2026.09.09.0...2026.09.09.1)
+
+- - -
+
+## 2026.09.09.0
+
+### Features
+
+- **connector:** Add globalpay webhooks and postauthenticate flow ([#2229](https://github.com/juspay/connector-service/pull/2229)) ([`bb2249e`](https://github.com/juspay/connector-service/commit/bb2249e8a37fac53bd18679517357a36bc3da0df))
+- **twoc_twop_paco:** Send billing email via generalPayerDetails and add cardHolderName fallback ([#2250](https://github.com/juspay/connector-service/pull/2250)) ([`0fa2dcd`](https://github.com/juspay/connector-service/commit/0fa2dcd7c0fc07a1d52acf674cf96b90711bf675))
+
+### Miscellaneous Tasks
+
+- **clippy:** Disallow raw entropy/clock calls in connector code ([#2256](https://github.com/juspay/connector-service/pull/2256)) ([`f893a73`](https://github.com/juspay/connector-service/commit/f893a73fbcba1ff7e3ebbb1e9b4ba001b2eea626))
+
+**Full Changelog:** [`2026.09.08.0...2026.09.09.0`](https://github.com/juspay/connector-service/compare/2026.09.08.0...2026.09.09.0)
+
+- - -
+
 ## 2026.09.08.0
 
 ### Features

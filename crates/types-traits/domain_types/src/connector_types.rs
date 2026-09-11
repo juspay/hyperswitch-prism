@@ -174,6 +174,8 @@ pub enum ConnectorEnum {
     D24,
     Paydotcom,
     GlobalpaymentsRealex,
+    GlobalpaymentsHeartland,
+    Payhere,
 }
 
 // snake case for enum variants
@@ -212,6 +214,7 @@ pub enum SurchargeConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum FrmConnectorEnum {
     Kount,
+    Nsure,
 }
 
 /// Enum representing connectors that support authenticator flows (account linking, identity verification)
@@ -338,6 +341,7 @@ impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
     fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
         match config {
             AuthType::Kount(_) => Ok(Self::Kount),
+            AuthType::Nsure(_) => Ok(Self::Nsure),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -544,6 +548,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Boost => Ok(Self::Boost),
             grpc_api_types::payments::Connector::Ilixium => Ok(Self::Ilixium),
+            grpc_api_types::payments::Connector::GlobalpaymentsHeartland => {
+                Ok(Self::GlobalpaymentsHeartland)
+            }
             grpc_api_types::payments::Connector::Grabpay => Ok(Self::Grabpay),
             grpc_api_types::payments::Connector::Citigate => Ok(Self::Citigate),
             grpc_api_types::payments::Connector::Worldpayraft => Ok(Self::Worldpayraft),
@@ -553,6 +560,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
             grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
+            grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1792,6 +1800,17 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     pub fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
     }
+    /// Customer name, masked. Errors with a missing-field error when absent.
+    pub fn get_customer_name(&self) -> Result<Secret<String>, Error> {
+        self.customer_name
+            .clone()
+            .map(Secret::new)
+            .ok_or_else(missing_field_err("customer_name"))
+    }
+    /// Customer name if present, masked.
+    pub fn get_optional_customer_name(&self) -> Option<Secret<String>> {
+        self.customer_name.clone().map(Secret::new)
+    }
     pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
         self.customer_document_details.clone()
     }
@@ -2481,6 +2500,7 @@ pub struct PaymentsPostAuthenticateData<T: PaymentMethodDataTypes> {
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
+    pub connector_order_reference_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPostAuthenticateData<T> {
@@ -4256,6 +4276,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
+                payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -5903,6 +5924,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Boost(_) => Ok(Self::Payment(ConnectorEnum::Boost)),
             AuthType::Citigate(_) => Ok(Self::Payment(ConnectorEnum::Citigate)),
             AuthType::Ilixium(_) => Ok(Self::Payment(ConnectorEnum::Ilixium)),
+            AuthType::GlobalpaymentsHeartland(_) => {
+                Ok(Self::Payment(ConnectorEnum::GlobalpaymentsHeartland))
+            }
             AuthType::Worldpayraft(_) => Ok(Self::Payment(ConnectorEnum::Worldpayraft)),
             AuthType::JpmorganOrbital(_) => Ok(Self::Payment(ConnectorEnum::JpmorganOrbital)),
             AuthType::Saferpay(_) => Ok(Self::Payment(ConnectorEnum::Saferpay)),
@@ -5910,6 +5934,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
             AuthType::D24(_) => Ok(Self::Payment(ConnectorEnum::D24)),
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
+            AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::GlobalpaymentsRealex(_) => {
@@ -5927,6 +5952,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
             AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
+            AuthType::Nsure(_) => Ok(Self::Frm(FrmConnectorEnum::Nsure)),
             AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
             AuthType::Santander(_) => Ok(Self::Payout(PayoutConnectorEnum::Santander)),
         }
