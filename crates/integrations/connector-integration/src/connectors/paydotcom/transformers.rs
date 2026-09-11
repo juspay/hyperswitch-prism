@@ -1,27 +1,19 @@
 //! Pay.com (`paydotcom`) request/response transformers.
 //!
-//! Scope: **cards only, one-time payments**. Flows implemented here are Authorize,
-//! PSync, Capture, Void, Refund and RSync. Wallets, mandates/MIT, recurring, payouts
-//! and stored-token reuse are deliberately absent.
+//! Wire-format notes verified against <https://apiref.pay.com/reference/>:
 //!
-//! Wire-format notes that are easy to get wrong (all verified against the Pay.com
-//! OpenAPI documents embedded in <https://apiref.pay.com/reference/>):
-//!
-//! * The card security code field is spelled **`cvc`** inside `source_data.card`.
-//!   (`payment_method_options.card.security_checks.cvv_check` legitimately uses `cvv`
-//!   — that is a different object and is not normalised here.)
-//! * `amount` is a JSON **integer** in minor units on create, but `amount_to_capture`
-//!   and `amount_to_refund` are JSON **strings** in minor units.
+//! * Card security code is **`cvc`** inside `source_data.card` (not `cvv`).
+//! * `amount` is a JSON **integer** in minor units on create; `amount_to_capture` and
+//!   `amount_to_refund` are JSON **strings**.
 //! * Currency is lower-case ISO-4217 on the wire.
-//! * A Hold's status enum in the OpenAPI omits `canceled`, yet `POST /v1/holds/{id}/cancel`
-//!   returns exactly that — so `Canceled` is included below or deserialization panics.
-//! * `POST /v1/holds/{id}/capture` answers with a **Charge carrying a brand-new id**;
-//!   the Capture transformer rewrites `connector_transaction_id` to it, otherwise a
-//!   later refund (which requires a `chrg_` id) is rejected by Pay.com.
-//! * Gateway-driven 3DS spans three flow executions (PreAuthenticate -> Authenticate ->
-//!   Authorize); the `chrg_`/`hld_` id travels between them on `authentication_data`.
-//!   See `PaydotcomAuthorizeLeg` and the connector module docs.
-
+//! * `POST /v1/holds/{id}/capture` returns a **new `chrg_` id** — the Capture transformer
+//!   rewrites `connector_transaction_id` so subsequent refunds (which require a `chrg_` id)
+//!   are not rejected.
+//! * Gateway-driven 3DS spans PreAuthenticate → Authenticate → Authorize; the resource id
+//!   travels on `authentication_data`. See `PaydotcomAuthorizeLeg`.
+//! * Wallet support is limited to the **pre-decrypted DPAN path** (`source_data.type =
+//!   "network_token"`). Encrypted-blob forwarding (direct Apple Pay / Google Pay SDK) is
+//!   not implemented — use the DPAN path instead.
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -30,15 +22,21 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void,
+        Authenticate, Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        ApplePayPaymentData, Card, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::{AuthenticationData, BrowserInformation},
@@ -48,7 +46,10 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use crate::{connectors::paydotcom::PaydotcomRouterData, types::ResponseRouterData};
+use crate::{
+    connectors::paydotcom::PaydotcomRouterData, types::ResponseRouterData,
+    utils::get_unimplemented_payment_method_error_message,
+};
 
 // ===== FLOW RESPONSE TYPE ALIASES =====
 // `create_all_prerequisites!` derives a unique `…Templating` struct from each
@@ -112,8 +113,6 @@ impl TryFrom<&ConnectorSpecificConfig> for PaydotcomAuthType {
     }
 }
 
-// ===== SHARED HELPERS =====
-
 fn amount_conversion_error(context: &str) -> IntegrationError {
     IntegrationError::AmountConversionFailed {
         context: IntegrationErrorContext {
@@ -170,7 +169,6 @@ mod paydotcom_currency {
 /// identical payload in this scope, only the URL differs (see `paydotcom.rs`).
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCreateResourceRequest<T: PaymentMethodDataTypes> {
-    /// Minor units, JSON integer.
     pub amount: MinorUnit,
     /// Serialised as lower-case ISO-4217; see `paydotcom_currency`.
     #[serde(serialize_with = "paydotcom_currency::serialize")]
@@ -240,24 +238,71 @@ pub enum PaydotcomThreeDsRequest {
 pub struct PaydotcomSourceData<T: PaymentMethodDataTypes> {
     #[serde(rename = "type")]
     pub source_type: PaydotcomSourceType,
-    pub card: PaydotcomCardSourceDetails<T>,
-    /// The 3DS guide places this beside `card` (not inside it) and requires `email`.
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<PaydotcomCardSourceDetails<T>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_token: Option<PaydotcomNetworkTokenDetails>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<PaydotcomBillingDetails>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup_future_usage: Option<PaydotcomSetupFutureUsage>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaydotcomSourceType {
     Card,
+    NetworkToken,
+    /// MIT Variant C — explicit payment-method + network mandate id in source_data.
+    Source,
 }
+
+/// Controls storage of payment details for future off-session use.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaydotcomSetupFutureUsage {
+    OffSession,
+}
+
+/// Pre-decrypted DPAN source — used for both Apple Pay and Google Pay when the
+/// merchant has already decrypted the payment token.
+/// `source_data.type = "network_token"`
+#[derive(Debug, Serialize)]
+pub struct PaydotcomNetworkTokenDetails {
+    pub token: Secret<String>,
+    pub token_type: PaydotcomNetworkTokenType,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub three_ds: PaydotcomNetworkTokenThreeDs,
+}
+
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PaydotcomNetworkTokenType {
+    Applepay,
+    Googlepay,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaydotcomNetworkTokenThreeDs {
+    /// ECI is optional — Amex/Discover Apple Pay tokens routinely omit it. Absent
+    /// ECI is passed through rather than rejected client-side; Pay.com decides.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    pub cryptogram: Secret<String>,
+}
+
+// Encrypted Apple Pay / Google Pay blob forwarding (source_data.type = "applepay" /
+// "googlepay") is not implemented. Use the pre-decrypted DPAN path (network_token).
 
 #[derive(Debug, Serialize)]
 pub struct PaydotcomCardSourceDetails<T: PaymentMethodDataTypes> {
     pub number: RawCardNumber<T>,
-    /// Two digits, zero padded.
     pub expiry_month: Secret<String>,
-    /// Four digits.
     pub expiry_year: Secret<String>,
     /// `cvc`, **not** `cvv` — see the module docs.
     pub cvc: Secret<String>,
@@ -282,7 +327,6 @@ pub struct PaydotcomThreeDsRaw {
     /// surface in a log line, even though the domain model keeps this one unmasked.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ds_trans_id: Option<Secret<String>>,
-    /// Only meaningful for 3DS 1.0.0; UCS carries no xid, so this is always `None`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub xid: Option<String>,
     /// Always sent explicitly so a 2.x authentication is not downgraded to the
@@ -411,13 +455,37 @@ fn build_three_ds_raw(
     let eci = authentication_data.eci.clone().ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "authentication_data.eci",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com external-MPI path requires an ECI value from the 3DS \
+                     authentication; it must be present in authentication_data.eci"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the external MPI returns the ECI indicator and populate \
+                     authentication_data.eci before sending the Authorize request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
     let cavv = authentication_data.cavv.clone().ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "authentication_data.cavv",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com external-MPI path requires a CAVV/UCAF authentication value; \
+                     it must be present in authentication_data.cavv"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Ensure the external MPI returns the CAVV and populate \
+                     authentication_data.cavv before sending the Authorize request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
 
@@ -445,14 +513,39 @@ fn build_authentication_context(
     let browser_info = browser_info.ok_or_else(|| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: "browser_info",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com gateway-driven 3DS requires the payer's browser information to \
+                     build the authentication_context field; browser_info must be populated \
+                     when auth_type is ThreeDs and no external-MPI authentication_data is present"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Collect browser information from the frontend (user-agent, screen \
+                     dimensions, language, timezone offset, etc.) and pass it in the \
+                     payment request"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     })?;
 
     let missing = |field: &'static str| {
         error_stack::report!(IntegrationError::MissingRequiredField {
             field_name: field,
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(format!(
+                    "Pay.com authentication_context.browser_details requires `{field}`; \
+                     all browser fields are documented as mandatory by the Pay.com API"
+                )),
+                suggested_action: Some(
+                    "Collect the full browser fingerprint on the frontend and include it \
+                     in browser_info"
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
         })
     };
 
@@ -662,7 +755,7 @@ fn build_create_resource_request<T: PaymentMethodDataTypes>(
         }),
         source_data: PaydotcomSourceData {
             source_type: PaydotcomSourceType::Card,
-            card: PaydotcomCardSourceDetails {
+            card: Some(PaydotcomCardSourceDetails {
                 number: card.card_number.clone(),
                 expiry_month: card.get_card_expiry_month_2_digit()?,
                 expiry_year: card.get_expiry_year_4_digit(),
@@ -670,16 +763,218 @@ fn build_create_resource_request<T: PaymentMethodDataTypes>(
                 name: card.card_holder_name.clone().ok_or_else(|| {
                     error_stack::report!(IntegrationError::MissingRequiredField {
                         field_name: "payment_method_data.card.card_holder_name",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com source_data.card.name is mandatory and must match the \
+                                 name as it appears on the card; the billing name is deliberately \
+                                 not used as a fallback because the two can differ"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Pass the cardholder name in \
+                                 payment_method_data.card.card_holder_name"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     })
                 })?,
                 billing_address,
                 three_ds,
                 authentication_context,
-            },
+            }),
+            network_token: None,
             billing_details,
+            setup_future_usage: None,
         },
     })
+}
+
+/// Builds a [`PaydotcomSourceData`] for Apple Pay or Google Pay wallet payments.
+///
+/// Dispatches on the wallet sub-variant and on whether the token is already decrypted
+/// (DPAN path → `network_token`) or still encrypted (blob path → `applepay`/`googlepay`).
+///
+/// `setup_future_usage` is caller-supplied: Authorize passes the mapped request value;
+/// SetupMandate always passes `Some(OffSession)`.
+fn build_wallet_source_data<T: PaymentMethodDataTypes>(
+    wallet_data: &WalletData,
+    common: &PaymentFlowData,
+    request_email: Option<common_utils::pii::Email>,
+    setup_future_usage: Option<PaydotcomSetupFutureUsage>,
+) -> Result<PaydotcomSourceData<T>, error_stack::Report<IntegrationError>> {
+    let billing_details = common
+        .get_optional_billing_email()
+        .or(request_email)
+        .map(|email| PaydotcomBillingDetails {
+            email,
+            name: common.get_optional_billing_full_name(),
+            phone: common.get_optional_billing_phone_number(),
+            address: {
+                let addr = PaydotcomAddress {
+                    line1: common.get_optional_billing_line1(),
+                    line2: common.get_optional_billing_line2(),
+                    city: common.get_optional_billing_city(),
+                    state: common.get_optional_billing_state(),
+                    postal_code: common.get_optional_billing_zip(),
+                    country: common.get_optional_billing_country(),
+                };
+                (!addr.is_empty()).then_some(addr)
+            },
+        });
+
+    match wallet_data {
+        WalletData::ApplePay(apple_pay) => match &apple_pay.payment_data {
+            ApplePayPaymentData::Decrypted(decrypted) => {
+                let cryptogram_data = &decrypted.payment_data;
+                // ECI is optional on the decrypted Apple Pay payload — Amex/Discover tokens
+                // routinely omit it. Pass through as Option; Pay.com decides whether to
+                // accept the token without it.
+                let eci = cryptogram_data.eci_indicator.clone();
+                let cryptogram = cryptogram_data.online_payment_cryptogram.clone();
+
+                Ok(PaydotcomSourceData {
+                    source_type: PaydotcomSourceType::NetworkToken,
+                    card: None,
+                    network_token: Some(PaydotcomNetworkTokenDetails {
+                        token: Secret::new(
+                            decrypted
+                                .application_primary_account_number
+                                .peek()
+                                .to_string(),
+                        ),
+                        token_type: PaydotcomNetworkTokenType::Applepay,
+                        expiry_month: decrypted.get_expiry_month(),
+                        expiry_year: decrypted.get_four_digit_expiry_year(),
+                        three_ds: PaydotcomNetworkTokenThreeDs { eci, cryptogram },
+                    }),
+                    billing_details,
+                    setup_future_usage,
+                })
+            }
+            // Encrypted blob forwarding is not supported — use the pre-decrypted DPAN path.
+            ApplePayPaymentData::Encrypted(_) => {
+                Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "apple_pay encrypted blob".to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com integration only supports the pre-decrypted DPAN path \
+                             (network_token). Decrypt the PKPaymentToken on your server and \
+                             provide application_primary_account_number + cryptogram."
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
+                )))
+            }
+        },
+
+        WalletData::GooglePay(google_pay) => match &google_pay.tokenization_data {
+            GpayTokenizationData::Decrypted(decrypted) => {
+                let cryptogram = decrypted.cryptogram.clone().ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "google_pay_decrypted_data.cryptogram",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token requires a cryptogram; PAN_ONLY tokens \
+                                 are not supported. Use CRYPTOGRAM_3DS in your Google Pay \
+                                 configuration."
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    })
+                })?;
+                let eci = decrypted.eci_indicator.clone();
+                let expiry_year = decrypted.get_four_digit_expiry_year().change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_year",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.expiry_year must be a 4-digit year; \
+                                 the value from the decrypted Google Pay token could not be parsed"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    },
+                )?;
+                let expiry_month = decrypted.get_expiry_month().change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "google_pay_decrypted_data.card_exp_month",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com network_token.expiry_month must be a 2-digit \
+                                 zero-padded month (MM); the value from the decrypted \
+                                 Google Pay token could not be parsed"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    },
+                )?;
+
+                Ok(PaydotcomSourceData {
+                    source_type: PaydotcomSourceType::NetworkToken,
+                    card: None,
+                    network_token: Some(PaydotcomNetworkTokenDetails {
+                        token: Secret::new(
+                            decrypted
+                                .application_primary_account_number
+                                .peek()
+                                .to_string(),
+                        ),
+                        token_type: PaydotcomNetworkTokenType::Googlepay,
+                        expiry_month,
+                        expiry_year,
+                        // Google Pay CRYPTOGRAM_3DS always carries an ECI; wrap it for
+                        // the shared Option<String> field (Apple Pay may omit it).
+                        three_ds: PaydotcomNetworkTokenThreeDs { eci, cryptogram },
+                    }),
+                    billing_details,
+                    setup_future_usage,
+                })
+            }
+            // Encrypted blob forwarding is not supported — use the pre-decrypted DPAN path.
+            GpayTokenizationData::Encrypted(_) => {
+                Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "google_pay encrypted blob".to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com integration only supports the pre-decrypted DPAN path \
+                             (network_token). Decrypt the signedMessage on your server and \
+                             provide application_primary_account_number + cryptogram."
+                                .to_string(),
+                        ),
+                        suggested_action: None,
+                        doc_url: None,
+                    },
+                )))
+            }
+        },
+
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            get_unimplemented_payment_method_error_message("paydotcom"),
+            IntegrationErrorContext {
+                additional_context: Some(
+                    "Pay.com wallet integration supports only the pre-decrypted DPAN path \
+                     for Apple Pay and Google Pay (source_data.type = \"network_token\"); \
+                     other wallet variants are out of scope."
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Use WalletData::ApplePay with ApplePayPaymentData::Decrypted or \
+                     WalletData::GooglePay with GpayTokenizationData::Decrypted."
+                        .to_string(),
+                ),
+                doc_url: None,
+            },
+        ))),
+    }
 }
 
 fn only_cards_error() -> error_stack::Report<IntegrationError> {
@@ -713,7 +1008,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        wrapper: PaydotcomRouterData<
+        value: PaydotcomRouterData<
             RouterDataV2<
                 Authorize,
                 PaymentFlowData,
@@ -723,7 +1018,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let item = &wrapper.router_data;
+        let item = &value.router_data;
 
         match authorize_leg(&item.request) {
             // Leg 3 — the shopper is back from the challenge; settle synchronously.
@@ -734,12 +1029,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // Rejects ManualMultiple / Scheduled before any wire work happens.
                 is_manual_capture(item.request.capture_method)?;
 
-                let card = match &item.request.payment_method_data {
-                    PaymentMethodData::Card(card) => card,
-                    _ => return Err(only_cards_error()),
-                };
-
-                let amount = wrapper
+                let amount = value
                     .connector
                     .amount_converter
                     .convert(item.request.minor_amount, item.request.currency)
@@ -748,39 +1038,244 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                          POST /v1/charges|/v1/holds request",
                     ))?;
 
+                match &item.request.payment_method_data {
+                    PaymentMethodData::Card(card) => {
+                        let (three_ds, authentication_context, request_threed_secure) =
+                            match three_ds_mode(&item.request, item.resource_common_data.auth_type)
+                            {
+                                PaydotcomThreeDsMode::None => {
+                                    (None, None, PaydotcomThreeDsRequest::None)
+                                }
+                                PaydotcomThreeDsMode::ExternalMpi => {
+                                    let authentication_data =
+                                        item.request.authentication_data.as_ref().ok_or_else(
+                                            || {
+                                                error_stack::report!(
+                                                    IntegrationError::MissingRequiredField {
+                                                        field_name: "authentication_data",
+                                                        context: IntegrationErrorContext {
+                                                            additional_context: Some(
+                                                                "Authorize reached the \
+                                                                 ExternalMpi branch but \
+                                                                 authentication_data is absent; \
+                                                                 this branch is only entered \
+                                                                 when authentication_data was \
+                                                                 present in three_ds_mode()"
+                                                                    .to_string(),
+                                                            ),
+                                                            suggested_action: None,
+                                                            doc_url: None,
+                                                        },
+                                                    }
+                                                )
+                                            },
+                                        )?;
+                                    (
+                                        Some(build_three_ds_raw(authentication_data)?),
+                                        None,
+                                        // The authentication already happened off-platform; asking
+                                        // Pay.com to run another would double-authenticate the shopper.
+                                        PaydotcomThreeDsRequest::None,
+                                    )
+                                }
+                                PaydotcomThreeDsMode::GatewayAuthenticationContext => (
+                                    None,
+                                    Some(build_authentication_context(
+                                        item.request.browser_info.as_ref(),
+                                    )?),
+                                    // A 3DS Authorize that was not opened by PreAuthenticate can
+                                    // only finish here if the authentication turns out frictionless,
+                                    // so ask for `automatic` rather than forcing a challenge nobody
+                                    // can answer.
+                                    PaydotcomThreeDsRequest::Automatic,
+                                ),
+                            };
+
+                        // Mirror the wallet arm: if the Authorize carries
+                        // setup_future_usage: OffSession, tell Pay.com to store the
+                        // card for future MIT. Without this, the card arm silently
+                        // ignores the flag while the wallet arm honours it.
+                        // NOTE: applies only to the direct Create leg (NoThreeDs /
+                        // ExternalMPI). Gateway-3DS drives PreAuthenticate first; that
+                        // path calls build_create_resource_request with setup_future_usage:
+                        // None hardcoded, and the Authorize leg is a bodyless Confirm, so
+                        // the flag never reaches Pay.com in the gateway-3DS flow.
+                        let setup_future_usage = item
+                            .request
+                            .is_customer_initiated_mandate_payment()
+                            .then_some(PaydotcomSetupFutureUsage::OffSession);
+                        let mut create_request = build_create_resource_request(
+                            card,
+                            amount,
+                            item.request.currency,
+                            &item.resource_common_data,
+                            item.request.email.clone(),
+                            item.request
+                                .customer_id
+                                .as_ref()
+                                .map(|customer_id| customer_id.get_string_repr().to_string()),
+                            three_ds,
+                            authentication_context,
+                            request_threed_secure,
+                        )?;
+                        create_request.source_data.setup_future_usage = setup_future_usage;
+                        Ok(Self::Create(Box::new(create_request)))
+                    }
+
+                    PaymentMethodData::Wallet(wallet_data) => {
+                        let setup_future_usage = item
+                            .request
+                            .is_customer_initiated_mandate_payment()
+                            .then_some(PaydotcomSetupFutureUsage::OffSession);
+                        let source_data = build_wallet_source_data(
+                            wallet_data,
+                            &item.resource_common_data,
+                            item.request.email.clone(),
+                            setup_future_usage,
+                        )?;
+                        Ok(Self::Create(Box::new(PaydotcomCreateResourceRequest {
+                            amount,
+                            currency: item.request.currency,
+                            reference: Some(
+                                item.resource_common_data
+                                    .connector_request_reference_id
+                                    .clone(),
+                            ),
+                            customer_reference_id: item
+                                .request
+                                .customer_id
+                                .as_ref()
+                                .map(|id| id.get_string_repr().to_string()),
+                            // Wallets bring their own 3DS data (cryptogram / ECI) embedded in
+                            // the token; Pay.com does not need a separate card 3DS instruction.
+                            payment_method_options: None,
+                            source_data,
+                        })))
+                    }
+
+                    _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+                        get_unimplemented_payment_method_error_message("paydotcom"),
+                        IntegrationErrorContext {
+                            additional_context: Some(
+                                "Pay.com is integrated for cards and Apple Pay / Google Pay \
+                                 wallets; other payment methods are out of scope"
+                                    .to_string(),
+                            ),
+                            suggested_action: None,
+                            doc_url: None,
+                        },
+                    ))),
+                }
+            }
+        }
+    }
+}
+
+// ===== REQUEST / RESPONSE: SETUP MANDATE =====
+
+/// SetupMandate uses the same wire format as Authorize (Create leg). The distinction
+/// is that `source_data.setup_future_usage = "off_session"` is always set, and the
+/// response returns `underlying_network_id` as the mandate reference.
+pub type PaydotcomSetupMandateRequest<T> = PaydotcomAuthorizeRequest<T>;
+
+/// Separate alias for the SetupMandate response body — reusing `PaydotcomAuthorizeResponse`
+/// would produce a duplicate `…Templating` struct in the macro.
+pub type PaydotcomSetupMandateResponse = PaydotcomPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaydotcomRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaydotcomSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        value: PaydotcomRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &value.router_data;
+
+        // SetupMandate always creates a new Charge/Hold; there is no Confirm leg.
+        is_manual_capture(item.request.capture_method)?;
+
+        // Zero-amount card-on-file setup is the normal shape for this flow; default to
+        // MinorUnit::zero() rather than erroring before any wire call.
+        let minor_amount = item.request.minor_amount.unwrap_or_else(MinorUnit::zero);
+
+        let amount = value
+            .connector
+            .amount_converter
+            .convert(minor_amount, item.request.currency)
+            .change_context(amount_conversion_error(
+                "Failed to convert setup-mandate amount to MinorUnit for the Pay.com \
+                 POST /v1/charges|/v1/holds request",
+            ))?;
+
+        match &item.request.payment_method_data {
+            PaymentMethodData::Card(card) => {
+                // Route through the same three-way mode as Authorize so that
+                // NoThreeDs merchants are not required to supply browser_info.
                 let (three_ds, authentication_context, request_threed_secure) =
-                    match three_ds_mode(&item.request, item.resource_common_data.auth_type) {
-                        PaydotcomThreeDsMode::None => (None, None, PaydotcomThreeDsRequest::None),
-                        PaydotcomThreeDsMode::ExternalMpi => {
-                            let authentication_data =
-                                item.request.authentication_data.as_ref().ok_or_else(|| {
-                                    error_stack::report!(IntegrationError::MissingRequiredField {
-                                        field_name: "authentication_data",
-                                        context: Default::default(),
-                                    })
-                                })?;
-                            (
-                                Some(build_three_ds_raw(authentication_data)?),
-                                None,
-                                // The authentication already happened off-platform; asking
-                                // Pay.com to run another would double-authenticate the shopper.
-                                PaydotcomThreeDsRequest::None,
-                            )
-                        }
-                        PaydotcomThreeDsMode::GatewayAuthenticationContext => (
+                    if item.request.authentication_data.is_some() {
+                        // External-MPI: replay the merchant-supplied eci/cavv.
+                        let authentication_data =
+                            item.request.authentication_data.as_ref().ok_or_else(|| {
+                                error_stack::report!(IntegrationError::MissingRequiredField {
+                                    field_name: "authentication_data",
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "SetupMandate reached the external-MPI branch but \
+                                             authentication_data is absent; this branch is only \
+                                             entered when authentication_data.is_some() is true"
+                                                .to_string(),
+                                        ),
+                                        suggested_action: None,
+                                        doc_url: None,
+                                    },
+                                })
+                            })?;
+                        (
+                            Some(build_three_ds_raw(authentication_data)?),
+                            None,
+                            PaydotcomThreeDsRequest::None,
+                        )
+                    } else if item.resource_common_data.auth_type
+                        == common_enums::AuthenticationType::ThreeDs
+                    {
+                        // Gateway-driven: use Automatic, not Challenge. SetupMandate has
+                        // no Confirm leg — if Pay.com returns requires_authentication
+                        // (Challenge path) the AuthenticationSession arm at the response
+                        // side yields no mandate reference and the setup is silently lost.
+                        // Automatic lets frictionless auth complete in a single call and
+                        // return underlying_network_id immediately.
+                        (
                             None,
                             Some(build_authentication_context(
                                 item.request.browser_info.as_ref(),
                             )?),
-                            // A 3DS Authorize that was not opened by PreAuthenticate can only
-                            // finish here if the authentication turns out frictionless, so ask
-                            // for `automatic` rather than forcing a challenge nobody can answer.
-                            // The challenge journey runs PreAuthenticate first (see paydotcom.rs).
                             PaydotcomThreeDsRequest::Automatic,
-                        ),
+                        )
+                    } else {
+                        // NoThreeDs: no browser context or challenge required.
+                        (None, None, PaydotcomThreeDsRequest::None)
                     };
 
-                Ok(Self::Create(Box::new(build_create_resource_request(
+                let mut create_request = build_create_resource_request(
                     card,
                     amount,
                     item.request.currency,
@@ -793,9 +1288,172 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     three_ds,
                     authentication_context,
                     request_threed_secure,
-                )?)))
+                )?;
+                // Signal Pay.com to store the payment method for future off-session use.
+                create_request.source_data.setup_future_usage =
+                    Some(PaydotcomSetupFutureUsage::OffSession);
+                Ok(Self::Create(Box::new(create_request)))
             }
+
+            PaymentMethodData::Wallet(wallet_data) => {
+                let source_data = build_wallet_source_data(
+                    wallet_data,
+                    &item.resource_common_data,
+                    item.request.email.clone(),
+                    Some(PaydotcomSetupFutureUsage::OffSession),
+                )?;
+                Ok(Self::Create(Box::new(PaydotcomCreateResourceRequest {
+                    amount,
+                    currency: item.request.currency,
+                    reference: Some(
+                        item.resource_common_data
+                            .connector_request_reference_id
+                            .clone(),
+                    ),
+                    customer_reference_id: item
+                        .request
+                        .customer_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_string()),
+                    payment_method_options: None,
+                    source_data,
+                })))
+            }
+
+            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("paydotcom"),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com SetupMandate is integrated for cards and Apple Pay / Google Pay \
+                         wallets; other payment methods are out of scope"
+                            .to_string(),
+                    ),
+                    suggested_action: None,
+                    doc_url: None,
+                },
+            ))),
         }
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaydotcomPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = item.response.attempt_status();
+
+        // Extract `underlying_network_id` as the mandate reference.
+        // Round-trip Pay.com's pm_… id through `mandate_metadata` so RepeatPayment can
+        // use it for Variant B/C without conflating it with Hyperswitch's own
+        // payment_method_id (see RepeatPayment transformer).
+        let mandate_reference = match &item.response {
+            PaydotcomPaymentsResponse::Charge(charge) => {
+                charge.underlying_network_id.clone().map(|id| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: charge.source.as_ref().and_then(|v| v.as_str()).map(
+                            |pm_id| Secret::new(serde_json::json!({ "payment_method_id": pm_id })),
+                        ),
+                    })
+                })
+            }
+            // Pay.com returns underlying_network_id on a Hold too when
+            // setup_future_usage: "off_session" is set — same extraction as Charge.
+            PaydotcomPaymentsResponse::Hold(hold) => hold.underlying_network_id.clone().map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: hold.source.as_ref().and_then(|v| v.as_str()).map(|pm_id| {
+                        Secret::new(serde_json::json!({ "payment_method_id": pm_id }))
+                    }),
+                })
+            }),
+            PaydotcomPaymentsResponse::AuthenticationSession(_) => None,
+        };
+
+        let connector_feature_data = item.response.pending_metadata().map(Secret::new);
+
+        let response = match status {
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
+            // /v1/charges is auto-capture: Pay.com has already settled the funds.
+            // Returning Failure here leaves an orphaned charge — the caller must
+            // issue a manual refund. The mandate goal of SetupMandate was not met.
+            AttemptStatus::Charged if mandate_reference.is_none() => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(
+                    "Pay.com Charge succeeded but returned no underlying_network_id; mandate \
+                     not stored. The payment was already captured — a manual refund may be \
+                     required."
+                        .to_string(),
+                ),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(item.response.id().to_string()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+            // Hold terminal-success without underlying_network_id: mandate not stored.
+            // No money was captured; the Hold is still voidable.
+            AttemptStatus::Authorized if mandate_reference.is_none() => Err(ErrorResponse {
+                status_code: item.http_code,
+                code: NO_ERROR_CODE.to_string(),
+                message: NO_ERROR_MESSAGE.to_string(),
+                reason: Some(
+                    "Pay.com Hold succeeded but returned no underlying_network_id; mandate \
+                     not stored. No capture occurred — the Hold may be voided."
+                        .to_string(),
+                ),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(item.response.id().to_string()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            }),
+            _ => {
+                let mut transaction_response = item.response.transaction_response(item.http_code);
+                // Inject the mandate reference into the transaction response.
+                if let PaymentsResponseData::TransactionResponse {
+                    mandate_reference: ref mut mr,
+                    ..
+                } = transaction_response
+                {
+                    *mr = mandate_reference;
+                }
+                Ok(transaction_response)
+            }
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                connector_feature_data,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
 
@@ -817,7 +1475,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        wrapper: PaydotcomRouterData<
+        value: PaydotcomRouterData<
             RouterDataV2<
                 PreAuthenticate,
                 PaymentFlowData,
@@ -827,7 +1485,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let item = &wrapper.router_data;
+        let item = &value.router_data;
 
         is_manual_capture(item.request.capture_method)?;
 
@@ -839,11 +1497,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let currency = item.request.currency.ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "currency",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com POST /v1/charges|/v1/holds requires an ISO-4217 currency code; \
+                         currency must be present on the PreAuthenticate request"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the transaction currency in the payment request".to_string(),
+                    ),
+                    doc_url: None,
+                },
             })
         })?;
 
-        let amount = wrapper
+        let amount = value
             .connector
             .amount_converter
             .convert(item.request.amount, currency)
@@ -890,7 +1558,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        wrapper: PaydotcomRouterData<
+        value: PaydotcomRouterData<
             RouterDataV2<
                 Authenticate,
                 PaymentFlowData,
@@ -900,7 +1568,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let item = &wrapper.router_data;
+        let item = &value.router_data;
 
         let resource =
             pending_resource_id_from_authentication_data(item.request.authentication_data.as_ref())
@@ -917,7 +1585,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                  arrives on the PreAuthenticate response's authentication_data."
                                     .to_string(),
                             ),
-                            ..Default::default()
+                            suggested_action: Some(
+                                "Ensure PreAuthenticate ran before Authenticate and that \
+                                 authentication_data.transaction_id (or connector_feature_data) \
+                                 carries the chrg_/hld_ id from the PreAuthenticate response."
+                                    .to_string(),
+                            ),
+                            doc_url: None,
                         },
                     })
                 })?;
@@ -943,7 +1617,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "continue_redirection_url",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com linked-authentication-session return_url must be the \
+                             complete-authorize URL so the orchestrator triggers leg 3 \
+                             (/confirm) when the shopper returns; a plain return URL causes \
+                             the resource to remain parked on requires_authentication"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set continue_redirection_url to the orchestrator's \
+                             complete-authorize endpoint, not the merchant's plain return URL"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 })
             })?;
 
@@ -954,8 +1642,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// ===== REQUEST: CAPTURE =====
 
 /// `POST /v1/holds/{id}/capture`. Every field is optional — an empty body captures the
 /// full hold.
@@ -979,13 +1665,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        wrapper: PaydotcomRouterData<
+        value: PaydotcomRouterData<
             RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let item = &wrapper.router_data;
-        let amount_to_capture = wrapper
+        let item = &value.router_data;
+        let amount_to_capture = value
             .connector
             .string_amount_converter
             .convert(item.request.minor_amount_to_capture, item.request.currency)
@@ -1004,8 +1690,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// ===== REQUEST: REFUND =====
 
 /// `POST /v1/refunds`. `charge` is the only required member and must be a `chrg_` id.
 #[derive(Debug, Serialize)]
@@ -1029,12 +1713,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        wrapper: PaydotcomRouterData<
+        value: PaydotcomRouterData<
             RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let item = &wrapper.router_data;
+        let item = &value.router_data;
         let charge = item.request.connector_transaction_id.clone();
 
         // A Hold holds no money yet, so Pay.com has nothing to refund; the caller must
@@ -1056,7 +1740,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )));
         }
 
-        let amount_to_refund = wrapper
+        let amount_to_refund = value
             .connector
             .string_amount_converter
             .convert(item.request.minor_refund_amount, item.request.currency)
@@ -1072,8 +1756,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         })
     }
 }
-
-// ===== STATUS ENUMS =====
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1142,15 +1824,11 @@ impl From<PaydotcomRefundStatus> for RefundStatus {
     }
 }
 
-// ===== RESPONSE: CHARGE / HOLD =====
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomChargeResponse {
     pub id: String,
     pub status: PaydotcomChargeStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub amount_refunded: Option<MinorUnit>,
     #[serde(
         default,
@@ -1158,24 +1836,27 @@ pub struct PaydotcomChargeResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub reference: Option<String>,
     /// Set when the Charge was produced by capturing a Hold.
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
+    /// The network transaction identifier returned by Pay.com after mandate setup.
+    /// Used as `connector_mandate_id` in the SetupMandate response.
+    pub underlying_network_id: Option<String>,
+    /// Pay.com payment-method id (`pm_card_…`) tied to this charge. Typed as
+    /// `serde_json::Value` rather than `String` because the wire shape is unverified —
+    /// if Pay.com ever returns an object (`{"id":"pm_…"}`) a bare `String` would cause
+    /// all five flows sharing this struct to fail deserialization. `as_str()` extracts
+    /// the bare id when present; mismatched shapes are silently ignored at no cost.
+    pub source: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomHoldResponse {
     pub id: String,
     pub status: PaydotcomHoldStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub amount_capturable: Option<MinorUnit>,
     #[serde(
         default,
@@ -1183,14 +1864,16 @@ pub struct PaydotcomHoldResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub reference: Option<String>,
-    #[serde(default)]
     pub canceled: Option<bool>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
+    /// The network transaction identifier returned by Pay.com after mandate setup.
+    /// Used as `connector_mandate_id` in the SetupMandate response.
+    pub underlying_network_id: Option<String>,
+    /// Same as `PaydotcomChargeResponse::source` — typed as `serde_json::Value` for the
+    /// same reason (unverified wire shape; soft-fail on mismatch).
+    pub source: Option<serde_json::Value>,
 }
 
 /// `POST /v1/sessions/authentication/linked` — carries the challenge URL the shopper is
@@ -1200,15 +1883,11 @@ pub struct PaydotcomAuthenticationSessionResponse {
     pub id: String,
     pub status: PaydotcomAuthenticationSessionStatus,
     /// The challenge page, e.g. `https://sca.pay.com/authenticate?client_secret=<jwt>`.
-    #[serde(default)]
     pub url: Option<String>,
     /// Set when the session authenticates a Charge.
-    #[serde(default)]
     pub charge: Option<String>,
     /// Set when the session authenticates a Hold.
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub return_url: Option<String>,
     // `client_secret` is a Pay Components (browser SDK) credential and is out of scope;
     // it is deliberately not deserialized so it can never reach a log.
@@ -1249,7 +1928,6 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// The challenge URL, when this response is an authentication session that opened one.
     pub fn challenge_url(&self) -> Option<&str> {
         match self {
             Self::AuthenticationSession(session) => session.url.as_deref(),
@@ -1296,8 +1974,7 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// True while the resource is parked waiting for the shopper to authenticate — the
-    /// point at which the caller must persist the resource id and drive the next leg.
+    /// True while the resource is parked waiting for the shopper to authenticate.
     pub fn awaits_authentication(&self) -> bool {
         matches!(
             self,
@@ -1310,8 +1987,7 @@ impl PaydotcomPaymentsResponse {
         )
     }
 
-    /// Republished on every leg so the caller keeps handing the resource id back until the
-    /// journey ends. See `PAYDOTCOM_RESOURCE_METADATA_KEY`.
+    /// Republished on every leg so the caller keeps handing the resource id back until the journey ends.
     pub fn pending_metadata(&self) -> Option<serde_json::Value> {
         (self.awaits_authentication() || matches!(self, Self::AuthenticationSession(_)))
             .then(|| serde_json::json!({ PAYDOTCOM_RESOURCE_METADATA_KEY: self.id() }))
@@ -1325,14 +2001,8 @@ impl PaydotcomPaymentsResponse {
         }
     }
 
-    /// A 2xx carrying `status: "failed"` is the normal decline path once the transaction
-    /// has reached the network, so it is turned into an `ErrorResponse` here rather than
-    /// being left to `build_error_response`.
-    ///
-    /// `attempt_status` is the status the caller derived for its own flow, not a constant:
-    /// `get_attempt_status_for_grpc` prefers this field over the `resource_common_data`
-    /// fallback, so hardcoding `Failure` would report a declined capture as a failed
-    /// payment while the hold is in fact intact and still capturable.
+    /// A 2xx carrying `status: "failed"` is the normal decline path; `attempt_status` is
+    /// caller-derived so a declined capture is not misreported as a failed payment.
     fn in_band_error(&self, http_code: u16, attempt_status: AttemptStatus) -> ErrorResponse {
         let (failure_code, failure_message) = self.failure();
         ErrorResponse {
@@ -1403,9 +2073,51 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // Keep republishing the resource id while the journey is unfinished, so the caller
         // can hand it back on the next leg (linked session, then confirm).
         let connector_feature_data = item.response.pending_metadata().map(Secret::new);
+
+        // When setup_future_usage: "off_session" was set on the request Pay.com returns
+        // underlying_network_id so RepeatPayment can reference the stored method. Extract
+        // it here so it is not silently dropped by transaction_response (which always sets
+        // mandate_reference: None). When setup_future_usage was absent the field is not
+        // returned and mandate_reference correctly stays None.
+        let mandate_reference = match &item.response {
+            PaydotcomPaymentsResponse::Charge(charge) => {
+                charge.underlying_network_id.clone().map(|id| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: charge.source.as_ref().and_then(|v| v.as_str()).map(
+                            |pm_id| Secret::new(serde_json::json!({ "payment_method_id": pm_id })),
+                        ),
+                    })
+                })
+            }
+            PaydotcomPaymentsResponse::Hold(hold) => hold.underlying_network_id.clone().map(|id| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: hold.source.as_ref().and_then(|v| v.as_str()).map(|pm_id| {
+                        Secret::new(serde_json::json!({ "payment_method_id": pm_id }))
+                    }),
+                })
+            }),
+            PaydotcomPaymentsResponse::AuthenticationSession(_) => None,
+        };
+
         let response = match status {
             AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
-            _ => Ok(item.response.transaction_response(item.http_code)),
+            _ => {
+                let mut transaction_response = item.response.transaction_response(item.http_code);
+                if let PaymentsResponseData::TransactionResponse {
+                    mandate_reference: ref mut mr,
+                    ..
+                } = transaction_response
+                {
+                    *mr = mandate_reference;
+                }
+                Ok(transaction_response)
+            }
         };
 
         Ok(Self {
@@ -1419,8 +2131,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         })
     }
 }
-
-// ===== RESPONSE: PRE-AUTHENTICATE (gateway 3DS, leg 1) =====
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     for RouterDataV2<
@@ -1442,17 +2152,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         // else means the leg cannot be continued and the caller must not be handed a
         // resource id it would then try to authenticate.
         let pending = item.response.pending_metadata();
-        // `pending` is `Some(resource_id)` only while Pay.com is waiting for the shopper to
-        // authenticate — that is, when this Charge/Hold still needs the linked-authentication
-        // session that the following Authenticate leg creates. When it is `None` the journey
-        // is already resolved (approved or failed) and there is no id to hand forward, so
-        // both carriers below stay empty and the orchestrator stops after this leg.
-        //
-        // The id travels on `authentication_data`, the channel an orchestrator already moves
-        // from a PreAuthenticate response into the next Authenticate request, so no
-        // connector-specific metadata plumbing is needed. `connector_feature_data` carries the
-        // same id as a fallback for callers that drive the gRPC flows directly and therefore
-        // have no orchestrator doing that for them.
+        // `connector_feature_data` mirrors the pending id for callers driving gRPC flows
+        // directly; the primary channel is `authentication_data.transaction_id`.
         let connector_feature_data = pending.as_ref().cloned().map(Secret::new);
         let authentication_data = pending
             .as_ref()
@@ -1483,8 +2184,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
     }
 }
 
-// ===== RESPONSE: AUTHENTICATE (gateway 3DS, leg 2) =====
-
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     for RouterDataV2<
         Authenticate,
@@ -1501,9 +2200,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomPaymentsResp
         let status = item.response.attempt_status();
         let resource_id = item.response.id().to_string();
 
-        // Republished so the settling Authorize knows what to `/confirm`. The orchestrator
-        // persists this and hands it back on CompleteAuthorize; `connector_feature_data`
-        // mirrors it for callers driving the gRPC flows directly.
         let pending = item.response.pending_metadata();
         let authentication_data = pending
             .clone()
@@ -1645,13 +2341,10 @@ impl TryFrom<ResponseRouterData<PaydotcomPaymentsResponse, Self>>
     }
 }
 
-// ===== RESPONSE: REFUND =====
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomRefundResponse {
     pub id: String,
     pub status: PaydotcomRefundStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
     #[serde(
         default,
@@ -1659,21 +2352,14 @@ pub struct PaydotcomRefundResponse {
         deserialize_with = "paydotcom_currency::option::deserialize"
     )]
     pub currency: Option<common_enums::Currency>,
-    #[serde(default)]
     pub charge: Option<String>,
-    #[serde(default)]
     pub reference: Option<String>,
-    #[serde(default)]
     pub failure_code: Option<String>,
-    #[serde(default)]
     pub failure_message: Option<String>,
 }
 
 impl PaydotcomRefundResponse {
-    /// A 2xx carrying `status: "failed"` is how Pay.com reports a declined refund, so it
-    /// becomes an `ErrorResponse` here rather than an `Ok` the merchant cannot explain.
-    /// `failure_code`/`failure_message` are the only place the reason appears; the
-    /// payments path does the same with the same shape.
+    /// A 2xx carrying `status: "failed"` is how Pay.com reports a declined refund.
     fn in_band_error(&self, http_code: u16) -> ErrorResponse {
         ErrorResponse {
             status_code: http_code,
@@ -1751,8 +2437,6 @@ impl TryFrom<ResponseRouterData<PaydotcomRefundResponse, Self>>
     }
 }
 
-// ===== ERRORS =====
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PaydotcomErrorResponse {
     pub error: PaydotcomError,
@@ -1763,21 +2447,14 @@ pub struct PaydotcomError {
     /// `api_error` | `payment_method_error` | `idempotency_error` | `invalid_request_error`.
     #[serde(rename = "type")]
     pub error_type: String,
-    #[serde(default)]
     pub code: Option<String>,
-    #[serde(default)]
     pub message: Option<String>,
-    #[serde(default)]
     pub decline_code: Option<String>,
     /// Present on `invalid_request_error`.
-    #[serde(default)]
     pub params: Option<Vec<PaydotcomErrorParam>>,
     /// A declined Charge still has an id — propagating it lets PSync find the attempt.
-    #[serde(default)]
     pub charge: Option<String>,
-    #[serde(default)]
     pub hold: Option<String>,
-    #[serde(default)]
     pub payment_method: Option<String>,
 }
 
@@ -1816,8 +2493,7 @@ impl PaydotcomErrorResponse {
                 .clone()
                 .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: self.reason(),
-            // A validation or idempotency error is not a payment decline, so the attempt
-            // status is left untouched for anything but `payment_method_error`.
+            // Only `payment_method_error` maps to a payment decline; other types leave status untouched.
             attempt_status: (self.error.error_type == ERROR_TYPE_PAYMENT_METHOD)
                 .then_some(FlowStatus::Payment(AttemptStatus::Failure)),
             connector_transaction_id: self
@@ -1837,10 +2513,6 @@ impl PaydotcomErrorResponse {
 
     pub fn to_refund_error_response(&self, status_code: u16) -> ErrorResponse {
         let mut error_response = self.to_error_response(status_code);
-        // The refund error builder reads `attempt_status` alone and falls back to
-        // `REFUND_STATUS_UNSPECIFIED` — there is no `resource_common_data.status` fallback
-        // on this path the way there is for payments. So it carries the *refund* status
-        // here; a payment `AttemptStatus` would be wrong, and `None` loses the failure.
         error_response.attempt_status = Some(FlowStatus::Refund(RefundStatus::Failure));
         error_response
     }
@@ -1893,6 +2565,241 @@ pub fn hold_cancel_path(
                 doc_url: None,
             },
         )))
+    }
+}
+
+// ===== REQUEST / RESPONSE: REPEAT PAYMENT (MIT — Merchant-Initiated Transaction) =====
+
+/// Body of `POST /v1/charges` with `off_session: true`.
+///
+/// Pay.com accepts three variants:
+/// * Variant A — `customer_reference_id` only: Pay.com auto-selects the latest eligible PM.
+/// * Variant B — with `source` (payment method id): explicit PM selection.
+/// * Variant C — with `source_data` containing `source.id` + `underlying_network_id`:
+///   most explicit form, used when both PM and network mandate id are available.
+///
+/// The struct covers all three; `skip_serializing_if` ensures only the populated fields
+/// travel on the wire.
+#[derive(Debug, Serialize)]
+pub struct PaydotcomRepeatPaymentRequest {
+    pub off_session: bool,
+    #[serde(serialize_with = "paydotcom_currency::serialize")]
+    pub currency: common_enums::Currency,
+    pub amount: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_reference_id: Option<String>,
+    /// Variant B: explicit payment method id (e.g. `pm_card_…`). Masked in logs —
+    /// a pm id can be used to charge a customer and must not appear in plaintext.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Secret<String>>,
+    /// Variant C: payment method id + underlying_network_id in the source_data envelope.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_data: Option<PaydotcomMitSourceData>,
+    /// Merchant-supplied idempotency reference, replayed verbatim.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaydotcomMitSourceData {
+    #[serde(rename = "type")]
+    pub source_type: PaydotcomSourceType,
+    pub source: PaydotcomMitSourceRef,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub underlying_network_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaydotcomMitSourceRef {
+    pub id: Secret<String>,
+}
+
+/// Distinct alias so `create_all_prerequisites!` can generate a unique `…Templating` struct.
+pub type PaydotcomRepeatPaymentResponse = PaydotcomPaymentsResponse;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaydotcomRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaydotcomRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        value: PaydotcomRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = &value.router_data;
+
+        let amount = value
+            .connector
+            .amount_converter
+            .convert(item.request.minor_amount, item.request.currency)
+            .change_context(amount_conversion_error(
+                "Failed to convert repeat-payment amount to MinorUnit for the Pay.com \
+                 POST /v1/charges (off_session) request",
+            ))?;
+
+        let reference = Some(
+            item.resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        );
+
+        // `payment_method_id` comes from mandate_metadata, NOT get_payment_method_id() —
+        // that returns Hyperswitch's own pm id, not Pay.com's pm_card_…, which Pay.com rejects.
+        let (connector_mandate_id, payment_method_id) = match &item.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => {
+                let pm_id = mandate_data.get_mandate_metadata().and_then(|meta| {
+                    meta.peek()
+                        .get("payment_method_id")
+                        .and_then(serde_json::Value::as_str)
+                        .map(str::to_string)
+                });
+                (mandate_data.get_connector_mandate_id(), pm_id)
+            }
+            // Pay.com MIT uses its own underlying_network_id, not a scheme-issued NTI.
+            MandateReferenceId::NetworkMandateId(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "PSP-agnostic NetworkMandateId recurring is not supported by paydotcom"
+                        .to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com MIT uses its own underlying_network_id (returned on the \
+                             CIT response) as the mandate reference, not a scheme-issued \
+                             network transaction ID from another PSP. Use ConnectorMandateId \
+                             populated from a Pay.com SetupMandate."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Perform the CIT via Pay.com SetupMandate to obtain an \
+                             underlying_network_id, then use that as the mandate reference \
+                             for subsequent MIT charges."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                )));
+            }
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "PSP-agnostic NetworkTokenWithNTI recurring is not supported by paydotcom"
+                        .to_string(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pay.com MIT uses its own underlying_network_id (returned on the \
+                             CIT response) as the mandate reference. Network tokens combined \
+                             with a scheme NTI from another PSP are not accepted."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Perform the CIT via Pay.com SetupMandate to obtain an \
+                             underlying_network_id, then use that as the mandate reference \
+                             for subsequent MIT charges."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                )));
+            }
+        };
+
+        // Variant C (pm_id + network_id) > Variant B (pm_id only) > Variant A (customer_id only).
+        let (source, source_data) = match (payment_method_id, connector_mandate_id) {
+            (Some(pm_id), Some(network_id)) => (
+                None,
+                Some(PaydotcomMitSourceData {
+                    source_type: PaydotcomSourceType::Source,
+                    source: PaydotcomMitSourceRef {
+                        id: Secret::new(pm_id),
+                    },
+                    underlying_network_id: Some(Secret::new(network_id)),
+                }),
+            ),
+            (Some(pm_id), None) => (Some(Secret::new(pm_id)), None),
+            _ => (None, None),
+        };
+
+        let customer_reference_id = item
+            .resource_common_data
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string());
+
+        // All three identifiers absent — Pay.com will 400 with no useful body.
+        // Report field_name as "customer_id" (not the compound form) so the field
+        // prober resolves it via Variant A and keeps the flow in generated docs.
+        if source.is_none() && source_data.is_none() && customer_reference_id.is_none() {
+            return Err(
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer_id",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Pay.com RepeatPayment requires at least one payment source identifier: \
+                         a connector mandate id (underlying_network_id), a Pay.com pm_card_… id \
+                         in mandate_metadata, or a customer_reference_id. All three are absent."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide customer_id on the payment (Variant A — Pay.com auto-selects \
+                         the latest stored method), or ensure SetupMandate returned an \
+                         underlying_network_id."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }),
+            );
+        }
+
+        Ok(Self {
+            off_session: true,
+            currency: item.request.currency,
+            amount,
+            customer_reference_id,
+            source,
+            source_data,
+            reference,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaydotcomRepeatPaymentResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaydotcomRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = item.response.attempt_status();
+        let response = match status {
+            AttemptStatus::Failure => Err(item.response.in_band_error(item.http_code, status)),
+            _ => Ok(item.response.transaction_response(item.http_code)),
+        };
+
+        Ok(Self {
+            response,
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
 
