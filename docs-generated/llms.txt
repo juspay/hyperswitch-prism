@@ -961,9 +961,9 @@ examples_python: examples/worldpay/worldpay.py
 ## Worldpayraft
 connector_id: worldpayraft
 doc: docs/connectors/worldpayraft.md
-scenarios: checkout_autocapture, checkout_card, refund
+scenarios: checkout_autocapture
 payment_methods: Card
-flows: authorize, capture, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, setup_recurring
+flows: authorize, proxy_authorize, proxy_setup_recurring, recurring_charge, setup_recurring
 examples_python: examples/worldpayraft/worldpayraft.py
 
 ## Worldpayvantiv
