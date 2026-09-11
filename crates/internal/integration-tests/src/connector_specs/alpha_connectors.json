@@ -31,6 +31,9 @@
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
+    "etisalat": {
+      "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
+    },
     "elavon": {},
     "finix": {},
     "fiservcommercehub": {},
@@ -42,6 +45,9 @@
     "gigadat": {},
     "givepayments": {},
     "globalpay": {},
+    "globalpayments_heartland": {
+      "reason": "Heartland Portico CERT credentials are not in the CI credentials file. All six declared suites were verified manually against the Portico CERT gateway (SOAP/XML PosGateway) during integration. Remove this entry once CI credentials are added."
+    },
     "glomopay": {},
     "grabpay": {},
     "helcim": {},
@@ -77,6 +83,9 @@
     "paydotcom": {
       "reason": "No Pay.com sandbox credentials are available; the integration is verified end to end from Hyperswitch through UCS against a mock Pay.com server, with request shapes checked against apiref.pay.com. See PR #2223."
     },
+    "payhere": {
+      "reason": "No PayHere sandbox credentials (App ID/App Secret/Merchant ID/Merchant Secret) are configured in CI, so certification cannot run. Remove this entry once credentials are added so CI starts certifying it."
+    },
     "payload": {},
     "payme": {},
     "paynearme": {
@@ -108,7 +117,7 @@
     "tamara": {},
     "tesouro": {},
     "travelhub": {
-      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize — see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
+      "reason": "new connector; no CI credentials yet (username/password/merchant_id for Worldline preprod not provisioned, and the current test merchant returns INVALID on authorize \u2014 see travelhub-authorize-issue.md); remove from this list once credentials are added so CI starts certifying it"
     },
     "truelayer": {},
     "trustly": {},

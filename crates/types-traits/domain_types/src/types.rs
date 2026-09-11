@@ -424,15 +424,18 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub nsure: ConnectorParams,
     pub plaid: ConnectorParams,
     pub givepayments: ConnectorParams,
     pub grabpay: ConnectorParams,
     pub tesouro: ConnectorParams,
     pub boost: ConnectorParams,
     pub ilixium: ConnectorParams,
+    pub globalpayments_heartland: ConnectorParams,
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub etisalat: ConnectorParams,
     pub worldpayraft: ConnectorParams,
     pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
@@ -440,6 +443,7 @@ pub struct Connectors {
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
     pub paydotcom: ConnectorParams,
+    pub payhere: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -711,6 +715,9 @@ impl Connectors {
             ConnectorEnum::Moneris => {
                 patched.moneris.apply(params_patch);
             }
+            ConnectorEnum::Etisalat => {
+                patched.etisalat.apply(params_patch);
+            }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);
             }
@@ -809,6 +816,9 @@ impl Connectors {
             ConnectorEnum::Ilixium => {
                 patched.ilixium.apply(params_patch);
             }
+            ConnectorEnum::GlobalpaymentsHeartland => {
+                patched.globalpayments_heartland.apply(params_patch);
+            }
             ConnectorEnum::Maya => {
                 patched.maya.apply(params_patch);
             }
@@ -821,6 +831,9 @@ impl Connectors {
             ConnectorEnum::D24 => {
                 patched.d24.apply(params_patch);
             }
+            ConnectorEnum::Payhere => {
+                patched.payhere.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -828,7 +841,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere",
                             connector
                         )),
                         ..Default::default()
@@ -893,6 +906,7 @@ impl Connectors {
         };
         match connector {
             FrmConnectorEnum::Kount => patched.kount.apply(params_patch),
+            FrmConnectorEnum::Nsure => patched.nsure.apply(params_patch),
         }
         Ok(patched)
     }
@@ -1729,6 +1743,9 @@ impl<
                     Ok(Self::Wallet(payment_method_data::WalletData::PaymayaRedirect(
                         payment_method_data::PaymayaRedirection {},
                     )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PayhereRedirect {}))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
@@ -2802,6 +2819,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(PaymentMethodType::Payhere),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -3167,6 +3185,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => Ok(Some(PaymentMethodType::Payhere)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -4612,6 +4631,11 @@ impl<
 {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::request_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, payment_method_data): (AuthorizationRequest, PaymentMethodData<T>),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -5686,6 +5710,11 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
 impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
     type Error = IntegrationError;
 
+    // Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::flow_data_transform", skip_all)
+    )]
     fn foreign_try_from(
         (value, connectors, metadata): (AuthorizationRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
@@ -6928,6 +6957,11 @@ impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
     }
 }
 
+// Déjà call-graph skeleton span; inert unless the `deja` feature is on.
+#[cfg_attr(
+    feature = "deja",
+    tracing::instrument(name = "ucs::response_generate", skip_all)
+)]
 #[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
@@ -7368,6 +7402,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -9148,6 +9186,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
@@ -13941,6 +13980,7 @@ pub enum PaymentMethodDataType {
     PayURedirect,
     EaseBuzzRedirect,
     PaymayaRedirect,
+    PayhereRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
@@ -18956,6 +18996,7 @@ impl<
                     )
                 })
                 .transpose()?,
+            connector_order_reference_id: value.connector_order_reference_id,
         })
     }
 }
@@ -19243,9 +19284,11 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_type: None,
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Post-auth uses 3DS
@@ -19965,6 +20008,35 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 network_transaction_id: None,
                 merchant_order_id: connector_response_reference_id,
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
+                incremental_authorization_allowed: None,
+                status: grpc_status.into(),
+                error: None,
+                raw_connector_response,
+                typed_connector_response,
+                raw_connector_status,
+                status_code: status_code.into(),
+                response_headers,
+                state: None,
+            },
+            // Payment-confirmation flows (e.g. APM confirm via PostAuthenticate) return
+            // TransactionResponse rather than PostAuthenticateResponse.
+            PaymentsResponseData::TransactionResponse {
+                resource_id,
+                connector_response_reference_id,
+                network_txn_id,
+                status_code,
+                ..
+            } => PaymentMethodAuthenticationServicePostAuthenticateResponse {
+                connector_transaction_id: match resource_id {
+                    ResponseId::ConnectorTransactionId(id) => Some(id),
+                    ResponseId::EncodedData(data) => Some(data),
+                    ResponseId::NoResponseId => None,
+                },
+                redirection_data: None,
+                connector_feature_data,
+                network_transaction_id: network_txn_id,
+                merchant_order_id: connector_response_reference_id,
+                authentication_data: None,
                 incremental_authorization_allowed: None,
                 status: grpc_status.into(),
                 error: None,

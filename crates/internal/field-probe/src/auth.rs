@@ -317,6 +317,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Etisalat => ConnectorSpecificConfig::Etisalat {
+            user_name: u(),
+            password: p(),
+            customer: m(),
+            base_url: None,
+        },
         ConnectorEnum::Nmi => ConnectorSpecificConfig::Nmi {
             api_key: k(),
             public_key: None,
@@ -820,6 +826,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_secret: k(),
             base_url: None,
         },
+        ConnectorEnum::GlobalpaymentsHeartland => {
+            ConnectorSpecificConfig::GlobalpaymentsHeartland {
+                api_key: k(),
+                base_url: None,
+            }
+        }
         ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {
             license: k(),
             merchant_id: k(),
@@ -857,6 +869,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Payhere => ConnectorSpecificConfig::Payhere {
+            app_id: k(),
+            merchant_id: k(),
+            app_secret: k(),
+            merchant_secret: k(),
             base_url: None,
         },
     }

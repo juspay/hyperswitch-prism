@@ -25,7 +25,10 @@ To implement a new connector Psync flow using these patterns:
 {AmountType} → MinorUnit (if API uses integer cents)
 {HttpMethod} → GET (if API uses RESTful status checking)
 {psync_endpoint} → "v1/payments/{id}/status" (your status API endpoint)
-{auth_type} → HeaderKey (if using Bearer token auth)
+{auth_type} → your connector's own `ConnectorSpecificConfig` variant
+#   (domain_types/src/router_data.rs:301). There are no generic HeaderKey /
+#   BodyKey / SignatureKey variants — e.g. `ConnectorSpecificConfig::Airwallex
+#   { api_key, client_id, base_url }` (router_data.rs:406).
 ```
 
 **✅ Result**: Complete, production-ready connector Psync flow implementation in ~15 minutes
@@ -160,7 +163,11 @@ macros::create_all_prerequisites!(
         // Add other flows as needed...
     ],
     amount_converters: [
-        amount_converter: {AmountUnit} // StringMinorUnit, StringMajorUnit, MinorUnit
+        // Pick the unit that matches the vendor's documented wire format. FIVE exist in
+        // common_utils/src/types.rs: MinorUnit(:170), StringMinorUnit(:305), FloatMajorUnit(:336),
+        // StringMajorUnit(:374), StringTwoDecimalUnit(:443). Do NOT default to StringMinorUnit —
+        // on HEAD the split is StringMajorUnit 24 / FloatMajorUnit 22 / MinorUnit 11 / StringMinorUnit 8.
+        amount_converter: {AmountUnit}
     ],
     member_functions: {
         // Same build_headers and connector_base_url functions as other flows
@@ -172,7 +179,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "{content_type}".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -216,7 +223,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // Extract transaction ID from request
             let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
+                .change_context(errors::IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             
             let base_url = self.connector_base_url_payments(req);
             
@@ -236,12 +243,14 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Add Source Verification stub for PSync flow
+// SourceVerification is NON-GENERIC: exactly ONE impl per connector, never one per flow.
+// (`interfaces::verification::SourceVerification` takes no type parameters — a
+// `SourceVerification<Flow, Data, Req, Resp>` impl is E0107.)
+// Exemplar: crates/integrations/connector-integration/src/connectors/travelhub.rs:175
+// It is declared once for the whole connector, not inside the PSync section.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
-    for {ConnectorName}<T>
+    SourceVerification for {ConnectorName}<T>
 {
-    // Stub implementation - will be replaced in Phase 10
 }
 ```
 
@@ -460,7 +469,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, PaymentFlowData, Paym
         let transaction_id = router_data
             .request
             .get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
         Ok(Self {
             transaction_id: Some(transaction_id),
@@ -505,23 +514,37 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, RouterDataV2<PSync,
         // NEVER assume status based on HTTP code alone
         let status = common_enums::AttemptStatus::from(response.status.clone());
 
-        // Handle error responses
-        if let Some(error) = &response.error {
+        // Handle in-band failure: a 2xx body that carries an error payload.
+        // Branch on a success predicate over the MAPPED status, not on the mere presence of an
+        // error field, and never hardcode `AttemptStatus::Failure` here — a 2xx body can carry a
+        // warning on an already-charged payment, and hardcoding Failure is exactly what reports a
+        // charged payment as FAILURE. Reference predicate:
+        // `domain_types::utils::is_payment_failure` (domain_types/src/utils.rs:231).
+        if domain_types::utils::is_payment_failure(status) {
+            let error = response.error.clone().unwrap_or_default();
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
+                    status,
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
-                    code: response.error_code.clone().unwrap_or_default(),
-                    message: error.clone(),
-                    reason: Some(error.clone()),
+                    // `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` come from `common_utils::consts`
+                    // (crates/common/common_utils/src/consts.rs:154-156). Import them:
+                    //     use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+                    // Real connectors reference them 497 times across 90 files; never `unwrap_or_default()` an error code/message —
+                    // an empty string in a log is indistinguishable from "the connector sent nothing".
+                    code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: if error.is_empty() { NO_ERROR_MESSAGE.to_string() } else { error.clone() },
+                    reason: Some(error),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    // `Option<FlowStatus>` (router_data.rs:4233); carry the mapped status through.
+                    // `FlowStatus` is `domain_types::router_data::FlowStatus` (router_data.rs:4186):
+                    //     use domain_types::router_data::FlowStatus;
+                    // Variants: Payment(AttemptStatus) | Refund(RefundStatus) | Dispute(DisputeStatus) |
+                    // Payout(PayoutStatus). Pick the one matching THIS flow.
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -530,14 +553,20 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, RouterDataV2<PSync,
         // BEST PRACTICE: Build clean response transformers with proper field mapping
         // Map all fields from connector response - never hardcode to None
         let payments_response_data = PaymentsResponseData::TransactionResponse {
+            // `PaymentsResponseData::TransactionResponse` is an ENUM struct-variant
+            // (connector_types.rs:2009): there is no functional-update (`..`) syntax for
+            // enum variants, so every one of its 11 fields must be listed or it is E0063.
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
             redirection_data: None,
-            mandate_reference: None,
             connector_metadata: None,
+            mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -602,7 +631,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // GET requests typically don't need Content-Type
             let mut header = vec![];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -612,7 +641,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let transaction_id = req.request.get_connector_transaction_id()
-                .change_context(errors::IntegrationError::MissingConnectorTransactionID)?;
+                .change_context(errors::IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             
             let base_url = self.connector_base_url_payments(req);
             
@@ -720,7 +749,7 @@ macros::macro_connector_implementation!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -774,9 +803,9 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<PSync, ...>>> for {Connector
         let router_data = &item.router_data;
         
         let transaction_id = router_data.request.get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
-        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_auth_type)?;
+        let auth = {ConnectorName}AuthType::try_from(&router_data.connector_config)?;
 
         Ok(Self {
             merchant_authentication: auth,
@@ -918,7 +947,7 @@ Used by connectors requiring multiple identifiers in the URL.
 ```rust
 fn get_url(&self, req: &RouterDataV2<PSync, ...>) -> CustomResult<String, IntegrationError> {
     let transaction_id = req.request.get_connector_transaction_id()?;
-    let merchant_id = extract_merchant_id(&req.connector_auth_type)?;
+    let merchant_id = extract_merchant_id(&req.connector_config)?;
     let payment_id = extract_payment_id(&req.request)?;
     let base_url = self.connector_base_url_payments(req);
     
@@ -999,7 +1028,7 @@ pub struct PsyncIdentifiers {
 impl PsyncIdentifiers {
     pub fn from_request(request: &PaymentsSyncData) -> Result<Self, IntegrationError> {
         let transaction_id = request.get_connector_transaction_id()
-            .change_context(IntegrationError::MissingConnectorTransactionID)?;
+            .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
         
         Ok(Self {
             transaction_id,
@@ -1018,12 +1047,18 @@ impl PsyncIdentifiers {
 Used by 6 connectors including Razorpay, Braintree, and Nexinets.
 
 ```rust
-impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
+// Auth is read from `ConnectorSpecificConfig`, NOT from a `connector_auth_type` field —
+// `RouterDataV2` lost `connector_auth_type` on 2026-03-14 (a7a696c3a); the field is now
+// `req.connector_config: ConnectorSpecificConfig` (domain_types/src/router_data_v2.rs:14).
+// `ConnectorSpecificConfig` has ONE struct variant PER CONNECTOR (domain_types/src/router_data.rs:301),
+// not generic HeaderKey/BodyKey/SignatureKey variants — add your connector's variant there and
+// match on it. Exemplar: connectors/travelhub/transformers.rs:46 and connectors/volt/transformers.rs:402.
+impl TryFrom<&ConnectorSpecificConfig> for {ConnectorName}AuthType {
     type Error = IntegrationError;
     
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
@@ -1032,7 +1067,7 @@ impl TryFrom<&ConnectorAuthType> for {ConnectorName}AuthType {
 }
 
 // In get_auth_header:
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![(
@@ -1051,7 +1086,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 Used by connectors like Checkout and Volt.
 
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![(
@@ -1066,7 +1101,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 Used by connectors like Adyen, Mifinity, and PhonePe.
 
 ```rust
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     
     Ok(vec![
@@ -1082,7 +1117,7 @@ Used by enterprise connectors like Fiserv, Paytm, and PayU.
 
 ```rust
 // HMAC Signature (Fiserv-style)
-fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     let auth = {ConnectorName}AuthType::try_from(auth_type)?;
     let timestamp = chrono::Utc::now().timestamp().to_string();
     let payload = ""; // Request body for signature
@@ -1099,7 +1134,7 @@ fn get_auth_header(&self, auth_type: &ConnectorAuthType) -> CustomResult<Vec<(St
 fn generate_hmac_signature(secret: &str, timestamp: &str, payload: &str) -> Result<String, IntegrationError> {
     let message = format!("{}{}{}", auth.api_key, timestamp, payload);
     let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(secret.as_bytes())
-        .map_err(|_| IntegrationError::RequestEncodingFailed)?;
+        .map_err(|_| IntegrationError::RequestEncodingFailed { context: Default::default() })?;
     mac.update(message.as_bytes());
     let result = mac.finalize();
     Ok(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, result.into_bytes()))
@@ -1111,7 +1146,7 @@ fn generate_hmac_signature(secret: &str, timestamp: &str, payload: &str) -> Resu
 Used by simple connectors like Elavon and Fiuu.
 
 ```rust
-fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, _auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     // No authentication headers needed
     Ok(vec![])
 }
@@ -1134,12 +1169,12 @@ pub struct MerchantAuthentication {
     pub transaction_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for MerchantAuthentication {
+impl TryFrom<&ConnectorSpecificConfig> for MerchantAuthentication {
     type Error = IntegrationError;
     
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::SignatureKey { api_key, api_secret, .. } => Ok(Self {
+            ConnectorSpecificConfig::{ConnectorName} { api_key, api_secret, .. } => Ok(Self {
                 name: api_key.peek().to_string(),
                 transaction_key: api_secret.to_owned(),
             }),
@@ -1149,7 +1184,7 @@ impl TryFrom<&ConnectorAuthType> for MerchantAuthentication {
 }
 
 // No special auth headers needed
-fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+fn get_auth_header(&self, _auth_type: &ConnectorSpecificConfig) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
     Ok(vec![])
 }
 ```
@@ -1161,6 +1196,17 @@ fn get_auth_header(&self, _auth_type: &ConnectorAuthType) -> CustomResult<Vec<(S
 1. **Always map status from connector's operation_result or equivalent field** - Never assume status based on HTTP code alone
 2. **Use From trait implementation or explicit match statement** - Use the From trait pattern shown below for clean status mapping to AttemptStatus
 3. **Never hardcode status values** - Always derive status from the connector's actual response field
+4. **Handle the unknown status in TWO places, and reviewers check both halves:**
+   - **Deserialization layer** — the connector status enum gets `#[serde(other)] Unknown` as its
+     last variant, so an unrecognised wire value parses instead of failing the whole response.
+     Real example: `TravelhubResult` at `connectors/travelhub/transformers.rs:494-509`.
+   - **Status-mapping layer** — the `match` is EXHAUSTIVE over the enum's variants, including an
+     explicit `Unknown` arm. A catch-all `_ =>` here is wrong: it silently swallows a variant
+     added later, so a new terminal status quietly maps to whatever the wildcard says. Real
+     example: `map_travelhub_status` at `connectors/travelhub/transformers.rs:556-568`, where
+     `Unknown` maps to the non-terminal `AttemptStatus::Pending`.
+   Doing only one half fails review. The `#[serde(other)]` variant is what makes the exhaustive
+   match possible without a wildcard.
 
 ### Pattern 1: Simple Enum Mapping (Most Common)
 
@@ -1174,15 +1220,23 @@ pub enum {ConnectorName}PaymentStatus {
     Failed,
     Pending,
     Cancelled,
+    // DESERIALIZATION half: an unrecognised wire value lands here instead of failing the
+    // whole response parse. Copied from `TravelhubResult`
+    // (connectors/travelhub/transformers.rs:507).
+    #[serde(other)]
+    Unknown,
 }
 
-// BEST PRACTICE: Use From trait to map connector status to AttemptStatus
+// BEST PRACTICE: Use From trait to map connector status to AttemptStatus.
+// STATUS-MAPPING half: exhaustive over the enum — NO `_ =>` arm. Adding a variant to the
+// enum above must break this match, which is exactly what you want.
 impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
     fn from(status: {ConnectorName}PaymentStatus) -> Self {
         match status {
             {ConnectorName}PaymentStatus::Succeeded => Self::Charged,
             {ConnectorName}PaymentStatus::Failed => Self::Failure,
-            {ConnectorName}PaymentStatus::Pending => Self::Pending,
+            // `Unknown` is NOT terminal: keep it Pending so PSync can resolve it later.
+            {ConnectorName}PaymentStatus::Pending | {ConnectorName}PaymentStatus::Unknown => Self::Pending,
             {ConnectorName}PaymentStatus::Cancelled => Self::Voided,
         }
     }
@@ -1191,7 +1245,11 @@ impl From<{ConnectorName}PaymentStatus> for common_enums::AttemptStatus {
 
 ### Pattern 2: String-Based Status Mapping
 
-Used when connector returns status as strings rather than structured enums.
+Used when the connector returns a free-form string. **Prefer Pattern 1**: declare a
+`#[derive(Deserialize)]` enum with `#[serde(other)] Unknown` and let serde do the matching, so
+the status-mapping `match` can be exhaustive. Use a raw `&str` match only when the vendor's set
+of values is genuinely open-ended and undocumented — and then the wildcard arm MUST be
+non-terminal and logged, never `Failure` or `Charged`.
 
 ```rust
 pub fn map_status_string_to_attempt_status(status: &str) -> common_enums::AttemptStatus {
@@ -1215,9 +1273,15 @@ pub fn map_status_string_to_attempt_status(status: &str) -> common_enums::Attemp
             common_enums::AttemptStatus::Voided
         },
         "refunded" | "settled" => {
-            common_enums::AttemptStatus::Charged, // Successful final state
+            common_enums::AttemptStatus::Charged // Successful final state
         },
-        _ => common_enums::AttemptStatus::Pending, // Default for unknown statuses
+        other => {
+            // Non-terminal by design: an unrecognised string is not proof of failure, and
+            // mapping it to Failure is how a charged payment gets reported as FAILURE.
+            // PSync will resolve it on a later poll.
+            router_env::logger::warn!(connector_status = %other, "unmapped connector status");
+            common_enums::AttemptStatus::Pending
+        }
     }
 }
 
@@ -1257,9 +1321,10 @@ pub fn map_status_code_to_attempt_status(code: &str) -> common_enums::AttemptSta
         // Cancelled codes
         "99" | "CANCELLED" => common_enums::AttemptStatus::Voided,
         
-        _ => {
-            // Log unknown status code for debugging
-            logger::warn!("Unknown status code: {}", code);
+        other => {
+            // Unknown code: log it and stay non-terminal. Never map an unrecognised code to
+            // Failure or Charged.
+            router_env::logger::warn!(connector_status_code = %other, "unmapped connector status code");
             common_enums::AttemptStatus::Pending
         }
     }
@@ -1282,19 +1347,28 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, ...>> for RouterDat
     fn try_from(item: ResponseRouterData<{ConnectorName}SyncResponse, ...>) -> Result<Self, Self::Error> {
         let response = &item.response;
         
+        // The boolean IS the connector's own success predicate, so the two branches are
+        // legitimately terminal. What must not happen is a wildcard inside the success branch
+        // that upgrades an unrecognised sub-status to Charged — spell out the states you know.
         let status = if response.success {
             // Further refinement based on additional status field
             match response.status.as_deref() {
                 Some("authorized") => common_enums::AttemptStatus::Authorized,
                 Some("settled") | Some("captured") => common_enums::AttemptStatus::Charged,
-                _ => common_enums::AttemptStatus::Charged, // Default success
+                // Connector said success but named a state we do not model: stay non-terminal
+                // and let PSync resolve it rather than claiming Charged.
+                other => {
+                    router_env::logger::warn!(connector_status = ?other, "unmapped success sub-status");
+                    common_enums::AttemptStatus::Pending
+                }
             }
         } else {
-            // Check error code for more specific failure reason
+            // Check error code for more specific failure reason. `success == false` is the
+            // connector's own failure predicate, so Failure is the right fallback HERE.
             match response.error_code.as_deref() {
                 Some("insufficient_funds") => common_enums::AttemptStatus::Failure,
                 Some("authentication_failed") => common_enums::AttemptStatus::AuthenticationFailed,
-                _ => common_enums::AttemptStatus::Failure, // Default failure
+                _ => common_enums::AttemptStatus::Failure,
             }
         };
         
@@ -1315,21 +1389,24 @@ pub fn map_contextual_status(
     original_amount: i64,
 ) -> common_enums::AttemptStatus {
     match (status.to_lowercase().as_str(), transaction_type.to_lowercase().as_str()) {
+        // Guarded arms MUST come first. A `("completed", "capture")` arm placed above this one
+        // matches unconditionally, making the guarded arm dead code.
+        ("completed", "capture") if amount.is_some_and(|a| a < original_amount) => {
+            common_enums::AttemptStatus::PartialCharged
+        },
         ("completed", "authorization") => common_enums::AttemptStatus::Authorized,
         ("completed", "capture") => common_enums::AttemptStatus::Charged,
         ("completed", "settlement") => common_enums::AttemptStatus::Charged,
         ("completed", "refund") => common_enums::AttemptStatus::Charged, // Successful refund
         ("completed", "void") => common_enums::AttemptStatus::Voided,
-        
+
         ("pending", _) => common_enums::AttemptStatus::Pending,
         ("failed", _) => common_enums::AttemptStatus::Failure,
-        
-        // Partial capture detection
-        ("completed", "capture") if amount.is_some() && amount.unwrap() < original_amount => {
-            common_enums::AttemptStatus::PartialCharged
-        },
-        
-        _ => common_enums::AttemptStatus::Pending, // Safe default
+
+        (status, kind) => {
+            router_env::logger::warn!(%status, %kind, "unmapped contextual status");
+            common_enums::AttemptStatus::Pending // non-terminal fallback
+        }
     }
 }
 ```
@@ -1361,6 +1438,8 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, ...>> for RouterDat
                     .map(|payment| map_payment_status_to_attempt_status(&payment.status))
                     .unwrap_or(common_enums::AttemptStatus::Pending)
             },
+            // The connector itself typed this branch as an error response, so Failure is
+            // derived from the connector's own classification, not guessed from a wildcard.
             {ConnectorName}SyncResponse::ErrorResponse(_) => {
                 common_enums::AttemptStatus::Failure
             },
@@ -1459,7 +1538,8 @@ impl Default for {ConnectorName}ErrorResponse {
 fn build_error_response(
     &self,
     res: Response,
-    event_builder: Option<&mut ConnectorEvent>,
+    event_builder: Option<&mut events::Event>,
+    _connector_config: &ConnectorSpecificConfig,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
@@ -1469,20 +1549,20 @@ fn build_error_response(
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
-    if let Some(i) = event_builder {
-        i.set_error_response_body(&response);
-    }
+    // `with_error_response_body!` is a crate macro: `use crate::with_error_response_body;`
+    // (definition: crates/integrations/connector-integration/src/utils.rs:61). It expands to
+    // `if let Some(body) = event_builder { body.set_connector_response(&response); }` — there is no
+    // `set_error_response_body` method on `events::Event`.
+    with_error_response_body!(event_builder, response);
 
     Ok(ErrorResponse {
         status_code: res.status_code,
-        code: response.error_code.unwrap_or_default(),
-        message: response.error_message.unwrap_or_default(),
+        code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+        message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason: response.error_description,
         attempt_status: None,
         connector_transaction_id: response.transaction_id,
-        network_decline_code: None,
-        network_advice_code: None,
-        network_error_message: None,
+        ..Default::default()
     })
 }
 ```
@@ -1544,7 +1624,8 @@ Used when HTTP status codes provide error classification.
 fn build_error_response(
     &self,
     res: Response,
-    event_builder: Option<&mut ConnectorEvent>,
+    event_builder: Option<&mut events::Event>,
+    _connector_config: &ConnectorSpecificConfig,
 ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
@@ -1554,11 +1635,12 @@ fn build_error_response(
             .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
-    if let Some(i) = event_builder {
-        i.set_error_response_body(&response);
-    }
+    with_error_response_body!(event_builder, response);
 
-    // Map HTTP status codes to attempt statuses
+    // Map HTTP status codes to attempt statuses.
+    // NOTE: HTTP status alone is weak evidence. Prefer the connector's own status field; use
+    // this only as a last resort, and keep the wildcard `None` so an unmapped code is never
+    // forced terminal.
     let attempt_status = match res.status_code {
         400 => Some(common_enums::AttemptStatus::Failure), // Bad Request
         401 => Some(common_enums::AttemptStatus::AuthenticationFailed), // Unauthorized
@@ -1574,14 +1656,13 @@ fn build_error_response(
 
     Ok(ErrorResponse {
         status_code: res.status_code,
-        code: response.error_code.unwrap_or_default(),
-        message: response.error_message.unwrap_or_default(),
+        code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+        message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason: response.error_description,
-        attempt_status,
+        // `Option<FlowStatus>` (router_data.rs:4233).
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: response.transaction_id,
-        network_decline_code: None,
-        network_advice_code: None,
-        network_error_message: None,
+        ..Default::default()
     })
 }
 ```
@@ -1596,32 +1677,42 @@ impl TryFrom<ResponseRouterData<{ConnectorName}SyncResponse, ...>> for RouterDat
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Handle sync-specific error cases
+        // Handle sync-specific error cases.
+        // Map only the codes this connector documents. An unrecognised code is NOT proof the
+        // payment failed — a wildcard `_ => Failure` here is how a charged payment gets
+        // reported as FAILURE. Leave it unmapped and let the next PSync resolve it.
         if let Some(error_code) = &response.error_code {
-            let attempt_status = match error_code.as_str() {
-                "TRANSACTION_NOT_FOUND" => common_enums::AttemptStatus::Failure,
-                "TRANSACTION_EXPIRED" => common_enums::AttemptStatus::Failure,
-                "INSUFFICIENT_PERMISSIONS" => common_enums::AttemptStatus::AuthorizationFailed,
-                "RATE_LIMIT_EXCEEDED" => common_enums::AttemptStatus::Pending, // Retry later
-                "TEMPORARY_UNAVAILABLE" => common_enums::AttemptStatus::Pending, // Retry later
-                _ => common_enums::AttemptStatus::Failure,
+            let mapped_status = match error_code.as_str() {
+                "TRANSACTION_NOT_FOUND" | "TRANSACTION_EXPIRED" => {
+                    Some(common_enums::AttemptStatus::Failure)
+                }
+                "INSUFFICIENT_PERMISSIONS" => Some(common_enums::AttemptStatus::AuthorizationFailed),
+                // Retry later
+                "RATE_LIMIT_EXCEEDED" | "TEMPORARY_UNAVAILABLE" => {
+                    Some(common_enums::AttemptStatus::Pending)
+                }
+                other => {
+                    router_env::logger::warn!(connector_error_code = %other, "unmapped sync error code");
+                    None
+                }
             };
 
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: attempt_status,
+                    // `PaymentFlowData::status` is a plain `AttemptStatus` and must have a value;
+                    // an unmapped code is non-terminal.
+                    status: mapped_status.unwrap_or(common_enums::AttemptStatus::Pending),
                     ..router_data.resource_common_data.clone()
                 },
                 response: Err(ErrorResponse {
                     status_code: item.http_code,
                     code: error_code.clone(),
-                    message: response.error_message.clone().unwrap_or_default(),
+                    message: response.error_message.clone().unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                     reason: response.error_description.clone(),
-                    attempt_status: Some(attempt_status),
+                    // `Option<FlowStatus>` (router_data.rs:4233).
+                    attempt_status: mapped_status.map(FlowStatus::Payment),
                     connector_transaction_id: Some(response.id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
+                    ..Default::default()
                 }),
                 ..router_data.clone()
             });
@@ -1639,7 +1730,7 @@ Used for handling network-related issues in sync operations.
 ```rust
 fn handle_network_errors(
     res: Response,
-    event_builder: Option<&mut ConnectorEvent>,
+    event_builder: Option<&mut events::Event>,
 ) -> CustomResult<ErrorResponse, errors::IntegrationError> {
     let error_response = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
@@ -1650,9 +1741,7 @@ fn handle_network_errors(
             .unwrap_or_else(|_| {ConnectorName}ErrorResponse::default())
     };
 
-    if let Some(i) = event_builder {
-        i.set_error_response_body(&error_response);
-    }
+    with_error_response_body!(event_builder, error_response);
 
     // Handle specific network error scenarios
     let (attempt_status, network_error_message) = match res.status_code {
@@ -1673,14 +1762,14 @@ fn handle_network_errors(
 
     Ok(ErrorResponse {
         status_code: res.status_code,
-        code: error_response.error_code.unwrap_or("NETWORK_ERROR".to_string()),
-        message: error_response.error_message.unwrap_or("Network error occurred".to_string()),
+        code: error_response.error_code.unwrap_or_else(|| "NETWORK_ERROR".to_string()),
+        message: error_response.error_message.unwrap_or_else(|| "Network error occurred".to_string()),
         reason: error_response.error_description,
-        attempt_status,
+        // `Option<FlowStatus>`, not `Option<AttemptStatus>` (router_data.rs:4233).
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: error_response.transaction_id,
-        network_decline_code: None,
-        network_advice_code: None,
         network_error_message,
+        ..Default::default()
     })
 }
 ```
@@ -1729,11 +1818,10 @@ pub fn handle_transaction_state_errors(
                 code: error_code.to_string(),
                 message: error_message.to_string(),
                 reason: Some(format!("Transaction state: {}", state)),
-                attempt_status: Some(attempt_status),
+                // `Option<FlowStatus>` (router_data.rs:4233).
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: Some(sync_response.id.clone()),
-                network_decline_code: None,
-                network_advice_code: None,
-                network_error_message: None,
+                ..Default::default()
             })
         },
         _ => None,
@@ -1768,9 +1856,7 @@ pub fn build_standard_error_response(
         reason: parsed_error.description,
         attempt_status: determine_attempt_status_from_error(&parsed_error, res.status_code),
         connector_transaction_id: parsed_error.transaction_id,
-        network_decline_code: None,
-        network_advice_code: None,
-        network_error_message: None,
+        ..Default::default()
     })
 }
 
@@ -1805,18 +1891,23 @@ struct ParsedError {
     transaction_id: Option<String>,
 }
 
+// Returns `Option<FlowStatus>` because that is what `ErrorResponse.attempt_status` is
+// (router_data.rs:4233). The wildcard arm returns `None`, NOT `Failure`: an unrecognised
+// error code on a PSync response is not proof the payment failed, and forcing `Failure`
+// here is what reports a charged payment as FAILURE. Only map codes the connector documents.
 fn determine_attempt_status_from_error(
     error: &ParsedError,
     status_code: u16,
-) -> Option<common_enums::AttemptStatus> {
+) -> Option<FlowStatus> {
     // Combine error code and HTTP status code for better classification
-    match (error.code.as_str(), status_code) {
-        ("AUTHENTICATION_FAILED", _) | (_, 401) => Some(common_enums::AttemptStatus::AuthenticationFailed),
-        ("AUTHORIZATION_FAILED", _) | (_, 403) => Some(common_enums::AttemptStatus::AuthorizationFailed),
-        ("RATE_LIMITED", _) | (_, 429) => Some(common_enums::AttemptStatus::Pending),
-        ("SERVER_ERROR", _) | (_, 500..=599) => Some(common_enums::AttemptStatus::Pending),
-        _ => Some(common_enums::AttemptStatus::Failure),
-    }
+    let attempt_status = match (error.code.as_str(), status_code) {
+        ("AUTHENTICATION_FAILED", _) | (_, 401) => common_enums::AttemptStatus::AuthenticationFailed,
+        ("AUTHORIZATION_FAILED", _) | (_, 403) => common_enums::AttemptStatus::AuthorizationFailed,
+        ("RATE_LIMITED", _) | (_, 429) => common_enums::AttemptStatus::Pending,
+        ("SERVER_ERROR", _) | (_, 500..=599) => common_enums::AttemptStatus::Pending,
+        _ => return None,
+    };
+    Some(FlowStatus::Payment(attempt_status))
 }
 ```
 
@@ -1869,7 +1960,7 @@ mod psync_tests {
         let router_data = create_test_psync_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -1896,7 +1987,7 @@ mod psync_tests {
         let router_data = create_test_psync_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 200,
         };
 
@@ -1923,7 +2014,7 @@ mod psync_tests {
         let router_data = create_test_psync_router_data();
         let response_router_data = ResponseRouterData {
             response,
-            data: router_data,
+            router_data: router_data,
             http_code: 400,
         };
 
@@ -2012,7 +2103,7 @@ mod psync_tests {
         };
 
         let connector = {ConnectorName}::new();
-        let error_result = connector.build_error_response(response, None);
+        let error_result = connector.build_error_response(response, None, &connector_config);
         
         assert!(error_result.is_ok());
         let error = error_result.unwrap();
@@ -2471,11 +2562,11 @@ mod psync_edge_case_tests {
 |-------------|-------------|----------------|-------------|
 | `{ConnectorName}` | Connector name in PascalCase | `Stripe`, `Adyen`, `PayPal`, `NewPayment` | **Always required** - Used in struct names |
 | `{connector_name}` | Connector name in snake_case | `stripe`, `adyen`, `paypal`, `new_payment` | **Always required** - Used in config keys |
-| `{AmountType}` | Amount type (same as auth flow) | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit` | **Must match auth flow** |
+| `{AmountType}` | Amount type (same as auth flow) | `MinorUnit`, `StringMinorUnit`, `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit` | **Must match auth flow** |
 | `{HttpMethod}` | HTTP method for sync requests | `Get`, `Post` | **Choose based on API**: GET for simple status, POST for complex queries |
 | `{content_type}` | Request content type (POST only) | `"application/json"`, `"application/x-www-form-urlencoded"` | **POST requests only** |
 | `{psync_endpoint}` | Sync API endpoint path | `"v1/payments/{id}/status"`, `"transaction-inquiry"`, `"sync"` | **From API docs** |
-| `{auth_type}` | Authentication type | `HeaderKey`, `SignatureKey`, `BodyKey` | **Same as auth flow** |
+| `{auth_type}` | Your connector's `ConnectorSpecificConfig` variant (`domain_types/src/router_data.rs:301`) | `ConnectorSpecificConfig::Airwallex { api_key, client_id, .. }` (`:406`), `::Volt { username, password, client_id, client_secret, .. }` (`:792`) | **Same as auth flow.** The generic `HeaderKey` / `SignatureKey` / `BodyKey` variants no longer exist — `ConnectorAuthType` was removed from `RouterDataV2` on 2026-03-14 (`a7a696c3a`) |
 | `{url_pattern}` | URL construction pattern | `"rest_with_id"`, `"query_parameter"`, `"hierarchical"` | **Based on API style** |
 
 ### HTTP Method Selection Guide
@@ -2511,7 +2602,7 @@ Choose the right endpoint pattern based on your connector's API:
 {AmountType} → MinorUnit
 {HttpMethod} → Get
 {psync_endpoint} → "payments/{id}"
-{auth_type} → HeaderKey
+{auth_type} → ConnectorSpecificConfig::MyPayment { api_key, base_url }
 URL Pattern: {base_url}/payments/{transaction_id}
 ```
 
@@ -2523,7 +2614,7 @@ URL Pattern: {base_url}/payments/{transaction_id}
 {HttpMethod} → Post
 {content_type} → "application/json"
 {psync_endpoint} → "ch/payments/v1/transaction-inquiry"
-{auth_type} → SignatureKey
+{auth_type} → ConnectorSpecificConfig::EnterprisePay { api_key, api_secret, base_url }
 URL Pattern: {base_url}/ch/payments/v1/transaction-inquiry
 ```
 
@@ -2534,7 +2625,7 @@ URL Pattern: {base_url}/ch/payments/v1/transaction-inquiry
 {AmountType} → FloatMajorUnit
 {HttpMethod} → Get
 {psync_endpoint} → "api/v1/order/{id}/status"
-{auth_type} → HeaderKey
+{auth_type} → ConnectorSpecificConfig::StatusPay { api_key, base_url }
 URL Pattern: {base_url}/api/v1/order/{transaction_id}/status
 ```
 
