@@ -115,9 +115,7 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
+            "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return"
@@ -128,9 +126,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_txn_001\"},\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"737\"}}"
         }
       },
       "CashappQr": {
@@ -205,9 +204,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"eps\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_txn_001\"},\"paymentMethod\":{\"type\":\"eps\",\"billing\":{}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
         }
       },
       "FamilyMart": {
@@ -266,9 +266,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"ideal\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_txn_001\"},\"paymentMethod\":{\"type\":\"ideal\",\"billing\":{}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
         }
       },
       "Indomaret": {
@@ -749,9 +750,7 @@
             "card_network": "VISA"
           },
           "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
+            "billing_address": {}
           },
           "capture_method": "AUTOMATIC",
           "auth_type": "NO_THREE_DS",
@@ -763,51 +762,17 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_proxy_txn_001\"},\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\"}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://api.shift4.com/charges",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry — Missing required field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry (ANI): Shift4 verifies `card.cardholderName` against the name on the account and returns the outcome in `aniCheck.result`. Without a name there is nothing to verify and Shift4 rejects the charge."
       }
     },
     "recurring_charge": {
@@ -910,47 +875,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/mandate-return",
-          "setup_future_usage": "OFF_SESSION",
-          "request_incremental_authorization": false,
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          }
-        },
-        "sample": {
-          "url": "https://api.shift4.com/charges",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry — Missing required field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry (ANI): Shift4 verifies `card.cardholderName` against the name on the account and returns the outcome in `aniCheck.result`. Without a name there is nothing to verify and Shift4 rejects the charge."
       }
     },
     "token_authorize": {
@@ -975,9 +901,10 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":\"pm_1AbcXyzStripeTestToken\"}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_tokenized_txn_001\"},\"card\":\"pm_1AbcXyzStripeTestToken\"}"
         }
       }
     },
@@ -1035,8 +962,21 @@
     },
     "void": {
       "default": {
-        "status": "not_supported",
-        "error": "void flow not supported by shift4 connector"
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/refunds",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"chargeId\":\"probe_connector_txn_001\"}"
+        }
       }
     }
   }

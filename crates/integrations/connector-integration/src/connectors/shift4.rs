@@ -8,11 +8,11 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate,
+        IncrementalAuthorization, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
@@ -45,6 +45,7 @@ use self::transformers::{
     Shift4PaymentsResponse as Shift4PSyncResponse, Shift4RSyncRequest, Shift4RefundRequest,
     Shift4RefundResponse, Shift4RefundResponse as Shift4RSyncResponse, Shift4RepeatPaymentRequest,
     Shift4RepeatPaymentResponse, Shift4SetupMandateRequest, Shift4SetupMandateResponse,
+    Shift4VoidRequest, Shift4VoidResponse,
 };
 use crate::{connectors::macros, types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
@@ -55,6 +56,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
 }
 
 // ===== CONNECTOR COMMON IMPLEMENTATION - Must be defined before macros =====
@@ -113,20 +115,29 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         let typed =
             macros::serialize_typed_connector_payload(&response, "typed_connector_response");
+        // Shift4's error envelope carries the full decline picture. Dropping the
+        // network fields here would blind smart retry and the GSM error tables:
+        // `adviceCode == "do_not_try_again"` in particular is the merchant advice
+        // code that means "do not schedule a retry for this card".
+        //
+        // `attempt_status` stays `None` deliberately: this method is flow-agnostic
+        // (Refund and RSync route through it too), so stamping a payment status
+        // here would report a hard-declined refund as a terminal payment failure.
+        // Each flow's own transformer sets the concrete status.
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response
                 .error
                 .code
                 .clone()
-                .unwrap_or_else(|| "NO_ERROR_CODE".to_string()),
-            message: response.error.message,
-            reason: None,
+                .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+            message: response.error.message.clone(),
+            reason: Some(response.error.message),
             attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
+            connector_transaction_id: response.error.charge_id,
+            network_decline_code: response.error.issuer_decline_code,
+            network_advice_code: response.error.network_advice_code,
+            network_error_message: response.error.advice_code,
             typed_connector_response: typed,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -167,6 +178,12 @@ macros::create_all_prerequisites!(
             request_body: Shift4CaptureRequest,
             response_body: Shift4CaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: Shift4VoidRequest,
+            response_body: Shift4VoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -270,7 +287,23 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // Use JSON content type for authorize (matches Hyperswitch)
-            self.build_headers(req)
+            let mut header = self.build_headers(req)?;
+            // Shift4 executes a repeated POST /charges with the same
+            // `Idempotency-Key` once and replays the cached response, so a retry
+            // after a client timeout cannot double-charge. The key must therefore
+            // be stable for one logical attempt: it is taken from the caller's own
+            // request id, never freshly generated per call.
+            let idempotency_key = req
+                .resource_common_data
+                .merchant_request_id
+                .clone()
+                .unwrap_or_else(|| {
+                    req.resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
+            Ok(header)
         }
 
         fn get_url(
@@ -353,6 +386,50 @@ macros::macro_connector_implementation!(
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/charges/{connector_transaction_id}/capture"))
+        }
+    }
+);
+
+// Void Flow — POST /refunds
+//
+// Shift4 has NO cancel / void / reverse / release endpoint: `POST
+// /charges/{id}/{cancel,void,reverse,release}` and `POST /voids` all return 404,
+// and `DELETE /charges/{id}` returns 405 (probed against the live sandbox on
+// 2026-09-10). The documented release mechanism is to refund the *uncaptured*
+// charge — `POST /refunds` with only `chargeId`, amount omitted so Shift4
+// releases the full authorization (https://dev.shift4.com/docs/api#refunds).
+// Verified working against api.shift4.com: the charge then reads
+// `captured: false, refunded: true`, which is exactly what the PSync mapping in
+// `get_shift4_attempt_status` reads back as `Voided`.
+//
+// The URL therefore comes from the payments base-url helper (this flow carries
+// `PaymentFlowData`, not `RefundFlowData`) even though the path is `/refunds`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Shift4,
+    curl_request: Json(Shift4VoidRequest),
+    curl_response: Shift4VoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            Ok(format!("{base_url}/refunds"))
         }
     }
 );
@@ -538,7 +615,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== EMPTY IMPLEMENTATIONS FOR UNSUPPORTED FLOWS =====
 
-// Void (Not supported by Shift4)
+// Void — implemented via POST /refunds on an uncaptured charge (see the flow
+// block above); Shift4 has no dedicated cancel endpoint.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Shift4<T>
+{
+}
 
 // Order Create
 
@@ -705,7 +787,6 @@ macros::macro_connector_flow_status_impls!(
     ],
     not_supported: [
         VoidPostRefund,
-        Void,
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         VoidPC,
