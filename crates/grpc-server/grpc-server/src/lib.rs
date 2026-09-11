@@ -7,6 +7,7 @@ pub mod deja;
 pub mod http;
 pub mod metrics;
 pub mod request;
+pub mod sanity_layer;
 pub mod server;
 pub mod types;
 pub mod utils;
