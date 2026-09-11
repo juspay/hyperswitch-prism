@@ -213,6 +213,12 @@ message Venmo {
   optional SecretString telephone_number = 1;
 }
 
+message Mifinity {
+  // The recipient's MiFinity wallet identifier: either an email address or a
+  // MiFinity account number that will receive the funds
+  SecretString destination_account = 1;
+}
+
 message InteracPayout {
   // The email address associated with the Interac account
   optional SecretString email = 1;
@@ -274,6 +280,9 @@ message PayoutMethod {
 
     PayshapBankTransferPayout payshap = 16;
     PayshapProxyBankTransferPayout payshap_proxy = 17;
+
+    // DIGITAL WALLETS
+    Mifinity mifinity = 18;
   }
 }
 
