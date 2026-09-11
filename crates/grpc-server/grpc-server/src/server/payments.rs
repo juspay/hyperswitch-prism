@@ -1098,11 +1098,7 @@ impl PaymentService for Payments {
                     // status" and write no error for it.
                     if let Err(validation_error) = connector_data.connector.validate_psync_reference_id(
                         &payments_sync_data,
-                        matches!(
-                            payment_flow_data.auth_type,
-                            common_enums::AuthenticationType::ThreeDs
-                        ),
-                        payment_flow_data.status,
+                        &payment_flow_data,
                     ) {
                         // Log with the same fields `IntoGrpcStatus` would emit, while the
                         // report's frames (connector-supplied context) are still attached;
@@ -1123,23 +1119,10 @@ impl PaymentService for Payments {
                             },
                         )));
                     }
-                    let should_do_access_token = connector_data
-                        .connector
-                        .should_do_access_token(Some(payment_flow_data.payment_method));
-
-                    let payment_flow_data = if should_do_access_token {
-                        let access_token = payload
-                            .state
-                            .as_ref()
-                            .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        let access_token_data =
-                            ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                                .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        payment_flow_data.set_access_token(Some(access_token_data))
-                    } else {
-                        payment_flow_data
-                    };
+                    // `payment_flow_data.access_token` is already populated above by
+                    // `PaymentFlowData::foreign_try_from` from `payload.state.access_token` —
+                    // unconditionally, the same way Authorize gets it. No extra fetch-or-fail
+                    // needed here.
 
                     // Create router data
                     let router_data = RouterDataV2::<
