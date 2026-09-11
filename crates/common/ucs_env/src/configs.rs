@@ -14,7 +14,7 @@ use common_utils::{
         RuntimeMetadataPatch,
     },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
-    superposition_config::SuperpositionClientConfig,
+    superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
 use domain_types::{
@@ -434,20 +434,20 @@ impl Config {
             let mut config = config;
             config.post_patch_processing();
 
-            // Superposition is never a reason to refuse boot. An enabled remote source
-            // whose settings cannot describe a workspace (no endpoint/token/org/
-            // workspace) is reported — the logger is not up yet, so to stderr — and the
-            // remote source is switched OFF: the process serves policy from the baked
+            // Superposition is never a reason to refuse boot. A remote source whose
+            // settings cannot describe a workspace (no endpoint/token/org/workspace) is
+            // reported — the logger is not up yet, so to stderr — and the source is set
+            // back to the file: the process serves policy from the baked
             // config/superposition.toml, the same fail-open posture as a déjà record
             // misconfiguration. Payments are never blocked by a policy source.
-            if config.superposition.enabled {
+            if config.superposition.source == SuperpositionSource::Remote {
                 #[allow(clippy::print_stderr)]
                 if let Err(error) = config.superposition.validate() {
                     eprintln!(
-                        "superposition configuration error: {error}; remote source disabled, \
+                        "superposition configuration error: {error}; source set to file, \
                          policy comes from the baked config/superposition.toml"
                     );
-                    config.superposition.enabled = false;
+                    config.superposition.source = SuperpositionSource::File;
                 }
             }
             config

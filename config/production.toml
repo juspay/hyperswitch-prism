@@ -203,14 +203,15 @@ enabled = false
 
 [connector_response_masking.connector_keys]
 # --- Superposition: where policy comes from ---------------------------------
-# Off (default): the baked config/superposition.toml, watched for changes.
-# On: the same provider over a remote workspace, polled every polling_interval
-# seconds, with the baked file as the provider's init-time fallback. Boot never
-# fails because of Superposition: enabling without endpoint/token/org/workspace,
-# or an unreachable workspace, is reported and the baked file serves policy.
-# Env overrides: CS__SUPERPOSITION__*.
+# source = "file" (default): the baked config/superposition.toml, watched for
+# changes. source = "remote": the same provider over a remote workspace, polled
+# every polling_interval seconds, with the baked file as the provider's init-time
+# fallback. Boot never fails because of Superposition: a remote source without
+# endpoint/token/org/workspace, or an unreachable workspace, is reported and the
+# baked file serves policy.
+# Env overrides: CS__SUPERPOSITION__* (e.g. CS__SUPERPOSITION__SOURCE=remote).
 [superposition]
-enabled = false
+source = "file"                 # "file" | "remote"
 endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.local:80
 token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
 org_id = "hyperswitch"

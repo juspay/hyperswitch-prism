@@ -4,7 +4,7 @@
 use std::{fs, time::Duration};
 
 use common_utils::{
-    superposition_config::{SourceKind, SuperpositionClientConfig},
+    superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
 use tokio::time::{sleep, timeout};
@@ -99,7 +99,7 @@ fn baked_path() -> String {
 
 fn remote_settings() -> SuperpositionClientConfig {
     SuperpositionClientConfig {
-        enabled: true,
+        source: SuperpositionSource::Remote,
         // Nothing listens here: connection refused, immediately. The point is a
         // remote source that cannot initialise, so the fallback path is exercised
         // for real instead of through a stub.
@@ -111,13 +111,13 @@ fn remote_settings() -> SuperpositionClientConfig {
     }
 }
 
-/// Source selection, disabled: the baked file, watched — today's behaviour.
+/// Source selection, `file`: the baked file, watched — today's behaviour.
 #[tokio::test]
-async fn disabled_settings_select_the_baked_file() {
+async fn file_settings_select_the_baked_file() {
     let config = SuperpositionConfig::new(&SuperpositionClientConfig::default(), &baked_path())
         .await
         .unwrap();
-    assert_eq!(config.source(), SourceKind::File);
+    assert_eq!(config.source(), SuperpositionSource::File);
     assert!(!config.experiments_supported());
     let resolved = config.resolve("stripe", "sandbox").await.unwrap();
     assert_eq!(
@@ -128,7 +128,7 @@ async fn disabled_settings_select_the_baked_file() {
     );
 }
 
-/// Source selection, enabled but the workspace is unreachable: the provider
+/// Source selection, `remote` but the workspace is unreachable: the provider
 /// initialises from its fallback file (hyperswitch's `backup_file_path`
 /// contract) and stays a REMOTE provider — polling keeps trying the workspace
 /// — while serving the file's policy meanwhile.
@@ -137,7 +137,7 @@ async fn unreachable_remote_initialises_from_the_fallback_file() {
     let config = SuperpositionConfig::new(&remote_settings(), &baked_path())
         .await
         .unwrap();
-    assert_eq!(config.source(), SourceKind::Remote);
+    assert_eq!(config.source(), SuperpositionSource::Remote);
     assert!(config.experiments_supported());
     let resolved = config.resolve("stripe", "sandbox").await.unwrap();
     assert_eq!(
@@ -180,5 +180,5 @@ async fn unreachable_remote_with_bad_fallback_degrades_to_the_baked_file() {
     let config = SuperpositionConfig::new(&settings, &baked_path())
         .await
         .unwrap();
-    assert_eq!(config.source(), SourceKind::File);
+    assert_eq!(config.source(), SuperpositionSource::File);
 }

@@ -19,6 +19,7 @@ use crate::consts::{
     CONFIG_KEY_CONNECTOR_DISPUTE_BASE_URL, CONFIG_KEY_CONNECTOR_SECONDARY_BASE_URL,
     CONFIG_KEY_CONNECTOR_THIRD_BASE_URL, DIMENSION_CONNECTOR, DIMENSION_ENVIRONMENT,
 };
+use crate::fp_utils::when;
 
 /// Error type for superposition configuration operations.
 ///
@@ -40,19 +41,20 @@ pub enum SuperpositionConfigError {
 
 /// The `[superposition]` table: where policy comes from.
 ///
-/// `enabled = false` (the default) keeps today's behaviour — the baked
-/// `config/superposition.toml`, watched for changes. `enabled = true` points the same
-/// provider at a remote workspace (polled), with the baked file as the fallback the
-/// provider consults if the remote source cannot initialise. Mirrors hyperswitch's
-/// `SuperpositionClientConfig` field for field; `enabled` is the one addition, because
+/// `source = "file"` (the default) keeps today's behaviour — the baked
+/// `config/superposition.toml`, watched for changes. `source = "remote"` points the
+/// same provider at a remote workspace (polled), with the baked file as the fallback
+/// the provider consults if the remote source cannot initialise. Mirrors hyperswitch's
+/// `SuperpositionClientConfig` field for field; `source` is the one addition, because
 /// prism must boot file-first wherever no workspace exists yet.
 ///
-/// Env overrides: `CS__SUPERPOSITION__{ENABLED,ENDPOINT,TOKEN,ORG_ID,WORKSPACE_ID,
+/// Env overrides: `CS__SUPERPOSITION__{SOURCE,ENDPOINT,TOKEN,ORG_ID,WORKSPACE_ID,
 /// POLLING_INTERVAL,REQUEST_TIMEOUT,BACKUP_FILE_PATH}`.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct SuperpositionClientConfig {
-    pub enabled: bool,
+    /// Where policy comes from: the baked file (default) or a remote workspace.
+    pub source: SuperpositionSource,
     /// Superposition server URL.
     pub endpoint: String,
     /// Workspace bearer token (a secret: never logged).
@@ -73,7 +75,7 @@ pub struct SuperpositionClientConfig {
 impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
+            source: SuperpositionSource::File,
             endpoint: String::new(),
             token: Secret::new(String::new()),
             org_id: String::new(),
@@ -87,7 +89,7 @@ impl Default for SuperpositionClientConfig {
 
 impl SuperpositionClientConfig {
     /// Do the settings describe a workspace at all (endpoint, token, org, workspace)?
-    /// hyperswitch's check, field for field. Only meaningful when `enabled`. Prism's
+    /// hyperswitch's check, field for field. Only meaningful for a remote source. Prism's
     /// loader treats a failure as "remote source off" — reported, then served from the
     /// baked file — never as a reason to refuse boot: Superposition being unreachable
     /// or misdescribed must not block payments.
@@ -97,37 +99,48 @@ impl SuperpositionClientConfig {
                 message.to_string(),
             ))
         };
-        if self.endpoint.trim().is_empty() {
-            return invalid("superposition.endpoint cannot be empty");
-        }
-        if url::Url::parse(&self.endpoint).is_err() {
-            return invalid("superposition.endpoint must be a valid URL");
-        }
-        if self.token.peek().trim().is_empty() {
-            return invalid("superposition.token cannot be empty");
-        }
-        if self.org_id.trim().is_empty() {
-            return invalid("superposition.org_id cannot be empty");
-        }
-        if self.workspace_id.trim().is_empty() {
-            return invalid("superposition.workspace_id cannot be empty");
-        }
-        Ok(())
+        when(self.endpoint.trim().is_empty(), || {
+            invalid("superposition.endpoint cannot be empty")
+        })
+        .and_then(|()| {
+            when(url::Url::parse(&self.endpoint).is_err(), || {
+                invalid("superposition.endpoint must be a valid URL")
+            })
+        })
+        .and_then(|()| {
+            when(self.token.peek().trim().is_empty(), || {
+                invalid("superposition.token cannot be empty")
+            })
+        })
+        .and_then(|()| {
+            when(self.org_id.trim().is_empty(), || {
+                invalid("superposition.org_id cannot be empty")
+            })
+        })
+        .and_then(|()| {
+            when(self.workspace_id.trim().is_empty(), || {
+                invalid("superposition.workspace_id cannot be empty")
+            })
+        })
     }
 }
 
-/// Which source the provider was built on. Logged once at boot so a pod that fell
-/// back to the file — and therefore will not follow the workspace — is visible.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SourceKind {
+/// Where policy comes from. In `[superposition] source` it is what the deployment
+/// asks for; from [`SuperpositionConfig::source`] it is what the provider was actually
+/// built on — logged once at boot so a pod that fell back to the file, and therefore
+/// will not follow the workspace, is visible.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SuperpositionSource {
+    /// The baked `config/superposition.toml`, watched for changes. No experiments.
+    #[default]
+    File,
     /// Remote workspace polled on an interval, the baked file as init-time fallback.
     /// The only source that can carry experiments.
     Remote,
-    /// The baked `config/superposition.toml`, watched for changes. No experiments.
-    File,
 }
 
-impl fmt::Display for SourceKind {
+impl fmt::Display for SuperpositionSource {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Remote => "remote",
@@ -142,7 +155,7 @@ impl fmt::Display for SourceKind {
 #[derive(Clone)]
 pub struct SuperpositionConfig {
     provider: LocalResolutionProvider,
-    source: SourceKind,
+    source: SuperpositionSource,
 }
 
 impl fmt::Debug for SuperpositionConfig {
@@ -154,13 +167,13 @@ impl fmt::Debug for SuperpositionConfig {
 impl SuperpositionConfig {
     /// Build the provider the settings ask for.
     ///
-    /// `enabled` → the remote workspace as primary with the backup file (default: the
+    /// `source = "remote"` → the workspace as primary with the backup file (default: the
     /// baked file at `baked_path`) as the provider's init-time fallback, polled every
     /// `polling_interval` seconds — hyperswitch's `SuperpositionClient::new` shape. If
     /// even that cannot initialise (remote unreachable AND fallback unreadable), boot
     /// continues on the baked file alone, loudly: prism's contract is fail-open.
     ///
-    /// Not `enabled` → the baked file, watched (today's behaviour).
+    /// `source = "file"` → the baked file, watched (today's behaviour).
     ///
     /// `Err` only when NO source could initialise; the caller then runs without
     /// Superposition (static connector config, sampler in its no-source state).
@@ -168,7 +181,7 @@ impl SuperpositionConfig {
         settings: &SuperpositionClientConfig,
         baked_path: &str,
     ) -> Result<Self, SuperpositionConfigError> {
-        if settings.enabled {
+        if settings.source == SuperpositionSource::Remote {
             let fallback_path = settings
                 .backup_file_path
                 .clone()
@@ -198,8 +211,13 @@ impl SuperpositionConfig {
                 interval: settings.polling_interval,
                 timeout: settings.request_timeout,
             });
-            match Self::with_sources(Box::new(primary), fallback, strategy, SourceKind::Remote)
-                .await
+            match Self::with_sources(
+                Box::new(primary),
+                fallback,
+                strategy,
+                SuperpositionSource::Remote,
+            )
+            .await
             {
                 Ok(config) => return Ok(config),
                 Err(error) => tracing::error!(
@@ -233,7 +251,7 @@ impl SuperpositionConfig {
             Box::new(source),
             None,
             RefreshStrategy::Watch(WatchStrategy::default()),
-            SourceKind::File,
+            SuperpositionSource::File,
         )
         .await
     }
@@ -245,7 +263,7 @@ impl SuperpositionConfig {
         primary: Box<dyn SuperpositionDataSource>,
         fallback: Option<Box<dyn SuperpositionDataSource>>,
         strategy: RefreshStrategy,
-        source: SourceKind,
+        source: SuperpositionSource,
     ) -> Result<Self, SuperpositionConfigError> {
         let provider = LocalResolutionProvider::new(primary, fallback, strategy);
         provider
@@ -256,14 +274,14 @@ impl SuperpositionConfig {
     }
 
     /// Which source this provider was built on.
-    pub fn source(&self) -> SourceKind {
+    pub fn source(&self) -> SuperpositionSource {
         self.source
     }
 
     /// Whether this source can carry experiments at all. A file cannot — a policy
     /// that expects experiments to sample requests in will silently see none.
     pub fn experiments_supported(&self) -> bool {
-        matches!(self.source, SourceKind::Remote)
+        matches!(self.source, SuperpositionSource::Remote)
     }
 
     /// Resolve the flat key-value map for given dimensions.
@@ -579,7 +597,7 @@ mod tests {
 
     fn remote_settings() -> SuperpositionClientConfig {
         SuperpositionClientConfig {
-            enabled: true,
+            source: SuperpositionSource::Remote,
             endpoint: "http://superposition:8080".to_string(),
             token: Secret::new("sp_token".to_string()),
             org_id: "hyperswitch".to_string(),
@@ -588,11 +606,11 @@ mod tests {
         }
     }
 
-    /// The default table is the file-only posture: off, nothing to validate.
+    /// The default table is the file-only posture: nothing to validate.
     #[test]
-    fn settings_default_is_disabled_with_hyperswitch_polling_interval() {
+    fn settings_default_is_the_file_source_with_hyperswitch_polling_interval() {
         let settings = SuperpositionClientConfig::default();
-        assert!(!settings.enabled);
+        assert_eq!(settings.source, SuperpositionSource::File);
         assert_eq!(settings.polling_interval, 15);
         assert!(settings.backup_file_path.is_none());
     }
