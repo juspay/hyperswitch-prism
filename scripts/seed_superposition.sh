@@ -19,7 +19,7 @@
 # position 0 and comes with the workspace), default-configs, contexts. Every create
 # carries a description and a change_reason (the server requires them). 2xx or 409
 # (already exists) is success — idempotent by 409, exactly like the reference
-# script. Ends with a resolve self-check so a mis-seeded workspace fails here, not
+# script. Ends with a resolve self-check so a badly seeded workspace fails here, not
 # silently at runtime.
 set -euo pipefail
 
