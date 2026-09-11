@@ -435,6 +435,7 @@ pub struct Connectors {
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub etisalat: ConnectorParams,
     pub worldpayraft: ConnectorParams,
     pub jpmorganorbital: ConnectorParams,
     pub saferpay: ConnectorParams,
@@ -713,6 +714,9 @@ impl Connectors {
             }
             ConnectorEnum::Moneris => {
                 patched.moneris.apply(params_patch);
+            }
+            ConnectorEnum::Etisalat => {
+                patched.etisalat.apply(params_patch);
             }
             ConnectorEnum::Multisafepay => {
                 patched.multisafepay.apply(params_patch);

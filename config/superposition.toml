@@ -101,7 +101,7 @@ rpc_method = { position = 3, schema = { type = "string" } }
 rpc_service = { position = 4, schema = { type = "string" } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "etisalat", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere"] } }
 # ============================================================================
 # Development Environment Overrides
 # ============================================================================
@@ -1026,6 +1026,16 @@ connector_base_url = "https://sandbox.payhere.lk"
 [[overrides]]
 _context_ = { connector = "payhere", environment = "production" }
 connector_base_url = "https://www.payhere.lk"
+
+# Etisalat (EPG) Sandbox
+[[overrides]]
+_context_ = { connector = "etisalat" }
+connector_base_url = "https://demo-ipg.ctdev.comtrust.ae:2443"
+
+# Etisalat (EPG) Production
+[[overrides]]
+_context_ = { connector = "etisalat", environment = "production" }
+connector_base_url = "https://ipg.comtrust.ae:2443"
 
 # D24
 [[overrides]]

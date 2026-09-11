@@ -915,6 +915,7 @@ enum Connector {
   NSURE = 146;
   GLOBALPAYMENTS_HEARTLAND = 147;
   PAYHERE = 148;
+  ETISALAT = 149;
 }
 
 // Payment method types
@@ -5790,6 +5791,13 @@ message MonerisConfig {
   optional string base_url = 50;
 }
 
+message EtisalatConfig {
+  SecretString user_name = 1; // Maps from connector_account_details.api_key (primary credential).
+  SecretString password = 2;  // Maps from connector_account_details.key1 (secondary credential).
+  SecretString customer = 3;  // Maps from connector_account_details.api_secret — merchant identifier assigned by EPG (sandbox: "Demo Merchant").
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -6223,6 +6231,8 @@ message ConnectorSpecificConfig {
     GlobalpaymentsHeartlandConfig globalpayments_heartland = 158;
     // PAYHERE = 148
     PayhereConfig payhere = 159;
+    // ETISALAT = 149
+    EtisalatConfig etisalat = 160;
   }
 }
 

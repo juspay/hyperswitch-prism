@@ -531,6 +531,12 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         base_url: Option<String>,
     },
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+        base_url: Option<String>,
+    },
     Nmi {
         api_key: Secret<String>,
         public_key: Option<Secret<String>>,
@@ -1307,6 +1313,11 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 client_id
             },
+            Etisalat {
+                user_name,
+                password,
+                customer
+            },
             Noon {
                 api_key,
                 business_identifier,
@@ -1822,6 +1833,11 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     client_id
                 },
+                Etisalat {
+                    user_name,
+                    password,
+                    customer
+                },
                 Noon {
                     api_key,
                     business_identifier,
@@ -2280,6 +2296,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: moneris.merchant_id.ok_or_else(err)?,
                 client_id: moneris.client_id.ok_or_else(err)?,
                 base_url: moneris.base_url,
+            }),
+            AuthType::Etisalat(etisalat) => Ok(Self::Etisalat {
+                user_name: etisalat.user_name.ok_or_else(err)?,
+                password: etisalat.password.ok_or_else(err)?,
+                customer: etisalat.customer.ok_or_else(err)?,
+                base_url: etisalat.base_url,
             }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
@@ -3499,6 +3521,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         client_secret: api_key.clone(),
                         merchant_id: api_secret.clone(),
                         client_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Etisalat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Etisalat {
+                        user_name: api_key.clone(),
+                        password: key1.clone(),
+                        customer: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

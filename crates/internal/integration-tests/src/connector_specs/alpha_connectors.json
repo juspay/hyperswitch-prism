@@ -31,6 +31,9 @@
     "datatrans": {},
     "dlocal": {},
     "easebuzz": {},
+    "etisalat": {
+      "reason": "Etisalat sandbox Authorize calls require a card-network roundtrip that exceeds the 30s connector_request_timeout from US-based CI runners; Capture and Void reach the gateway fine. Remove this entry once CI is run from a UAE-proximate host or the sandbox latency is resolved."
+    },
     "elavon": {},
     "finix": {},
     "fiservcommercehub": {},
