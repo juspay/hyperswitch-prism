@@ -1,0 +1,150 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "uri": "https://webhook.example.com/webhooks/rapyd",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "paid": true,
+            "amount": 1.0,
+            "status": "CLO",
+            "captured": true,
+            "created_at": 1711008868,
+            "error_code": "",
+            "is_partial": false,
+            "next_action": "not_applicable",
+            "country_code": "GB",
+            "failure_code": "",
+            "currency_code": "EUR",
+            "transaction_id": "",
+            "failure_message": "",
+            "original_amount": 1.0,
+            "merchant_reference_id": "rapyd_webhook_payment_001",
+            "payment_method": "card_0d83436af31300bf263dd5ef379b8230",
+            "payment_method_data": {
+              "id": "card_0d83436af31300bf263dd5ef379b8230",
+              "last4": "1111",
+              "network_reference_id": "MCC1234567890"
+            }
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_completed"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "uri": "https://webhook.example.com/webhooks/rapyd",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "wh_6d0b1efc39424f33556a300434cccc74",
+          "type": "PAYMENT_FAILED",
+          "data": {
+            "id": "payment_02e5ecc4b7e0395148e8eba68ad63120",
+            "mid": "mid_5c5d6187ccd4dd5c16142459e8911350",
+            "paid": false,
+            "amount": 0.0,
+            "status": "ERR",
+            "currency_code": "ISK",
+            "customer_token": "cus_ad212a1b326bb00dd6a663b44e574ad3",
+            "payment_method_type": "gb_mastercard_card",
+            "failure_code": "65",
+            "failure_message": "Authentication Required or Activity Limit Exceeded",
+            "error_code": "ERROR_PROCESSING_CARD - [65]",
+            "created_at": 1736262161
+          },
+          "trigger_operation_id": "9846cf13-6983-4888-88d4-c0b378dec372",
+          "status": "NEW",
+          "created_at": 1736262296
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_payment_failed"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "uri": "https://webhook.example.com/webhooks/rapyd",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "c73cd65e-988c-473a-8d03-06a15d52a3e7",
+          "token": "wh_1abe7fd19f96fe553fc613a1f3ff20ca",
+          "organization_id": "df301b60-8a9d-4a5a-a315-39b699230cb1",
+          "org_pk": 0,
+          "type": "REFUND_COMPLETED",
+          "data": {
+            "id": "refund_102ae6d1286b07ce8b3768b93eab9a24",
+            "amount": 87.36,
+            "payment": "payment_ccc04715a1021b821025b8d8c0a0eed8",
+            "currency": "ILS",
+            "failure_reason": "",
+            "failure_code": "",
+            "reason": "Direct Refund",
+            "status": "Completed",
+            "receipt_number": 0,
+            "created_at": 1768959,
+            "updated_at": 1768960,
+            "merchant_reference_id": "030016",
+            "payment_method_type": "il_mastercard_card",
+            "proportional_refund": true
+          },
+          "attempts": [],
+          "trigger_operation_id": "3567b315-a73c-4415-8206-c598d70ac665",
+          "first_attempt_at": 0,
+          "last_attempt_at": 0,
+          "status": "",
+          "created_at": 0,
+          "next_attempt_at": 0,
+          "uri": ""
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_refund_completed"
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "uri": "https://webhook.example.com/webhooks/rapyd",
+        "headers": {
+          "content-type": "application/json",
+          "salt": "salt123456",
+          "timestamp": "1711008868",
+          "signature": "aW52YWxpZF9zaWduYXR1cmU="
+        },
+        "body": {
+          "id": "wh_e0afb507504b5eb901449993fadba20f",
+          "type": "PAYMENT_COMPLETED",
+          "data": {
+            "id": "payment_0b645b1ee17a5c3ce79e20ff5524966f",
+            "paid": true,
+            "amount": 1.0,
+            "status": "CLO",
+            "captured": true,
+            "next_action": "not_applicable",
+            "currency_code": "EUR",
+            "transaction_id": "",
+            "merchant_reference_id": ""
+          },
+          "trigger_operation_id": "77b47127-a209-43ad-9806-90c46e33f950",
+          "status": "NEW",
+          "created_at": 1711008868
+        }
+      },
+      "merchant_event_id": "rapyd_webhook_invalid_signature"
+    }
+  }
+}

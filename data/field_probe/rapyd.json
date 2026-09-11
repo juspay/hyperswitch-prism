@@ -798,7 +798,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+        }
       }
     },
     "incremental_authorization": {
@@ -809,7 +824,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"wh_sample000000000000000000000000\",\"type\":\"PAYMENT_COMPLETED\",\"data\":{\"id\":\"payment_sample0000000000000000000000\",\"amount\":10.0,\"status\":\"CLO\",\"next_action\":\"not_applicable\",\"currency_code\":\"USD\",\"captured\":true,\"paid\":true,\"transaction_id\":\"\",\"merchant_reference_id\":\"\"},\"trigger_operation_id\":\"00000000-0000-0000-0000-000000000000\",\"status\":\"NEW\",\"created_at\":1711008868}"
+        }
       }
     },
     "payment_method_eligibility": {
