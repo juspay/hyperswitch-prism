@@ -212,7 +212,7 @@ test-connector:
 	 [ -f .env.connector-tests ] && export $$(grep -v '^#' .env.connector-tests | xargs) 2>/dev/null || true; \
 	 cargo run -p integration-tests --bin test_ucs -- \
 	   --connector $(connector) \
-	   --endpoint localhost:8000 \
+	   --endpoint localhost:$(GRPC_PORT) \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE
@@ -236,7 +236,7 @@ test-scenario:
 	   --connector $(connector) \
 	   --suite $(suite) \
 	   --scenario $(scenario) \
-	   --endpoint localhost:8000 \
+	   --endpoint localhost:$(GRPC_PORT) \
 	   --interface $(interface) || EXIT_CODE=$$?; \
 	 [ "$(interface)" = "grpc" ] && $(MAKE) stop-grpc || true; \
 	 exit $$EXIT_CODE

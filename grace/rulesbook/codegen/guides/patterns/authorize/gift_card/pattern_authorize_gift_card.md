@@ -196,7 +196,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let (item, gift_card_data) = value;
         let amount = get_amount_data(&item);
-        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_auth_type)?;
+        let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from(gift_card_data)?,
         ));
@@ -307,16 +307,21 @@ impl From<AdyenPaymentStatus> for common_enums::AttemptStatus {
 
 pub mod transformers;
 
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, Refund},
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundsData, RefundsResponseData,
     },
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -324,8 +329,8 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
 use interfaces::{
-    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2,
-    connector_types, events::connector_api_logs::ConnectorEvent,
+    api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
+    decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
@@ -334,7 +339,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -376,7 +381,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -408,7 +413,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = {ConnectorName}AuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -422,7 +427,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
             {ConnectorName}ErrorResponse::default()
@@ -432,20 +438,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        with_error_response_body!(event_builder, response);
+
+        // `attempt_status` is `Option<FlowStatus>` (`crates/types-traits/domain_types/src/router_data.rs`),
+        // NOT `Option<AttemptStatus>`. Be flow-aware and non-terminal by default:
+        //  * hard-coding `Some(FlowStatus::Payment(AttemptStatus::Failure))` here is what
+        //    reports an already-charged payment as FAILURE;
+        //  * a blanket `None` is equally wrong on refund flows -- a hard-declined refund
+        //    then stays Pending and keeps retrying.
+        // Derive it only from error codes the vendor documents as terminal, and pick the
+        // variant matching the flow (`FlowStatus::Refund(RefundStatus::Failure)` on refunds).
+        // Minimal exemplar: `crates/integrations/connector-integration/src/connectors/noon.rs:499-512`
+        // Flow-aware exemplar: `crates/integrations/connector-integration/src/connectors/flywire.rs:362-370`
+        const TERMINAL_ERROR_CODES: &[&str] = &[/* fill in from the vendor error-code table */];
+        let attempt_status = TERMINAL_ERROR_CODES
+            .contains(&response.error_code.as_deref().unwrap_or_default())
+            .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status: None,
+            attempt_status,
             connector_transaction_id: response.transaction_id,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -480,6 +500,22 @@ macros::macro_connector_implementation!(
         }
     }
 );
+
+// `SourceVerification` and `BodyDecoding` are NON-generic traits
+// (`crates/types-traits/interfaces/src/verification.rs:20`,
+// `crates/types-traits/interfaces/src/decode.rs:6`). Write exactly ONE blanket impl of each
+// per connector -- one impl per flow, or one carrying <Flow, Data, Req, Resp> parameters,
+// is an E0107. Exemplar:
+// `crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    SourceVerification for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    BodyDecoding for {ConnectorName}<T>
+{
+}
 ```
 
 ### Transformers Implementation
@@ -563,7 +599,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 {ConnectorName}PaymentMethod::try_from(gift_card_data.as_ref())?
             }
             _ => return Err(IntegrationError::NotImplemented(
-                "Only Gift Card payments are supported".to_string(, Default::default())
+                "Only Gift Card payments are supported".to_string(), Default::default()
             ).into()),
         };
 
@@ -623,12 +659,12 @@ impl GiftCardDetails {
         if self.number.peek().is_empty() {
             return Err(IntegrationError::MissingRequiredField {
                 field_name: "gift_card.number",
-            , context: Default::default() });
+                context: Default::default() });
         }
         if self.cvc.peek().is_empty() {
             return Err(IntegrationError::MissingRequiredField {
                 field_name: "gift_card.cvc",
-            , context: Default::default() });
+                context: Default::default() });
         }
         Ok(())
     }

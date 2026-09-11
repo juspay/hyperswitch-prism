@@ -211,6 +211,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayvantiv,
         Qwikcilver,
         Givepayments,
+        Payhere,
     ],
     not_implemented: [
         Aci,
@@ -298,6 +299,7 @@ default_impl_verify_webhook_source_v2!(
         Paydotcom,
         Moneris,
         Ilixium,
+        GlobalpaymentsHeartland,
         Worldpayraft,
         Travelhub,
         D24,
@@ -384,6 +386,7 @@ default_impl_recharge_v2!(
     Paydotcom,
     Boost,
     Ilixium,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -487,6 +490,7 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 // ============================================================================
@@ -619,6 +623,7 @@ default_impl_create_payment_method_v2!(
     Paydotcom,
     Boost,
     Ilixium,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -722,6 +727,7 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 default_impl_get_payment_method_v2!(
@@ -732,6 +738,7 @@ default_impl_get_payment_method_v2!(
     Paydotcom,
     Boost,
     Ilixium,
+    GlobalpaymentsHeartland,
     Tesouro,
     AbsaSanlam,
     Aci,
@@ -835,6 +842,7 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 default_impl_payment_method_eligibility_v2!(
@@ -846,6 +854,7 @@ default_impl_payment_method_eligibility_v2!(
         Paydotcom,
         Boost,
         Ilixium,
+        GlobalpaymentsHeartland,
         Tesouro,
         Adyen,
         Authorizedotnet,
@@ -1020,6 +1029,7 @@ default_impl_refresh_payment_method_v2!(
     Paydotcom,
     Boost,
     Ilixium,
+    GlobalpaymentsHeartland,
     AbsaSanlam,
     Aci,
     Adyen,
@@ -1124,4 +1134,5 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );

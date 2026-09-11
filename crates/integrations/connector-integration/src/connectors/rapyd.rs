@@ -454,7 +454,7 @@ macros::macro_connector_implementation!(
     resource_common_data: PaymentFlowData,
     flow_request: PaymentVoidData,
     flow_response: PaymentsResponseData,
-    http_method: Post,
+    http_method: Delete,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
@@ -466,7 +466,7 @@ macros::macro_connector_implementation!(
             let url_path = url.strip_prefix(self.connector_base_url_payments(req))
                 .unwrap_or(&url);
             let body = "";
-            self.build_headers(req, "post", url_path, body)
+            self.build_headers(req, "delete", url_path, body)
         }
         fn get_url(
             &self,

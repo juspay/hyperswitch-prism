@@ -913,6 +913,8 @@ enum Connector {
   D24 = 144;
   PAYDOTCOM = 145;
   NSURE = 146;
+  GLOBALPAYMENTS_HEARTLAND = 147;
+  PAYHERE = 148;
 }
 
 // Payment method types
@@ -1062,6 +1064,7 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
+  PAY_HERE = 137;
 }
 
 // Product type enumeration
@@ -5773,6 +5776,13 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 message MonerisConfig {
   SecretString client_secret = 1;
   SecretString merchant_id = 2;
@@ -5850,6 +5860,22 @@ message D24Config {
 // api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
 message PaydotcomConfig {
   SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message PayhereConfig {
+  // PayHere App ID -- OAuth client_id, sent in the Basic auth header to
+  // /merchant/v1/oauth/token together with `app_secret`.
+  SecretString app_id = 1;
+  // PayHere Merchant ID -- sent as `merchant_id` in the hosted-checkout form
+  // and used as the first input of the checkout hash.
+  SecretString merchant_id = 2;
+  // PayHere App Secret -- OAuth client_secret, paired with `app_id` for the
+  // token endpoint Basic auth.
+  SecretString app_secret = 3;
+  // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
+  // md5sig verification), never transmitted.
+  SecretString merchant_secret = 4;
   optional string base_url = 50;
 }
 
@@ -6193,6 +6219,10 @@ message ConnectorSpecificConfig {
     PaydotcomConfig paydotcom = 156;
     // NSURE = 146
     NsureConfig nsure = 157;
+    // GLOBALPAYMENTS_HEARTLAND = 147
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 158;
+    // PAYHERE = 148
+    PayhereConfig payhere = 159;
   }
 }
 

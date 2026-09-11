@@ -470,6 +470,17 @@ impl CustomerService for Customer {
 }
 impl Payments {
     #[allow(clippy::too_many_arguments)]
+    // Déjà call-graph skeleton span (`ucs::*` namespace): one node per pipeline
+    // hop on the execution-graph tape. cfg_attr keeps feature-off builds
+    // byte-identical — the convention for every déjà touchpoint.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(
+            name = "ucs::flow_orchestration",
+            skip_all,
+            fields(connector = ?connector, flow = "Authorize")
+        )
+    )]
     async fn process_authorization_internal<
         T: PaymentMethodDataTypes
             + Default
@@ -588,6 +599,7 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
+        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -596,7 +608,7 @@ impl Payments {
                 None,
                 event_params,
                 token_data,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             ),
