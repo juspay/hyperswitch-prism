@@ -8516,6 +8516,26 @@ pub fn generate_access_token_response(
     }
 }
 
+/// A PSync that connector pre-flight validation rejected before dispatch.
+pub struct PaymentSyncSkipped {
+    pub connector_transaction_id: String,
+    pub merchant_transaction_id: Option<String>,
+}
+
+impl ForeignFrom<PaymentSyncSkipped> for PaymentServiceGetResponse {
+    fn foreign_from(skipped: PaymentSyncSkipped) -> Self {
+        // Unspecified + no error: UCS is stateless, so this is its "keep the previous
+        // attempt status" reply.
+        Self {
+            connector_transaction_id: skipped.connector_transaction_id,
+            merchant_transaction_id: skipped.merchant_transaction_id,
+            status: grpc_api_types::payments::PaymentStatus::Unspecified as i32,
+            error: None,
+            ..Default::default()
+        }
+    }
+}
+
 #[allow(deprecated)]
 pub fn generate_payment_sync_response(
     router_data_v2: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,

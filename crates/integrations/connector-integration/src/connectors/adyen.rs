@@ -16,7 +16,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    pii::SecretSerdeValue,
     types::StringMinorUnit,
 };
 use domain_types::{
@@ -638,7 +637,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: AttemptStatus,
-        _connector_feature_data: Option<SecretSerdeValue>,
     ) -> CustomResult<(), IntegrationError> {
         if data.encoded_data.is_some() {
             return Ok(());

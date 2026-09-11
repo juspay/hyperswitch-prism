@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
-use common_utils::{CustomResult, SecretSerdeValue};
+use common_utils::CustomResult;
 pub use domain_types::connector_types::WebhookIntegrityCheck;
 use domain_types::{
     connector_flow,
@@ -266,12 +266,14 @@ pub trait ValidationTrait: ConnectorCommon {
         data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: AttemptStatus,
-        _connector_meta_data: Option<SecretSerdeValue>,
     ) -> CustomResult<(), domain_types::errors::IntegrationError> {
-        // `get_connector_transaction_id` already yields `MissingConnectorTransactionID`
-        // for `NoResponseId` / `EncodedData`; nothing to re-wrap here.
         data.connector_transaction_id
             .get_connector_transaction_id()
+            .change_context(
+                domain_types::errors::IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                },
+            )
             .map(|_| ())
     }
 

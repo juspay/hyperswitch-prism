@@ -10,7 +10,6 @@ use common_utils::{
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
-    pii::SecretSerdeValue,
     request::{Method, RequestContent},
     types::{AmountConvertor, MinorUnit},
 };
@@ -79,7 +78,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: AttemptStatus,
-        _connector_meta_data: Option<SecretSerdeValue>,
     ) -> CustomResult<(), IntegrationError> {
         if data.encoded_data.is_some() {
             return Ok(());

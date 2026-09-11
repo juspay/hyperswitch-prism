@@ -57,9 +57,9 @@ use domain_types::{
         generate_refresh_payment_method_response, generate_refund_response,
         generate_repeat_payment_response, generate_setup_mandate_response,
         tokenized_authorize_to_base, tokenized_setup_recurring_to_base, AuthorizationRequest,
-        PaymentMethodDataAction, SetupRecurringRequest,
+        PaymentMethodDataAction, PaymentSyncSkipped, SetupRecurringRequest,
     },
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -1103,7 +1103,6 @@ impl PaymentService for Payments {
                             common_enums::AuthenticationType::ThreeDs
                         ),
                         payment_flow_data.status,
-                        None,
                     ) {
                         // Log with the same fields `IntoGrpcStatus` would emit, while the
                         // report's frames (connector-supplied context) are still attached;
@@ -1117,13 +1116,12 @@ impl PaymentService for Payments {
                             http_status_code = ?context.http_status_code(),
                             "PAYMENT_SYNC_FLOW: connector pre-flight rejected the sync; returning a no-op response (status unspecified, no error) without calling the connector"
                         );
-                        return Ok(tonic::Response::new(PaymentServiceGetResponse {
-                            connector_transaction_id: payload.connector_transaction_id.clone(),
-                            merchant_transaction_id: payload.merchant_transaction_id.clone(),
-                            status: grpc_api_types::payments::PaymentStatus::Unspecified as i32,
-                            error: None,
-                            ..Default::default()
-                        }));
+                        return Ok(tonic::Response::new(PaymentServiceGetResponse::foreign_from(
+                            PaymentSyncSkipped {
+                                connector_transaction_id: payload.connector_transaction_id.clone(),
+                                merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                            },
+                        )));
                     }
                     let should_do_access_token = connector_data
                         .connector

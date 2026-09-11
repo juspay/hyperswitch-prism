@@ -126,7 +126,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _data: &PaymentsSyncData,
         _is_three_ds: bool,
         _status: common_enums::AttemptStatus,
-        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), IntegrationError> {
         Ok(())
     }
