@@ -1547,6 +1547,7 @@ pub enum PaymentMethodType {
     Neteller,
     Paysera,
     Paymaya,
+    Payhere,
     QwikcilverWallet,
 }
 
@@ -2598,6 +2599,7 @@ pub enum ProcessTrackerRunner {
 #[strum(serialize_all = "snake_case")]
 /// RoutableConnectors are the subset of Connectors that are eligible for payments routing
 pub enum RoutableConnectors {
+    Payhere,
     Adyenplatform,
     Aci,
     Adyen,

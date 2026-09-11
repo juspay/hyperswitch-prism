@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+payhere.base_url = "https://sandbox.payhere.lk"
 travelhub.base_url = "https://preprod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api-stg.directa24.com"
 citigate.base_url = "https://gw-test.cgate.tech"
@@ -114,6 +115,7 @@ nexinets.base_url = "https://apitest.payengine.de/v1"
 noon.base_url = "https://api-test.noonpayments.com/"
 mifinity.base_url = "https://demo.mifinity.com/"
 moneris.base_url = "https://api.sb.moneris.io"
+etisalat.base_url = "https://demo-ipg.ctdev.comtrust.ae:2443"
 merchante.base_url = "https://cert.merchante-solutions.com/mes-api/tridentApi"
 braintree.base_url = "https://payments.sandbox.braintree-api.com/graphql"
 volt.base_url = "https://gateway.sandbox.volt.io"

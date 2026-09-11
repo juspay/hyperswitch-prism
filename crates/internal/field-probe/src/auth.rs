@@ -317,6 +317,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             client_id: id(),
             base_url: None,
         },
+        ConnectorEnum::Etisalat => ConnectorSpecificConfig::Etisalat {
+            user_name: u(),
+            password: p(),
+            customer: m(),
+            base_url: None,
+        },
         ConnectorEnum::Merchante => ConnectorSpecificConfig::Merchante {
             profile_id: id(),
             profile_key: k(),
@@ -868,6 +874,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             key1: k(),
             api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Payhere => ConnectorSpecificConfig::Payhere {
+            app_id: k(),
+            merchant_id: k(),
+            app_secret: k(),
+            merchant_secret: k(),
             base_url: None,
         },
     }

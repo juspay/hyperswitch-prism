@@ -23,6 +23,7 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+payhere.base_url = "https://www.payhere.lk"
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
 d24.base_url = "https://api.directa24.com"
 citigate.base_url = "https://gw.cgate.tech"
@@ -116,6 +117,7 @@ nexinets.base_url = "https://api.payengine.de/v1"
 noon.base_url = "https://api.noonpayments.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 moneris.base_url = "https://api.moneris.io"
+etisalat.base_url = "https://ipg.comtrust.ae:2443"
 # TODO: production URL unconfirmed — Merchante spec only documents the certification host
 merchante.base_url = "https://cert.merchante-solutions.com/mes-api/tridentApi"
 braintree.base_url = "https://payments.braintree-api.com/graphql"

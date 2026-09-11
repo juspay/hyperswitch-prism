@@ -435,6 +435,7 @@ pub struct Connectors {
     pub santander: ConnectorParams,
     pub citigate: ConnectorParams,
     pub moneris: ConnectorParams,
+    pub etisalat: ConnectorParams,
     pub merchante: ConnectorParams,
     pub worldpayraft: ConnectorParams,
     pub jpmorganorbital: ConnectorParams,
@@ -443,6 +444,7 @@ pub struct Connectors {
     pub paynearme: ConnectorParams,
     pub d24: ConnectorParams,
     pub paydotcom: ConnectorParams,
+    pub payhere: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -714,6 +716,9 @@ impl Connectors {
             ConnectorEnum::Moneris => {
                 patched.moneris.apply(params_patch);
             }
+            ConnectorEnum::Etisalat => {
+                patched.etisalat.apply(params_patch);
+            }
             ConnectorEnum::Merchante => {
                 patched.merchante.apply(params_patch);
             }
@@ -830,6 +835,9 @@ impl Connectors {
             ConnectorEnum::D24 => {
                 patched.d24.apply(params_patch);
             }
+            ConnectorEnum::Payhere => {
+                patched.payhere.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -837,7 +845,7 @@ impl Connectors {
                     context: IntegrationErrorContext {
                         additional_context: Some(format!(
                             "Connector '{}' is not supported for dynamic URL patching from superposition. \
-                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland",
+                             Supported connectors: stripe, adyen, paypal, braintree, checkout, cybersource, revolut, aci, bankofamerica, worldpay, rapyd, fiserv, nexinets, elavon, novalnet, trustpay, forte, bambora, bamboraapac, barclaycard, billwerk, bluesnap, calida, cashfree, celero, cryptopay, datatrans, finix, fiservcommercehub, fiservemea, globalpay, helcim, hipay, imerchantsolutions, jpmorgan, loonio, mifinity, mollie, moneris, merchante, multisafepay, nexixpay, payload, payme, tamara, placetopay, powertranz, revolv3, absa_sanlam, shift4, silverflow, stax, truelayer, trustly, trustpayments, tsys, wellsfargo, worldpayvantiv, worldpayxml, zift, gigadat, givepayments, boost, ilixium, jpmorganorbital, travelhub, d24, globalpayments_heartland, payhere",
                             connector
                         )),
                         ..Default::default()
@@ -1739,6 +1747,9 @@ impl<
                     Ok(Self::Wallet(payment_method_data::WalletData::PaymayaRedirect(
                         payment_method_data::PaymayaRedirection {},
                     )))
+                }
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => {
+                    Ok(Self::Wallet(payment_method_data::WalletData::PayhereRedirect {}))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CashappQr(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::CashappQr(
@@ -2812,6 +2823,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             }
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(PaymentMethodType::Gcash),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(PaymentMethodType::Grabpay),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(PaymentMethodType::Payhere),
             grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
                 Ok(PaymentMethodType::SepaBankTransfer)
@@ -3177,6 +3189,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::NetellerRedirect(_) => Ok(Some(PaymentMethodType::Neteller)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PayseraRedirect(_) => Ok(Some(PaymentMethodType::Paysera)),
                 grpc_api_types::payments::payment_method::PaymentMethod::PaymayaRedirect(_) => Ok(Some(PaymentMethodType::Paymaya)),
+                grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_) => Ok(Some(PaymentMethodType::Payhere)),
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_) => Ok(Some(PaymentMethodType::RevolutPay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::SatispayRedirect(_) => Ok(Some(PaymentMethodType::Satispay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::WeroRedirect(_) => Ok(Some(PaymentMethodType::Wero)),
@@ -7396,6 +7409,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::PayhereRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::RevolutPayRedirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
@@ -9173,6 +9190,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Neteller => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::GrabPay => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::PayHere => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::Gcash => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
@@ -13966,6 +13984,7 @@ pub enum PaymentMethodDataType {
     PayURedirect,
     EaseBuzzRedirect,
     PaymayaRedirect,
+    PayhereRedirect,
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,

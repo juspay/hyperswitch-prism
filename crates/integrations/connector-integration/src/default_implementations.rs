@@ -211,6 +211,7 @@ default_impl_verify_webhook_source_v2!(
         Worldpayvantiv,
         Qwikcilver,
         Givepayments,
+        Payhere,
     ],
     not_implemented: [
         Aci,
@@ -297,6 +298,7 @@ default_impl_verify_webhook_source_v2!(
         Saferpay,
         Paydotcom,
         Moneris,
+        Etisalat,
         Merchante,
         Ilixium,
         GlobalpaymentsHeartland,
@@ -438,6 +440,7 @@ default_impl_recharge_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
     Merchante,
     Multisafepay,
     Netcetera,
@@ -491,6 +494,7 @@ default_impl_recharge_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 // ============================================================================
@@ -675,6 +679,7 @@ default_impl_create_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
     Merchante,
     Multisafepay,
     Netcetera,
@@ -728,6 +733,7 @@ default_impl_create_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 default_impl_get_payment_method_v2!(
@@ -790,6 +796,7 @@ default_impl_get_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
     Merchante,
     Multisafepay,
     Netcetera,
@@ -843,6 +850,7 @@ default_impl_get_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
 
 default_impl_payment_method_eligibility_v2!(
@@ -911,6 +919,7 @@ default_impl_payment_method_eligibility_v2!(
         Mifinity,
         Mollie,
         Moneris,
+        Etisalat,
         Merchante,
         Multisafepay,
         Nexinets,
@@ -1083,6 +1092,7 @@ default_impl_refresh_payment_method_v2!(
     Mifinity,
     Mollie,
     Moneris,
+    Etisalat,
     Merchante,
     Multisafepay,
     Netcetera,
@@ -1136,4 +1146,5 @@ default_impl_refresh_payment_method_v2!(
     Xendit,
     Zift,
     Travelhub,
+    Payhere
 );
