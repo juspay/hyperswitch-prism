@@ -17,7 +17,7 @@ This is distinct from the `IncomingWebhook` flow:
 - **VerifyWebhookSource** = signature verification only. It consumes `webhook_headers`, `webhook_body`, and `merchant_secret` and produces a boolean-equivalent verdict (`crates/types-traits/domain_types/src/router_request_types.rs:466`).
 - **IncomingWebhook** = full payload parsing/dispatch — event-type detection, transaction-ID extraction, refund/dispute routing, status mapping (see `pattern_IncomingWebhook_flow.md`).
 
-A typical webhook handler invokes `VerifyWebhookSource` first, then `IncomingWebhook` only if verification passes. The orchestration is done in `crates/grpc-server/grpc-server/src/server/events.rs:111-148`: the gRPC `EventService` picks the verification path (in-band trait vs. out-of-band flow) and passes a `source_verified` boolean into `process_webhook_event`.
+A typical webhook handler invokes `VerifyWebhookSource` first, then `IncomingWebhook` only if verification passes. The orchestration is done in `crates/grpc-server/grpc-server/src/server/events.rs:242`: the gRPC `EventService` picks the verification path (in-band trait vs. out-of-band flow) and passes a `source_verified` boolean into `process_webhook_event`.
 
 ### Key Components
 
@@ -25,10 +25,10 @@ A typical webhook handler invokes `VerifyWebhookSource` first, then `IncomingWeb
 - **Request type**: `VerifyWebhookSourceRequestData` — `crates/types-traits/domain_types/src/router_request_types.rs:466`.
 - **Response type**: `VerifyWebhookSourceResponseData` + `VerifyWebhookStatus` — `crates/types-traits/domain_types/src/router_response_types.rs:90`, `:95`.
 - **Flow-data (resource_common_data)**: `VerifyWebhookSourceFlowData` — `crates/types-traits/domain_types/src/connector_types.rs:2688`.
-- **In-band trait**: `IncomingWebhook::verify_webhook_source` — `crates/types-traits/interfaces/src/connector_types.rs:375`.
-- **Out-of-band trait**: `VerifyWebhookSourceV2: ConnectorIntegrationV2<VerifyWebhookSource, VerifyWebhookSourceFlowData, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>` — `crates/types-traits/interfaces/src/connector_types.rs:354-362`.
+- **In-band trait**: `IncomingWebhook::verify_webhook_source` — `crates/types-traits/interfaces/src/connector_types.rs:581`.
+- **Out-of-band trait**: `VerifyWebhookSourceV2: ConnectorIntegrationV2<VerifyWebhookSource, VerifyWebhookSourceFlowData, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>` — `crates/types-traits/interfaces/src/connector_types.rs:560-568`.
 - **Default-impl macro**: `default_impl_verify_webhook_source_v2!` — `crates/integrations/connector-integration/src/default_implementations.rs:27-46`, applied to 80+ connectors at `:50-127`.
-- **Orchestration selector**: `requires_external_webhook_verification` — `crates/types-traits/interfaces/src/connector_types.rs:139`.
+- **Orchestration selector**: `requires_external_webhook_verification` — `crates/types-traits/interfaces/src/connector_types.rs:260`.
 - **Signature-scheme primitives**: `common_utils::crypto::{HmacSha256, HmacSha512, Sha256, Md5, SignMessage, VerifySignature}` (referenced by connectors at `bluesnap.rs:233`, `noon.rs:245`, `payload.rs:780`, `fiuu.rs:843`, etc.).
 
 ## Table of Contents
@@ -54,7 +54,7 @@ A typical webhook handler invokes `VerifyWebhookSource` first, then `IncomingWeb
 ```
 EventService::handle (grpc-server)
   └── requires_external_webhook_verification(connector_id, config)
-      │   (crates/types-traits/interfaces/src/connector_types.rs:139)
+      │   (crates/types-traits/interfaces/src/connector_types.rs:260)
       │
       ├── TRUE → verify_webhook_source_external  (out-of-band)
       │           (crates/grpc-server/grpc-server/src/server/events.rs:167)
@@ -66,7 +66,7 @@ EventService::handle (grpc-server)
       │     ⇒ VerifyWebhookStatus::SourceVerified | SourceNotVerified
       │
       └── FALSE → IncomingWebhook::verify_webhook_source  (in-band)
-                  (crates/types-traits/interfaces/src/connector_types.rs:375)
+                  (crates/types-traits/interfaces/src/connector_types.rs:581)
              computes HMAC/SHA/MD5 signature locally, compares
              to header-borne signature, returns Ok(bool)
 ```
@@ -162,7 +162,7 @@ Enumeration of authenticity schemes actually observed in `src/connectors/` at th
 
 | Scheme | Connectors | Where implemented | Citation |
 |--------|-----------|-------------------|----------|
-| **HMAC-SHA256** | Adyen | In-band (`IncomingWebhook::verify_webhook_source`) | `crates/integrations/connector-integration/src/connectors/adyen.rs:773` |
+| **HMAC-SHA256** | Adyen | In-band (`IncomingWebhook::verify_webhook_source`) | `crates/integrations/connector-integration/src/connectors/adyen.rs:820` |
 | HMAC-SHA256 | Bluesnap | In-band | `crates/integrations/connector-integration/src/connectors/bluesnap.rs:234` |
 | HMAC-SHA256 | Revolut | In-band | `crates/integrations/connector-integration/src/connectors/revolut.rs:296` |
 | HMAC-SHA256 | Trustpay | In-band | `crates/integrations/connector-integration/src/connectors/trustpay.rs:210` |
@@ -177,7 +177,7 @@ Enumeration of authenticity schemes actually observed in `src/connectors/` at th
 | **MD5** | Fiuu | In-band — concatenated-field digest including secret | `crates/integrations/connector-integration/src/connectors/fiuu.rs:843` |
 | **Ed25519 / ECDSA-P521 JWS (JWK-fetched public key)** | Truelayer | Out-of-band — fetches connector JWKS, verifies JWS over `tl-signature` header | `crates/integrations/connector-integration/src/connectors/truelayer.rs:878-989`, `truelayer/transformers.rs:1192-1327` |
 | **RSA/certificate-based webhook-id echo** (PayPal `verify-webhook-signature` API) | Paypal | Out-of-band — delegates crypto to PayPal's verification endpoint | `crates/integrations/connector-integration/src/connectors/paypal.rs:1482-1597`, `paypal/transformers.rs:3194-3283` |
-| **Plain shared secret / no local crypto** (default trait body returns `Ok(false)`) | All connectors covered by `default_impl_verify_webhook_source_v2!` that do not override the in-band method | Trait default body | `crates/types-traits/interfaces/src/connector_types.rs:375-382` |
+| **Plain shared secret / no local crypto** (default trait body returns `Ok(false)`) | All connectors covered by `default_impl_verify_webhook_source_v2!` that do not override the in-band method | Trait default body | `crates/types-traits/interfaces/src/connector_types.rs:581-588` |
 
 ### Notes on each scheme
 
@@ -194,9 +194,9 @@ Enumeration of authenticity schemes actually observed in `src/connectors/` at th
 1. The `ConnectorIntegrationV2<VerifyWebhookSource, ...>::get_url` parses `tl-signature`, extracts `jku`, validates it against `truelayer::ALLOWED_JKUS`, and returns the JKU as the outgoing URL (`truelayer.rs:890-940`, `truelayer/transformers.rs:1090`).
 2. `handle_response_v2` parses the fetched `Jwks`, finds the key whose `kid` matches the JWS header, rebuilds the SEC1 EC point via `build_uncompressed_ec1_point`, rebuilds the signing input (`POST <uri>\n<tl-headers>\n<body>`), converts the P1363 signature to DER, and runs SHA-512 + ECDSA verify (`truelayer/transformers.rs:1192-1327`).
 
-**PayPal webhook-id echo** (`paypal.rs:1482-1597`) posts the received transmission headers + raw webhook event JSON + stored `webhook_id` to PayPal's `v1/notifications/verify-webhook-signature` endpoint, and PayPal returns `verification_status: SUCCESS | FAILURE`. The local code performs no RSA math; it relies on PayPal to verify the attached cert chain. The response is mapped via `PaypalSourceVerificationStatus → VerifyWebhookStatus` at `paypal/transformers.rs:3254-3261`.
+**PayPal webhook-id echo** (`paypal.rs:1440-1500`) posts the received transmission headers + raw webhook event JSON + stored `webhook_id` to PayPal's `v1/notifications/verify-webhook-signature` endpoint, and PayPal returns `verification_status: SUCCESS | FAILURE`. The local code performs no RSA math; it relies on PayPal to verify the attached cert chain. The response is mapped via `PaypalSourceVerificationStatus → VerifyWebhookStatus` at `paypal/transformers.rs:3902-3910`.
 
-**Plain shared secret / no crypto** is the default. `IncomingWebhook::verify_webhook_source` returns `Ok(false)` if not overridden (`connector_types.rs:375-382`), and the `default_impl_verify_webhook_source_v2!` macro emits an empty `ConnectorIntegrationV2` impl (`default_implementations.rs:27-46`). Connectors in this bucket effectively skip verification and fall back to PSync for truth.
+**Plain shared secret / no crypto** is the default. `IncomingWebhook::verify_webhook_source` returns `Ok(false)` if not overridden (`connector_types.rs:581-588`), and the `default_impl_verify_webhook_source_v2!` macro emits an empty `ConnectorIntegrationV2` impl (`default_implementations.rs:160`). Connectors in this bucket effectively skip verification and fall back to PSync for truth.
 
 ## Connectors with Full Implementation
 
@@ -206,7 +206,7 @@ Enumeration of authenticity schemes actually observed in `src/connectors/` at th
 
 | Connector | HTTP Method | Content Type | URL Pattern | Request Type Reuse | Notes |
 |-----------|-------------|--------------|-------------|---------------------|-------|
-| Paypal | POST | application/json | `{base_url}v1/notifications/verify-webhook-signature` | `paypal::PaypalSourceVerificationRequest` (dedicated) | Uses Basic auth (`client_id:client_secret`) per `paypal.rs:1516-1532`; sends back `SUCCESS`/`FAILURE` mapped at `paypal/transformers.rs:3254`. |
+| Paypal | POST | application/json | `{base_url}v1/notifications/verify-webhook-signature` | `paypal::PaypalSourceVerificationRequest` (dedicated) | Uses Basic auth (`client_id:client_secret`) per `paypal.rs:1463`; sends back `SUCCESS`/`FAILURE` mapped at `paypal/transformers.rs:3902`. |
 | Truelayer | GET | (none — GET fetch of JWKS) | `jku` extracted from `tl-signature` JWS header; must be in `ALLOWED_JKUS` | No request body; response `truelayer::Jwks` | Verification math runs inside `TryFrom<ResponseRouterData<Jwks, …>>` at `truelayer/transformers.rs:1229-1328`. `get_url` at `truelayer.rs:890-940`. |
 
 ### In-band (IncomingWebhook::verify_webhook_source override)
@@ -241,7 +241,7 @@ There are two families. Pick based on whether your connector does local crypto (
 
 Recommended for 95 % of connectors. No network round-trip, no extra plumbing; the default connector-selector path (`crates/grpc-server/grpc-server/src/server/events.rs:122-141`) calls the trait method directly.
 
-Required overrides (from trait `IncomingWebhook` at `crates/types-traits/interfaces/src/connector_types.rs:374-411`):
+Required overrides (from trait `IncomingWebhook` at `crates/types-traits/interfaces/src/connector_types.rs:580-640` (trait `IncomingWebhook` opens at :580; `verify_webhook_source` :581, `get_webhook_integrity_checks` :590, `get_event_type` :612, `get_webhook_event_reference` :622, `process_payment_webhook` :629)):
 
 1. `fn verify_webhook_source(&self, request, webhook_secret, _account_details) -> Result<bool, Report<WebhookError>>` — the entry point.
 2. `fn get_webhook_source_verification_signature(&self, request, secret) -> Result<Vec<u8>, Report<WebhookError>>` — decode header signature (hex, base64, or body field).
@@ -249,17 +249,17 @@ Required overrides (from trait `IncomingWebhook` at `crates/types-traits/interfa
 
 Inside `verify_webhook_source`, build an algorithm and call `SignMessage::sign_message` + `eq`, or `VerifySignature::verify_signature`. Use `common_utils::crypto::{HmacSha256, HmacSha512, Md5, Sha256}`.
 
-Reference: `crates/integrations/connector-integration/src/connectors/bluesnap.rs:216-267` (HMAC-SHA256 timestamp-prefixed body, hex header).
+Reference: `crates/integrations/connector-integration/src/connectors/bluesnap.rs:121-267` (HMAC-SHA256 timestamp-prefixed body, hex header).
 
 ### Family 2 — Out-of-band (`ConnectorIntegrationV2<VerifyWebhookSource, ...>`)
 
-Required when the connector performs verification via its own API (cert-chain, JWKS fetch, or proprietary crypto). Two connectors use this: PayPal (`paypal.rs:1482-1597`) and Truelayer (`truelayer.rs:878-989`).
+Required when the connector performs verification via its own API (cert-chain, JWKS fetch, or proprietary crypto). Two connectors use this: PayPal (`paypal.rs:1440-1500`) and Truelayer (`truelayer.rs:878-989`).
 
 Integration requirements:
 
 1. Implement `ConnectorIntegrationV2<VerifyWebhookSource, VerifyWebhookSourceFlowData, VerifyWebhookSourceRequestData, VerifyWebhookSourceResponseData>` with real `get_url`, `get_headers`, `get_request_body`, `handle_response_v2`, `get_error_response_v2`.
 2. Implement `connector_types::VerifyWebhookSourceV2` as the marker-only trait (no methods).
-3. Add the connector to the *external-verification* config set so that `requires_external_webhook_verification` returns `true` (`crates/types-traits/interfaces/src/connector_types.rs:139-151`).
+3. Add the connector to the *external-verification* config set so that `requires_external_webhook_verification` returns `true` (`crates/types-traits/interfaces/src/connector_types.rs:260-272`).
 4. Remove the connector from the `default_impl_verify_webhook_source_v2!` macro list to avoid duplicate impls (`default_implementations.rs:50-127`; PayPal is explicitly absent per the comment at `:128`).
 5. Provide a `TryFrom<&VerifyWebhookSourceRequestData>` for the connector's verification-request struct (`paypal/transformers.rs:3195-3252`).
 6. Provide a `TryFrom<ResponseRouterData<ConnectorVerifyResponse, Self>>` that sets `response: Ok(VerifyWebhookSourceResponseData { verify_webhook_status })` (`paypal/transformers.rs:3263-3283`, `truelayer/transformers.rs:1229-1328`).
@@ -271,11 +271,11 @@ Integration requirements:
 File: `crates/integrations/connector-integration/src/connectors/paypal.rs:1482-1597`; transformers at `crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:3154-3283`.
 
 - `get_url` always returns `{base_url}v1/notifications/verify-webhook-signature` (`paypal.rs:1499-1505`).
-- `get_headers` overrides the normal bearer-token auth with **Basic auth** (`paypal.rs:1516-1532`). This is the one PayPal endpoint that demands `client_id:client_secret`, not an access token.
+- `get_headers` overrides the normal bearer-token auth with **Basic auth** (`paypal.rs:1463`). This is the one PayPal endpoint that demands `client_id:client_secret`, not an access token.
 - Header normalization is critical: incoming webhook headers are lowercased at `paypal/transformers.rs:3185-3192` before key lookup, because PayPal transmission headers are documented in lowercase (`paypal-transmission-id`, etc. at `:3019-3026`).
 - `webhook_event` is re-serialized to JSON with preserved field order (`preserve_order` feature → `IndexMap`, see comment at `paypal/transformers.rs:3198-3199`). Reordering would break signature verification on PayPal's side.
 - The stored `merchant_secret.secret` is the **webhook id**, not a shared key; it is UTF-8-decoded at `paypal/transformers.rs:3244-3248` and echoed back to PayPal.
-- Response mapping: `SUCCESS → SourceVerified`, `FAILURE → SourceNotVerified` (`paypal/transformers.rs:3254-3261`).
+- Response mapping: `SUCCESS → SourceVerified`, `FAILURE → SourceNotVerified` (`paypal/transformers.rs:3902-3910`).
 
 ### Truelayer (out-of-band, detached JWS)
 
@@ -364,12 +364,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 ### Example 2 — PayPal request-builder transformer (header extraction)
 
 ```rust
-// From crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:3194
+// From crates/integrations/connector-integration/src/connectors/paypal/transformers.rs:3841
 impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationRequest {
     type Error = Report<IntegrationError>;
     fn try_from(req: &VerifyWebhookSourceRequestData) -> Result<Self, Self::Error> {
+        // `NotImplemented` is a TUPLE variant with TWO fields —
+        // `NotImplemented(String, IntegrationErrorContext)` (domain_types/src/errors.rs:171).
+        // The `IntegrationError::not_implemented` helper (errors.rs:248) also takes the
+        // context explicitly; there is no one-argument form.
         let webhook_event = serde_json::from_slice(&req.webhook_body)
-            .change_context(IntegrationError::not_implemented("webhook body decoding failed".to_string()))?;
+            .change_context(IntegrationError::NotImplemented(
+                "webhook body decoding failed".to_string(),
+                Default::default(),
+            ))
+            .attach_printable("Webhook body is not valid JSON")?;
         let headers = webhook_headers_lowercase(&req.webhook_headers);
         Ok(Self {
             transmission_id: headers
@@ -411,7 +419,7 @@ fn get_url(&self, req: &RouterDataV2<VerifyWebhookSource, …>) -> CustomResult<
 ### Example 4 — Bluesnap in-band HMAC-SHA256 (canonical shape)
 
 ```rust
-// From crates/integrations/connector-integration/src/connectors/bluesnap.rs:216
+// From crates/integrations/connector-integration/src/connectors/bluesnap.rs:121
 fn verify_webhook_source(
     &self,
     request: RequestDetails,
@@ -434,7 +442,7 @@ fn verify_webhook_source(
 ### Example 5 — Out-of-band router-data construction (grpc-server)
 
 ```rust
-// From crates/grpc-server/grpc-server/src/server/events.rs:167
+// From crates/grpc-server/grpc-server/src/server/events.rs:985
 async fn verify_webhook_source_external(
     config: &Config,
     connector_data: &ConnectorData<DefaultPCIHolder>,
@@ -479,14 +487,14 @@ Ordered steps for implementing `VerifyWebhookSource` for a new connector.
 1. **Decide which family.** If the connector publishes an HMAC/SHA/MD5 algorithm + shared secret + header, you want Family 1 (in-band). If it requires fetching a JWKS or posting to a verification endpoint, you want Family 2 (out-of-band).
 2. **Add the connector to `default_impl_verify_webhook_source_v2!`** if Family 1 (`default_implementations.rs:50-127`). This provides the empty `ConnectorIntegrationV2` impl you still need for trait-object dispatch. Skip this step for Family 2 — write your own impl and keep the connector out of the macro list.
 3. **Implement `IncomingWebhook::verify_webhook_source`** (Family 1) in `src/connectors/<connector>.rs`. Return `Ok(true)` when signature matches, `Ok(false)` when it does not. Use `report!(WebhookError::WebhookVerificationSecretNotFound)` when `connector_webhook_secret` is `None` **only if** the connector actually requires a secret. Compare by equality of `Vec<u8>`, never by string comparison of hex.
-4. **Implement `get_webhook_source_verification_signature`** to extract + decode the signature. Most connectors hex-decode a header (`bluesnap.rs:246-251`); some read a JSON body field (Trustpay pattern in `pattern_IncomingWebhook_flow.md` §Pattern 3). Return `WebhookError::WebhookSignatureNotFound` if the header/field is absent.
+4. **Implement `get_webhook_source_verification_signature`** to extract + decode the signature. Most connectors hex-decode a header (`bluesnap.rs:144`); some read a JSON body field (Trustpay pattern in `pattern_IncomingWebhook_flow.md` §Pattern 3). Return `WebhookError::WebhookSignatureNotFound` if the header/field is absent.
 5. **Implement `get_webhook_source_verification_message`** to build the canonical message bytes the connector signed. This is where most bugs hide — match the connector's documentation byte-for-byte (line endings, delimiters, URL-encoded field values). For Family 2, this step is irrelevant: the connector does the math.
 6. **Choose the algorithm.** Import from `common_utils::crypto`: `HmacSha256`, `HmacSha512`, `Sha256` (plain), or `Md5`. Prefer HMAC over plain digest. For new integrations **do not** choose MD5.
 7. **(Family 2 only) Implement `ConnectorIntegrationV2<VerifyWebhookSource, …>`** with `get_url`, `get_headers`, `get_request_body`, `handle_response_v2`. `get_http_method` defaults to POST; override to GET for JWKS fetch (see `truelayer.rs:886-888`).
 8. **(Family 2 only) Implement `TryFrom<&VerifyWebhookSourceRequestData> for <Connector>VerificationRequest`** (`paypal/transformers.rs:3195`), and `TryFrom<ResponseRouterData<<Connector>VerificationResponse, Self>>` that maps to `VerifyWebhookSourceResponseData { verify_webhook_status: … }` (`paypal/transformers.rs:3263`).
 9. **(Family 2 only) Register the connector** in `config.webhook_source_verification_call.connectors_with_webhook_source_verification_call`. Without this, the gRPC path at `events.rs:111` takes the in-band branch and your out-of-band impl is never invoked.
 10. **Implement `connector_types::VerifyWebhookSourceV2`** as a marker impl for Family 2 connectors (`paypal.rs:1599-1601`, `truelayer.rs:873-876`). Family 1 connectors get this for free via the default-impl macro.
-11. **Wire the rest of IncomingWebhook.** Even for Family 2, you still implement `get_event_type`, `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook` from `IncomingWebhook` — the verification flow runs *before* those (`events.rs:143-149`). See `pattern_IncomingWebhook_flow.md` for the non-verification pieces.
+11. **Wire the rest of IncomingWebhook.** Even for Family 2, you still implement `get_event_type`, `process_payment_webhook`, `process_refund_webhook`, `process_dispute_webhook` from `IncomingWebhook` — the verification flow runs *before* those (`events.rs:242`). See `pattern_IncomingWebhook_flow.md` for the non-verification pieces.
 12. **Document the signature scheme** inline with a `// Scheme: HMAC-SHA256 over `{timestamp}{body}`, header `bls-signature`, hex-encoded` comment directly above the impl.
 
 ## Best Practices
@@ -495,7 +503,7 @@ Ordered steps for implementing `VerifyWebhookSource` for a new connector.
 - **Lowercase header lookups for HTTP header names.** HTTP headers are case-insensitive per RFC 7230; PayPal's `webhook_headers_lowercase` at `paypal/transformers.rs:3185-3192` is the reference pattern. Bluesnap's `.get("bls-signature")` only works because the gRPC intake normalizes keys upstream.
 - **Decode signatures before byte comparison.** `hex::decode` (Bluesnap at `bluesnap.rs:251`) or `base64` (Adyen converts in the reverse direction at `adyen.rs:796-804`). Never compare hex strings directly: different casing will falsely fail.
 - **Use `verify_signature` when available.** `common_utils::crypto::VerifySignature::verify_signature` implements constant-time comparison. Explicit `.eq(&signature)` after `sign_message` is acceptable for `Vec<u8>`-of-equal-length since the built-in `PartialEq` short-circuits but is typically acceptable given the inputs are already same-length digests. Prefer `verify_signature` unless you need to log the computed signature (see Adyen at `adyen.rs:791-804` for a case where logging required `sign_message`).
-- **Reject missing webhook secret with a real error for Family 2**, but consider `Ok(false)` for Family 1 connectors that log-and-continue (Novalnet pattern at `novalnet.rs:694-700`). The trait's default `Ok(false)` is explicitly designed to be non-fatal (`connector_types.rs:381`).
+- **Reject missing webhook secret with a real error for Family 2**, but consider `Ok(false)` for Family 1 connectors that log-and-continue (Novalnet pattern at `novalnet.rs:694-700`). The trait's default `Ok(false)` is explicitly designed to be non-fatal (`connector_types.rs:587`).
 - **Keep the out-of-band list short.** Only PayPal is on the external list at the pinned SHA. Every new entry adds an HTTP round-trip to *every* webhook; prefer in-band where possible.
 - **Allow-list JKU-style URLs.** When fetching keys from a connector-controlled URL, validate it against a fixed allow-list (`truelayer::ALLOWED_JKUS` at `truelayer/transformers.rs:1090`) to prevent SSRF/key-substitution.
 - **Normalize but preserve order for JSON-signed payloads.** PayPal's `preserve_order` serde feature at `paypal/transformers.rs:3198-3199` is load-bearing: reordering JSON keys breaks PayPal's cert-based verification.
@@ -513,7 +521,7 @@ Ordered steps for implementing `VerifyWebhookSource` for a new connector.
 
 3. **PayPal Basic Auth vs. Bearer Token mix-up.**
    - **Problem**: PayPal's standard API uses OAuth Bearer tokens, but the webhook-verification endpoint requires Basic Auth with `client_id:client_secret`. Using the default header builder produces a 401.
-   - **Solution**: Override `get_headers` for the `VerifyWebhookSource` impl only (`paypal.rs:1516-1532`); do not touch the headers used by other flows.
+   - **Solution**: Override `get_headers` for the `VerifyWebhookSource` impl only (`paypal.rs:1463`); do not touch the headers used by other flows.
 
 4. **Truelayer JKU attacker-choice.**
    - **Problem**: A malicious sender could craft a `tl-signature` whose `jku` points at an attacker-controlled JWKS, fooling the connector into verifying against attacker-chosen keys.
@@ -537,7 +545,7 @@ Ordered steps for implementing `VerifyWebhookSource` for a new connector.
 
 9. **Hardcoded `true`/`false` in `verify_webhook_source`.**
    - **Problem**: Returning `Ok(true)` unconditionally defeats the purpose of verification; returning `Ok(false)` unconditionally makes every valid webhook silently drop to the PSync fallback.
-   - **Solution**: Always compute the real signature comparison. If the connector has no webhook-signing mechanism, leave the trait default (`connector_types.rs:381`: `Ok(false)`) and rely on PSync fallback rather than faking a verification.
+   - **Solution**: Always compute the real signature comparison. If the connector has no webhook-signing mechanism, leave the trait default (`connector_types.rs:587`: `Ok(false)`) and rely on PSync fallback rather than faking a verification.
 
 10. **Cloning the response-router-data mutates the flow-data.**
     - **Problem**: In `handle_response_v2`, replacing `response` on a `data.clone()` loses any mutations to `resource_common_data` performed upstream.

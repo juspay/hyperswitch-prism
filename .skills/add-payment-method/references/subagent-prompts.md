@@ -89,9 +89,35 @@ Instructions:
 
 4. Handle unsupported variants:
    - Never use catch-all _ silently
-   - Return IntegrationError::NotImplemented with specific message including connector name
+   - Return IntegrationError::NotImplemented with a specific message including the connector
+     name. It is a TUPLE variant with two elements —
+     NotImplemented(String, IntegrationErrorContext) — so the shape is
+       Err(errors::IntegrationError::NotImplemented(
+           utils::get_unimplemented_payment_method_error_message("ConnectorName"),
+           Default::default(),
+       ).into())
+     get_unimplemented_payment_method_error_message takes ONE argument.
+   - Most other IntegrationError variants are struct variants that also require a
+     `context` field, e.g. MissingRequiredField { field_name, context },
+     NotSupported { message, connector, context }, InvalidDataFormat { field_name, context }.
+     IntegrationError has NO InvalidRequestData variant (that one belongs to
+     ApiErrorResponse) and no InvalidData / InvalidCard.
 
 5. Validate required fields with missing_field_err.
+
+5a. If this PM needs its own response shape, remember
+    PaymentsResponseData::TransactionResponse is an enum struct-variant with 11 fields and
+    no functional-update syntax — list them all (resource_id, redirection_data,
+    connector_metadata, mandate_reference, network_txn_id, network_txn_link_id,
+    connector_response_reference_id, incremental_authorization_allowed, splits, status_code,
+    payment_account_reference). redirection_data is Option<Box<RedirectForm>> and
+    mandate_reference is Option<Box<MandateReference>>. Read the current definition in
+    crates/types-traits/domain_types/src/connector_types.rs before writing the literal.
+
+5b. Any new connector status enum gets #[serde(other)] Unknown at the deserialization layer,
+    and its status-mapping match stays exhaustive over named variants (no `_ =>` there).
+    Amount unit comes from the vendor spec: MinorUnit | StringMinorUnit | StringMajorUnit |
+    FloatMajorUnit | StringTwoDecimalUnit (crates/common/common_utils/src/types.rs).
 
 6. If Refund/Capture flows have payment_method_data match blocks, add arms there too.
 
@@ -172,13 +198,19 @@ Transformers: crates/integrations/connector-integration/src/connectors/{connecto
 
 Checks:
 1. Each supported payment method has its own explicit match arm
-2. Unsupported variants return IntegrationError::NotImplemented with connector name
+2. Unsupported variants return IntegrationError::NotImplemented(msg, context) with the
+   connector name in msg
 3. No catch-all _ silently drops payment methods without error
 4. Required fields validated with missing_field_err or ok_or_else
 5. Box-wrapped types (BankTransferData, GiftCardData) properly dereferenced with .deref()
 6. No unwrap() calls
-7. Naming and formatting consistent with existing code
-8. cargo build --package connector-integration passes
+7. Any new wire status enum has #[serde(other)] Unknown, and its status-mapping match has no
+   catch-all `_ =>`
+8. Any TransactionResponse / RefundsResponseData literal added for this PM lists every field
+9. Error code/message fallbacks use NO_ERROR_CODE / NO_ERROR_MESSAGE
+   (crates/common/common_utils/src/consts.rs), never .unwrap_or_default()
+10. Naming and formatting consistent with existing code
+11. cargo build --package connector-integration passes
 
 Output:
   CONNECTOR: {ConnectorName}

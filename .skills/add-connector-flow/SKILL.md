@@ -31,24 +31,38 @@ code, run tests, or review quality yourself. Spawn subagents and coordinate thei
 Flows must be implemented in dependency order. A flow cannot be added unless its
 prerequisites already exist or are also being added in the same batch.
 
-| Flow | Prerequisites |
-|------|--------------|
-| Authorize | None (foundation) |
-| PSync | Authorize |
-| Capture | Authorize |
-| Void | Authorize |
-| Refund | Authorize |
-| RSync | Refund |
-| SetupMandate | Authorize |
-| RepeatPayment | SetupMandate |
-| IncomingWebhook | PSync |
-| CreateAccessToken | None |
-| CreateOrder | None |
-| CreateConnectorCustomer | None |
-| PaymentMethodToken | Authorize |
-| AcceptDispute | None |
-| SubmitEvidence | None |
-| DefendDispute | None |
+Names in the **Flow** column are the marker structs in
+`crates/types-traits/domain_types/src/connector_flow.rs` -- the same spelling the
+macros take. Check any name you are unsure of with
+`rg -w <Name> crates/types-traits/domain_types/src/connector_flow.rs`.
+
+| Flow | Prerequisites | Why |
+|------|--------------|-----|
+| Authorize | none | Foundation. |
+| PSync | Authorize | `PaymentService_Get/suite_spec.json` threads Authorize's `connector_transaction_id` into the sync request. |
+| Capture | Authorize, under **manual** capture | `PaymentService_Capture/suite_spec.json` depends on Authorize scenario `no3ds_manual_capture_credit_card`. |
+| Void | Authorize, under **manual** capture | Void cancels an *uncaptured* authorization, so the payment must not have been captured. Suite depends on `no3ds_manual_capture_credit_card`. |
+| Refund | Authorize. **Capture too, but only if the connector is on manual capture** | Code-level the prerequisite is Authorize: `RefundsData.connector_transaction_id` is a non-`Option` String holding the *Authorize* id, and checkout/razorpay/cybersource/adyen all build `payments/{connector_transaction_id}/refunds`. Semantically the payment must be *captured*, which auto-capture Authorize satisfies alone. Do not write a flat "Refund needs Capture". |
+| RSync | Refund | `RefundService_Get/suite_spec.json` maps `res.connector_refund_id` from the Refund suite. |
+| VoidPC | Authorize + Capture | Reverses an already-captured payment; `PaymentService_Reverse/suite_spec.json` is the only suite that names Capture. |
+| SetupMandate | none (`CreateConnectorCustomer` in practice) | **Not Authorize.** `PaymentService_SetupRecurring/suite_spec.json` depends only on the token + `CustomerService/Create` suites. SetupMandate is a zero/low-amount card-on-file setup, a sibling of Authorize. |
+| RepeatPayment | SetupMandate | Consumes the `connector_mandate_id` SetupMandate returns. |
+| MandateRevoke | SetupMandate | `RecurringPaymentService_Revoke/suite_spec.json` depends on `PaymentService/SetupRecurring`. |
+| IncrementalAuthorization | Authorize, under **manual** capture | Suite depends on Authorize scenario `no3ds_manual_capture_incremental_auth`. |
+| IncomingWebhook | none proven | `EventService_HandleEvent/suite_spec.json` `depends_on` is `[]`. In practice add it after Authorize, since a webhook reports status for a payment that already exists. `IncomingWebhook` is a plain trait, not a `ConnectorIntegrationV2` flow, so nothing forces an order at compile time. |
+| ServerAuthenticationToken | none | `depends_on` is `[]`. Gated by `should_do_access_token`, independent of the session-token gate. |
+| ServerSessionAuthenticationToken | none | `depends_on` is `[]`. Gated by `should_do_session_token`; the connectors overriding it and those overriding `should_do_access_token` are disjoint sets. |
+| ClientAuthenticationToken | none | `depends_on` is `[]`. |
+| CreateOrder | none | `PaymentService_CreateOrder/suite_spec.json` `depends_on` is `[]`. |
+| CreateConnectorCustomer | none | `CustomerService_Create/suite_spec.json` `depends_on` is `[]`. |
+| PaymentMethodToken | CreateConnectorCustomer | **Not Authorize -- the arrow points the other way.** `PaymentMethodService_Tokenize/suite_spec.json` depends on `CustomerService/Create`; Capture/Get/Refund/Void all list Tokenize as *their* dependency, and `PaymentMethodTokenizationData` has no `connector_transaction_id` field to consume. |
+| Accept (`FlowName::AcceptDispute`) | none (unproven) | No dispute suite_spec exists; inferred from the request type, which carries a dispute id, not a payment id. |
+| SubmitEvidence | none (unproven) | Same -- no dispute suite_spec. |
+| DefendDispute | none (unproven) | Same -- no dispute suite_spec. |
+
+Rows marked *(unproven)* have no `suite_spec.json` under
+`crates/internal/integration-tests/src/global_suites/`; they are inferred from request
+type shape and rpc placement. Do not harden them into rules.
 
 Full dependency graph and resolution algorithm: `references/flow-dependencies.md`
 
@@ -61,7 +75,32 @@ Include in every subagent prompt:
 - NEVER hardcode status values -- always map via `From`/`TryFrom`
 - Use macros for all flows. Every flow in BOTH `create_all_prerequisites!` and `macro_connector_implementation!`
 - `generic_type: T` always present in `macro_connector_implementation!` for ALL flows
-- Auth via `req.connector_config` (NOT `connector_auth_type`)
+- The flow you are adding is currently stubbed by `macro_connector_flow_status_impls!`.
+  Remove its marker name from that macro's `not_implemented: [...]` list **before** writing
+  anything else -- see Step 2 below
+- Auth via `req.connector_config` (NOT `connector_auth_type`, deleted from `RouterDataV2`).
+  Real signature at `crates/types-traits/interfaces/src/api.rs:25`; copy the idiom from
+  `connectors/travelhub.rs`
+- `build_error_response` takes THREE parameters (`res`, `Option<&mut events::Event>`,
+  `&ConnectorSpecificConfig`) -- `interfaces/src/api.rs:50`. Same third parameter on
+  `get_error_response_v2` and `get_5xx_error_response`. There is no `ConnectorEvent` type
+  and no `set_error_response_body` method
+- `ConnectorError` has exactly FIVE variants (`domain_types/src/errors.rs:371`), all
+  requiring a `context` field: `ResponseDeserializationFailed`, `ResponseHandlingFailed`,
+  `UnexpectedResponseError`, `IntegrityCheckFailed`, `ConnectorErrorResponse`. Request-side
+  failures use `IntegrationError` instead
+- `ErrorResponse` implements `Default`, so use `..Default::default()`. `attempt_status` is
+  `Option<FlowStatus>`, not `Option<AttemptStatus>` -- and must not be forced terminal on
+  the shared error path (`connectors/flywire.rs:362-370`)
+- `PaymentsResponseData::TransactionResponse` (11 fields) / `RefundsResponseData` (4 fields)
+  have no functional-update shortcut -- list every field or get E0063
+- `#[serde(other)] Unknown` on the wire status enum; no catch-all `_ =>` in the
+  status-mapping match. Both halves, always
+- Error code/message fallbacks: `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` from
+  `crates/common/common_utils/src/consts.rs`, never `.unwrap_or_default()`
+- Amount unit comes from the vendor spec, not a default. Five types in
+  `crates/common/common_utils/src/types.rs`: `MinorUnit`, `StringMinorUnit`,
+  `StringMajorUnit`, `FloatMajorUnit`, `StringTwoDecimalUnit`
 - No `unwrap()`, no None-hardcoded fields
 
 ---
@@ -111,11 +150,25 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 **Each flow subagent does:**
 1. Reads tech spec for this flow's endpoint
 2. Reads `references/flow-patterns/{flow}.md`
-3. Adds flow to `create_all_prerequisites!`
-4. Adds `macro_connector_implementation!` block
-5. Creates transformer types + TryFrom impls
-6. Adds trait marker implementation
-7. Runs `cargo build --package connector-integration`
+3. **Removes the flow's marker name from `not_implemented: [...]` in the
+   `macro_connector_flow_status_impls!` invocation.** That macro
+   (`connectors/macros.rs` ~:1827) emits BOTH the marker-trait impl and a stub
+   `ConnectorIntegrationV2` impl for every flow it names, so leaving the name in place
+   while adding your own is a double **E0119**. Real invocation to copy:
+   `connectors/travelhub.rs:455`. Its argument keys are `connector:`, `generic_type:`,
+   `[<trait bounds>]`, `not_implemented: [...]`, `not_supported: [...]` (either list may be
+   omitted). Skip this step for `IncomingWebhook`: it is a plain trait, not a
+   `ConnectorIntegrationV2` flow, so it never appears in that macro
+4. Adds flow to `create_all_prerequisites!`
+5. Adds `macro_connector_implementation!` block
+6. Creates transformer types + TryFrom impls
+7. Adds the trait marker implementation, now freed by step 3 (table below)
+8. Runs `cargo build --package connector-integration`
+
+Two sibling macros in the same file, for the cases where the standard pair does not fit:
+`macro_connector_local_flow_implementation!` (~:2425) for flows with no outbound HTTP call,
+and `macro_connector_payout_implementation!` (~:1448) for payout stubs. Read each macro's
+first matcher arm before inventing argument keys.
 
 **Flow type quick reference** (full table in `references/flow-implementation-guide.md`):
 
@@ -128,27 +181,85 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 | Refund | RefundFlowData | RefundsData | RefundsResponseData | No |
 | RSync | RefundFlowData | RefundSyncData | RefundsResponseData | No |
 
-**Trait marker names** (not uniform -- use exact names):
+**Trait marker names** (not uniform -- use exact names). The **Flow** column is the
+marker struct from `connector_flow.rs` (what the macros take); the **Trait** column is
+the trait declared in `crates/types-traits/interfaces/src/connector_types.rs`:
 
-| Flow | Trait |
+| Flow (marker) | Trait |
 |------|-------|
 | Authorize | `PaymentAuthorizeV2<T>` |
 | PSync | `PaymentSyncV2` |
 | Capture | `PaymentCapture` |
 | Void | `PaymentVoidV2` |
+| VoidPC | `PaymentVoidPostCaptureV2` |
 | Refund | `RefundV2` |
 | RSync | `RefundSyncV2` |
 | SetupMandate | `SetupMandateV2<T>` |
 | RepeatPayment | `RepeatPaymentV2<T>` |
+| MandateRevoke | `MandateRevokeV2` |
 | PaymentMethodToken | `PaymentTokenV2<T>` |
-| CreateAccessToken | `PaymentAccessToken` |
+| ServerAuthenticationToken | `ServerAuthentication` |
+| ServerSessionAuthenticationToken | `ServerSessionAuthentication` |
+| ClientAuthenticationToken | `ClientAuthentication` |
 | CreateOrder | `PaymentOrderCreate` |
-| CreateSessionToken | `PaymentSessionToken` |
 | CreateConnectorCustomer | `CreateConnectorCustomer` |
 | IncomingWebhook | `IncomingWebhook` + `SourceVerification` + `BodyDecoding` |
-| AcceptDispute | `AcceptDispute` |
+| Accept | `AcceptDispute` |
 | SubmitEvidence | `SubmitEvidenceV2` |
 | DefendDispute | `DisputeDefend` |
+
+Traps in that table, all of them real and all of them costly to rediscover:
+
+- The dispute-accept marker is `Accept`; `AcceptDispute` is the *trait* (and separately a
+  `FlowName` variant). They are not interchangeable.
+- `IncomingWebhook` is both a `FlowName` variant and a trait name, but there is **no**
+  `IncomingWebhook` marker struct -- it is not a `ConnectorIntegrationV2` flow.
+  `SourceVerification` lives in `interfaces/src/verification.rs`, `BodyDecoding` in
+  `interfaces/src/decode.rs`; only `IncomingWebhook` is in `connector_types.rs`.
+- The three token flows take **`MerchantAuthenticationFlowData`**, not `PaymentFlowData`,
+  as their `ConnectorIntegrationV2` ResourceCommonData -- e.g.
+  `ConnectorIntegrationV2<connector_flow::ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>`.
+- There is no `CreateAccessToken`, `CreateSessionToken`, `PaymentAccessToken`,
+  `PaymentSessionToken`, `AccessTokenRequestData` or `AccessTokenResponseData` anywhere in
+  `crates/`. `AccessToken` alone *is* real, but it is a proto value object
+  (`message AccessToken` in `proto/payment.proto`), not a flow.
+
+### IncomingWebhook method signatures
+
+Copy these verbatim from `crates/types-traits/interfaces/src/connector_types.rs`; the
+arities are the thing people get wrong (**E0061**).
+
+```rust
+// ONE argument besides &self.
+fn get_event_type(
+    &self,
+    _request: RequestDetails,
+) -> Result<EventType, error_stack::Report<WebhookError>>;
+
+// FOUR arguments besides &self.
+fn process_payment_webhook(
+    &self,
+    _request: RequestDetails,
+    _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+    _connector_account_details: Option<ConnectorSpecificConfig>,
+    _event_context: Option<domain_types::connector_types::EventContext>,
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>>;
+
+fn get_webhook_event_reference(
+    &self,
+    _request: RequestDetails,
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>>;
+
+fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck>;
+```
+
+The error type is `WebhookError`, not `IntegrationError`. There is no
+`transformation_status` field and no `WebhookTransformationStatus` type anywhere in
+`crates/` -- referencing either is **E0560**.
+
+`SourceVerification` and `BodyDecoding` are NON-generic traits: exactly ONE impl per
+connector, never one per flow. `impl<T> SourceVerification<Flow, Data, Req, Resp> for X<T>`
+is **E0107**. Exemplar: `connectors/travelhub.rs:175-183`.
 
 ---
 
@@ -179,6 +290,19 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 | RSync | `types.RefundService/Get` |
 | SetupMandate | `types.PaymentService/SetupRecurring` |
 | RepeatPayment | `types.RecurringPaymentService/Charge` |
+| VoidPC | `types.PaymentService/Reverse` |
+| MandateRevoke | `types.RecurringPaymentService/Revoke` |
+| CreateOrder | `types.PaymentService/CreateOrder` |
+| CreateConnectorCustomer | `types.CustomerService/Create` |
+| PaymentMethodToken | `types.PaymentMethodService/Tokenize` |
+| ServerAuthenticationToken | `types.MerchantAuthenticationService/CreateServerAuthenticationToken` |
+| ServerSessionAuthenticationToken | `types.MerchantAuthenticationService/CreateServerSessionAuthenticationToken` |
+| ClientAuthenticationToken | `types.MerchantAuthenticationService/CreateClientAuthenticationToken` |
+| IncomingWebhook | `types.EventService/HandleEvent` |
+
+The proto package is `types` for every service file except `health_check.proto`, whose
+`package` statement is `grpc.health.v1`. Read the `package` statement itself rather than
+any header comment. Never address an rpc as `ucs.v2.*` -- there is no such package.
 
 **Gate:** All new flows must pass before proceeding.
 
@@ -192,10 +316,15 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 
 **What it does:**
 1. Architecture compliance (no legacy types)
-2. Status mapping (no hardcoded statuses)
-3. Code quality (no unwrap, descriptive errors)
-4. Consistency with existing flows in this connector
-5. Final `cargo build`
+2. Status mapping: no hardcoded statuses outside match arms; `#[serde(other)] Unknown` on the
+   wire enum AND no `_ =>` in the mapping match
+3. Code quality (no unwrap, descriptive errors, `NO_ERROR_CODE`/`NO_ERROR_MESSAGE` rather
+   than `.unwrap_or_default()`, no blanket terminal `attempt_status`)
+4. Macro completeness: the new flow is in both macros, its marker name is GONE from
+   `macro_connector_flow_status_impls!`'s `not_implemented` list, and its trait marker impl
+   appears exactly once (a duplicate is E0119)
+5. Consistency with existing flows in this connector
+6. Final `cargo build`
 
 ---
 
@@ -203,12 +332,20 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 
 | Category | Flows |
 |----------|-------|
-| Core | Authorize, PSync, Capture, Void, Refund, RSync |
-| Pre-Auth | CreateAccessToken, CreateOrder, CreateConnectorCustomer, PaymentMethodToken, CreateSessionToken |
+| Core | Authorize, PSync, Capture, Void, VoidPC, Refund, RSync |
+| Pre-Auth | ServerAuthenticationToken, ServerSessionAuthenticationToken, ClientAuthenticationToken, CreateOrder, CreateConnectorCustomer, PaymentMethodToken |
 | Mandate/Recurring | SetupMandate, RepeatPayment, MandateRevoke |
-| Dispute | AcceptDispute, SubmitEvidence, DefendDispute |
+| Dispute | Accept, SubmitEvidence, DefendDispute |
 | Webhook | IncomingWebhook (requires SourceVerification + BodyDecoding traits) |
 | Auth | PreAuthenticate, Authenticate, PostAuthenticate |
+
+The authoritative catalog is the 48 `pub struct` markers in
+`crates/types-traits/domain_types/src/connector_flow.rs`; this table is the subset this
+skill has patterns for. `connector_flow.rs` also defines a `FlowName` enum whose variant
+set is *not* identical to the marker set -- `IncomingWebhook` and `Dsync` (one capital)
+have no marker, while `Accept`, `PSync`, `RSync`, `VoidPC` and `VerifyWebhookSource` have
+no identically-spelled `FlowName` variant (`FlowName` spells the first four
+`AcceptDispute`, `Psync`, `Rsync`, `VoidPc`). The macros take the marker spelling.
 
 ---
 
@@ -217,9 +354,9 @@ Implement each flow in the resolved order from Step 1. **Spawn one subagent per 
 | Path | Contents |
 |------|----------|
 | `references/subagent-prompts.md` | Full prompts for all 4 subagents |
-| `references/flow-implementation-guide.md` | 3-part procedure, type table (17 flows), per-flow subagent prompt |
+| `references/flow-implementation-guide.md` | 3-part procedure, flow type table, per-flow subagent prompt |
 | `references/grpc-testing-guide.md` | gRPC service map, grpcurl templates, test validation criteria |
-| `references/flow-dependencies.md` | Dependency graph and resolution algorithm |
+| `references/flow-dependencies.md` | Dependency graph, capture-model conditionals, resolution algorithm, existing-flow detection |
 | `references/macro-reference.md` | Both core macros, parameters, content types, generic rules |
 | `references/type-system.md` | Core imports, RouterDataV2, domain_types structure |
 | `references/quality-checklist.md` | Pre-submission quality gates |

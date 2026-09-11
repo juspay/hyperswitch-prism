@@ -194,34 +194,34 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Card | ✓ |
 | Bancontact | ⚠ |
 | Apple Pay | ✓ |
-| Apple Pay Dec | ? |
-| Apple Pay SDK | ✓ |
+| Apple Pay Dec | ✓ |
+| Apple Pay SDK | x |
 | Google Pay | ✓ |
-| Google Pay Dec | ? |
-| Google Pay SDK | ✓ |
-| PayPal SDK | ✓ |
-| Amazon Pay | ✓ |
-| Cash App | ✓ |
-| PayPal | ✓ |
-| WeChat Pay | ✓ |
-| Alipay | ✓ |
-| Revolut Pay | ✓ |
-| MiFinity | ✓ |
-| Bluecode | ✓ |
+| Google Pay Dec | ✓ |
+| Google Pay SDK | x |
+| PayPal SDK | x |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | x |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
 | Paze | ⚠ |
-| Samsung Pay | ✓ |
-| MB Way | ✓ |
-| Satispay | ✓ |
-| Wero | ✓ |
-| GoPay | ✓ |
-| GCash | ✓ |
-| Momo | ✓ |
-| Dana | ✓ |
-| Kakao Pay | ✓ |
-| Touch 'n Go | ✓ |
-| Twint | ✓ |
-| Vipps | ✓ |
-| Swish | ✓ |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| GoPay | x |
+| GCash | x |
+| Momo | x |
+| Dana | x |
+| Kakao Pay | x |
+| Touch 'n Go | x |
+| Twint | x |
+| Vipps | x |
+| Swish | x |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
 | Klarna | ⚠ |
@@ -344,36 +344,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
       "type": "debit"
     },
     "transaction_identifier": "probe_txn_id"
-  }
-}
-```
-
-##### PayPal Redirect
-
-```python
-"payment_method": {
-  "paypal_redirect": {
-    "email": "test@example.com"
-  }
-}
-```
-
-##### Samsung Pay
-
-```python
-"payment_method": {
-  "samsung_pay_sdk": {
-    "payment_credential": {
-      "method": "3DS",
-      "recurring_payment": false,
-      "card_brand": "VISA",
-      "card_last_four_digits": "1234",
-      "token_data": {
-        "type": "S",
-        "version": "100",
-        "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
-      }
-    }
   }
 }
 ```

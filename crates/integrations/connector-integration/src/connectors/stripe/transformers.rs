@@ -1056,6 +1056,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::Netbanking
             | common_enums::PaymentMethodType::Grabpay
             | common_enums::PaymentMethodType::Paymaya
+            | common_enums::PaymentMethodType::Payhere
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
@@ -1364,6 +1365,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
         | WalletData::PaymayaRedirect(_)
+        | WalletData::PayhereRedirect {}
         | WalletData::QwikcilverWalletDirect(_)
         | WalletData::Skrill(_)
         | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
@@ -1885,6 +1887,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::Skrill(_)
             | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(

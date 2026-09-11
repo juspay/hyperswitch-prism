@@ -928,6 +928,7 @@ pub enum WalletData {
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
     PaymayaRedirect(PaymayaRedirection),
+    PayhereRedirect {},
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.

@@ -173,6 +173,11 @@ pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
 macro_rules! expand_fn_get_request_body {
     ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ident, $response: ty) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 _req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -194,6 +199,11 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -225,6 +235,11 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -264,6 +279,11 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -309,6 +329,11 @@ macro_rules! expand_fn_get_request_body {
         $response: ty
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -344,6 +369,11 @@ macro_rules! expand_fn_get_request_body {
         preprocess_request
     ) => {
         paste::paste! {
+            #[cfg_attr(feature = "deja", tracing::instrument(
+                name = "connector::request_body",
+                skip_all,
+                fields(connector = stringify!($connector), flow = stringify!($flow))
+            ))]
             fn get_request_body(
                 &self,
                 req: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -398,6 +428,11 @@ pub(crate) use expand_fn_get_request_body;
 macro_rules! expand_fn_handle_response {
     // When preprocess_response is enabled - only for connectors that explicitly set it
     ($connector: ident, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty, preprocess_enabled) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::handle_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn handle_response_v2(
             &self,
             data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -446,6 +481,11 @@ macro_rules! expand_fn_handle_response {
 
     // When preprocess_response is disabled or default
     ($connector: ident, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty, $preprocess_flag:tt) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::handle_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn handle_response_v2(
             &self,
             data: &RouterDataV2<$flow, $resource_common_data, $request, $response>,
@@ -487,6 +527,7 @@ pub(crate) use expand_fn_handle_response;
 macro_rules! expand_default_functions {
     (
         function: get_headers,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -504,6 +545,7 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_content_type,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
@@ -515,11 +557,17 @@ macro_rules! expand_default_functions {
     };
     (
         function: get_error_response_v2,
+        connector:$connector: ident,
         flow_name:$flow: ident,
         resource_common_data:$resource_common_data: ty,
         flow_request:$request: ty,
         flow_response:$response: ty,
     ) => {
+        #[cfg_attr(feature = "deja", tracing::instrument(
+            name = "connector::error_response",
+            skip_all,
+            fields(connector = stringify!($connector), flow = stringify!($flow), http_status = res.status_code)
+        ))]
         fn get_error_response_v2(
             &self,
             res: Response,
@@ -568,6 +616,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -629,6 +678,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -688,6 +738,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -745,6 +796,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -804,6 +856,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -860,6 +913,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,
@@ -915,6 +969,7 @@ macro_rules! macro_connector_implementation {
             $(
                 macros::expand_default_functions!(
                     function: $function_name,
+                    connector:$connector,
                     flow_name:$flow,
                     resource_common_data:$resource_common_data,
                     flow_request:$request,

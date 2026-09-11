@@ -62,7 +62,9 @@ let auth_header = match payment_method_type {
         auth_type.username_classic, auth_type.password_classic),
     Some(PaymentMethodType::Evoucher) => construct_basic_auth(
         auth_type.username_evoucher, auth_type.password_evoucher),
-    _ => return Err(IntegrationError::MissingPaymentMethodType)?,
+    _ => return Err(IntegrationError::MissingPaymentMethodType {
+        context: Default::default(),
+    })?,
 };
 
 // Sub-type specific merchant ID

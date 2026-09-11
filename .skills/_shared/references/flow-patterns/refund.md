@@ -105,6 +105,9 @@ pub struct {ConnectorName}RefundResponse {
     pub currency: String,
     pub created: Option<i64>,
     pub reason: Option<String>,
+    /// Present only on in-band failures; drives the `Err(ErrorResponse)` branch below.
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 ```
 
@@ -181,24 +184,55 @@ Response received (200 OK)
 
 ### Standard Statuses
 
-```rust
-pub enum RefundStatus {
-    Pending,    // Refund initiated, processing
-    Success,    // Refund completed
-    Failure,    // Refund failed
-}
-```
+The target is `common_enums::RefundStatus` -- do not declare a local enum with that name.
+Its variants include `Pending`, `Success`, `Failure`, `TransactionFailure`, `ManualReview`
+and `Unknown`; `Pending` is the `Default`.
 
 ### Example Mappings
 
+Deserialize into a connector-specific enum with a `#[serde(other)]` catch-all, then map it
+**exhaustively**. Matching on a raw `&str` forces a catch-all `_ =>` at the status-mapping
+layer, which is exactly the pattern reviewers reject: it hides new vendor statuses from the
+compiler. Both halves are required.
+
 ```rust
-// Generic pattern -- adapt status strings per connector
-let refund_status = match item.response.status.as_str() {
-    "pending" | "processing" | "initiated" => RefundStatus::Pending,
-    "completed" | "success" | "succeeded" => RefundStatus::Success,
-    "failed" | "declined" | "refused" => RefundStatus::Failure,
-    _ => RefundStatus::Pending, // Default to pending for unknown statuses
-};
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]   // adjust per connector API
+pub enum {ConnectorName}RefundStatus {
+    Pending,
+    Processing,
+    Initiated,
+    Completed,
+    Succeeded,
+    Failed,
+    Declined,
+    Refused,
+    /// Deserialization-layer catch-all: an unrecognised status string lands here instead of
+    /// failing the response parse.
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<{ConnectorName}RefundStatus> for common_enums::RefundStatus {
+    fn from(status: {ConnectorName}RefundStatus) -> Self {
+        // Exhaustive -- no `_ =>` arm.
+        match status {
+            {ConnectorName}RefundStatus::Pending
+            | {ConnectorName}RefundStatus::Processing
+            | {ConnectorName}RefundStatus::Initiated => Self::Pending,
+
+            {ConnectorName}RefundStatus::Completed
+            | {ConnectorName}RefundStatus::Succeeded => Self::Success,
+
+            {ConnectorName}RefundStatus::Failed
+            | {ConnectorName}RefundStatus::Declined
+            | {ConnectorName}RefundStatus::Refused => Self::Failure,
+
+            // Non-terminal: an unrecognised status is not proof the refund failed.
+            {ConnectorName}RefundStatus::Unknown => Self::Pending,
+        }
+    }
+}
 ```
 
 ### Response TryFrom Implementation
@@ -212,18 +246,68 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refu
     fn try_from(
         item: ResponseRouterData<...>,
     ) -> Result<Self, Self::Error> {
-        let refund_status = map_connector_refund_status(&item.response.status);
+        let refund_status =
+            common_enums::RefundStatus::from(item.response.status.clone());
+
+        // In-band failure: a 2xx body carrying a declined/failed refund status is still a
+        // failure and must come back as `Err(ErrorResponse { .. })`, not an `Ok` with a
+        // Failure status. Branch on the status the connector reported.
+        if matches!(refund_status, common_enums::RefundStatus::Failure) {
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    // Never `.unwrap_or_default()`: an empty code reaches the merchant blank.
+                    code: item
+                        .response
+                        .error_code
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                    message: item
+                        .response
+                        .error_message
+                        .clone()
+                        .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                    reason: item.response.error_message.clone(),
+                    status_code: item.http_code,
+                    // Refund flow -> `FlowStatus::Refund(..)`, carrying the status this
+                    // response actually proves. Never `FlowStatus::Payment(..)` here, never a
+                    // hardcoded terminal Failure on a shared path, and never a blanket `None`
+                    // (a hard-declined refund left Pending keeps retrying forever).
+                    // Exemplars: `connectors/flywire.rs`, `connectors/travelhub.rs`.
+                    attempt_status: Some(FlowStatus::Refund(refund_status)),
+                    connector_transaction_id: Some(
+                        item.router_data.request.connector_transaction_id.clone(),
+                    ),
+                    // `ErrorResponse` has 13 fields and implements `Default`.
+                    ..Default::default()
+                }),
+                ..item.router_data
+            });
+        }
+
         let connector_refund_id = extract_refund_id(&item.response);
 
         let mut router_data = item.router_data;
+        // `RefundsResponseData` has FOUR fields; it is a plain struct, so every one must be
+        // listed unless you spread an existing value.
         router_data.response = Ok(RefundsResponseData {
             connector_refund_id,
             refund_status,
             status_code: item.http_code,
+            acquirer_reference_number: None,
         });
         Ok(router_data)
     }
 }
+```
+
+Imports for the transformers file:
+
+```rust
+use common_utils::consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE};
+use domain_types::{
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    router_data::{ErrorResponse, FlowStatus},
+};
 ```
 
 ### Extracting Refund ID
@@ -244,8 +328,11 @@ fn extract_refund_id(response: &{ConnectorName}RefundResponse) -> String {
 Not all connectors support partial refunds. When unsupported, reject early in `TryFrom`:
 
 ```rust
+// `RefundsData` carries both amounts twice, in two unit types. Compare like with like:
+// `minor_refund_amount: MinorUnit` against `minor_payment_amount: MinorUnit`
+// (or `refund_amount: i64` against `payment_amount: i64`). Mixing them is a type error.
 fn is_partial_refund(request: &RefundsData) -> bool {
-    request.minor_refund_amount < request.payment_amount
+    request.minor_refund_amount < request.minor_payment_amount
 }
 ```
 
@@ -270,38 +357,60 @@ request body. The connector tracks cumulative refund totals internally.
 Use `IntegrationError::NotSupported` to reject unsupported refund scenarios early,
 before making API calls. Always be specific about what is not supported.
 
+The variant has **three** fields (`domain_types::errors`), and `connector` is a
+`&'static str` -- not a `String`:
+
+```rust
+NotSupported {
+    message: String,
+    connector: &'static str,
+    context: IntegrationErrorContext,
+}
+```
+
 ```rust
 // Partial refunds not supported
 if is_partial_refund(&router_data.request) {
     return Err(IntegrationError::NotSupported {
-        message: "Partial refunds are not supported by this connector".to_string(),
-        connector: "{ConnectorName, context: Default::default() }".to_string(),
-    }.into());
+        message: "Partial refunds".to_string(),
+        connector: "{connector_name}",
+        context: IntegrationErrorContext::default(),
+    }
+    .into());
 }
 
 // Payment method not supported for refunds
-match &router_data.request.payment_method {
-    PaymentMethod::BankTransfer(_) => {
+match &router_data.request.payment_method_data {
+    Some(PaymentMethodData::BankTransfer(_)) => {
         return Err(IntegrationError::NotSupported {
-            message: "Refunds for bank transfers are not supported by this connector".to_string(),
-            connector: "{ConnectorName, context: Default::default() }".to_string(),
-        }.into());
+            message: "Refunds for bank transfers".to_string(),
+            connector: "{connector_name}",
+            context: IntegrationErrorContext::default(),
+        }
+        .into());
     }
     _ => {}
 }
 
-// Currency restriction
-const UNSUPPORTED_CURRENCIES: &[&str] = &["BTC", "ETH"];
-if UNSUPPORTED_CURRENCIES.contains(&router_data.request.currency.to_string().as_str()) {
-    return Err(IntegrationError::NotSupported {
-        message: format!(
-            "Refunds for {, context: Default::default() } currency are not supported by this connector",
-            router_data.request.currency
-        ),
-        connector: "{ConnectorName}".to_string(),
-    }.into());
+// Currency restriction -- prefer the purpose-built variant, which has the same three-field
+// shape.
+// Use real `common_enums::Currency` variants for whatever the vendor spec excludes.
+const UNSUPPORTED_CURRENCIES: &[Currency] = &[Currency::JPY, Currency::KRW];
+if UNSUPPORTED_CURRENCIES.contains(&router_data.request.currency) {
+    return Err(IntegrationError::CurrencyNotSupported {
+        message: format!("Refunds in {}", router_data.request.currency),
+        connector: "{connector_name}",
+        context: IntegrationErrorContext::default(),
+    }
+    .into());
 }
 ```
+
+`IntegrationError::NotImplemented` is a **tuple** variant, `NotImplemented(String,
+IntegrationErrorContext)` -- not a struct variant. `ConnectorError` has only five variants
+(`ResponseDeserializationFailed`, `ResponseHandlingFailed`, `UnexpectedResponseError`,
+`IntegrityCheckFailed`, `ConnectorErrorResponse`); everything request-side is
+`IntegrationError`.
 
 NotSupported best practices:
 - Check in `TryFrom`, before building the request
@@ -319,3 +428,8 @@ NotSupported best practices:
 - [ ] Partial refund support validated or rejected with NotSupported
 - [ ] Refund ID extraction handles connector-specific source fields
 - [ ] Error scenarios tested (already refunded, amount exceeded, not found)
+- [ ] In-band 2xx failure returns `Err(ErrorResponse { .. })` with
+      `attempt_status: Some(FlowStatus::Refund(..))` -- never `Ok` with a Failure status
+- [ ] Status enum has `#[serde(other)] Unknown` AND an exhaustive mapping `match`
+- [ ] `RefundsResponseData` literal lists all four fields, including
+      `acquirer_reference_number`
