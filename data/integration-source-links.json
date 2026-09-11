@@ -260,5 +260,30 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "GlobalpaymentsRealex": [
+    "https://developer.globalpayments.com/ecommerce/getting-started",
+    "https://developer.globalpayments.com/ecommerce/api/overview",
+    "https://developer.globalpayments.com/ecommerce/api/card-payments",
+    "https://developer.globalpayments.com/ecommerce/api/transaction-management",
+    "https://developer.globalpayments.com/ecommerce/api/3d-secure-two",
+    "https://developer.globalpayments.com/ecommerce/api/card-storage",
+    "https://developer.globalpayments.com/ecommerce/api/fraud-management",
+    "https://developer.globalpayments.com/ecommerce/expand-your-integration/remote-api",
+    "https://developer.globalpayments.com/ecommerce/expand-your-integration/transaction-management",
+    "https://developer.globalpayments.com/ecommerce/risk-management/3ds/overview",
+    "https://developer.globalpayments.com/ecommerce/risk-management/3ds/browser-authentication",
+    "https://developer.globalpayments.com/ecommerce/risk-management/3ds/COF",
+    "https://developer.globalpayments.com/ecommerce/risk-management/3ds/MIT",
+    "https://developer.globalpayments.com/ecommerce/resources/messages",
+    "https://developer.globalpayments.com/ecommerce/resources/test-card-numbers",
+    "https://developer.globalpayments.com/ecommerce/resources/currency-codes",
+    "https://developer.globalpayments.com/ecommerce/resources/country-codes",
+    "https://developer.globalpayments.com/api/getting-started",
+    "https://developer.globalpayments.com/api/card-payments",
+    "https://developer.globalpayments.com/api/transaction-management",
+    "https://developer.globalpayments.com/api/3d-secure-two",
+    "https://developer.globalpayments.com/resources/messages",
+    "https://developer.globalpayments.com/resources/test-cards"
   ]
 }

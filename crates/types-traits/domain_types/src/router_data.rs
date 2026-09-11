@@ -1077,6 +1077,18 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Global Payments Ecommerce XML API (legacy Realex). Not the GP-API `Globalpay` product.
+    /// `api_key`    = Shared Secret     (input to the sha1hash digest, never sent verbatim)
+    /// `key1`       = Merchant ID       (`<merchantid>`, also a digest input)
+    /// `key2`       = Account           (`<account>`, the sub-account name)
+    /// `api_secret` = Refund password   (`<refundhash>` on rebate/credit only)
+    GlobalpaymentsRealex {
+        shared_secret: Secret<String>,
+        merchant_id: Secret<String>,
+        account: Secret<String>,
+        refund_password: Secret<String>,
+        base_url: Option<String>,
+    },
     /// PayHere (payhere.lk) Merchant API.
     /// `app_id`         = App ID (OAuth client_id for `/merchant/v1/oauth/token` Basic auth)
     /// `app_secret`     = App Secret (OAuth client_secret)
@@ -1119,6 +1131,7 @@ fn connector_patch_key(variant: &str) -> String {
         "PinelabsOnline" => "pinelabs_online",
         "TwocTwopPaco" => "twoc_twop_paco",
         "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        "GlobalpaymentsRealex" => "globalpayments_realex",
         other => return other.to_ascii_lowercase(),
     }
     .to_string()
@@ -1484,6 +1497,12 @@ impl ConnectorSpecificConfig {
                 api_key,
                 key1,
                 api_secret
+            },
+            GlobalpaymentsRealex {
+                shared_secret,
+                merchant_id,
+                account,
+                refund_password
             },
             Worldpayraft {
                 license,
@@ -2005,6 +2024,12 @@ impl ConnectorSpecificConfig {
                     api_key,
                     key1,
                     api_secret
+                },
+                GlobalpaymentsRealex {
+                    shared_secret,
+                    merchant_id,
+                    account,
+                    refund_password
                 },
                 Worldpayraft {
                     license,
@@ -2754,6 +2779,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
             }),
+            AuthType::GlobalpaymentsRealex(globalpayments_realex) => {
+                Ok(Self::GlobalpaymentsRealex {
+                    shared_secret: globalpayments_realex.shared_secret.ok_or_else(err)?,
+                    merchant_id: globalpayments_realex.merchant_id.ok_or_else(err)?,
+                    account: globalpayments_realex.account.ok_or_else(err)?,
+                    refund_password: globalpayments_realex.refund_password.ok_or_else(err)?,
+                    base_url: globalpayments_realex.base_url,
+                })
+            }
             AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
                 device_id: tsys_transit.device_id.ok_or_else(err)?,
                 transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
@@ -3743,6 +3777,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
 
                 // --- MultiAuthKey connectors ---
+                ConnectorEnum::GlobalpaymentsRealex => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::GlobalpaymentsRealex {
+                        shared_secret: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        account: key2.clone(),
+                        refund_password: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Forte => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,

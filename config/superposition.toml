@@ -101,7 +101,7 @@ rpc_method = { position = 3, schema = { type = "string" } }
 rpc_service = { position = 4, schema = { type = "string" } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere", "globalpayments_realex"] } }
 # ============================================================================
 # Development Environment Overrides
 # ============================================================================
@@ -613,6 +613,16 @@ connector_base_url = "https://stage-api.boostconnect.biz/gateway"
 _context_ = { connector = "ilixium" }
 connector_base_url = "https://prprocessing.ilixium.com/platform/ili"
 
+# Global Payments Ecommerce XML API (legacy Realex). Distinct from the `globalpay`
+# GP-API product. A single CGI endpoint serves every operation; the connector
+# appends `epage-remote.cgi` to this base URL.
+[[overrides]]
+_context_ = { connector = "globalpayments_realex" }
+connector_base_url = "https://api.sandbox.realexpayments.com/"
+# 3DS2 is a separate JSON API on a separate host (see the 3DS2 section of
+# connectors/globalpayments_realex/transformers.rs).
+connector_secondary_base_url = "https://api.sandbox.globalpay-ecommerce.com/"
+
 # Global Payments — Heartland (Portico PosGateway). Single SOAP endpoint. This
 # unscoped context is the sandbox/development default and would otherwise match
 # production too, so the live host is pinned in the production overrides section.
@@ -623,6 +633,17 @@ connector_base_url = "https://cert.api2.heartlandportico.com/Hps.Exchange.PosGat
 # ============================================================================
 # Production Environment Overrides
 # ============================================================================
+
+# Global Payments Ecommerce XML API Production.
+# NOTE: production also requires IP allow-listing; an un-listed source IP is
+# rejected with result 505 (tech spec section 2).
+[[overrides]]
+_context_ = { connector = "globalpayments_realex", environment = "production" }
+connector_base_url = "https://api.realexpayments.com/"
+# 3DS2 is a separate JSON API on a separate host (see the 3DS2 section of
+# connectors/globalpayments_realex/transformers.rs). DELIBERATELY UNSET: two GP
+# documents disagree on the production host and neither is confirmed, so the
+# connector's InvalidConnectorConfig error is the intended behaviour until it is.
 
 # Adyen Production
 [[overrides]]
