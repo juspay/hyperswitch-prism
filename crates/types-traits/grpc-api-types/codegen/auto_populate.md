@@ -281,13 +281,16 @@ Runtime connector-specific code lives in `grpc-server/src/sanity_layer.rs`.
 
 For Plaid, that runtime layer:
 
-- identifies Plaid from metadata/raw config
+- resolves a connector name from metadata or raw config
+- matches the connector against registered sanity handlers
 - reads Euler-only keys from raw `x-connector-config`
 - builds an `OsBasedReturnUrl` value containing `return_url_map`
 - calls `populate_os_based_return_url`
 - removes Euler-only keys from metadata before normal typed config parsing
 
 This keeps generated infrastructure generic and connector-specific policy outside `grpc-api-types`.
+
+Unsupported connectors explicitly go through the default match arm and log that no connector sanity is registered. That makes the runtime structure a connector sanity registry instead of a Plaid-specific predicate.
 
 ## Adding A New Auto-Populated Field
 

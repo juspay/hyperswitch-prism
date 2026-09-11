@@ -40,10 +40,64 @@ pub fn wrap<S>(inner: S) -> SanityLayer<S> {
 #[cfg(feature = "connector-sanity-layer")]
 impl RequestSanitizer for ConnectorSanitizer {
     fn sanitize<T: PopulateOsBasedReturnUrl>(&self, metadata: &mut MetadataMap, req: &mut T) {
-        if is_plaid_request(metadata) {
-            plaid_sanity(metadata, req);
+        match sanity_connector(metadata) {
+            Some(SanityConnector::Plaid) => plaid_sanity(metadata, req),
+            Some(SanityConnector::Other(connector)) => {
+                tracing::debug!(connector = %connector, "no connector sanity registered");
+            }
+            None => {}
         }
     }
+}
+
+#[cfg(feature = "connector-sanity-layer")]
+enum SanityConnector {
+    Plaid,
+    Other(String),
+}
+
+#[cfg(feature = "connector-sanity-layer")]
+fn sanity_connector(metadata: &MetadataMap) -> Option<SanityConnector> {
+    let connector = connector_name_from_metadata(metadata)
+        .or_else(|| connector_name_from_raw_config(metadata))?
+        .to_ascii_lowercase();
+
+    match connector.as_str() {
+        "plaid" => Some(SanityConnector::Plaid),
+        _ => Some(SanityConnector::Other(connector)),
+    }
+}
+
+#[cfg(feature = "connector-sanity-layer")]
+fn connector_name_from_metadata(metadata: &MetadataMap) -> Option<String> {
+    [
+        common_utils::consts::X_CONNECTOR_NAME,
+        common_utils::consts::X_AUTHENTICATOR_CONNECTOR_NAME,
+        common_utils::consts::X_PAYOUT_CONNECTOR_NAME,
+        common_utils::consts::X_FRM_CONNECTOR_NAME,
+        common_utils::consts::X_SURCHARGE_CONNECTOR_NAME,
+    ]
+    .into_iter()
+    .find_map(|key| {
+        metadata
+            .get(key)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string)
+    })
+}
+
+#[cfg(feature = "connector-sanity-layer")]
+fn connector_name_from_raw_config(metadata: &MetadataMap) -> Option<String> {
+    let header_value = metadata
+        .get(common_utils::consts::X_CONNECTOR_CONFIG)?
+        .to_str()
+        .ok()?;
+    let json: serde_json::Value = serde_json::from_str(header_value).ok()?;
+    json.get("config")?
+        .as_object()?
+        .keys()
+        .next()
+        .map(|key| key.to_string())
 }
 
 /// Plaid's dashboard config (sent via `x-connector-config`) may carry
@@ -61,15 +115,6 @@ fn plaid_sanity<T: PopulateOsBasedReturnUrl>(metadata: &mut MetadataMap, req: &m
     }
 
     clean_plaid_config_header(metadata);
-}
-
-#[cfg(feature = "connector-sanity-layer")]
-fn is_plaid_request(metadata: &MetadataMap) -> bool {
-    metadata
-        .get(common_utils::consts::X_AUTHENTICATOR_CONNECTOR_NAME)
-        .and_then(|value| value.to_str().ok())
-        .is_some_and(|value| value.eq_ignore_ascii_case("plaid"))
-        || raw_plaid_config(metadata).is_some()
 }
 
 #[cfg(feature = "connector-sanity-layer")]
