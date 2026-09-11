@@ -3,16 +3,29 @@
 //! The déjà library does not ship the trait (it is the integrator's policy), so it is
 //! declared here, together with [`SuperpositionRecordingSampler`] — the concrete policy a
 //! record-mode process installs. The decision (`deja_record`, default FALSE) is evaluated
-//! in-process against the boot-parsed `config/superposition.toml`, dimensioned on
-//! `environment` × `rpc_method` × `rpc_service` (the service class derived from the
-//! path), memoized per rpc (the snapshot is frozen at boot, so a memo can never go
-//! stale), and fail-closed: every failure path — no snapshot, key missing, eval error —
-//! resolves to `!fail_closed`, which by default records nothing. Alongside the boolean,
-//! `deja_record_percent` (0-100, default 0) samples a deterministic fraction of the
-//! remainder: the request id hashes to a stable bucket, so "record 8% of the payment
+//! in-process against Superposition's local provider over `config/superposition.toml`,
+//! dimensioned on `environment` × `rpc_method` × `rpc_service` (the service class derived
+//! from the path), and fail-closed: every failure path — no snapshot, key missing, eval
+//! error — resolves to `!fail_closed`, which by default records nothing. Alongside the
+//! boolean, `deja_record_percent` (0-100, default 0) samples a deterministic fraction of
+//! the remainder: the request id hashes to a stable bucket, so "record 8% of the payment
 //! class" is one override — hyperswitch's experiment posture, expressed in the file.
+//!
+//! The policy is resolved PER REQUEST, never memoized: the provider refreshes its
+//! snapshot (a poll of the remote workspace, or a watch on the baked file), so a policy
+//! change reaches the next request. A memo keyed on rpc would silently serve the
+//! pre-change policy forever — the provider's own cache is the memo, and it is the one
+//! that knows when the source moved.
+//!
+//! The request id rides along as the experiment TARGETING KEY: on a remote source,
+//! Superposition experiments (`deja_record` CONTROL/TEST variants, ramped from the
+//! dashboard) bucket on it — hyperswitch's exact sampler posture. Without it no
+//! experiment ever applies, silently. Precedence: a `true` from an override or an
+//! experiment variant records wholesale; otherwise `deja_record_percent` samples the
+//! remainder; any failure — no source, missing key, eval error, timeout — resolves to
+//! `!fail_closed`.
 
-use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc};
+use std::{collections::HashSet, future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use common_utils::{consts::Env, superposition_config::SuperpositionConfig};
 
@@ -50,9 +63,8 @@ fn rpc_service(rpc: &str) -> String {
     }
 }
 
-/// What the policy resolved to for one rpc: the wholesale boolean plus the
-/// percentage gate. The POLICY is per-rpc and memoizable; the percentage
-/// DECISION is per-request (it hashes the request id) and never cached.
+/// What the policy resolved to for one request: the wholesale boolean plus the
+/// percentage gate. The percentage DECISION hashes the request id.
 #[derive(Clone, Copy)]
 struct ResolvedPolicy {
     record: bool,
@@ -82,21 +94,31 @@ pub struct SuperpositionRecordingSampler {
     /// `<record_key>_percent`: the percentage gate, composing with a custom key.
     percent_key: String,
     fail_closed: bool,
-    /// rpc path → resolved POLICY (not decision — percentages decide per request).
-    /// Sound because the snapshot is frozen at boot; failure policies memoize
-    /// too, which also bounds their warn to once per rpc.
-    memo: std::sync::RwLock<HashMap<String, ResolvedPolicy>>,
+    /// Per-lookup budget; elapsed ⇒ failure default (hyperswitch parity).
+    timeout_ms: u64,
+    /// rpcs whose policy failure has already been warned about. Bounds each
+    /// failure warn to once per rpc without caching the policy itself — a
+    /// degraded snapshot must not flood the log on every request.
+    warned: std::sync::Mutex<HashSet<String>>,
 }
 
 impl SuperpositionRecordingSampler {
     pub fn from_config(config: &ucs_env::configs::Config) -> Self {
         let sampler = &config.deja.sampler;
-        if config.superposition_config.is_none() {
-            tracing::error!(
+        match &config.superposition_config {
+            None => tracing::error!(
                 fail_closed = sampler.fail_closed,
                 "deja record mode with no sampling source (superposition.toml did not load); \
                  every request resolves to the configured failure default"
-            );
+            ),
+            Some(source) => tracing::info!(
+                source = %source.source(),
+                experiments_supported = source.experiments_supported(),
+                record_key = %sampler.record_key,
+                fail_closed = sampler.fail_closed,
+                timeout_ms = sampler.timeout_ms,
+                "deja recording sampler installed"
+            ),
         }
         Self::assemble(
             config.superposition_config.clone(),
@@ -120,42 +142,81 @@ impl SuperpositionRecordingSampler {
             percent_key: format!("{}_percent", sampler.record_key),
             record_key: sampler.record_key.clone(),
             fail_closed: sampler.fail_closed,
-            memo: std::sync::RwLock::new(HashMap::new()),
+            timeout_ms: sampler.timeout_ms,
+            warned: std::sync::Mutex::new(HashSet::new()),
         }
     }
 
-    fn decide(&self, facts: &RequestRecordingFacts) -> bool {
-        let policy = self.policy_for(&facts.rpc);
+    async fn decide(&self, facts: &RequestRecordingFacts) -> bool {
+        let policy = self.policy_for(&facts.rpc, &facts.request_id).await;
         // The boolean records wholesale; the percentage samples the remainder.
         policy.record || (policy.percent > 0 && request_bucket(&facts.request_id) < policy.percent)
     }
 
-    fn policy_for(&self, rpc: &str) -> ResolvedPolicy {
-        if let Some(hit) = self
-            .memo
-            .read()
-            .ok()
-            .and_then(|memo| memo.get(rpc).copied())
-        {
-            return hit;
-        }
+    fn count(outcome: &str) {
+        external_services::shared_metrics::SUPERPOSITION_RESOLVE_TOTAL
+            .with_label_values(&["sampler", outcome])
+            .inc();
+        // Mirror to the OTLP-exported instrument, like every other metric here.
+        #[cfg(feature = "otel")]
+        external_services::otel_metrics::record_superposition_resolution("sampler", outcome);
+    }
 
+    /// True the first time an rpc reports a given failure, false after — so a
+    /// persistent misconfiguration is logged once per rpc, not once per request.
+    fn first_warn(&self, rpc: &str, what: &str) -> bool {
+        self.warned
+            .lock()
+            .map(|mut warned| warned.insert(format!("{what}:{rpc}")))
+            .unwrap_or(true)
+    }
+
+    async fn policy_for(&self, rpc: &str, request_id: &str) -> ResolvedPolicy {
         let failure_default = !self.fail_closed;
         let failure_policy = ResolvedPolicy {
             record: failure_default,
             percent: 0,
         };
-        let policy = match &self.superposition {
-            None => failure_policy, // no-source: logged once at install
-            Some(superposition) => match superposition.resolve_with(&[
-                ("environment", self.environment),
-                ("rpc_method", rpc),
-                ("rpc_service", &rpc_service(rpc)),
-            ]) {
-                Ok(resolved) => {
-                    let record = match resolved.get(&self.record_key).and_then(|v| v.as_bool()) {
-                        Some(decision) => decision,
-                        None => {
+        let Some(superposition) = &self.superposition else {
+            Self::count("no_source");
+            return failure_policy; // no-source: logged once at install
+        };
+        // The request id is the experiment targeting key (see the module doc); the
+        // timeout only ever trips on a stalled provider — evaluation is in-process.
+        let service = rpc_service(rpc);
+        let dimensions = [
+            ("environment", self.environment),
+            ("rpc_method", rpc),
+            ("rpc_service", service.as_str()),
+        ];
+        let lookup = superposition.resolve_with(&dimensions, Some(request_id));
+        let resolved =
+            match tokio::time::timeout(Duration::from_millis(self.timeout_ms.max(1)), lookup).await
+            {
+                Ok(resolved) => resolved,
+                Err(_elapsed) => {
+                    Self::count("timeout");
+                    if self.first_warn(rpc, "timeout") {
+                        tracing::warn!(
+                            timeout_ms = self.timeout_ms,
+                            rpc = %rpc,
+                            failure_default,
+                            "deja sampler policy lookup timed out; using configured failure default"
+                        );
+                    }
+                    return failure_policy;
+                }
+            };
+        match resolved {
+            Ok(resolved) => {
+                let record = match resolved.get(&self.record_key).and_then(|v| v.as_bool()) {
+                    Some(decision) => {
+                        Self::count("hit");
+                        decision
+                    }
+                    None => {
+                        Self::count("key_missing");
+                        if self.first_warn(rpc, "key") {
                             tracing::warn!(
                                 record_key = %self.record_key,
                                 rpc = %rpc,
@@ -163,43 +224,44 @@ impl SuperpositionRecordingSampler {
                                 "deja sampler key missing or non-boolean in superposition \
                                  snapshot; using configured failure default"
                             );
-                            failure_default
                         }
-                    };
-                    // An absent percent key simply means no percentage sampling;
-                    // a present non-integer one is a config mistake worth a warn.
-                    let percent = match resolved.get(&self.percent_key) {
-                        None => 0,
-                        Some(value) => value.as_u64().map_or_else(
-                            || {
+                        failure_default
+                    }
+                };
+                // An absent percent key simply means no percentage sampling;
+                // a present non-integer one is a config mistake worth a warn.
+                let percent = match resolved.get(&self.percent_key) {
+                    None => 0,
+                    Some(value) => value.as_u64().map_or_else(
+                        || {
+                            if self.first_warn(rpc, "percent") {
                                 tracing::warn!(
                                     percent_key = %self.percent_key,
                                     rpc = %rpc,
                                     "deja sampler percent is not a non-negative integer; \
                                      treating as 0"
                                 );
-                                0
-                            },
-                            |n| u8::try_from(n.min(100)).unwrap_or(100),
-                        ),
-                    };
-                    ResolvedPolicy { record, percent }
-                }
-                Err(error) => {
+                            }
+                            0
+                        },
+                        |n| u8::try_from(n.min(100)).unwrap_or(100),
+                    ),
+                };
+                ResolvedPolicy { record, percent }
+            }
+            Err(error) => {
+                Self::count("error");
+                if self.first_warn(rpc, "eval") {
                     tracing::warn!(
                         error = %error,
                         rpc = %rpc,
                         failure_default,
                         "deja sampler evaluation failed; using configured failure default"
                     );
-                    failure_policy
                 }
-            },
-        };
-        if let Ok(mut memo) = self.memo.write() {
-            memo.insert(rpc.to_owned(), policy);
+                failure_policy
+            }
         }
-        policy
     }
 }
 
@@ -208,11 +270,10 @@ impl RequestRecordingSampler for SuperpositionRecordingSampler {
         &self,
         facts: RequestRecordingFacts,
     ) -> Pin<Box<dyn Future<Output = bool> + Send + '_>> {
-        // Evaluation is in-process against a boot-frozen snapshot — synchronous,
-        // nothing to time out (the RFC's documented deviation from hyperswitch's
-        // networked client).
-        let decision = self.decide(&facts);
-        Box::pin(std::future::ready(decision))
+        // Evaluation is in-process against the provider's cached snapshot — no
+        // network hop, nothing to time out (the RFC's documented deviation from
+        // hyperswitch's networked client).
+        Box::pin(async move { self.decide(&facts).await })
     }
 }
 
@@ -230,6 +291,8 @@ impl Drop for RecordingDecisionGuard {
 mod tests {
     // Fixture assertions may unwrap/index freely — a panic IS the test failing.
     #![allow(clippy::expect_used, clippy::unwrap_used, clippy::indexing_slicing)]
+
+    use std::{path::PathBuf, time::Duration};
 
     use super::*;
 
@@ -255,7 +318,10 @@ _context_ = { environment = "production", rpc_method = "/types.PaymentService/Au
 deja_record = true
 "#;
 
-    fn snapshot(content: &str) -> Arc<SuperpositionConfig> {
+    /// Writes the policy to a fresh temp file and loads it through the provider.
+    /// The file is left in place: the provider WATCHES it, so deleting it under
+    /// the watcher is a different test, not fixture cleanup.
+    fn policy_file(content: &str) -> PathBuf {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let path = std::env::temp_dir().join(format!(
@@ -264,15 +330,23 @@ deja_record = true
             SEQ.fetch_add(1, Ordering::Relaxed),
         ));
         std::fs::write(&path, content).unwrap();
-        let config = SuperpositionConfig::from_file(path.to_str().unwrap()).unwrap();
-        std::fs::remove_file(&path).ok();
-        Arc::new(config)
+        path
+    }
+
+    async fn snapshot(content: &str) -> Arc<SuperpositionConfig> {
+        let path = policy_file(content);
+        Arc::new(
+            SuperpositionConfig::from_file(path.to_str().unwrap())
+                .await
+                .unwrap(),
+        )
     }
 
     fn sampler_cfg(fail_closed: bool) -> ucs_env::deja_config::SamplerConfig {
         ucs_env::deja_config::SamplerConfig {
             record_key: "deja_record".to_string(),
             fail_closed,
+            timeout_ms: 25,
         }
     }
 
@@ -285,39 +359,39 @@ deja_record = true
 
     /// Production defaults dark: no matching override => skip; the targeted
     /// rpc override samples exactly that rpc in.
-    #[test]
-    fn production_defaults_dark_with_targeted_sample_in() {
+    #[tokio::test]
+    async fn production_defaults_dark_with_targeted_sample_in() {
         let sampler = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(POLICY)),
+            Some(snapshot(POLICY).await),
             "production",
             &sampler_cfg(true),
         );
         assert!(
-            sampler.decide(&facts(AUTHORIZE)),
+            sampler.decide(&facts(AUTHORIZE)).await,
             "targeted override samples in"
         );
         assert!(
-            !sampler.decide(&facts("/types.PaymentService/Refund")),
+            !sampler.decide(&facts("/types.PaymentService/Refund")).await,
             "everything else inherits the dark default"
         );
     }
 
     /// The development override keeps the local rig recording wholesale.
-    #[test]
-    fn development_records_everything() {
+    #[tokio::test]
+    async fn development_records_everything() {
         let sampler = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(POLICY)),
+            Some(snapshot(POLICY).await),
             "development",
             &sampler_cfg(true),
         );
-        assert!(sampler.decide(&facts(AUTHORIZE)));
-        assert!(sampler.decide(&facts("/types.PaymentService/Refund")));
+        assert!(sampler.decide(&facts(AUTHORIZE)).await);
+        assert!(sampler.decide(&facts("/types.PaymentService/Refund")).await);
     }
 
     /// A snapshot without the record key resolves to the configured failure
     /// default, both ways.
-    #[test]
-    fn missing_key_uses_failure_default_both_ways() {
+    #[tokio::test]
+    async fn missing_key_uses_failure_default_both_ways() {
         const KEYLESS: &str = r#"
 [default-configs]
 unrelated = { value = true, schema = { type = "boolean" } }
@@ -330,28 +404,28 @@ _context_ = { environment = "development" }
 unrelated = false
 "#;
         let closed = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(KEYLESS)),
+            Some(snapshot(KEYLESS).await),
             "production",
             &sampler_cfg(true),
         );
-        assert!(!closed.decide(&facts(AUTHORIZE)), "fail-closed skips");
+        assert!(!closed.decide(&facts(AUTHORIZE)).await, "fail-closed skips");
         let open = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(KEYLESS)),
+            Some(snapshot(KEYLESS).await),
             "production",
             &sampler_cfg(false),
         );
-        assert!(open.decide(&facts(AUTHORIZE)), "fail-open records");
+        assert!(open.decide(&facts(AUTHORIZE)).await, "fail-open records");
     }
 
     /// Record mode with no snapshot at all: every decision is the failure
     /// default (the install site logged the condition).
-    #[test]
-    fn no_source_uses_failure_default() {
+    #[tokio::test]
+    async fn no_source_uses_failure_default() {
         let sampler =
             SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(true));
-        assert!(!sampler.decide(&facts(AUTHORIZE)));
+        assert!(!sampler.decide(&facts(AUTHORIZE)).await);
         let open = SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(false));
-        assert!(open.decide(&facts(AUTHORIZE)));
+        assert!(open.decide(&facts(AUTHORIZE)).await);
     }
 
     /// The service class derives structurally from the path — no map to maintain.
@@ -365,8 +439,8 @@ unrelated = false
 
     /// A class-targeted override samples in every rpc of that service and none
     /// of any other — the file-side analogue of hyperswitch's cohort context.
-    #[test]
-    fn class_override_targets_the_whole_service() {
+    #[tokio::test]
+    async fn class_override_targets_the_whole_service() {
         const BY_CLASS: &str = r#"
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" } }
@@ -380,19 +454,27 @@ _context_ = { environment = "production", rpc_service = "payment" }
 deja_record = true
 "#;
         let sampler = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(BY_CLASS)),
+            Some(snapshot(BY_CLASS).await),
             "production",
             &sampler_cfg(true),
         );
-        assert!(sampler.decide(&facts("/types.PaymentService/Authorize")));
-        assert!(sampler.decide(&facts("/types.PaymentService/Capture")));
-        assert!(!sampler.decide(&facts("/types.RefundService/Refund")));
+        assert!(
+            sampler
+                .decide(&facts("/types.PaymentService/Authorize"))
+                .await
+        );
+        assert!(
+            sampler
+                .decide(&facts("/types.PaymentService/Capture"))
+                .await
+        );
+        assert!(!sampler.decide(&facts("/types.RefundService/Refund")).await);
     }
 
     /// Percentage sampling: deterministic per request id, boolean wins
     /// wholesale, 0/absent never gates in, 100 always does.
-    #[test]
-    fn percent_gates_deterministically_by_request_id() {
+    #[tokio::test]
+    async fn percent_gates_deterministically_by_request_id() {
         const PCT: &str = r#"
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" } }
@@ -406,7 +488,7 @@ _context_ = { environment = "production" }
 deja_record_percent = 50
 "#;
         let sampler = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(PCT)),
+            Some(snapshot(PCT).await),
             "production",
             &sampler_cfg(true),
         );
@@ -418,21 +500,21 @@ deja_record_percent = 50
         let low = ids.iter().find(|id| request_bucket(id) < 50).unwrap();
         let high = ids.iter().find(|id| request_bucket(id) >= 50).unwrap();
         assert!(
-            sampler.decide(&with_id(low)),
+            sampler.decide(&with_id(low)).await,
             "bucket below the gate records"
         );
         assert!(
-            !sampler.decide(&with_id(high)),
+            !sampler.decide(&with_id(high)).await,
             "bucket at/above the gate skips"
         );
         assert!(
-            sampler.decide(&with_id(low)) && !sampler.decide(&with_id(high)),
+            sampler.decide(&with_id(low)).await && !sampler.decide(&with_id(high)).await,
             "same request id, same answer — the gate is deterministic"
         );
     }
 
-    #[test]
-    fn percent_boundaries_and_boolean_precedence() {
+    #[tokio::test]
+    async fn percent_boundaries_and_boolean_precedence() {
         const EDGES: &str = r#"
 [default-configs]
 deja_record = { value = false, schema = { type = "boolean" } }
@@ -451,25 +533,27 @@ _context_ = { environment = "development" }
 deja_record = true
 "#;
         let production = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(EDGES)),
+            Some(snapshot(EDGES).await),
             "production",
             &sampler_cfg(true),
         );
         assert!(
-            production.decide(&facts(AUTHORIZE)),
+            production.decide(&facts(AUTHORIZE)).await,
             "percent 100 always records"
         );
         assert!(
-            !production.decide(&facts("/types.RefundService/Refund")),
+            !production
+                .decide(&facts("/types.RefundService/Refund"))
+                .await,
             "percent 0 (default) never gates in"
         );
         let development = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(EDGES)),
+            Some(snapshot(EDGES).await),
             "development",
             &sampler_cfg(true),
         );
         assert!(
-            development.decide(&facts(AUTHORIZE)),
+            development.decide(&facts(AUTHORIZE)).await,
             "the wholesale boolean records regardless of percent"
         );
     }
@@ -490,25 +574,63 @@ deja_record = true
         );
     }
 
-    /// Decisions memoize per rpc — sound because the snapshot is boot-frozen.
-    #[test]
-    fn memoizes_per_rpc() {
-        let sampler = SuperpositionRecordingSampler::assemble(
-            Some(snapshot(POLICY)),
-            "production",
-            &sampler_cfg(true),
+    /// The point of the provider: a policy edit on disk reaches the sampler
+    /// without a restart. Nothing on the sampler side may cache across requests
+    /// — the provider's watcher is the only thing that knows the file moved.
+    #[tokio::test]
+    async fn policy_edit_on_disk_reaches_the_next_decision() {
+        let path = policy_file(POLICY);
+        let config = Arc::new(
+            SuperpositionConfig::from_file(path.to_str().unwrap())
+                .await
+                .unwrap(),
         );
-        sampler.decide(&facts(AUTHORIZE));
-        let hit = sampler.memo.read().unwrap().get(AUTHORIZE).copied();
+        let sampler =
+            SuperpositionRecordingSampler::assemble(Some(config), "production", &sampler_cfg(true));
+        let refund = "/types.PaymentService/Refund";
         assert!(
-            matches!(
-                hit,
-                Some(ResolvedPolicy {
-                    record: true,
-                    percent: 0
-                })
-            ),
-            "first consult lands the resolved policy in the memo"
+            !sampler.decide(&facts(refund)).await,
+            "before the edit, production refunds are dark"
+        );
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        let mut contents = std::fs::read_to_string(&path).unwrap();
+        contents.push_str(
+            "\n[[overrides]]\n_context_ = { environment = \"production\", \
+             rpc_method = \"/types.PaymentService/Refund\" }\ndeja_record = true\n",
+        );
+        std::fs::write(&path, contents).unwrap();
+
+        let refreshed = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if sampler.decide(&facts(refund)).await {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        })
+        .await;
+        let _ = std::fs::remove_file(&path);
+        refreshed.expect("the sampler never saw the edited policy");
+    }
+
+    /// A persistent policy failure is logged once per rpc, not once per request.
+    #[tokio::test]
+    async fn failure_warns_are_bounded_per_rpc() {
+        let sampler =
+            SuperpositionRecordingSampler::assemble(None, "production", &sampler_cfg(true));
+        assert!(sampler.first_warn(AUTHORIZE, "eval"), "first failure warns");
+        assert!(
+            !sampler.first_warn(AUTHORIZE, "eval"),
+            "the same failure again is silent"
+        );
+        assert!(
+            sampler.first_warn("/types.PaymentService/Refund", "eval"),
+            "a different rpc warns on its own"
+        );
+        assert!(
+            sampler.first_warn(AUTHORIZE, "key"),
+            "a different failure kind on the same rpc warns"
         );
     }
 }

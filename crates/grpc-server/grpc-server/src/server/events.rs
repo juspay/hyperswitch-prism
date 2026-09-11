@@ -476,6 +476,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -596,6 +597,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -716,6 +718,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -833,6 +836,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -950,6 +954,7 @@ impl EventServiceImpl {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let common_flow_data =
@@ -1034,6 +1039,7 @@ async fn verify_webhook_source_external(
         connector_config,
         metadata_payload.environment.as_deref(),
     )
+    .await
     .to_grpc_error()?;
 
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {

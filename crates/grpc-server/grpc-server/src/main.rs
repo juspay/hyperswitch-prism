@@ -44,21 +44,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "deja runtime hook installed"
     );
 
-    // Load superposition.toml for connector URL resolution. AFTER `logger::setup`,
-    // deliberately: this block logs through `tracing`, and events emitted before the
-    // subscriber is installed are discarded, not buffered — the fallback warning below
-    // is the one signal that connectors are using default URLs, and it must not vanish.
-    // (Only the déjà hook install above genuinely needs to precede the logger.)
+    // Build the Superposition provider — the remote workspace when `[superposition]`
+    // enables it (the baked file as its init-time fallback), else the baked file,
+    // watched. AFTER `logger::setup`, deliberately: this block logs through `tracing`,
+    // and events emitted before the subscriber is installed are discarded, not
+    // buffered — the source line and the fallback warning below are the signals that
+    // say where policy comes from, and they must not vanish. (Only the déjà hook
+    // install above genuinely needs to precede the logger.)
     let superposition_config_path = format!(
         "{}/config/superposition.toml",
         configs::workspace_path().display()
     );
-    match SuperpositionConfig::from_file(&superposition_config_path) {
+    match SuperpositionConfig::new(&config.superposition, &superposition_config_path).await {
         Ok(sp_config) => {
+            // `experiments_supported = false` is the loud answer to "why does my
+            // experiment never sample anything": a file source carries none.
             tracing::info!(
-                "Successfully loaded superposition.toml from {}",
-                superposition_config_path
+                source = %sp_config.source(),
+                experiments_supported = sp_config.experiments_supported(),
+                workspace = %config.superposition.workspace_id,
+                polling_interval_secs = config.superposition.polling_interval,
+                path = %superposition_config_path,
+                "superposition initialised"
             );
+            let source_kind = sp_config.source().to_string();
+            external_services::shared_metrics::SUPERPOSITION_SOURCE
+                .with_label_values(&[&source_kind])
+                .set(1);
+            #[cfg(feature = "otel")]
+            external_services::otel_metrics::record_superposition_source(&source_kind);
             config.superposition_config = Some(Arc::new(sp_config));
         }
         Err(e) => {

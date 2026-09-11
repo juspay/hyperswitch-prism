@@ -261,6 +261,24 @@ keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-conne
 enabled = false
 
 [connector_response_masking.connector_keys]
+# --- Superposition: where policy comes from ---------------------------------
+# source = "file" (default): the baked config/superposition.toml, watched for
+# changes. source = "remote": the same provider over a remote workspace, polled
+# every polling_interval seconds, with the baked file as the provider's init-time
+# fallback. Boot never fails because of Superposition: a remote source without
+# endpoint/token/org/workspace, or an unreachable workspace, is reported and the
+# baked file serves policy.
+# Env overrides: CS__SUPERPOSITION__* (e.g. CS__SUPERPOSITION__SOURCE=remote).
+[superposition]
+source = "file"                 # "file" | "remote"
+endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.local:80
+token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
+org_id = "hyperswitch"
+workspace_id = ""               # the prism workspace
+polling_interval = 15           # seconds
+# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
+# backup_file_path = ""         # default: the baked config/superposition.toml
+
 # --- Déjà record/replay ---------------------------------------------------------
 # Only has any effect when built with the `deja` feature; ignored otherwise.
 # mode: "disabled" (default, byte-identical to today) | "record" | "replay".
@@ -270,7 +288,7 @@ enabled = false
 # "replay" is a sealed-pod mode the déjà orchestrator drives — the replay job
 # boots this same image with CS__DEJA__MODE=replay plus a rendered lookup
 # table and re-drives the recorded requests while every side effect is
-# substituted from the tape (locally: scripts/deja-local/replay-dev.sh).
+# substituted from the tape (locally: the déjà rig's replay-dev.sh, kept out of tree).
 [deja]
 mode = "disabled"     # "disabled" | "record" | "replay"
 run_id = ""           # recording/replay identity; empty => derived at boot
@@ -287,6 +305,7 @@ observed_sink = ""    # optional: where replay records what the candidate DID
 [deja.sampler]
 record_key = "deja_record"      # superposition boolean consulted per request
 fail_closed = true              # sampler failure => record nothing
+timeout_ms = 25                 # per-request policy lookup budget (hyperswitch parity)
 
 # [deja.identity] is deliberately not declared — identity has one source of
 # truth in code: the pod hostname (k8s sets it to the pod name) for the
