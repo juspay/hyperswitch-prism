@@ -172,6 +172,12 @@ impl Address {
             .as_ref()
             .and_then(|billing_address| billing_address.get_optional_last_name())
     }
+
+    /// Phone number in E.123 international format (`+<country><number>`).
+    /// `None` when the address has no phone or no number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        self.phone.as_ref()?.get_e123_phone_number()
+    }
 }
 
 // used by customers also, could be moved outside
@@ -430,6 +436,52 @@ impl PhoneDetails {
             number.peek()
         )))
     }
+
+    /// Phone number in E.123 international format (`+<country><number>`),
+    /// derived from this phone's number and country code. Fails soft:
+    /// `None` only when there's no number to format.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        e123_phone_number(self.country_code.as_deref(), self.number.as_ref()?.peek())
+    }
+}
+
+/// Format a phone number in E.123 international notation (`+<country><number>`).
+/// Fails soft: an unusable part yields the best string available rather than
+/// erroring or dropping the number.
+///
+/// The number is emitted *compact* (`+447700900123`), without E.123's optional
+/// visual separators — grouping digits correctly is country-specific and there's
+/// no phone-number library here. The `+` and country code are the parts that
+/// typically carry meaning downstream.
+///
+/// A national trunk `0` is deliberately **not** stripped, so a caller sending
+/// country code `44` with number `07700900123` yields `+4407700900123`. Dropping
+/// the zero is wrong for the countries that keep it (Italy, notably), and a
+/// separate country-code field implies callers send the national significant
+/// number rather than the dialling form.
+pub(crate) fn e123_phone_number(
+    country_code: Option<&str>,
+    number: &str,
+) -> Option<Secret<String>> {
+    let number = number.trim();
+    if number.is_empty() {
+        return None;
+    }
+    // Already international — the caller did the work, don't double-prefix.
+    if number.starts_with('+') {
+        return Some(Secret::new(number.to_owned()));
+    }
+    // `+44`, `44` and `0044` all mean the same country; normalise to bare digits.
+    let country_code = country_code
+        .map(str::trim)
+        .map(|code| code.trim_start_matches('+'))
+        .map(|code| code.strip_prefix("00").unwrap_or(code))
+        .filter(|code| !code.is_empty());
+    Some(Secret::new(match country_code {
+        Some(code) => format!("+{code}{number}"),
+        // No country to prefix — send the bare number rather than nothing.
+        None => number.to_owned(),
+    }))
 }
 
 #[derive(Debug, serde::Serialize, PartialEq, Eq, serde::Deserialize)]

@@ -650,7 +650,6 @@ impl
         // connectors (should_do_access_token) need this both to avoid
         // FAILED_TO_OBTAIN_AUTH_TYPE and because the resolved token is the source
         // of connector-side values derived from it during PreAuthenticate (e.g. the
-        // Kount DDC clientID, read from the token's JWT claims).
         let access_token_from_req = item
             .state
             .as_ref()
@@ -1476,10 +1475,26 @@ impl
             connector_customer_id,
         });
 
+        // `NotifyConnectorRequest` carries no top-level `connector_feature_data`; the
+        // connector reads it from `content.frm_notification`. Composite callers send it
+        // top-level, so fold it down. A value already nested there wins, being the more
+        // specific of the two.
+        let mut content = item.content.clone();
+        if let Some(grpc_api_types::payments::notify_connector_content::Content::FrmNotification(
+            frm,
+        )) = content
+            .as_mut()
+            .and_then(|content| content.content.as_mut())
+        {
+            if let Some(feature_data) = item.connector_feature_data.clone() {
+                frm.connector_feature_data.get_or_insert(feature_data);
+            }
+        }
+
         Self {
             event_id: item.event_id.clone(),
             event_type: item.event_type,
-            content: item.content.clone(),
+            content,
             timestamp: item.timestamp,
             state: resolved_state,
         }

@@ -1886,7 +1886,10 @@ message FrmNotificationContent {
   // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
 
-  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the
+  // notify call. This is the only place the connector reads it from. Composite
+  // callers send it top-level on `CompositeNotifyRequest` and the composite
+  // transformer folds it down to here; a value already set here wins.
   optional SecretString connector_feature_data = 9;
 }
 
@@ -5703,6 +5706,10 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Kount-assigned merchant CID, rendered into the Device Data Collection
+  // script as the Kount Web SDK `clientID`. Optional here — only the DDC
+  // flow requires one, and rejects the request if it's missing.
+  optional string client_id = 3;
   optional string base_url = 50;
 }
 
