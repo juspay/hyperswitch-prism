@@ -24,12 +24,6 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{format_description::well_known::Iso8601, PrimitiveDateTime};
 
-/// `deviceManufacturerIdentifier` for the Apple Pay decrypted package. Revolv3 requires the
-/// field, but the value from Apple's decrypted token is not carried through the UCS proto /
-/// `ApplePayDecryptedData`, so we send the well-known Apple identifier.
-/// TODO(#1149): thread the real identifier once it is available on `ApplePayDecryptedData`.
-const APPLE_PAY_DEVICE_MANUFACTURER_ID: &str = "040010030273";
-
 #[derive(Debug, Clone)]
 pub struct Revolv3AuthType {
     pub api_key: Secret<String>,
@@ -134,9 +128,6 @@ pub struct Revolv3AmountData {
     pub currency: common_enums::Currency,
 }
 
-/// Revolv3's `paymentMethod` object is flat: the billing fields sit alongside exactly one
-/// method-specific payload (`creditCard`, `applePay`, ...), so billing is modelled once here
-/// and the method payload is flattened in beside it.
 #[derive(Debug, Serialize)]
 pub struct Revolv3PaymentMethodData<T: PaymentMethodDataTypes> {
     #[serde(flatten)]
@@ -160,8 +151,6 @@ pub struct Revolv3BillingDetails {
     billing_address: Option<Revolv3BillingAddress>,
     billing_first_name: Option<Secret<String>>,
     billing_last_name: Option<Secret<String>>,
-    /// Optional on the wire: a raw card is required to carry a cardholder name (enforced by
-    /// the credit card builders), but a wallet token is not.
     billing_full_name: Option<Secret<String>>,
 }
 
@@ -175,8 +164,6 @@ impl Revolv3BillingDetails {
         }
     }
 
-    /// Revolv3 rejects a card payment without a cardholder name, so the credit card flows
-    /// resolve it from the billing address first and fall back to the name on the card.
     fn with_required_full_name(
         mut self,
         card_holder_name: Option<Secret<String>>,
@@ -241,19 +228,14 @@ pub struct ApplePayPaymentMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3ApplePayData {
-    // UCS only ever forwards pre-decrypted Apple Pay tokens, so the sibling `applePayToken`
-    // (encrypted payload) field is never populated.
     apple_pay_decrypted_package: Revolv3ApplePayDecryptedPackage,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3ApplePayDecryptedPackage {
-    /// Device-specific account number (DPAN) of the card funding the transaction.
     application_primary_account_number: Secret<String>,
-    /// DPAN expiry in MMYY format.
     application_expiration_date: Secret<String>,
-    /// Apple Pay ECI, at most two characters.
     electronic_commerce_indicator: Option<String>,
     online_payment_cryptogram: Secret<String>,
     device_manufacturer_identifier: Secret<String>,
@@ -276,14 +258,9 @@ pub struct Revolv3GooglePayData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3GooglePayDecryptedPackage {
-    /// Device-specific account number (DPAN) of the card funding the transaction.
     application_primary_account_number: Secret<String>,
-    /// DPAN expiry in MMYY format.
     application_expiration_date: Secret<String>,
-    /// Google Pay ECI, at most two characters.
     electronic_commerce_indicator: Option<String>,
-    /// Optional, unlike the Apple Pay package: Google Pay omits the cryptogram for
-    /// PAN_ONLY tokens, which authenticate on the card credentials alone.
     online_payment_cryptogram: Option<Secret<String>>,
     card_brand: Option<Revolv3CardBrand>,
 }
@@ -330,9 +307,6 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
     fn try_from(apple_pay_data: &ApplePayWalletData) -> Result<Self, Self::Error> {
         let decrypted_data = match &apple_pay_data.payment_data {
             ApplePayPaymentData::Decrypted(decrypted_data) => decrypted_data,
-            // Revolv3 also accepts the raw `applePayToken`, but decrypting it requires the
-            // merchant's Apple Pay certificate to be provisioned on Revolv3's side, which UCS
-            // does not model today.
             ApplePayPaymentData::Encrypted(_) => Err(IntegrationError::NotSupported {
                 message: "Apple Pay encrypted payment data".to_string(),
                 connector: "revolv3",
@@ -364,9 +338,13 @@ impl TryFrom<&ApplePayWalletData> for Revolv3ApplePayDecryptedPackage {
                 .payment_data
                 .online_payment_cryptogram
                 .clone(),
-            device_manufacturer_identifier: Secret::new(
-                APPLE_PAY_DEVICE_MANUFACTURER_ID.to_string(),
-            ),
+            device_manufacturer_identifier: decrypted_data
+                .get_device_manufacturer_identifier()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name:
+                        "payment_method_data.wallet.apple_pay.device_manufacturer_identifier",
+                    context: Default::default(),
+                })?,
             card_brand: Revolv3CardBrand::from_wallet_network(
                 &apple_pay_data.payment_method.network,
             ),
@@ -1390,7 +1368,6 @@ pub struct Revolv3RepeatSaleRequest<T: PaymentMethodDataTypes> {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Revolv3RepeatAuthorizeRequest<T: PaymentMethodDataTypes> {
-    /// See [`Revolv3RepeatSaleRequest::payment_method`].
     pub payment_method: Option<Revolv3PaymentMethodData<T>>,
     pub network_processing: NetworkProcessingData,
     pub amount: Revolv3AmountData,

@@ -1800,6 +1800,7 @@ impl<
                                                 decrypted_data.application_expiration_year,
                                             )?,
                                             payment_data,
+                                            device_manufacturer_identifier: decrypted_data.device_manufacturer_identifier,
                                         }
                                     ))
                                 },
