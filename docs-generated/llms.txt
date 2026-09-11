@@ -622,6 +622,14 @@ payment_methods: Card
 flows: authorize, capture, get, pre_authenticate, proxy_authorize, refund, refund_get, void
 examples_python: examples/paydotcom/paydotcom.py
 
+## Payhere
+connector_id: payhere
+doc: docs/connectors/payhere.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token, handle_event, parse_event, verify_redirect
+examples_python: none
+
 ## Payload
 connector_id: payload
 doc: docs/connectors/payload.md
