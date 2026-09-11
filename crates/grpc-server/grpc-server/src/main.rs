@@ -67,9 +67,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 path = %superposition_config_path,
                 "superposition initialised"
             );
+            let source_kind = sp_config.source().to_string();
             external_services::shared_metrics::SUPERPOSITION_SOURCE
-                .with_label_values(&[&sp_config.source().to_string()])
+                .with_label_values(&[&source_kind])
                 .set(1);
+            #[cfg(feature = "otel")]
+            external_services::otel_metrics::record_superposition_source(&source_kind);
             config.superposition_config = Some(Arc::new(sp_config));
         }
         Err(e) => {

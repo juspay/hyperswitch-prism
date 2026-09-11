@@ -157,6 +157,9 @@ impl SuperpositionRecordingSampler {
         external_services::shared_metrics::SUPERPOSITION_RESOLVE_TOTAL
             .with_label_values(&["sampler", outcome])
             .inc();
+        // Mirror to the OTLP-exported instrument, like every other metric here.
+        #[cfg(feature = "otel")]
+        external_services::otel_metrics::record_superposition_resolution("sampler", outcome);
     }
 
     /// True the first time an rpc reports a given failure, false after — so a

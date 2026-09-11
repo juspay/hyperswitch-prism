@@ -223,6 +223,9 @@ pub async fn resolve_connector_urls(
         external_services::shared_metrics::SUPERPOSITION_RESOLVE_TOTAL
             .with_label_values(&["connector_urls", outcome])
             .inc();
+        // Mirror to the OTLP-exported instrument, like every other metric here.
+        #[cfg(feature = "otel")]
+        external_services::otel_metrics::record_superposition_resolution("connector_urls", outcome);
     };
     match config.resolve(&connector_str, &environment_lower).await {
         Ok(resolved) => {

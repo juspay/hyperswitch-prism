@@ -10,7 +10,7 @@ use std::sync::LazyLock;
 
 use opentelemetry::{
     global,
-    metrics::{Counter, Histogram, Meter},
+    metrics::{Counter, Gauge, Histogram, Meter},
     KeyValue,
 };
 
@@ -93,6 +93,40 @@ static AUTO_RETRY_CONNECTION_CLOSED: LazyLock<Counter<u64>> = LazyLock::new(|| {
         )
         .build()
 });
+
+/// Superposition policy resolutions, by consumer (`connector_urls` | `sampler`) and
+/// outcome (`hit` | `miss` | `key_missing` | `error` | `timeout` | `no_source`).
+static SUPERPOSITION_RESOLVE_TOTAL: LazyLock<Counter<u64>> = LazyLock::new(|| {
+    METER
+        .u64_counter(format!("{METRIC_PREFIX}superposition_resolve_total"))
+        .with_description("Superposition policy resolutions by consumer and outcome")
+        .build()
+});
+
+/// Which source this process resolves policy from (`file` | `remote`), 1 = active.
+/// Set once at boot: a pod that fell back to the file will not follow the workspace.
+static SUPERPOSITION_SOURCE: LazyLock<Gauge<u64>> = LazyLock::new(|| {
+    METER
+        .u64_gauge(format!("{METRIC_PREFIX}superposition_source"))
+        .with_description("Superposition source this process resolves policy from (1 = active)")
+        .build()
+});
+
+/// Record one Superposition policy resolution. Both attributes are bounded enums.
+pub fn record_superposition_resolution(consumer: &str, outcome: &str) {
+    SUPERPOSITION_RESOLVE_TOTAL.add(
+        1,
+        &[
+            KeyValue::new("consumer", consumer.to_string()),
+            KeyValue::new("outcome", outcome.to_string()),
+        ],
+    );
+}
+
+/// Record the Superposition source selected at boot (`file` | `remote`).
+pub fn record_superposition_source(kind: &str) {
+    SUPERPOSITION_SOURCE.record(1, &[KeyValue::new("kind", kind.to_string())]);
+}
 
 /// Record one automatic retry due to "connection closed before message completed".
 pub fn record_auto_retry_connection_closed(connector: &str) {
