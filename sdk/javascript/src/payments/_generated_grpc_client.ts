@@ -76,7 +76,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   CardDetailsWithNoCvc: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   CardDetails: ["cardNumber", "cardExpMonth", "cardExpYear", "cardCvc", "cardHolderName"],
   ProxyCardDetails: ["cardNumber", "cardExpMonth", "cardExpYear", "cardCvc", "cardHolderName"],
-  ApplePayDecryptedData: ["applicationPrimaryAccountNumber", "applicationExpirationMonth", "applicationExpirationYear"],
+  ApplePayDecryptedData: ["applicationPrimaryAccountNumber", "applicationExpirationMonth", "applicationExpirationYear", "deviceManufacturerIdentifier"],
   ApplePayCryptogramData: ["onlinePaymentCryptogram"],
   GooglePayDecryptedData: ["cardExpMonth", "cardExpYear", "applicationPrimaryAccountNumber", "cryptogram"],
   PaymentCredential: ["dpanLastFourDigits", "cardLastFourDigits"],
