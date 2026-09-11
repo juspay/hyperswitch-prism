@@ -916,6 +916,7 @@ enum Connector {
   GLOBALPAYMENTS_HEARTLAND = 147;
   PAYHERE = 148;
   ETISALAT = 149;
+  MERCHANTE = 150;
 }
 
 // Payment method types
@@ -5798,6 +5799,12 @@ message EtisalatConfig {
   optional string base_url = 50;
 }
 
+message MerchanteConfig {
+  SecretString profile_id = 1;
+  SecretString profile_key = 2;
+  optional string base_url = 50;
+}
+
 message WorldpayraftConfig {
   SecretString license = 1;
   SecretString merchant_id = 2;
@@ -6233,6 +6240,8 @@ message ConnectorSpecificConfig {
     PayhereConfig payhere = 159;
     // ETISALAT = 149
     EtisalatConfig etisalat = 160;
+    // MERCHANTE = 150
+    MerchanteConfig merchante = 161;
   }
 }
 

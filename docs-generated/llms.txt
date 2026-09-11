@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 123
+# Connectors: 124
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 123
+  total_connectors: 124
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -509,6 +509,14 @@ scenarios: none
 payment_methods: none
 flows: get, handle_event, parse_event, refund, refund_get, verify_redirect, void
 examples_python: none
+
+## Merchante
+connector_id: merchante
+doc: docs/connectors/merchante.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+examples_python: examples/merchante/merchante.py
 
 ## MiFinity
 connector_id: mifinity
