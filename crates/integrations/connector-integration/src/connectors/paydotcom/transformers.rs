@@ -1100,10 +1100,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         // path calls build_create_resource_request with setup_future_usage:
                         // None hardcoded, and the Authorize leg is a bodyless Confirm, so
                         // the flag never reaches Pay.com in the gateway-3DS flow.
-                        let sfu = item.request.setup_future_usage.and_then(|u| {
-                            matches!(u, common_enums::FutureUsage::OffSession)
-                                .then_some(PaydotcomSetupFutureUsage::OffSession)
-                        });
+                        let setup_future_usage = item
+                            .request
+                            .is_customer_initiated_mandate_payment()
+                            .then_some(PaydotcomSetupFutureUsage::OffSession);
                         let mut create_request = build_create_resource_request(
                             card,
                             amount,
@@ -1118,20 +1118,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             authentication_context,
                             request_threed_secure,
                         )?;
-                        create_request.source_data.setup_future_usage = sfu;
+                        create_request.source_data.setup_future_usage = setup_future_usage;
                         Ok(Self::Create(Box::new(create_request)))
                     }
 
                     PaymentMethodData::Wallet(wallet_data) => {
-                        let sfu = item.request.setup_future_usage.and_then(|u| {
-                            matches!(u, common_enums::FutureUsage::OffSession)
-                                .then_some(PaydotcomSetupFutureUsage::OffSession)
-                        });
+                        let setup_future_usage = item
+                            .request
+                            .is_customer_initiated_mandate_payment()
+                            .then_some(PaydotcomSetupFutureUsage::OffSession);
                         let source_data = build_wallet_source_data(
                             wallet_data,
                             &item.resource_common_data,
                             item.request.email.clone(),
-                            sfu,
+                            setup_future_usage,
                         )?;
                         Ok(Self::Create(Box::new(PaydotcomCreateResourceRequest {
                             amount,
