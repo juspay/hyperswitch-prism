@@ -23,6 +23,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "refund",
     "reverse",
     "setup_recurring",
+    "token_authorize",
     "void",
 ];
 
@@ -223,6 +224,26 @@ pub fn build_setup_recurring_request() -> PaymentServiceSetupRecurringRequest {
     }
 }
 
+pub fn build_token_authorize_request() -> PaymentServiceTokenAuthorizeRequest {
+    PaymentServiceTokenAuthorizeRequest {
+        merchant_transaction_id: Some("probe_tokenized_txn_001".to_string()),
+        amount: Some(Money {
+            minor_amount: 1000,             // Amount in minor units (e.g., 1000 = $10.00).
+            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
+        }),
+        connector_token: Some(Secret::new("pm_1AbcXyzStripeTestToken".to_string())), // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address: Some(PaymentAddress {
+            billing_address: Some(Address {
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        capture_method: Some(CaptureMethod::Automatic.into()),
+        return_url: Some("https://example.com/return".to_string()),
+        ..Default::default()
+    }
+}
+
 pub fn build_void_request(connector_transaction_id: &str) -> PaymentServiceVoidRequest {
     PaymentServiceVoidRequest {
         merchant_void_id: Some("probe_void_001".to_string()), // Identification.
@@ -354,6 +375,18 @@ pub async fn process_setup_recurring(
     ))
 }
 
+// Flow: PaymentService.TokenAuthorize
+#[allow(dead_code)]
+pub async fn process_token_authorize(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .token_authorize(build_token_authorize_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Void
 #[allow(dead_code)]
 pub async fn process_void(
@@ -388,9 +421,10 @@ async fn main() {
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_reverse" => process_reverse(&client, "txn_001").await,
         "process_setup_recurring" => process_setup_recurring(&client, "txn_001").await,
+        "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_proxy_setup_recurring, process_refund, process_reverse, process_setup_recurring, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_client_authentication_token, process_get, process_parse_event, process_proxy_setup_recurring, process_refund, process_reverse, process_setup_recurring, process_token_authorize, process_void", flow);
             return;
         }
     };

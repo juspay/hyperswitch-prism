@@ -557,7 +557,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
+          "body": "{\"query\":\"mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { status terminal ... on AuthorizedEvent { riskDecision networkResponse { code message } } ... on ProcessorDeclinedEvent { declineType riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"transaction\":{\"amount\":\"10.00\"}}}}"
         }
       }
     },
@@ -844,7 +844,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
+          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { __typename ...  on Transaction { id legacyId amount { value currencyCode } status } ... on Refund { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
         }
       }
     },
@@ -894,8 +894,31 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { status terminal ... on AuthorizedEvent { riskDecision networkResponse { code message } } ... on ProcessorDeclinedEvent { declineType riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { riskDecision networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_tokenized_txn_001\"}}}}"
+        }
       }
     },
     "token_setup_recurring": {
@@ -925,7 +948,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
+          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { __typename ...  on Transaction { id legacyId amount { value currencyCode } status } ... on Refund { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
         }
       }
     }

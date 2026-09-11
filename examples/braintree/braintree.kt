@@ -15,6 +15,7 @@ import payments.MerchantAuthenticationClient
 import payments.EventClient
 import payments.AcceptanceType
 import payments.AuthenticationType
+import payments.CaptureMethod
 import payments.CardNetwork
 import payments.Currency
 import payments.FutureUsage
@@ -26,7 +27,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BraintreeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "token_authorize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -257,6 +258,27 @@ fun setupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }
 }
 
+// Flow: PaymentService.TokenAuthorize
+fun tokenAuthorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
+    val request = PaymentServiceTokenAuthorizeRequest.newBuilder().apply {
+        merchantTransactionId = "probe_tokenized_txn_001"
+        amountBuilder.apply {
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        connectorTokenBuilder.value = "pm_1AbcXyzStripeTestToken"  // Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        addressBuilder.apply {
+            billingAddressBuilder.apply {
+            }
+        }
+        captureMethod = CaptureMethod.AUTOMATIC
+        returnUrl = "https://example.com/return"
+    }.build()
+    val response = client.token_authorize(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Void
 fun void(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -281,7 +303,8 @@ fun main(args: Array<String>) {
         "refund" -> refund(txnId)
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
+        "tokenAuthorize" -> tokenAuthorize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, tokenAuthorize, void")
     }
 }
