@@ -174,3 +174,18 @@ GooglePay = '{"protocolVersion":"ECv2","signature":"probe","signedMessage":"prob
 [local_response_flows]
 worldpayxml = ["pre_authenticate"]
 kount = ["pre_authenticate"]
+
+# Saferpay's Transaction interface has no sale / auto-capture mode: AuthorizeDirect
+# always answers AUTHORIZED and the caller settles with an explicit Capture, so the
+# connector rejects CaptureMethod::Automatic up front. The probe leaves capture_method
+# unset, which the framework maps to Automatic (types.rs:1059), so these flows would
+# be reported "not supported" for a reason that is about the probe's default rather
+# than the connector's capability.
+[connector_overrides.recurring_charge.saferpay]
+"capture_method" = 2 # MANUAL
+
+# Same artifact on `authorize`, which had been left alone while the MIT change stayed
+# scoped. Authorize is now the flow that carries externally obtained 3-D Secure
+# results (Authentication.ExternalThreeDS), so its row has to render the truth.
+[connector_overrides.authorize.saferpay]
+"capture_method" = 2 # MANUAL

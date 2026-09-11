@@ -1,25 +1,33 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, num::NonZeroU8};
 
-use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, RefundStatus};
+use common_enums::{AttemptStatus, AuthenticationType, CaptureMethod, CardNetwork, RefundStatus};
 use common_utils::{
     types::{MinorUnit, StringMinorUnit},
     Method,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
+    },
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use time::format_description::well_known::iso8601::{
+    Config, EncodedConfig, Iso8601, TimePrecision,
+};
 
 use crate::connectors::saferpay::{SaferpayAmountConvertor, SaferpayRouterData};
 use crate::types::ResponseRouterData;
@@ -27,8 +35,29 @@ use crate::types::ResponseRouterData;
 /// Saferpay JSON API contract version this integration is pinned to. Every
 /// `RequestHeader` must carry it; bumping it changes the wire contract.
 pub const SAFERPAY_SPEC_VERSION: &str = "1.44";
+
+/// SpecVersion sent on an `AuthorizeDirect` that carries
+/// `Authentication.ExternalThreeDS`, and on that request only.
+///
+/// `ExternalThreeDsData` does not exist in the 1.44 schema this connector is
+/// otherwise pinned to. The Saferpay changelog adds it to
+/// `Authentication` on `Transaction/AuthorizeDirect` in **1.46** ("added new
+/// subcontainer `ExternalThreeDS` to container `Authentication`. This affects the
+/// following requests: `Transaction/AuthorizeDirect`") and to `Alias/InsertDirect`
+/// in 1.47. The integration guide states one blanket floor for the feature —
+/// "Spec Version 1.47+ is required" — so 1.47 is what goes on the wire: it clears
+/// both the schema floor and the documented one.
+///
+/// Raised per request rather than by moving `SAFERPAY_SPEC_VERSION`, because
+/// `SpecVersion` is a per-request declaration of the schema that request conforms
+/// to. Every other flow keeps the 1.44 contract it was verified against.
+const SAFERPAY_SPEC_VERSION_EXTERNAL_THREE_DS: &str = "1.47";
 const SAFERPAY_TRANSACTION_DOC_URL: &str =
     "https://docs.saferpay.com/home/open-api-specification-beta/transaction";
+/// Saferpay's 3-D Secure chapter, including the "Using external 3DS providers"
+/// section that governs `Authentication.ExternalThreeDS`.
+const SAFERPAY_THREE_DS_DOC_URL: &str =
+    "https://docs.saferpay.com/home/integration-guide/general-information/3d-secure";
 
 /// `RetryIndicator` for a first attempt. Saferpay allows 0-9, incremented per retry
 /// of the *same* `RequestId`. The caller supplies the stable logical request id.
@@ -37,6 +66,16 @@ const RETRY_INDICATOR_FIRST_ATTEMPT: u8 = 0;
 /// `Payment.Description` is documented as optional but the Saferpay Backoffice needs
 /// a value to render the transaction, so a fallback is always sent.
 const DEFAULT_PAYMENT_DESCRIPTION: &str = "Payment";
+
+/// `Authentication.ThreeDsChallenge` — the only value Saferpay defines.
+const THREE_DS_CHALLENGE_FORCE: &str = "FORCE";
+
+/// `ExternalThreeDsData.AuthenticationValue` is a base64 CAVV of exactly this
+/// length (`minLength == maxLength == 28` in the Saferpay schema).
+const EXTERNAL_THREE_DS_AUTHENTICATION_VALUE_LEN: usize = 28;
+
+/// `ExternalThreeDsData.Eci` is `AlphaNumeric[1..2]`.
+const EXTERNAL_THREE_DS_ECI_MAX_LEN: usize = 2;
 
 /// Saferpay caps `OrderId` at 80 characters and rejects longer values outright.
 const ORDER_ID_MAX_LEN: usize = 80;
@@ -214,8 +253,15 @@ pub struct SaferpayRequestHeader {
 
 impl SaferpayRequestHeader {
     fn new(auth: &SaferpayAuthType, request_id: String) -> Self {
+        Self::with_spec_version(auth, request_id, SAFERPAY_SPEC_VERSION)
+    }
+
+    /// Same envelope on a declared schema version other than the connector-wide pin.
+    /// Only the external-3DS `AuthorizeDirect` needs this — see
+    /// `SAFERPAY_SPEC_VERSION_EXTERNAL_THREE_DS`.
+    fn with_spec_version(auth: &SaferpayAuthType, request_id: String, spec_version: &str) -> Self {
         Self {
-            spec_version: SAFERPAY_SPEC_VERSION.to_string(),
+            spec_version: spec_version.to_string(),
             customer_id: auth.customer_id.clone(),
             request_id,
             retry_indicator: RETRY_INDICATOR_FIRST_ATTEMPT,
@@ -330,18 +376,169 @@ pub struct SaferpayReturnUrl {
     pub url: String,
 }
 
-/// `ThreeDsChallenge: FORCE` makes the challenged flow deterministic instead of
-/// leaving frictionless-vs-challenge to the issuer.
+/// The `Authentication` container.
+///
+/// Saferpay hangs two different schemas off this one JSON name, and which one
+/// applies is decided by the endpoint, not by the payload:
+///
+/// * `Transaction/Initialize` takes `StrongCustomerAuthenticationInteractive`
+///   (`ThreeDsChallenge`, `Exemption`) — Saferpay runs 3DS itself behind the
+///   redirect.
+/// * `Transaction/AuthorizeDirect` takes `StrongCustomerAuthenticationDirect`
+///   (`ExternalThreeDS`, `Exemption`, `IssuerReference`) — that endpoint runs no
+///   3DS of its own ("**Important:** This function does not perform 3D Secure!"),
+///   so the only authentication it can carry is one somebody else performed.
+///
+/// The two members are therefore mutually exclusive in practice: `Initialize` asks
+/// Saferpay to authenticate, `AuthorizeDirect` reports an authentication that has
+/// already happened. Both are modelled here because the request struct
+/// (`SaferpayCardAuthorizationRequest`) is shared by both endpoints; the
+/// constructors below are the only way either is built.
 #[derive(Debug, Clone, Serialize)]
 pub struct SaferpayAuthentication {
-    #[serde(rename = "ThreeDsChallenge")]
-    pub three_ds_challenge: &'static str,
+    /// `ThreeDsChallenge: FORCE` makes the challenged flow deterministic instead of
+    /// leaving frictionless-vs-challenge to the issuer. `Initialize` only.
+    #[serde(rename = "ThreeDsChallenge", skip_serializing_if = "Option::is_none")]
+    pub three_ds_challenge: Option<&'static str>,
+    /// Externally obtained 3-D Secure result. `AuthorizeDirect` only, from
+    /// SpecVersion 1.46 onwards. Boxed to keep the enclosing request small — this
+    /// container is ten members wide and is absent from every request but one.
+    #[serde(rename = "ExternalThreeDS", skip_serializing_if = "Option::is_none")]
+    pub external_three_ds: Option<Box<SaferpayExternalThreeDs>>,
 }
 
-/// Body for `POST /Payment/v1/Transaction/AuthorizeDirect` (non-3DS) and
-/// `POST /Payment/v1/Transaction/Initialize` (3DS). The two differ only by the
-/// presence of `ReturnUrl` / `Authentication`; `TerminalId` is required on both and
-/// on no other endpoint.
+impl SaferpayAuthentication {
+    /// `Transaction/Initialize`: ask Saferpay for a full challenge.
+    fn force_challenge() -> Self {
+        Self {
+            three_ds_challenge: Some(THREE_DS_CHALLENGE_FORCE),
+            external_three_ds: None,
+        }
+    }
+
+    /// `Transaction/AuthorizeDirect`: report a 3-D Secure run by the merchant's own
+    /// 3DS server.
+    fn external(external_three_ds: SaferpayExternalThreeDs) -> Self {
+        Self {
+            three_ds_challenge: None,
+            external_three_ds: Some(Box::new(external_three_ds)),
+        }
+    }
+}
+
+/// `Payment_Models_Data_ExternalThreeDsData` — the result of a 3-D Secure
+/// authentication the *merchant* ran, handed to Saferpay so it can authorize with
+/// the scheme's SCA evidence attached.
+///
+/// Every member is mandatory in the Saferpay schema except `AuthenticationMode`.
+/// Saferpay's names deliberately do not follow scheme jargon: the CAVV/AAV is
+/// `AuthenticationValue`, and there is no `Cavv`, `Xid` or `Mpi` member on the
+/// request side at all (`Xid` exists only on the `Liability` response container).
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayExternalThreeDs {
+    #[serde(rename = "Scheme")]
+    pub scheme: SaferpayThreeDsScheme,
+    /// Full protocol version, e.g. `2.2.0` — not the truncated `2` that
+    /// `Liability.ThreeDs.Version` reports back.
+    #[serde(rename = "ThreeDsFullVersion")]
+    pub three_ds_full_version: String,
+    #[serde(rename = "TransStatus")]
+    pub trans_status: SaferpayThreeDsTransStatus,
+    /// The only member Saferpay's schema marks optional — but it is *conditionally*
+    /// mandatory, and the condition is documented nowhere: the sandbox rejects a
+    /// `TransStatus: Y` that omits it with "If TransStatus is 'Y',
+    /// AuthenticationMode must be 'CHALLENGE' or 'FRICTIONLESS'". Sent whenever the
+    /// caller knows it; required below when the status is `Y`.
+    #[serde(rename = "AuthenticationMode", skip_serializing_if = "Option::is_none")]
+    pub authentication_mode: Option<SaferpayThreeDsAuthenticationMode>,
+    /// `AlphaNumeric[1..2]`.
+    #[serde(rename = "Eci")]
+    pub eci: String,
+    /// The CAVV/AAV. Base64, exactly 28 characters. Proof of authentication, so
+    /// masked.
+    #[serde(rename = "AuthenticationValue")]
+    pub authentication_value: Secret<String>,
+    /// Access Control Server transaction id. Masked: it correlates a cardholder to
+    /// the cryptogram sitting beside it.
+    #[serde(rename = "AcsTransId")]
+    pub acs_trans_id: Secret<String>,
+    /// Directory Server transaction id — Saferpay spells it `DsTransId`, not
+    /// `DsTransactionId`. Masked for the same reason as `AcsTransId`; the upstream
+    /// `AuthenticationData::ds_trans_id` is a bare `String`.
+    #[serde(rename = "DsTransId")]
+    pub ds_trans_id: Secret<String>,
+    /// 3DS Server transaction id. Note Saferpay's casing: `ThreeDSServerTransId`.
+    #[serde(rename = "ThreeDSServerTransId")]
+    pub three_ds_server_trans_id: Secret<String>,
+    /// ISO 8601, e.g. `2025-04-06T10:30:00.123Z`.
+    #[serde(rename = "AuthenticationTime")]
+    pub authentication_time: String,
+}
+
+/// `ExternalThreeDsData.Scheme`. Saferpay accepts exactly these five; a card on any
+/// other network cannot be authorized through the external-3DS path.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum SaferpayThreeDsScheme {
+    #[serde(rename = "MASTERCARD")]
+    Mastercard,
+    #[serde(rename = "VISA")]
+    Visa,
+    #[serde(rename = "JCB")]
+    Jcb,
+    #[serde(rename = "DINERS")]
+    Diners,
+    #[serde(rename = "AMEX")]
+    Amex,
+}
+
+/// `ExternalThreeDsData.AuthenticationMode` — how the cardholder was authenticated.
+/// One-for-one with the UCS `DecoupledAuthenticationType`, whose proto documents the
+/// same two outcomes ("Challenge flow - the cardholder was challenged by the ACS" /
+/// "Frictionless flow - authentication completed without a challenge").
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum SaferpayThreeDsAuthenticationMode {
+    #[serde(rename = "CHALLENGE")]
+    Challenge,
+    #[serde(rename = "FRICTIONLESS")]
+    Frictionless,
+}
+
+impl From<common_enums::DecoupledAuthenticationType> for SaferpayThreeDsAuthenticationMode {
+    fn from(value: common_enums::DecoupledAuthenticationType) -> Self {
+        match value {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
+        }
+    }
+}
+
+/// `ExternalThreeDsData.TransStatus`. Saferpay accepts only the four EMV 3DS
+/// statuses that can precede an authorization attempt.
+///
+/// `N` (not authenticated), `R` (issuer rejected) and `C`/`D` (challenge still
+/// outstanding) are deliberately absent: the first two are terminal declines and
+/// the last two mean the authentication has not finished, so none of them may be
+/// forwarded as if the cardholder had been authenticated.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum SaferpayThreeDsTransStatus {
+    /// Authenticated.
+    #[serde(rename = "Y")]
+    Successful,
+    /// Attempts processing performed — proof of attempted authentication.
+    #[serde(rename = "A")]
+    Attempted,
+    /// Could not be performed (technical or other problem).
+    #[serde(rename = "U")]
+    Unavailable,
+    /// Informational only.
+    #[serde(rename = "I")]
+    InformationOnly,
+}
+
+/// Body for `POST /Payment/v1/Transaction/AuthorizeDirect` (no Saferpay-run 3DS)
+/// and `POST /Payment/v1/Transaction/Initialize` (Saferpay-run 3DS). The two differ
+/// only by the presence of `ReturnUrl` / `Authentication` / `Initiator`;
+/// `TerminalId` is required on both and on no other endpoint.
 #[derive(Debug, Clone, Serialize)]
 pub struct SaferpayCardAuthorizationRequest<T: PaymentMethodDataTypes> {
     #[serde(rename = "RequestHeader")]
@@ -356,6 +553,11 @@ pub struct SaferpayCardAuthorizationRequest<T: PaymentMethodDataTypes> {
     pub return_url: Option<SaferpayReturnUrl>,
     #[serde(rename = "Authentication", skip_serializing_if = "Option::is_none")]
     pub authentication: Option<SaferpayAuthentication>,
+    /// `AuthorizeDirect` only, and only on the external-3DS path, where Saferpay
+    /// requires `PAYER` so the charge is flagged to the scheme as a CIT. Left
+    /// unset elsewhere — `Initialize` has no such member.
+    #[serde(rename = "Initiator", skip_serializing_if = "Option::is_none")]
+    pub initiator: Option<SaferpayInitiator>,
 }
 
 /// The Authorize flow speaks to two different endpoints.
@@ -378,6 +580,275 @@ pub enum SaferpayAuthorizeRequest<T: PaymentMethodDataTypes> {
         #[serde(rename = "Token")]
         token: Secret<String>,
     },
+}
+
+/// Context for the external-3DS validation errors below. Distinct from `context()`
+/// so the caller is told which half of the request is wrong and what to do about
+/// it — these are all "your 3DS server gave us something Saferpay will not take".
+fn external_three_ds_context(reason: &str) -> IntegrationErrorContext {
+    IntegrationErrorContext {
+        additional_context: Some(format!(
+            "while mapping externally obtained 3-D Secure results onto Saferpay's \
+             Authentication.ExternalThreeDS container: {reason}"
+        )),
+        suggested_action: Some(
+            "Saferpay authorizes external 3DS only from a complete EMV 3DS result. \
+             Supply the full authentication payload from your 3DS server, or drop \
+             authentication_data and run 3DS through Saferpay with the \
+             PreAuthenticate flow instead."
+                .to_string(),
+        ),
+        doc_url: Some(SAFERPAY_THREE_DS_DOC_URL.to_string()),
+    }
+}
+
+fn external_three_ds_missing(
+    field_name: &'static str,
+    reason: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::MissingRequiredField {
+        field_name,
+        context: external_three_ds_context(reason),
+    })
+}
+
+/// Maps the network UCS names onto the five `ExternalThreeDsData.Scheme` values
+/// Saferpay accepts.
+fn external_three_ds_scheme(
+    network: CardNetwork,
+) -> Result<SaferpayThreeDsScheme, error_stack::Report<IntegrationError>> {
+    match network {
+        CardNetwork::Visa => Ok(SaferpayThreeDsScheme::Visa),
+        CardNetwork::Mastercard => Ok(SaferpayThreeDsScheme::Mastercard),
+        CardNetwork::AmericanExpress => Ok(SaferpayThreeDsScheme::Amex),
+        CardNetwork::JCB => Ok(SaferpayThreeDsScheme::Jcb),
+        CardNetwork::DinersClub => Ok(SaferpayThreeDsScheme::Diners),
+        other => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: format!(
+                "External 3-D Secure on a {other} card — Saferpay's \
+                 ExternalThreeDsData.Scheme accepts only VISA, MASTERCARD, AMEX, \
+                 JCB and DINERS"
+            ),
+            connector: "saferpay",
+            context: external_three_ds_context("unsupported card scheme"),
+        })),
+    }
+}
+
+/// Maps the EMV 3DS transaction status onto the four values Saferpay accepts.
+///
+/// `N`, `R`, `C` and `D` have no Saferpay counterpart, and that is not an oversight
+/// on Saferpay's part: the first two are terminal authentication failures and the
+/// last two mean the challenge has not resolved. Forwarding any of them would ask
+/// Saferpay to authorize while claiming SCA evidence that does not exist, so they
+/// are refused here rather than coerced into `U`.
+fn external_three_ds_trans_status(
+    status: common_enums::TransactionStatus,
+) -> Result<SaferpayThreeDsTransStatus, error_stack::Report<IntegrationError>> {
+    use common_enums::TransactionStatus;
+    match status {
+        TransactionStatus::Success => Ok(SaferpayThreeDsTransStatus::Successful),
+        TransactionStatus::NotVerified => Ok(SaferpayThreeDsTransStatus::Attempted),
+        TransactionStatus::VerificationNotPerformed => Ok(SaferpayThreeDsTransStatus::Unavailable),
+        TransactionStatus::InformationOnly => Ok(SaferpayThreeDsTransStatus::InformationOnly),
+        rejected @ (TransactionStatus::Failure | TransactionStatus::Rejected) => {
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!(
+                    "Authorizing on a 3-D Secure result of {rejected} — the cardholder \
+                     was not authenticated, so there is no SCA evidence to forward"
+                ),
+                connector: "saferpay",
+                context: external_three_ds_context(
+                    "trans_status reports a failed or issuer-rejected authentication",
+                ),
+            }))
+        }
+        pending @ (TransactionStatus::ChallengeRequired
+        | TransactionStatus::ChallengeRequiredDecoupledAuthentication) => {
+            Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!(
+                    "Authorizing on a 3-D Secure result of {pending} — the challenge has \
+                     not resolved yet. Complete it and send the final result"
+                ),
+                connector: "saferpay",
+                context: external_three_ds_context("trans_status reports an unfinished challenge"),
+            }))
+        }
+    }
+}
+
+/// Formats the authentication timestamp as the ISO 8601 Saferpay documents
+/// (`2025-04-06T10:30:00.123+01:00`). `AuthenticationData::created_at` is a
+/// `PrimitiveDateTime`, i.e. already UTC by construction here, so this renders the
+/// `Z` form — the same encoding `common_utils::date_time::date_as_yyyymmddthhmmssmmmz`
+/// produces for "now".
+fn external_three_ds_authentication_time(
+    created_at: time::PrimitiveDateTime,
+) -> Result<String, error_stack::Report<IntegrationError>> {
+    const ISO_CONFIG: EncodedConfig = Config::DEFAULT
+        .set_time_precision(TimePrecision::Second {
+            decimal_digits: NonZeroU8::new(3),
+        })
+        .encode();
+    created_at
+        .assume_utc()
+        .format(&Iso8601::<ISO_CONFIG>)
+        .map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "authentication_data.created_at",
+                context: external_three_ds_context(
+                    "the authentication timestamp could not be rendered as ISO 8601",
+                ),
+            })
+        })
+}
+
+/// Builds `Authentication.ExternalThreeDS` from the authentication the merchant's
+/// own 3DS server performed.
+///
+/// Saferpay marks every member of `ExternalThreeDsData` mandatory except
+/// `AuthenticationMode`, and it forwards them to the scheme as the proof of
+/// authentication that earns the liability shift. A half-populated container is
+/// therefore worse than none: it would be rejected by Saferpay at best, and at
+/// worst authorize without the liability shift the caller believed it had. So
+/// every one of them is required here, and each absence names itself.
+fn build_external_three_ds<T: PaymentMethodDataTypes>(
+    auth_data: &AuthenticationData,
+    card: &Card<T>,
+) -> Result<SaferpayExternalThreeDs, error_stack::Report<IntegrationError>> {
+    let scheme = card
+        .card_network
+        .clone()
+        .ok_or_else(|| {
+            external_three_ds_missing(
+                "payment_method_data.card.card_network",
+                "Saferpay requires the scheme the authentication ran on; it cannot be \
+                 inferred from the PAN here",
+            )
+        })
+        .and_then(external_three_ds_scheme)?;
+
+    let trans_status = auth_data
+        .trans_status
+        .clone()
+        .ok_or_else(|| {
+            external_three_ds_missing(
+                "authentication_data.trans_status",
+                "Saferpay requires the final 3DS transaction status",
+            )
+        })
+        .and_then(external_three_ds_trans_status)?;
+
+    let authentication_value = auth_data.cavv.clone().ok_or_else(|| {
+        external_three_ds_missing(
+            "authentication_data.cavv",
+            "Saferpay's AuthenticationValue is the cryptogram that proves the \
+             authentication happened",
+        )
+    })?;
+    let authentication_value_len = authentication_value.peek().chars().count();
+    if authentication_value_len != EXTERNAL_THREE_DS_AUTHENTICATION_VALUE_LEN {
+        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.cavv",
+            context: external_three_ds_context(&format!(
+                "Saferpay's AuthenticationValue is a base64 CAVV of exactly \
+                 {EXTERNAL_THREE_DS_AUTHENTICATION_VALUE_LEN} characters; this one is \
+                 {authentication_value_len}"
+            )),
+        }));
+    }
+
+    let eci = auth_data.eci.clone().ok_or_else(|| {
+        external_three_ds_missing(
+            "authentication_data.eci",
+            "Saferpay requires the Electronic Commerce Indicator the ACS or DS returned",
+        )
+    })?;
+    let eci_len = eci.chars().count();
+    if eci_len == 0 || eci_len > EXTERNAL_THREE_DS_ECI_MAX_LEN {
+        return Err(error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "authentication_data.eci",
+            context: external_three_ds_context(&format!(
+                "Saferpay's Eci is AlphaNumeric[1..{EXTERNAL_THREE_DS_ECI_MAX_LEN}]; this \
+                 one is {eci_len} characters"
+            )),
+        }));
+    }
+
+    let three_ds_full_version = auth_data
+        .message_version
+        .as_ref()
+        .map(ToString::to_string)
+        .ok_or_else(|| {
+            external_three_ds_missing(
+                "authentication_data.message_version",
+                "Saferpay's ThreeDsFullVersion is the full EMV 3DS protocol version, \
+                 e.g. 2.2.0",
+            )
+        })?;
+
+    let acs_trans_id = auth_data.acs_transaction_id.clone().ok_or_else(|| {
+        external_three_ds_missing(
+            "authentication_data.acs_transaction_id",
+            "Saferpay requires the Access Control Server transaction id",
+        )
+    })?;
+
+    // Upstream types these two as bare `String`, but they identify a cardholder's
+    // authentication and travel beside the cryptogram, so they are masked here.
+    let ds_trans_id = auth_data.ds_trans_id.clone().ok_or_else(|| {
+        external_three_ds_missing(
+            "authentication_data.ds_trans_id",
+            "Saferpay requires the Directory Server transaction id",
+        )
+    })?;
+
+    let three_ds_server_trans_id =
+        auth_data
+            .threeds_server_transaction_id
+            .clone()
+            .ok_or_else(|| {
+                external_three_ds_missing(
+                    "authentication_data.threeds_server_transaction_id",
+                    "Saferpay requires the 3DS Server transaction id",
+                )
+            })?;
+
+    let created_at = auth_data.created_at.ok_or_else(|| {
+        external_three_ds_missing(
+            "authentication_data.created_at",
+            "Saferpay's AuthenticationTime is when the authentication ran",
+        )
+    })?;
+
+    // Conditionally mandatory: Saferpay rejects `TransStatus: Y` without it. The
+    // other three statuses describe authentications that did not complete normally,
+    // and Saferpay accepts them with no mode, so it is only forwarded when known.
+    let authentication_mode = auth_data
+        .authentication_type
+        .clone()
+        .map(SaferpayThreeDsAuthenticationMode::from);
+    if authentication_mode.is_none()
+        && matches!(trans_status, SaferpayThreeDsTransStatus::Successful)
+    {
+        return Err(external_three_ds_missing(
+            "authentication_data.authentication_type",
+            "Saferpay requires AuthenticationMode (CHALLENGE or FRICTIONLESS) when TransStatus is Y",
+        ));
+    }
+
+    Ok(SaferpayExternalThreeDs {
+        scheme,
+        three_ds_full_version,
+        trans_status,
+        authentication_mode,
+        eci,
+        authentication_value,
+        acs_trans_id: Secret::new(acs_trans_id),
+        ds_trans_id: Secret::new(ds_trans_id),
+        three_ds_server_trans_id: Secret::new(three_ds_server_trans_id),
+        authentication_time: external_three_ds_authentication_time(created_at)?,
+    })
 }
 
 type AuthorizeRouterData<T> =
@@ -449,15 +920,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Saferpay's Transaction interface has no field to carry an externally
-        // obtained CAVV/ECI/dsTransId: 3DS is always run by Saferpay itself through
-        // the PreAuthenticate redirect, so merchant-supplied authentication data
-        // cannot be honoured. (The 3DS settle leg was handled above.)
-        if request.authentication_data.is_some() {
-            return Err(not_supported(
-                "External/merchant-provided 3DS authentication data".to_string(),
-            ));
-        }
+        // External 3-D Secure. The merchant's own MPI/3DS server authenticated the
+        // cardholder; `AuthorizeDirect` carries the result in
+        // `Authentication.ExternalThreeDS` and authorizes with it. Saferpay runs no
+        // 3DS of its own on this endpoint — which is exactly why it is the one that
+        // accepts somebody else's. (The Saferpay-run 3DS settle leg was handled
+        // above and never reaches here.)
+        let external_three_ds = request
+            .authentication_data
+            .as_ref()
+            .map(|auth_data| build_external_three_ds(auth_data, card))
+            .transpose()?;
 
         // Saferpay has no sale mode. There is no capture field on `AuthorizeDirect` or
         // `Initialize`, no combined authorize+capture endpoint anywhere in the Payment
@@ -475,11 +948,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(capture_method_not_supported(*method));
         }
 
-        // Mandates, MIT and tokenization are out of scope: Saferpay expresses them
-        // through Secure Card Data / `Alias`, which this integration does not
-        // implement. Reject rather than silently dropping the intent.
-        if request.mandate_id.is_some() || request.setup_mandate_details.is_some() {
-            return Err(not_supported("Mandates / stored credentials".to_string()));
+        // Saferpay expresses stored credentials through Secure Card Data aliases.
+        // `SetupMandate` (`Alias/InsertDirect`) creates the alias and `RepeatPayment`
+        // (`AuthorizeDirect` with `PaymentMeans.Alias.Id` + `Initiator: MERCHANT`)
+        // charges it. Authorize itself still has no alias wiring — charging one from
+        // here would drop the MIT flagging Saferpay forwards to the scheme, and
+        // registering one alongside a charge needs `RegisterAlias` on
+        // `AuthorizeDirect`. Both intents are refused rather than silently dropped.
+        if request.mandate_id.is_some() {
+            return Err(not_supported(
+                "Charging a stored Saferpay alias from Authorize — use the RepeatPayment \
+                 flow (RecurringPaymentService/Charge), which sends the alias with \
+                 Initiator: MERCHANT"
+                    .to_string(),
+            ));
+        }
+        if request.setup_mandate_details.is_some() {
+            return Err(not_supported(
+                "Registering an alias alongside an Authorize — run the SetupMandate flow \
+                 (Alias/InsertDirect) instead"
+                    .to_string(),
+            ));
         }
 
         let exp_year = card
@@ -506,19 +995,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .clone()
             .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string());
 
-        // A 3DS attempt never reaches this flow for the initial charge — PreAuthenticate
-        // owns `Initialize`. Reaching here with ThreeDs means the authentication legs did
-        // not run, which on the hyperswitch path means the connector's
-        // `is_pre_authentication_flow_required` predicate is not wired up. Failing loudly
-        // beats silently charging without authentication.
-        if common.auth_type == AuthenticationType::ThreeDs {
+        // A Saferpay-run 3DS attempt never reaches this flow for the initial charge —
+        // PreAuthenticate owns `Initialize`. Reaching here with ThreeDs and no
+        // externally obtained result means the authentication legs did not run, which
+        // on the hyperswitch path means the connector's
+        // `is_pre_authentication_flow_required` predicate is not wired up. Failing
+        // loudly beats silently charging without authentication.
+        //
+        // External 3DS is the one legitimate way to be here with ThreeDs set: the
+        // authentication already happened, off Saferpay, and its result is in hand.
+        if common.auth_type == AuthenticationType::ThreeDs && external_three_ds.is_none() {
             return Err(not_supported(
-                "3DS on AuthorizeDirect — the PreAuthenticate leg must run first".to_string(),
+                "3DS on AuthorizeDirect — the PreAuthenticate leg must run first, or supply externally obtained authentication_data"
+                    .to_string(),
             ));
         }
 
+        // Saferpay requires `Initiator: PAYER` alongside `ExternalThreeDS` so the charge
+        // reaches the scheme flagged as a cardholder-initiated transaction — which is
+        // what it is, the cardholder having just authenticated. Left unset otherwise, to
+        // keep every already-verified request byte-identical to what shipped.
+        let initiator = external_three_ds
+            .is_some()
+            .then_some(SaferpayInitiator::Payer);
+
+        // `ExternalThreeDsData` does not exist in the 1.44 schema; declaring 1.44 while
+        // sending it would have Saferpay drop the container silently (it ignores unknown
+        // members) and authorize with no SCA evidence at all.
+        let request_header = match external_three_ds {
+            Some(_) => SaferpayRequestHeader::with_spec_version(
+                &auth,
+                payment_request_id(common),
+                SAFERPAY_SPEC_VERSION_EXTERNAL_THREE_DS,
+            ),
+            None => SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+        };
+
         Ok(Self::Direct(Box::new(SaferpayCardAuthorizationRequest {
-            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            request_header,
             terminal_id: auth.terminal_id.clone(),
             payment: SaferpayPaymentDetails {
                 amount: SaferpayAmount {
@@ -538,7 +1052,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             return_url: None,
-            authentication: None,
+            authentication: external_three_ds.map(SaferpayAuthentication::external),
+            initiator,
         })))
     }
 }
@@ -574,6 +1089,30 @@ pub struct SaferpayTransaction {
     pub six_transaction_reference: Option<String>,
     #[serde(rename = "ApprovalCode")]
     pub approval_code: Option<String>,
+    /// Scheme-level chaining identifiers created by the issuer. This is Saferpay's
+    /// network-transaction-id equivalent — no field named `NetworkTransactionId`
+    /// exists anywhere in the JSON API. Returned since SpecVersion 1.21; read by
+    /// the RepeatPayment flow to continue an MIT chain.
+    #[serde(rename = "IssuerReference")]
+    pub issuer_reference: Option<SaferpayIssuerReferenceResponse>,
+}
+
+/// `IssuerReferenceInfo` — the response half of `Authentication.IssuerReference`.
+///
+/// `SettlementDate` is deliberately not modelled: it has no UCS carrier on either
+/// side (see `SaferpayIssuerReference` on the request), so parsing it would leave a
+/// field nothing reads.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayIssuerReferenceResponse {
+    /// Surfaced as `network_txn_id`. Masked: it identifies a stored credential and
+    /// is enough to continue a merchant-initiated chain on another PSP.
+    #[serde(rename = "TransactionStamp")]
+    pub transaction_stamp: Option<Secret<String>>,
+    /// Surfaced as `network_txn_link_id`. Saferpay only started returning this at
+    /// SpecVersion 1.52, and this integration is pinned to
+    /// `SAFERPAY_SPEC_VERSION` (1.44), so in practice it arrives empty today.
+    #[serde(rename = "MastercardTLID")]
+    pub mastercard_tlid: Option<Secret<String>>,
 }
 
 impl SaferpayTransaction {
@@ -1034,9 +1573,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             },
             return_url: Some(SaferpayReturnUrl { url }),
-            authentication: Some(SaferpayAuthentication {
-                three_ds_challenge: "FORCE",
-            }),
+            authentication: Some(SaferpayAuthentication::force_challenge()),
+            initiator: None,
         }))
     }
 }
@@ -1636,6 +2174,887 @@ impl TryFrom<ResponseRouterData<SaferpayRefundSyncResponse, Self>> for RefundSyn
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE — `Alias/InsertDirect` (Secure Card Data standalone registration)
+// =============================================================================
+//
+// Saferpay has **no zero-amount authorization**. No endpoint on the Payment API
+// accepts `Amount.Value: "0"` for card verification, and the integration guide
+// explicitly forbids the small-amount workaround for the two dominant brands:
+//
+// > "Do not use the Payment Page just for registrations for Visa and Mastercard,
+// > e.g. by applying a small amount (0.01 EUR or similar). This is deemed
+// > non-compliant."
+//
+// The sanctioned zero-cost path is a **standalone alias registration**. Two shapes
+// exist: `Alias/Insert` -> hosted card form -> `Alias/AssertInsert` (two calls plus
+// a redirect), and `Alias/InsertDirect`, which registers raw card data in a single
+// call. This connector already sends raw PANs (`Transaction/AuthorizeDirect`), so
+// `InsertDirect` is the mapping that matches the integration's existing PCI posture
+// and keeps SetupMandate a single, non-redirecting `ConnectorIntegrationV2`.
+//
+// `Verify: true` asks Saferpay to run a card check against the issuer before the
+// alias is stored, so a dead PAN fails here instead of on the first MIT.
+
+/// `RegisterAlias.IdGenerator`. `RANDOM_UNIQUE` makes Saferpay mint a fresh,
+/// unguessable alias id and de-duplicates a re-registration of the same PAN +
+/// expiry instead of erroring.
+const ALIAS_ID_GENERATOR_RANDOM_UNIQUE: &str = "RANDOM_UNIQUE";
+
+/// Key under which SetupMandate publishes the alias lifetime (in days) so the
+/// caller can reason about when the stored credential stops working.
+pub const ALIAS_LIFETIME_METADATA_KEY: &str = "alias_lifetime_days";
+/// Key under which SetupMandate publishes the registered brand.
+pub const ALIAS_BRAND_METADATA_KEY: &str = "alias_brand";
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRegisterAlias {
+    #[serde(rename = "IdGenerator")]
+    pub id_generator: &'static str,
+}
+
+/// The card block of an **alias** request.
+///
+/// Deliberately not `SaferpayCardDetails`: the Transaction interface spells the
+/// security code `VerificationCode`, while the Alias interface spells it `Cvv`.
+/// `ExpYear` / `ExpMonth` are JSON numbers on both.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasCardDetails<T: PaymentMethodDataTypes> {
+    #[serde(rename = "Number")]
+    pub number: RawCardNumber<T>,
+    #[serde(rename = "ExpYear")]
+    pub exp_year: Secret<u16>,
+    #[serde(rename = "ExpMonth")]
+    pub exp_month: Secret<u8>,
+    #[serde(rename = "HolderName", skip_serializing_if = "Option::is_none")]
+    pub holder_name: Option<Secret<String>>,
+    #[serde(rename = "Cvv", skip_serializing_if = "Option::is_none")]
+    pub cvv: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasPaymentMeans<T: PaymentMethodDataTypes> {
+    #[serde(rename = "Card")]
+    pub card: SaferpayAliasCardDetails<T>,
+}
+
+/// Body for `POST /Payment/v1/Alias/InsertDirect`.
+///
+/// There is **no `Payment` container and no `Amount`** anywhere in this request:
+/// registering an alias moves no money, which is exactly why it is the right
+/// mapping for SetupMandate.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpaySetupMandateRequest<T: PaymentMethodDataTypes> {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TerminalId")]
+    pub terminal_id: Secret<String>,
+    #[serde(rename = "RegisterAlias")]
+    pub register_alias: SaferpayRegisterAlias,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayAliasPaymentMeans<T>,
+    /// Runs an online card check before the alias is stored.
+    #[serde(rename = "Verify")]
+    pub verify: bool,
+}
+
+type SetupMandateRouterData<T> =
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<SetupMandateRouterData<T>, T>> for SaferpaySetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<SetupMandateRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        let card = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card mandates are supported by saferpay — Secure Card Data \
+                     registers cards only"
+                        .to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        // A mandate that already exists is not something to set up again; reusing an
+        // alias for an MIT belongs to a repeat-payment flow, which this connector does
+        // not implement. Refuse instead of silently minting a second alias.
+        if request.mandate_id.is_some() {
+            return Err(not_supported(
+                "Re-using an existing mandate on SetupMandate".to_string(),
+            ));
+        }
+
+        // `Alias/InsertDirect` does accept externally obtained 3DS results from
+        // SpecVersion 1.47 — but as a **top-level** `ExternalThreeDS` member, not under
+        // `Authentication` the way `AuthorizeDirect` takes it, and only together with
+        // `Check.Type: ONLINE_STRONG` and a forced challenge (a frictionless result "may
+        // cause problems with the authorization"). This flow sends `Verify: true` and no
+        // `Check` container, so none of that is wired. Refuse rather than dropping the
+        // authentication silently and registering an alias that carries no SCA evidence.
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "External/merchant-provided 3DS authentication data on alias registration"
+                    .to_string(),
+            ));
+        }
+
+        let exp_year = card
+            .get_expiry_year_4_digit()
+            .expose()
+            .parse::<u16>()
+            .map_err(|_| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "card_exp_year",
+                    context: context(),
+                })
+            })?;
+        let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "card_exp_month",
+                context: context(),
+            })
+        })?;
+
+        // `SetupMandateRequestData::{amount, minor_amount, currency}` are deliberately
+        // unused: `InsertDirect` has no amount field at all, so a non-zero amount here
+        // can never become a charge. Sending one is impossible, not merely ignored.
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            terminal_id: auth.terminal_id.clone(),
+            register_alias: SaferpayRegisterAlias {
+                id_generator: ALIAS_ID_GENERATOR_RANDOM_UNIQUE,
+            },
+            payment_means: SaferpayAliasPaymentMeans {
+                card: SaferpayAliasCardDetails {
+                    number: card.card_number.clone(),
+                    exp_year: Secret::new(exp_year),
+                    exp_month: Secret::new(exp_month),
+                    holder_name: card.get_optional_cardholder_name(),
+                    cvv: Some(card.card_cvc.clone()),
+                },
+            },
+            verify: true,
+        })
+    }
+}
+
+/// The registered alias. `Id` is the only durable handle Saferpay hands back and
+/// becomes the `connector_mandate_id`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAlias {
+    #[serde(rename = "Id")]
+    pub id: String,
+    /// Days the alias stays valid.
+    #[serde(rename = "Lifetime")]
+    pub lifetime: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasBrand {
+    #[serde(rename = "PaymentMethod")]
+    pub payment_method: Option<String>,
+    #[serde(rename = "Name")]
+    pub name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasCardInfo {
+    #[serde(rename = "MaskedNumber")]
+    pub masked_number: Option<String>,
+    #[serde(rename = "ExpYear")]
+    pub exp_year: Option<i64>,
+    #[serde(rename = "ExpMonth")]
+    pub exp_month: Option<i64>,
+    #[serde(rename = "HolderName")]
+    pub holder_name: Option<String>,
+    #[serde(rename = "CountryCode")]
+    pub country_code: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayAliasPaymentMeansResponse {
+    #[serde(rename = "Brand")]
+    pub brand: Option<SaferpayAliasBrand>,
+    #[serde(rename = "DisplayText")]
+    pub display_text: Option<String>,
+    #[serde(rename = "Card")]
+    pub card: Option<SaferpayAliasCardInfo>,
+}
+
+/// One entry of the array form of `CheckResult`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckEntry {
+    #[serde(rename = "Type")]
+    pub check_type: Option<String>,
+    #[serde(rename = "Success")]
+    pub success: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckAuthentication {
+    #[serde(rename = "Result")]
+    pub result: Option<String>,
+    #[serde(rename = "Message")]
+    pub message: Option<String>,
+    #[serde(rename = "Xid")]
+    pub xid: Option<String>,
+}
+
+/// `CheckResult` has two documented shapes — the object form
+/// (`Result` / `Message` / `Authentication`) on docs.saferpay.com and the array form
+/// (`Check: [{Type, Success}]`) in the OpenAPI schema — and the sandbox omits it
+/// entirely when `Verify` alone is used. Every member is therefore optional and both
+/// shapes are read.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayCheckResult {
+    #[serde(rename = "Result")]
+    pub result: Option<String>,
+    #[serde(rename = "Message")]
+    pub message: Option<String>,
+    #[serde(rename = "Authentication")]
+    pub authentication: Option<SaferpayCheckAuthentication>,
+    #[serde(rename = "Check")]
+    pub check: Option<Vec<SaferpayCheckEntry>>,
+}
+
+impl SaferpayCheckResult {
+    /// `Some(false)` only when Saferpay actively reports a failed check. An absent
+    /// `CheckResult`, or one carrying no verdict, is not a failure — the sandbox
+    /// returns no `CheckResult` at all for a plain `Verify: true` registration.
+    fn failed(&self) -> bool {
+        let array_failed = self
+            .check
+            .as_ref()
+            .is_some_and(|checks| checks.iter().any(|check| check.success == Some(false)));
+
+        let object_failed = self
+            .result
+            .as_deref()
+            .is_some_and(|result| result.eq_ignore_ascii_case("FAILED"));
+
+        array_failed || object_failed
+    }
+
+    fn message(&self) -> Option<String> {
+        self.message
+            .clone()
+            .or_else(|| self.authentication.as_ref().and_then(|a| a.message.clone()))
+    }
+}
+
+/// `RegistrationResult` appears on the transaction-attached registration path and,
+/// per the OpenAPI schema, on `AliasInfoResponse` too.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpayRegistrationResult {
+    #[serde(rename = "Success")]
+    pub success: Option<bool>,
+    #[serde(rename = "Alias")]
+    pub alias: Option<SaferpayAlias>,
+}
+
+/// `AliasInfoResponse` — the body of `Alias/InsertDirect`, `Alias/AssertInsert` and
+/// `Alias/Inquire`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaferpaySetupMandateResponse {
+    #[serde(rename = "ResponseHeader")]
+    pub response_header: Option<SaferpayResponseHeader>,
+    #[serde(rename = "Alias")]
+    pub alias: Option<SaferpayAlias>,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: Option<SaferpayAliasPaymentMeansResponse>,
+    #[serde(rename = "CheckResult")]
+    pub check_result: Option<SaferpayCheckResult>,
+    #[serde(rename = "RegistrationResult")]
+    pub registration_result: Option<SaferpayRegistrationResult>,
+}
+
+impl SaferpaySetupMandateResponse {
+    /// The alias, wherever Saferpay put it: `InsertDirect` and `AssertInsert` answer
+    /// with a top-level `Alias`, while the OpenAPI schema also allows it nested under
+    /// `RegistrationResult`.
+    fn resolved_alias(&self) -> Option<&SaferpayAlias> {
+        self.alias.as_ref().or_else(|| {
+            self.registration_result
+                .as_ref()
+                .and_then(|result| result.alias.as_ref())
+        })
+    }
+
+    fn connector_metadata(&self, alias: &SaferpayAlias) -> Option<serde_json::Value> {
+        let mut metadata = serde_json::Map::new();
+
+        if let Some(lifetime) = alias.lifetime {
+            metadata.insert(
+                ALIAS_LIFETIME_METADATA_KEY.to_string(),
+                serde_json::Value::from(lifetime),
+            );
+        }
+
+        if let Some(brand) = self
+            .payment_means
+            .as_ref()
+            .and_then(|means| means.brand.as_ref())
+            .and_then(|brand| brand.payment_method.clone())
+        {
+            metadata.insert(
+                ALIAS_BRAND_METADATA_KEY.to_string(),
+                serde_json::Value::String(brand),
+            );
+        }
+
+        (!metadata.is_empty()).then_some(serde_json::Value::Object(metadata))
+    }
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpaySetupMandateResponse, Self>>
+    for SetupMandateRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpaySetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Saferpay answers a failed card check with HTTP 402 `CARD_CHECK_FAILED`, which
+        // `build_error_response` already turns into an `ErrorResponse`. A 200 that
+        // nevertheless reports a failed check, or that stored no alias, is still a
+        // failure and must not be reported as a set-up mandate.
+        let check_failed = response
+            .check_result
+            .as_ref()
+            .is_some_and(SaferpayCheckResult::failed);
+        let registration_failed = response
+            .registration_result
+            .as_ref()
+            .is_some_and(|result| result.success == Some(false));
+
+        let alias = response.resolved_alias();
+
+        if check_failed || registration_failed || alias.is_none() {
+            let message = response
+                .check_result
+                .as_ref()
+                .and_then(SaferpayCheckResult::message)
+                .unwrap_or_else(|| "saferpay: alias registration returned no Alias.Id".to_string());
+
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: response
+                        .check_result
+                        .as_ref()
+                        .and_then(|check| check.result.clone())
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message,
+                    reason: response
+                        .check_result
+                        .as_ref()
+                        .and_then(SaferpayCheckResult::message),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    ..Default::default()
+                }),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        let alias = alias.ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: alias registration response carried no Alias object",
+            ))
+        })?;
+
+        // No transaction exists — nothing was charged — so the alias id doubles as the
+        // resource id and as the mandate reference a later MIT presents in
+        // `PaymentMeans.Alias.Id`.
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(alias.id.clone()),
+                redirection_data: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(alias.id.clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })),
+                connector_metadata: response.connector_metadata(alias),
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: response
+                    .response_header
+                    .as_ref()
+                    .and_then(|header| header.request_id.clone()),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                // The card check ran and the credential is stored; there is no later
+                // settlement step for a registration, so this is terminal success.
+                status: AttemptStatus::Charged,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// REPEAT PAYMENT — `Transaction/AuthorizeDirect` as a merchant-initiated charge
+// =============================================================================
+//
+// A Saferpay MIT is an ordinary `AuthorizeDirect` with two things changed:
+//
+//  1. `Initiator: "MERCHANT"` — the CIT/MIT flag Saferpay forwards to Visa,
+//     Mastercard and Amex. It exists on `AuthorizeDirect` and on no other endpoint.
+//  2. The payment means is the stored credential rather than a fresh PAN:
+//     `PaymentMeans.Alias.Id` for a Secure Card Data alias (what `SetupMandate`
+//     mints), or a raw card plus `Authentication.IssuerReference` for the
+//     PSP-agnostic path where the credential was acquired elsewhere.
+//
+// `Authentication.Exemption: "RECURRING"` is deliberately NOT sent. The recurring-
+// payments guide carries a `danger` callout — "Requesting any exemption without the
+// consent of your acquirer can lead to rejections and your account being blocked!" —
+// and the PSD2 guide adds that an exemption forfeits the 3-D Secure liability shift.
+// UCS has no field that expresses acquirer consent, so the correct (and sufficient)
+// MIT signal is `Initiator` alone.
+//
+// `AuthorizeDirect` never auto-captures: there is no capture, `AutoCapture`, `Sale`
+// or `SettlementMode` member on the request, so an MIT answers `AUTHORIZED` and the
+// caller settles it with the existing Capture flow — exactly as Authorize does.
+
+/// `Initiator` on `AuthorizeDirect` (SpecVersion >= 1.21). In card-scheme jargon
+/// `MERCHANT` means MIT and `PAYER` means CIT.
+#[derive(Debug, Clone, Copy, Serialize)]
+pub enum SaferpayInitiator {
+    /// The only value this flow ever sends: RepeatPayment is merchant-initiated by
+    /// definition. Sent explicitly rather than relying on Saferpay's default,
+    /// because this value is what reaches the scheme and issuers decline on wrong
+    /// flagging.
+    #[serde(rename = "MERCHANT")]
+    Merchant,
+    /// Payer-initiated (CIT). Never emitted by RepeatPayment, which is an MIT by
+    /// definition. The Authorize flow sends it on the external-3DS path, where the
+    /// cardholder did authenticate — just not through Saferpay.
+    #[serde(rename = "PAYER")]
+    Payer,
+}
+
+/// `PaymentMeans.Alias.Id` — maxLength 40 in the Saferpay schema.
+const ALIAS_ID_MAX_LEN: usize = 40;
+/// `Authentication.IssuerReference.TransactionStamp` — maxLength 50.
+const ISSUER_TRANSACTION_STAMP_MAX_LEN: usize = 50;
+/// `Authentication.IssuerReference.MastercardTLID` — exactly 22 characters,
+/// case-sensitive.
+const MASTERCARD_TLID_LEN: usize = 22;
+
+/// A length/shape violation Saferpay would answer with HTTP 400 `VALIDATION_FAILED`.
+/// Failing locally keeps the specific field and limit in `error_message`, which the
+/// gateway's `ErrorDetail` array does not reliably carry.
+fn invalid_length(
+    field_name: &'static str,
+    requirement: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::InvalidDataFormat {
+        field_name,
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "saferpay rejects this value: {requirement}. Sending it would return \
+                 HTTP 400 VALIDATION_FAILED"
+            )),
+            suggested_action: Some(
+                "Re-run SetupMandate to obtain a valid stored credential, or supply the \
+                 scheme identifier exactly as the acquiring PSP returned it"
+                    .to_string(),
+            ),
+            doc_url: Some(SAFERPAY_TRANSACTION_DOC_URL.to_string()),
+        },
+    })
+}
+
+/// `PaymentMeans.Alias` — names a Secure Card Data alias in place of a PAN.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayAliasReference {
+    /// The `connector_mandate_id` `SetupMandate` produced. Masked: presenting it is
+    /// what charges the stored card, so it is a bearer credential.
+    #[serde(rename = "Id")]
+    pub id: Secret<String>,
+}
+
+/// The two `PaymentMeans` shapes an MIT can take. Untagged because Saferpay
+/// discriminates on the member name (`Alias` vs `Card`), not on a type field.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum SaferpayRepeatPaymentMeans<T: PaymentMethodDataTypes> {
+    /// The primary path: charge the alias `SetupMandate` registered.
+    Alias {
+        #[serde(rename = "Alias")]
+        alias: SaferpayAliasReference,
+    },
+    /// PSP-agnostic MIT: the credential was acquired through another provider, so
+    /// the raw card travels with the scheme identifiers in `IssuerReference`.
+    /// `VerificationCode` is never sent — PCI rules forbid storing a CVC for MITs.
+    Card {
+        #[serde(rename = "Card")]
+        card: SaferpayCardDetails<T>,
+    },
+}
+
+/// `Authentication.IssuerReference` — Saferpay's network-transaction-id passthrough,
+/// accepted on the `AuthorizeDirect` **request** only (SpecVersion >= 1.21).
+///
+/// `SettlementDate` (a 4-character `MMDD` string, Mastercard only) is a third member
+/// of this container. It is deliberately omitted: no UCS type carries a settlement
+/// date — `NetworkMandateIdRef` has exactly `network_transaction_id` and
+/// `transaction_link_id` — and inventing one (from `created_at`, say) would send the
+/// issuer a date it never issued.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayIssuerReference {
+    /// `NetworkMandateIdRef::network_transaction_id`.
+    #[serde(rename = "TransactionStamp")]
+    pub transaction_stamp: Secret<String>,
+    /// `NetworkMandateIdRef::transaction_link_id`.
+    #[serde(rename = "MastercardTLID", skip_serializing_if = "Option::is_none")]
+    pub mastercard_tlid: Option<Secret<String>>,
+}
+
+/// The `Authentication` container as an MIT uses it: `IssuerReference` only.
+///
+/// Distinct from `SaferpayAuthentication`, which the 3DS `Initialize` leg uses to
+/// send `ThreeDsChallenge` — the two members never travel together, and an MIT runs
+/// no cardholder challenge.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayMitAuthentication {
+    #[serde(rename = "IssuerReference")]
+    pub issuer_reference: SaferpayIssuerReference,
+}
+
+/// Body for a merchant-initiated `POST /Payment/v1/Transaction/AuthorizeDirect`.
+#[derive(Debug, Clone, Serialize)]
+pub struct SaferpayRepeatPaymentRequest<T: PaymentMethodDataTypes> {
+    #[serde(rename = "RequestHeader")]
+    pub request_header: SaferpayRequestHeader,
+    #[serde(rename = "TerminalId")]
+    pub terminal_id: Secret<String>,
+    #[serde(rename = "Payment")]
+    pub payment: SaferpayPaymentDetails,
+    #[serde(rename = "PaymentMeans")]
+    pub payment_means: SaferpayRepeatPaymentMeans<T>,
+    #[serde(rename = "Initiator")]
+    pub initiator: SaferpayInitiator,
+    #[serde(rename = "Authentication", skip_serializing_if = "Option::is_none")]
+    pub authentication: Option<SaferpayMitAuthentication>,
+}
+
+type RepeatPaymentRouterData<T> =
+    RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>;
+
+/// Builds `Authentication.IssuerReference` from the scheme identifiers UCS carries
+/// for a PSP-agnostic MIT, validating both documented length constraints locally.
+fn issuer_reference(
+    network: &domain_types::connector_types::NetworkMandateIdRef,
+) -> Result<SaferpayIssuerReference, error_stack::Report<IntegrationError>> {
+    let transaction_stamp = network.network_transaction_id.trim();
+    if transaction_stamp.is_empty() {
+        return Err(missing_field(
+            "mandate_reference.network_mandate_id.network_transaction_id",
+        ));
+    }
+    if transaction_stamp.chars().count() > ISSUER_TRANSACTION_STAMP_MAX_LEN {
+        return Err(invalid_length(
+            "mandate_reference.network_mandate_id.network_transaction_id",
+            "Authentication.IssuerReference.TransactionStamp is limited to 50 characters",
+        ));
+    }
+
+    let mastercard_tlid = network
+        .transaction_link_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|tlid| !tlid.is_empty())
+        .map(|tlid| {
+            // A TLID of any other length is rejected outright rather than trimmed or
+            // padded: it is a scheme-issued identifier, so a wrong-length value is a
+            // bug upstream, not something to repair here.
+            if tlid.chars().count() == MASTERCARD_TLID_LEN {
+                Ok(Secret::new(tlid.to_string()))
+            } else {
+                Err(invalid_length(
+                    "mandate_reference.network_mandate_id.transaction_link_id",
+                    "Authentication.IssuerReference.MastercardTLID must be exactly 22 characters",
+                ))
+            }
+        })
+        .transpose()?;
+
+    Ok(SaferpayIssuerReference {
+        transaction_stamp: Secret::new(transaction_stamp.to_string()),
+        mastercard_tlid,
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<SaferpayRouterData<RepeatPaymentRouterData<T>, T>> for SaferpayRepeatPaymentRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: SaferpayRouterData<RepeatPaymentRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let request = &router_data.request;
+        let common = &router_data.resource_common_data;
+        let auth = SaferpayAuthType::try_from(&router_data.connector_config)?;
+
+        // Byte-identical to the Authorize flow's guard: `AuthorizeDirect` carries no
+        // capture field at all, so accepting `Automatic` would report `requires_capture`
+        // and leave the money unmoved until the authorization expired.
+        if let Some(method @ (CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic)) =
+            &request.capture_method
+        {
+            return Err(capture_method_not_supported(*method));
+        }
+
+        // A merchant-initiated transaction runs no cardholder authentication by
+        // definition, so there is nothing here that could legitimately produce or
+        // consume a cryptogram — the Authorize flow is where external 3DS belongs.
+        // Saferpay agrees on the response side: `Liability` is absent from
+        // `AuthorizeReferenced`, and an MIT earns no liability shift. Refuse rather
+        // than silently dropping the caller's SCA evidence.
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "External/merchant-provided 3DS authentication data on a merchant-initiated \
+                 transaction"
+                    .to_string(),
+            ));
+        }
+
+        let (payment_means, authentication) = match &request.mandate_reference {
+            // Primary path. `SetupMandate` (`Alias/InsertDirect`) emits only a
+            // `connector_mandate_id`, so this is what a Saferpay-originated mandate
+            // always arrives as.
+            MandateReferenceId::ConnectorMandateId(stored) => {
+                let alias_id = stored
+                    .get_connector_mandate_id()
+                    .map(|alias_id| alias_id.trim().to_string())
+                    .filter(|alias_id| !alias_id.is_empty())
+                    .ok_or_else(|| missing_field("mandate_reference.connector_mandate_id"))?;
+
+                if alias_id.chars().count() > ALIAS_ID_MAX_LEN {
+                    return Err(invalid_length(
+                        "mandate_reference.connector_mandate_id",
+                        "PaymentMeans.Alias.Id is limited to 40 characters",
+                    ));
+                }
+
+                (
+                    SaferpayRepeatPaymentMeans::Alias {
+                        alias: SaferpayAliasReference {
+                            id: Secret::new(alias_id),
+                        },
+                    },
+                    None,
+                )
+            }
+            // PSP-agnostic path: the card was acquired elsewhere, so Saferpay needs the
+            // PAN plus the scheme identifiers from the original CIT. Documented by the
+            // PSD2 guide as "only possible if you are fully PCI certified" — the same
+            // posture `AuthorizeDirect` already requires of this connector.
+            MandateReferenceId::NetworkMandateId(network) => {
+                let card = match &request.payment_method_data {
+                    PaymentMethodData::Card(card) => card,
+                    // The MIT-shaped carrier, and reachable: the Charge handler builds
+                    // this variant from `PaymentMethod.card_with_no_cvc`, and a
+                    // merchant-initiated charge legitimately has no CVC — which is
+                    // exactly what this flow sends (`VerificationCode` is always `None`).
+                    // Saferpay's `PaymentMeans.Card` would accept it; the obstacle is
+                    // local, so say so instead of reporting the card as missing.
+                    // `CardWithNoCvc` holds a concrete `cards::CardNumber` while
+                    // `SaferpayCardDetails<T>` needs a `RawCardNumber<T>`, and no generic
+                    // conversion exists — no connector in the tree consumes this variant.
+                    PaymentMethodData::CardWithNoCvc(_) => {
+                        return Err(not_supported(
+                            "A CVC-less card (PaymentMethod.card_with_no_cvc) on a \
+                             merchant-initiated transaction — present the stored credential \
+                             as a Saferpay alias (connector_mandate_id) instead"
+                                .to_string(),
+                        ))
+                    }
+                    // Same rejection every other card-extraction site in this file uses:
+                    // the alias path needs no card, but this one cannot work without one.
+                    _ => {
+                        return Err(error_stack::report!(IntegrationError::NotImplemented(
+                            "Only card payments are supported by saferpay".to_string(),
+                            context(),
+                        )))
+                    }
+                };
+
+                let exp_year = card
+                    .get_expiry_year_4_digit()
+                    .expose()
+                    .parse::<u16>()
+                    .map_err(|_| {
+                        error_stack::report!(IntegrationError::InvalidDataFormat {
+                            field_name: "card_exp_year",
+                            context: context(),
+                        })
+                    })?;
+                let exp_month = card.card_exp_month.peek().parse::<u8>().map_err(|_| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "card_exp_month",
+                        context: context(),
+                    })
+                })?;
+
+                (
+                    SaferpayRepeatPaymentMeans::Card {
+                        card: SaferpayCardDetails {
+                            number: card.card_number.clone(),
+                            exp_year: Secret::new(exp_year),
+                            exp_month: Secret::new(exp_month),
+                            // Never sent on an MIT: the cardholder is not present and
+                            // storing a CVC for later use is a PCI violation.
+                            verification_code: None,
+                            holder_name: card.get_optional_cardholder_name(),
+                        },
+                    },
+                    Some(SaferpayMitAuthentication {
+                        issuer_reference: issuer_reference(network)?,
+                    }),
+                )
+            }
+            // Saferpay's Transaction interface accepts a PAN or an alias in
+            // `PaymentMeans`; `SchemeToken` exists but carries an Apple Pay / Google Pay
+            // DPAN and its own cryptogram, not a network token plus NTI. There is no
+            // member that expresses this combination, so it is unsupported rather than
+            // not-yet-built.
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(not_supported(
+                    "Network-token mandates (NetworkTokenWithNTI) — Saferpay's PaymentMeans \
+                     accepts a card, a Secure Card Data alias or a wallet SchemeToken, none \
+                     of which carries a network token with an issuer reference"
+                        .to_string(),
+                ));
+            }
+        };
+
+        let amount = SaferpayAmountConvertor::convert(request.minor_amount, request.currency)?;
+
+        let description = common
+            .description
+            .clone()
+            .unwrap_or_else(|| DEFAULT_PAYMENT_DESCRIPTION.to_string());
+
+        Ok(Self {
+            request_header: SaferpayRequestHeader::new(&auth, payment_request_id(common)),
+            terminal_id: auth.terminal_id.clone(),
+            payment: SaferpayPaymentDetails {
+                amount: SaferpayAmount {
+                    value: amount,
+                    currency_code: request.currency,
+                },
+                order_id: truncate_order_id(
+                    request
+                        .merchant_order_id
+                        .as_deref()
+                        .unwrap_or(&common.connector_request_reference_id),
+                ),
+                description,
+            },
+            payment_means,
+            initiator: SaferpayInitiator::Merchant,
+            authentication,
+        })
+    }
+}
+
+/// The newtype only gives the macro framework a distinct response type per flow;
+/// an MIT answers with the same envelope as any other `AuthorizeDirect`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct SaferpayRepeatPaymentResponse(pub SaferpayPaymentsResponse);
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SaferpayRepeatPaymentResponse, Self>>
+    for RepeatPaymentRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<SaferpayRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+
+        // Declines arrive as HTTP 402 with the standard error envelope, which
+        // `build_error_response` already turns into an `ErrorResponse`. A 2xx here is
+        // always a real transaction, and it always carries one.
+        let transaction = response.transaction.as_ref().ok_or_else(|| {
+            error_stack::report!(crate::utils::unexpected_response_fail(
+                item.http_code,
+                "saferpay: RepeatPayment response carried no Transaction object",
+            ))
+        })?;
+
+        let issuer_reference = transaction.issuer_reference.as_ref();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(transaction.id.clone()),
+                // An MIT on `AuthorizeDirect` never redirects — the endpoint performs no
+                // cardholder authentication at all.
+                redirection_data: None,
+                // Charging a stored credential mints no new one: the alias the caller
+                // presented stays the mandate. Re-surfacing it here would look like a
+                // second registration.
+                mandate_reference: None,
+                // Publishes `capture_id` / `authorized_amount`, which the Capture flow
+                // reads back to tell a full settlement from a partial one.
+                connector_metadata: transaction.connector_metadata(),
+                // The scheme identifiers for the next link in the MIT chain.
+                network_txn_id: issuer_reference
+                    .and_then(|reference| reference.transaction_stamp.clone())
+                    .map(ExposeInterface::expose),
+                network_txn_link_id: issuer_reference
+                    .and_then(|reference| reference.mastercard_tlid.clone())
+                    .map(ExposeInterface::expose),
+                connector_response_reference_id: transaction
+                    .six_transaction_reference
+                    .clone()
+                    .or_else(|| transaction.order_id.clone()),
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                // Reuses the connector's single transaction-status mapping: AUTHORIZED ->
+                // Authorized (the caller's Capture flow settles it), CAPTURED -> Charged,
+                // CANCELED -> Voided, PENDING/unrecognised -> Pending.
+                status: transaction.attempt_status(),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
