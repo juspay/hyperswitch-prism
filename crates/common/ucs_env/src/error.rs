@@ -148,9 +148,10 @@ trait ToGrpcStatus {
     fn to_grpc_status_unlogged(&self) -> Status;
 }
 
-/// `invalid_argument` — caller sent a missing or invalid field in this request (UCS is stateless;
-///   every required ID/field must be supplied by the caller on every call).
-/// `unimplemented` — the flow or payment method is not implemented, or not enabled for this connector.
+/// `invalid_argument` — caller sent a missing or invalid field in this request, or asked for a
+///   payment method the connector does not support (UCS is stateless; every required ID/field
+///   must be supplied by the caller on every call).
+/// `unimplemented` — the flow is not implemented, or not enabled for this connector.
 /// `failed_precondition` — connector/merchant configuration problem; not a client credential failure.
 /// `unauthenticated` — credential / auth resolution failure.
 /// `internal` — UCS machinery failure (encoding, URL building, serialization); caller cannot fix.
@@ -185,9 +186,10 @@ impl ToGrpcStatus for IntegrationError {
             | Self::MissingConnectorMandateMetadata { .. }
             | Self::MissingConnectorRelatedTransactionID { .. }
             // Caller supplied a field value that exceeds the connector's length limit.
-            | Self::MaxFieldLengthViolated { .. } => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
+            | Self::MaxFieldLengthViolated { .. }
+            // The connector does not support this payment method or request.
+            | Self::NotSupported { .. } => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
             Self::FlowNotSupported { .. }
-            | Self::NotSupported { .. }
             | Self::CaptureMethodNotSupported { .. }
             | Self::NotImplemented(..) => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
             Self::InvalidConnectorConfig { .. }
