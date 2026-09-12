@@ -201,7 +201,25 @@ impl MultipartData {
             .read_to_end(&mut finished_bytes)
             .map_err(|e| RequestError::MultipartReadFailed(e.to_string()))?;
 
+        strip_multipart_preamble(&mut finished_bytes);
+
         Ok((finished_bytes, boundary))
+    }
+}
+
+/// Drop the CRLF preamble the `multipart` crate writes before the first boundary.
+///
+/// RFC 2046 permits a preamble, but strict gateways reject it: HiPay's Secure Vault and
+/// order endpoints answer a body that begins `\r\n--boundary` with HTTP 400 ("Your browser
+/// sent a request that this server could not understand") and accept the byte-identical
+/// body when it begins at the boundary. Every mainstream client (curl, browsers, reqwest's
+/// own multipart writer) starts the body at the first boundary, so the preamble is dropped
+/// here rather than worked around per connector.
+///
+/// A body that already starts at the boundary is left untouched.
+fn strip_multipart_preamble(body: &mut Vec<u8>) {
+    if body.starts_with(b"\r\n") {
+        body.drain(..2);
     }
 }
 
@@ -485,5 +503,75 @@ impl KafkaRecordBuilder {
 impl Default for KafkaRecordBuilder {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod multipart_tests {
+    #![allow(clippy::expect_used)]
+
+    use super::*;
+
+    /// The rendered body must begin at the first boundary. `multipart`'s writer emits a
+    /// CRLF preamble ahead of it, which HiPay answers with HTTP 400.
+    #[test]
+    fn rendered_body_starts_at_the_first_boundary() {
+        let mut form = MultipartData::new();
+        form.add_text("card_number", "4111111111111111");
+        form.add_text("card_holder", "John Doe");
+
+        let (body, boundary) = form.render_as_bytes().expect("multipart rendering");
+
+        assert!(
+            !body.starts_with(b"\r\n"),
+            "body must not begin with a CRLF preamble"
+        );
+        assert!(
+            body.starts_with(format!("--{boundary}").as_bytes()),
+            "body must begin with the opening boundary delimiter"
+        );
+        // The parts themselves are untouched by the preamble strip.
+        assert!(body.windows(16).any(|window| window == b"4111111111111111"));
+        assert!(body.ends_with(format!("--{boundary}--").as_bytes()));
+    }
+
+    /// Only a leading CRLF is removed, and only once.
+    #[test]
+    fn preamble_strip_removes_exactly_one_leading_crlf() {
+        let mut body =
+            b"\r\n--BOUNDARY\r\nContent-Disposition: form-data\r\n\r\nvalue\r\n--BOUNDARY--"
+                .to_vec();
+
+        strip_multipart_preamble(&mut body);
+
+        assert_eq!(
+            body,
+            b"--BOUNDARY\r\nContent-Disposition: form-data\r\n\r\nvalue\r\n--BOUNDARY--".to_vec()
+        );
+    }
+
+    /// A body that already starts at the boundary is returned byte-identical.
+    #[test]
+    fn preamble_strip_leaves_a_well_formed_body_untouched() {
+        let original =
+            b"--BOUNDARY\r\nContent-Disposition: form-data\r\n\r\nvalue\r\n--BOUNDARY--".to_vec();
+        let mut body = original.clone();
+
+        strip_multipart_preamble(&mut body);
+
+        assert_eq!(body, original);
+    }
+
+    /// A body whose *content* happens to start with a bare LF, or which is empty, must not
+    /// be truncated.
+    #[test]
+    fn preamble_strip_ignores_a_body_that_does_not_begin_with_crlf() {
+        let mut empty: Vec<u8> = Vec::new();
+        strip_multipart_preamble(&mut empty);
+        assert!(empty.is_empty());
+
+        let mut bare_lf = b"\n--BOUNDARY--".to_vec();
+        strip_multipart_preamble(&mut bare_lf);
+        assert_eq!(bare_lf, b"\n--BOUNDARY--".to_vec());
     }
 }
