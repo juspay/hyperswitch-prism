@@ -57,9 +57,9 @@ use domain_types::{
         generate_refresh_payment_method_response, generate_refund_response,
         generate_repeat_payment_response, generate_setup_mandate_response,
         tokenized_authorize_to_base, tokenized_setup_recurring_to_base, AuthorizationRequest,
-        PaymentMethodDataAction, SetupRecurringRequest,
+        PaymentMethodDataAction, PaymentSyncSkipped, SetupRecurringRequest,
     },
-    utils::ForeignTryFrom,
+    utils::{ForeignFrom, ForeignTryFrom},
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -1089,23 +1089,44 @@ impl PaymentService for Payments {
                     ))
                     .to_grpc_error()?;
 
-                    let should_do_access_token = connector_data
-                        .connector
-                        .should_do_access_token(Some(payment_flow_data.payment_method));
-
-                    let payment_flow_data = if should_do_access_token {
-                        let access_token = payload
-                            .state
-                            .as_ref()
-                            .and_then(|state| state.access_token.as_ref())
-                            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        let access_token_data =
-                            ServerAuthenticationTokenResponseData::foreign_try_from(access_token)
-                                .map_err(|_e| ucs_env::error::GrpcError::from(IntegrationError::FailedToObtainAuthType { context: domain_types::errors::IntegrationErrorContext::default() }))?;
-                        payment_flow_data.set_access_token(Some(access_token_data))
-                    } else {
-                        payment_flow_data
-                    };
+                    // Connector pre-flight for sync. Hyperswitch's direct path never dispatches a
+                    // PSync the connector cannot serve (Adyen without `encoded_data`, or any
+                    // connector without a connector transaction id); it skips the call and keeps
+                    // the caller's current state. Without this check UCS builds the request
+                    // anyway or, when the connector returns no request, answers with the default
+                    // HE_00 error that callers then persist as a connector failure.
+                    //
+                    // UCS is stateless and cannot echo the caller's status, so the equivalent of
+                    // "skip" here is a no-op reply: gRPC OK, `PAYMENT_STATUS_UNSPECIFIED`, no
+                    // error. Callers already treat an unspecified status as "keep the previous
+                    // status" and write no error for it.
+                    if let Err(validation_error) = connector_data.connector.validate_psync_reference_id(
+                        &payments_sync_data,
+                        &payment_flow_data,
+                    ) {
+                        // Log with the same fields `IntoGrpcStatus` would emit, while the
+                        // report's frames (connector-supplied context) are still attached;
+                        // this reply is never converted to a gRPC status, so it would
+                        // otherwise go unlogged.
+                        let report = validation_error.to_grpc_error();
+                        let context = report.current_context();
+                        tracing::warn!(
+                            error = ?report,
+                            error_code = %context.error_code(),
+                            http_status_code = ?context.http_status_code(),
+                            "PAYMENT_SYNC_FLOW: connector pre-flight rejected the sync; returning a no-op response (status unspecified, no error) without calling the connector"
+                        );
+                        return Ok(tonic::Response::new(PaymentServiceGetResponse::foreign_from(
+                            PaymentSyncSkipped {
+                                connector_transaction_id: payload.connector_transaction_id.clone(),
+                                merchant_transaction_id: payload.merchant_transaction_id.clone(),
+                            },
+                        )));
+                    }
+                    // `payment_flow_data.access_token` is already populated above by
+                    // `PaymentFlowData::foreign_try_from` from `payload.state.access_token` —
+                    // unconditionally, the same way Authorize gets it. No extra fetch-or-fail
+                    // needed here.
 
                     // Create router data
                     let router_data = RouterDataV2::<
