@@ -157,6 +157,11 @@ connector_base_url = "https://api.razorpay.com/"
 _context_ = { connector = "checkout" }
 connector_base_url = "https://api.sandbox.checkout.com/"
 
+# Checkout.com Production
+[[overrides]]
+_context_ = { connector = "checkout", environment = "production" }
+connector_base_url = "https://api.checkout.com/"
+
 # Braintree
 [[overrides]]
 _context_ = { connector = "braintree" }
@@ -200,7 +205,7 @@ connector_base_url = "https://cert.api.fiservapps.com/"
 # Fiserv Production
 [[overrides]]
 _context_ = { connector = "fiserv", environment = "production" }
-connector_base_url = "https://cert.api.fiservapps.com/"
+connector_base_url = "https://prod.api.fiservapps.com/"
 
 # TrustPay (special case with bank redirects)
 [[overrides]]
@@ -235,6 +240,11 @@ connector_base_url = "https://api-preprod.phonepe.com/apis/hermes/"
 [[overrides]]
 _context_ = { connector = "cashfree" }
 connector_base_url = "https://sandbox.cashfree.com/"
+
+# Cashfree Production
+[[overrides]]
+_context_ = { connector = "cashfree", environment = "production" }
+connector_base_url = "https://api.cashfree.com/"
 
 # PayU
 [[overrides]]
@@ -332,6 +342,11 @@ connector_base_url = "https://apitest.merchant-services.bankofamerica.com/"
 _context_ = { connector = "powertranz" }
 connector_base_url = "https://staging.ptranz.com/api"
 
+# PowerTranz Production
+[[overrides]]
+_context_ = { connector = "powertranz", environment = "production" }
+connector_base_url = "https://gateway.ptranz.com/api"
+
 # Revolut
 [[overrides]]
 _context_ = { connector = "revolut" }
@@ -361,6 +376,11 @@ connector_base_url = "https://api.shift4.com"
 [[overrides]]
 _context_ = { connector = "multisafepay" }
 connector_base_url = "https://testapi.multisafepay.com/v1/json"
+
+# MultiSafepay Production
+[[overrides]]
+_context_ = { connector = "multisafepay", environment = "production" }
+connector_base_url = "https://api.multisafepay.com/v1/json"
 
 # IATA Pay
 [[overrides]]
