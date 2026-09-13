@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py cybersource
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_MERCHANT_ACCOUNT`, `YOUR_API_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -105,7 +105,7 @@ let config = ConnectorConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 merchant_account: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 disable_avs: Some(false),  // Feature flag
                 disable_cvn: Some(false),  // Feature flag
                 ..Default::default()
@@ -139,7 +139,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L338) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L136) · [Rust](../../examples/cybersource/cybersource.rs#L427)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py#L338) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L361) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs#L427)
 
 ### Card Payment (Authorize + Capture)
 
@@ -153,25 +153,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L357) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L152) · [Rust](../../examples/cybersource/cybersource.rs#L443)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py#L357) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L380) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L152) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs#L443)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L382) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L174) · [Rust](../../examples/cybersource/cybersource.rs#L466)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py#L382) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L406) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L174) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs#L466)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L407) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L196) · [Rust](../../examples/cybersource/cybersource.rs#L489)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py#L407) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L432) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L196) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs#L489)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py#L429) · [JavaScript](../../examples/cybersource/cybersource.js) · [Kotlin](../../examples/cybersource/cybersource.kt#L215) · [Rust](../../examples/cybersource/cybersource.rs#L508)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py#L429) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L454) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L215) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs#L508)
 
 ## API Reference
 
@@ -399,7 +399,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L484) · [Kotlin](../../examples/cybersource/cybersource.kt#L268) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L484) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L268) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.Capture
 
@@ -410,7 +410,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L493) · [Kotlin](../../examples/cybersource/cybersource.kt#L280) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L493) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L280) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.Get
 
@@ -421,7 +421,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L502) · [Kotlin](../../examples/cybersource/cybersource.kt#L290) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L502) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L290) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -432,7 +432,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L511) · [Kotlin](../../examples/cybersource/cybersource.kt#L298) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L511) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L298) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -443,7 +443,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L538) · [Kotlin](../../examples/cybersource/cybersource.kt#L372) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L538) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L372) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -454,7 +454,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L547) · [Kotlin](../../examples/cybersource/cybersource.kt#L404) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L547) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L404) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.Refund
 
@@ -465,7 +465,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L574) · [Kotlin](../../examples/cybersource/cybersource.kt#L482) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L574) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L482) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.Reverse
 
@@ -476,7 +476,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L592) · [Kotlin](../../examples/cybersource/cybersource.kt#L504) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L592) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L504) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -487,7 +487,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L601) · [Kotlin](../../examples/cybersource/cybersource.kt#L512) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L601) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L512) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -498,7 +498,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L610) · [Kotlin](../../examples/cybersource/cybersource.kt#L554) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L610) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L554) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentService.Void
 
@@ -509,7 +509,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts) · [Kotlin](../../examples/cybersource/cybersource.kt#L578) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L578) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 ### Refunds
 
@@ -522,7 +522,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L583) · [Kotlin](../../examples/cybersource/cybersource.kt#L492) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L583) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L492) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 ### Mandates
 
@@ -535,7 +535,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L556) · [Kotlin](../../examples/cybersource/cybersource.kt#L439) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L556) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L439) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### RecurringPaymentService.Revoke
 
@@ -546,7 +546,7 @@ Cancel an existing recurring payment mandate. Stops future automatic charges on 
 | **Request** | `RecurringPaymentServiceRevokeRequest` |
 | **Response** | `RecurringPaymentServiceRevokeResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L565) · [Kotlin](../../examples/cybersource/cybersource.kt#L470) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L565) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L470) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 ### Authentication
 
@@ -559,7 +559,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 | **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L475) · [Kotlin](../../examples/cybersource/cybersource.kt#L233) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L475) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L233) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -570,7 +570,7 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L520) · [Kotlin](../../examples/cybersource/cybersource.kt#L314) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L520) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L314) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -581,4 +581,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/cybersource/cybersource.py) · [TypeScript](../../examples/cybersource/cybersource.ts#L529) · [Kotlin](../../examples/cybersource/cybersource.kt#L344) · [Rust](../../examples/cybersource/cybersource.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.ts#L529) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.kt#L344) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/cybersource/cybersource.rs)

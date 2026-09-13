@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py razorpay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholder values with your actual credentials.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -110,7 +110,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L112) · [Kotlin](../../examples/razorpay/razorpay.kt#L69) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L112) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L69) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -121,7 +121,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L121) · [Kotlin](../../examples/razorpay/razorpay.kt#L79) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L121) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L79) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)
 
 #### PaymentService.Get
 
@@ -132,7 +132,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L139) · [Kotlin](../../examples/razorpay/razorpay.kt#L108) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L139) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L108) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)
 
 #### PaymentService.Refund
 
@@ -143,7 +143,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L166) · [Kotlin](../../examples/razorpay/razorpay.kt#L147) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L166) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L147) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)
 
 ### Refunds
 
@@ -156,7 +156,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L175) · [Kotlin](../../examples/razorpay/razorpay.kt#L157) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L175) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L157) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)
 
 ### Authentication
 
@@ -169,4 +169,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L130) · [Kotlin](../../examples/razorpay/razorpay.kt#L93) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.ts#L130) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.kt#L93) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/razorpay/razorpay.rs)

@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py jpmorgan_orbital
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USERNAME`, `YOUR_PASSWORD`, `YOUR_MERCHANT_ID`, `YOUR_BIN`, `YOUR_TERMINAL_ID`, `YOUR_BASE_URL`, `YOUR_MERCHANT_CONFIG_CURRENCY` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -132,13 +132,13 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L89) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L85) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L107)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.py#L89) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.ts#L96) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.kt#L85) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.rs#L107)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py#L108) · [JavaScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.js) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L101) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs#L123)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.py#L108) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.ts#L115) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.kt#L101) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.rs#L123)
 
 ## API Reference
 
@@ -281,7 +281,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L136) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L119) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.ts#L136) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.kt#L119) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.rs)
 
 #### PaymentService.Get
 
@@ -292,7 +292,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L145) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L131) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.ts#L145) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -303,4 +303,4 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](../../examples/jpmorgan_orbital/jpmorgan_orbital.ts#L154) · [Kotlin](../../examples/jpmorgan_orbital/jpmorgan_orbital.kt#L139) · [Rust](../../examples/jpmorgan_orbital/jpmorgan_orbital.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.ts#L154) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/jpmorgan_orbital/jpmorgan_orbital.rs)

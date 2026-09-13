@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py twoc_twop_paco
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_ACCESS_TOKEN`, `YOUR_OFFICE_ID`, `YOUR_PACO_KID`, `YOUR_MERCHANT_SIGNING_PRIVATE_KEY`, `YOUR_MERCHANT_ENCRYPTION_PRIVATE_KEY`, `YOUR_PACO_SIGNING_PUBLIC_KEY`, `YOUR_PACO_ENCRYPTION_PUBLIC_KEY`, `YOUR_RESPONSE_AUDIENCE`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -109,7 +109,20 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::TwocTwopPaco(TwocTwopPacoConfig {
+                access_token: Some(hyperswitch_masking::Secret::new("YOUR_ACCESS_TOKEN".to_string())),  // Authentication credential
+                office_id: Some(hyperswitch_masking::Secret::new("YOUR_OFFICE_ID".to_string())),  // Authentication credential
+                paco_kid: Some(hyperswitch_masking::Secret::new("YOUR_PACO_KID".to_string())),  // Authentication credential
+                merchant_signing_private_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_SIGNING_PRIVATE_KEY".to_string())),  // Authentication credential
+                merchant_encryption_private_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ENCRYPTION_PRIVATE_KEY".to_string())),  // Authentication credential
+                paco_signing_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_SIGNING_PUBLIC_KEY".to_string())),  // Authentication credential
+                paco_encryption_public_key: Some(hyperswitch_masking::Secret::new("YOUR_PACO_ENCRYPTION_PUBLIC_KEY".to_string())),  // Authentication credential
+                response_audience: Some(hyperswitch_masking::Secret::new("YOUR_RESPONSE_AUDIENCE".to_string())),  // Authentication credential
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -138,7 +151,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L100) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L130) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L125)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L100) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L120) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L130) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L138)
 
 ### Card Payment (Authorize + Capture)
 
@@ -152,13 +165,13 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L119) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L146) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L141)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L119) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L139) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L146) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L154)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py#L144) · [JavaScript](../../examples/twoc_twop_paco/twoc_twop_paco.js) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L168) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs#L164)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py#L144) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L165) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L168) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs#L177)
 
 ## API Reference
 
@@ -218,7 +231,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L190) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L189) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L190) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L189) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentService.Get
 
@@ -229,7 +242,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L199) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L201) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L199) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L201) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentService.Capture
 
@@ -240,7 +253,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L208) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L209) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L208) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L209) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentService.Void
 
@@ -251,7 +264,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L219) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L219) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentService.Reverse
 
@@ -262,7 +275,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L226) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L229) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L226) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L229) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentService.Refund
 
@@ -273,7 +286,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L235) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L237) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L235) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L237) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 ### Refunds
 
@@ -286,7 +299,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L244) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L247) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L244) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L247) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 ### Authentication
 
@@ -305,7 +318,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 |----------------|:---------:|
 | Card | ✓ |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)
 
 #### PaymentMethodAuthenticationService.PostAuthenticate
 
@@ -316,4 +329,4 @@ Validate authentication results with the issuing bank. Processes bank's authenti
 | **Request** | `PaymentMethodAuthenticationServicePostAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePostAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](../../examples/twoc_twop_paco/twoc_twop_paco.ts#L253) · [Kotlin](../../examples/twoc_twop_paco/twoc_twop_paco.kt#L257) · [Rust](../../examples/twoc_twop_paco/twoc_twop_paco.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.ts#L253) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.kt#L257) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/twoc_twop_paco/twoc_twop_paco.rs)

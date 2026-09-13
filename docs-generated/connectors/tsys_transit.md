@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py tsys_transit
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_DEVICE_ID`, `YOUR_TRANSACTION_KEY`, `YOUR_DEVELOPER_ID`, `YOUR_MERCHANT_STREET_ADDRESS`, `YOUR_CUSTOMER_SERVICE_PHONE_NUMBER`, `YOUR_MERCHANT_URL`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -138,7 +138,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L90) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L94) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts#L90) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L94) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Get
 
@@ -149,7 +149,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L99) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L104) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts#L99) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L104) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Refund
 
@@ -160,7 +160,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L108) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L112) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts#L108) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L112) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Reverse
 
@@ -171,7 +171,7 @@ Reverse a captured payment in full. Initiates a complete refund when you need to
 | **Request** | `PaymentServiceReverseRequest` |
 | **Response** | `PaymentServiceReverseResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L126) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L134) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts#L126) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Void
 
@@ -182,7 +182,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L142) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L142) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)
 
 ### Refunds
 
@@ -195,4 +195,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L117) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L122) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.ts#L117) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.kt#L122) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/tsys_transit/tsys_transit.rs)

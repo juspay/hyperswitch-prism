@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py billwerk
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_PUBLIC_API_KEY`, `YOUR_BASE_URL`, `YOUR_SECONDARY_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -98,8 +98,8 @@ let config = ConnectorConfig {
             config: Some(connector_specific_config::Config::Billwerk(BillwerkConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
                 public_api_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
-                secondary_base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
+                secondary_base_url: Some("YOUR_SECONDARY_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -139,7 +139,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L154) · [Kotlin](../../examples/billwerk/billwerk.kt#L90) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L154) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L90) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 #### PaymentService.Get
 
@@ -150,7 +150,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L163) · [Kotlin](../../examples/billwerk/billwerk.kt#L100) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L163) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L100) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 #### PaymentService.Refund
 
@@ -161,7 +161,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L181) · [Kotlin](../../examples/billwerk/billwerk.kt#L139) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L181) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L139) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -172,7 +172,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L199) · [Kotlin](../../examples/billwerk/billwerk.kt#L161) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L199) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L161) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -183,7 +183,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L208) · [Kotlin](../../examples/billwerk/billwerk.kt#L182) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L208) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L182) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 #### PaymentService.Void
 
@@ -194,7 +194,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts) · [Kotlin](../../examples/billwerk/billwerk.kt#L222) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L222) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 ### Refunds
 
@@ -207,7 +207,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L190) · [Kotlin](../../examples/billwerk/billwerk.kt#L149) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L190) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L149) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
 
 ### Mandates
 
@@ -220,4 +220,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/billwerk/billwerk.py) · [TypeScript](../../examples/billwerk/billwerk.ts#L172) · [Kotlin](../../examples/billwerk/billwerk.kt#L108) · [Rust](../../examples/billwerk/billwerk.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.ts#L172) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.kt#L108) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/billwerk/billwerk.rs)
