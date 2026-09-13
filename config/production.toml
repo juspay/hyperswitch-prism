@@ -23,11 +23,15 @@ connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+payhere.base_url = "https://www.payhere.lk"
 travelhub.base_url = "https://prod.travel.worldline-solutions.com/travelhub"
+d24.base_url = "https://api.directa24.com"
 citigate.base_url = "https://gw.cgate.tech"
 paynearme.base_url = "https://api.paynearme.com/json-api"
 saferpay.base_url = "https://www.saferpay.com/api"
+paydotcom.base_url = "https://api.pay.com"
 ilixium.base_url = "https://prprocessing.ilixium.com/platform/ili"
+globalpayments_heartland.base_url = "https://api2.heartlandportico.com/Hps.Exchange.PosGateway/PosGatewayService.asmx"
 worldpayraft.base_url = "https://ws.vantiv.com/merchant/servicing/apitransactions/NativeRaftApi/v1"
 grabpay.base_url = "https://partner-api.grab.com/grabpay/partner/v2"
 maya.base_url = "https://pg.maya.ph"
@@ -35,6 +39,7 @@ boost.base_url = "https://api.boostconnect.biz/gateway"
 tesouro.base_url = "https://api.tesouro.com"
 kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
+nsure.base_url = "https://service.nsureapi.com"
 plaid.base_url = "https://production.plaid.com"
 glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://api.hyperswitch.io"
@@ -112,6 +117,9 @@ nexinets.base_url = "https://api.payengine.de/v1"
 noon.base_url = "https://api.noonpayments.com/"
 mifinity.base_url = "https://secure.mifinity.com/"
 moneris.base_url = "https://api.moneris.io"
+etisalat.base_url = "https://ipg.comtrust.ae:2443"
+# TODO: production URL unconfirmed — Merchante spec only documents the certification host
+merchante.base_url = "https://cert.merchante-solutions.com/mes-api/tridentApi"
 braintree.base_url = "https://payments.braintree-api.com/graphql"
 volt.base_url = "https://gateway.volt.io"
 volt.secondary_base_url = "https://api.volt.io"
@@ -199,3 +207,61 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 enabled = false
 
 [connector_response_masking.connector_keys]
+# --- Superposition: where policy comes from ---------------------------------
+# source = "file" (default): the baked config/superposition.toml, watched for
+# changes. source = "remote": the same provider over a remote workspace, polled
+# every polling_interval seconds, with the baked file as the provider's init-time
+# fallback. Boot never fails because of Superposition: a remote source without
+# endpoint/token/org/workspace, or an unreachable workspace, is reported and the
+# baked file serves policy.
+# Env overrides: CS__SUPERPOSITION__* (e.g. CS__SUPERPOSITION__SOURCE=remote).
+[superposition]
+source = "file"                 # "file" | "remote"
+endpoint = ""                   # e.g. http://superposition.<ns>.svc.cluster.local:80
+token = ""                      # secret: CS__SUPERPOSITION__TOKEN from the k8s secret
+org_id = "hyperswitch"
+workspace_id = ""               # the prism workspace
+polling_interval = 15           # seconds
+# request_timeout = 60          # parity with hyperswitch; the provider only logs it today
+# backup_file_path = ""         # default: the baked config/superposition.toml
+
+# --- Déjà record/replay ---------------------------------------------------------
+# Only has any effect when built with the `deja` feature; ignored otherwise.
+# mode: "disabled" (default). Replay is rejected at boot in production.
+# Déjà record/replay harness. Inert here (`mode = "disabled"`); the full knob
+# surface is declared so `CS__DEJA__*` environment overrides bind to visible
+# keys. "record" streams boundary events + the execution graph to Kafka;
+# "replay" is a sealed-pod mode the déjà orchestrator drives — the replay job
+# boots this same image with CS__DEJA__MODE=replay plus a rendered lookup
+# table and re-drives the recorded requests while every side effect is
+# substituted from the tape (locally: the déjà rig's replay-dev.sh, kept out of tree).
+[deja]
+mode = "disabled"     # "disabled" | "record" | "replay"
+run_id = ""           # recording/replay identity; empty => derived at boot
+
+[deja.recording.kafka]
+topic = "ucs-deja-recording-events"
+brokers = []          # empty => inherit the [events] brokers at boot
+
+[deja.replay]
+source = ""           # rendered LookupTable JSONL, or a raw-tape artifact dir
+lookup_dir = ""       # with no `source`: uses <lookup_dir>/<run_id>.jsonl
+observed_sink = ""    # optional: where replay records what the candidate DID
+
+[deja.sampler]
+record_key = "deja_record"      # superposition boolean consulted per request
+fail_closed = true              # sampler failure => record nothing
+timeout_ms = 25                 # per-request policy lookup budget (hyperswitch parity)
+
+# [deja.identity] is deliberately not declared — identity has one source of
+# truth in code: the pod hostname (k8s sets it to the pod name) for the
+# instance and the git sha baked into the binary for provenance. See
+# `IdentityConfig` in ucs_env::deja_config for the resolution chain and the
+# CS__DEJA__IDENTITY__* overrides.
+
+[deja.writer]
+queue_capacity = 8192
+batch_size = 500
+flush_after_records = 500
+flush_interval_ms = 1000
+shutdown_flush_ms = 5000

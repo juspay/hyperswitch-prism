@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L250) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L265) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L118) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L316)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L250) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L265) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L118) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L314)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L269) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L332)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L269) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L284) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L134) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L330)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L294) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L310) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L355)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L294) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L310) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L156) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L353)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L319) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L336) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L178) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L378)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L319) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L336) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L178) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L376)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L341) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L358) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L197) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L397)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.py#L341) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.ts#L358) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.kt#L197) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/checkout/checkout.rs#L395)
 
 ## API Reference
 
@@ -214,7 +214,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | ⚠ |
 | MB Way | ⚠ |
 | Satispay | ⚠ |
@@ -241,8 +241,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | ⚠ |
 | Slovakia | ⚠ |
 | UK | ⚠ |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | ⚠ |
+| WebPay | ⚠ |
 | Local | ⚠ |
 | iDEAL | ⚠ |
 | Sofort | ⚠ |
@@ -255,7 +256,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | ⚠ |
 | Bizum | ⚠ |
 | EFT | ⚠ |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
@@ -278,9 +279,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | ⚠ |
 | BECS | ⚠ |
 | SEPA Guaranteed | ⚠ |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | ⚠ |
-| Givex | x |
+| Givex | ⚠ |
 | PaySafeCard | ⚠ |
 | E-Voucher | ⚠ |
 | Boleto | ⚠ |

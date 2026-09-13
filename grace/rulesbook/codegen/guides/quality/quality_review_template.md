@@ -318,20 +318,51 @@ if status == "PASS":
 ### Foundation Setup Review
 - [ ] Connector struct uses generic `<T: PaymentMethodDataTypes>`
 - [ ] ConnectorCommon trait properly implemented
-- [ ] Authentication type structure correct
-- [ ] Error response structure defined
+- [ ] Authentication built with `TryFrom<&ConnectorSpecificConfig>` — **not**
+      `TryFrom<&ConnectorAuthType>`; `RouterDataV2` has no `connector_auth_type`
+      field, so `get_auth_header(&ConnectorAuthType)` is E0407
+- [ ] `build_error_response` takes three parameters besides `&self`:
+      `(res, Option<&mut events::Event>, &ConnectorSpecificConfig)`; no
+      `ConnectorEvent`, no `set_error_response_body` call
+- [ ] Error response structure defined; `ErrorResponse` literal matches the real
+      13 fields, or uses `..Default::default()`
+- [ ] Exactly one non-generic `SourceVerification` impl and one `BodyDecoding`
+      impl (per-flow generic impls are E0107)
+- [ ] `macro_connector_flow_status_impls!` covers every unimplemented flow
 - [ ] UCS imports used (domain_types, not hyperswitch_*)
 - [ ] Base URL and currency unit configured
 - [ ] Build succeeds
 
 ### Per-Flow Review (Authorize, Capture, Void, Refund, PSync, RSync)
 - [ ] ConnectorIntegrationV2 trait used (not ConnectorIntegration)
-- [ ] RouterDataV2 used throughout (not RouterData)
+- [ ] RouterDataV2 used throughout (not RouterData), with all **four** type
+      parameters `<Flow, ResourceCommonData, Request, Response>`
+- [ ] `status` written to `resource_common_data`, not to RouterDataV2 directly
 - [ ] Correct generic type parameters
 - [ ] Request transformer complete and correct
 - [ ] Response transformer complete and correct
-- [ ] Status mapping comprehensive
-- [ ] Error handling proper
+- [ ] `PaymentsResponseData::TransactionResponse` lists all 11 fields;
+      `RefundsResponseData` all 4 (enum struct variants have no functional-update
+      syntax, so an omitted field is E0063)
+- [ ] Status mapping: `#[serde(other)] Unknown` on the response enum **and** an
+      exhaustive `match` with no `_ =>` arm — both halves
+- [ ] Error handling proper; `ConnectorError` limited to its five real variants
+      (`ResponseDeserializationFailed`, `ResponseHandlingFailed`,
+      `UnexpectedResponseError`, `IntegrityCheckFailed`, `ConnectorErrorResponse`),
+      each with its `context`
+- [ ] Error code/message fall back to `NO_ERROR_CODE` / `NO_ERROR_MESSAGE`, never
+      `unwrap_or_default()`
+- [ ] `attempt_status` is `Option<FlowStatus>` and flow-aware — no hardcoded
+      `Some(AttemptStatus::Failure)`, no blanket `None`
+- [ ] In-band 2xx failure returns `Err(ErrorResponse { .. })`, branching on a
+      success predicate (`utils::is_payment_failure`)
+- [ ] Amount unit type matches the vendor's documented wire format (one of the
+      five in `common_utils::types`), not a default guess
+- [ ] Capture flow uses `amount_to_capture` / `minor_amount_to_capture` — there is
+      no `payment_amount` field and `amount_to_capture` is not an `Option`
+- [ ] Webhook methods return `WebhookError` and use the real argument counts
+      (`get_event_type`: 1 arg; `process_payment_webhook`: 4 args); no
+      `transformation_status` / `WebhookTransformationStatus`
 - [ ] Payment method support adequate
 - [ ] Follows pattern file (guides/patterns/pattern_[flow].md)
 - [ ] No code duplication
@@ -520,12 +551,14 @@ impl ConnectorIntegration<Authorize, RouterData<...>> {
 
 **Required Fix:**
 ```rust
-impl ConnectorIntegrationV2<
-    Authorize,
-    PaymentFlowData,
-    PaymentsAuthorizeData<T>,
-    PaymentsResponseData
-> for ExampleConnector<T> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        Authorize,
+        PaymentFlowData,          // ResourceCommonData — required, omitting it is E0107
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    > for ExampleConnector<T>
+{
     // ...
 }
 ```

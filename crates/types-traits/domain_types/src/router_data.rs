@@ -152,6 +152,8 @@ pub struct PaysafePaymentMethodDetails {
     pub apple_pay: Option<HashMap<common_enums::enums::Currency, PaysafeApplePayAccountId>>,
     /// Skrill wallet processing accounts, keyed by currency.
     pub skrill: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
+    /// Neteller wallet processing accounts, keyed by currency.
+    pub neteller: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
     /// paysafecard processing accounts, keyed by currency.
     pub pay_safe_card: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
 }
@@ -210,6 +212,7 @@ pub enum PaysafeAccountKind {
     Interac,
     ApplePay(PaysafeApplePayFlow),
     Skrill,
+    Neteller,
     PaysafeGiftCard,
 }
 
@@ -270,6 +273,13 @@ impl PaysafePaymentMethodDetails {
                     .and_then(|skrill| skrill.get(&currency))
                     .and_then(|skrill| skrill.three_ds.clone()),
                 "Missing skrill account_id",
+            ),
+            PaysafeAccountKind::Neteller => (
+                self.neteller
+                    .as_ref()
+                    .and_then(|neteller| neteller.get(&currency))
+                    .and_then(|neteller| neteller.three_ds.clone()),
+                "Missing neteller account_id",
             ),
             PaysafeAccountKind::PaysafeGiftCard => (
                 self.pay_safe_card
@@ -349,6 +359,12 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Xendit {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Pay.com REST API v1.
+    /// `api_key` = the `x-paycom-api-key` value (test_… sandbox / live_… production).
+    Paydotcom {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
@@ -442,6 +458,7 @@ pub enum ConnectorSpecificConfig {
     Globalpay {
         app_id: Secret<String>,
         app_key: Secret<String>,
+        account_name: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Hipay {
@@ -512,6 +529,17 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
         merchant_id: Secret<String>,
         client_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+        base_url: Option<String>,
+    },
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
         base_url: Option<String>,
     },
     Nmi {
@@ -958,6 +986,16 @@ pub enum ConnectorSpecificConfig {
         auth_server_id: Option<String>,
         base_url: Option<String>,
     },
+    Nsure {
+        /// nSure.ai authorization key, sent verbatim in the `Authorization`
+        /// header (no scheme prefix).
+        api_key: Secret<String>,
+        /// nSure.ai Application ID from the management portal.
+        app_id: Option<String>,
+        /// `x-nsure-api-version` value; defaults to 2.0.0 when `None`.
+        api_version: Option<String>,
+        base_url: Option<String>,
+    },
     Grabpay {
         partner_id: Secret<String>,
         partner_secret: Secret<String>,
@@ -1044,6 +1082,57 @@ pub enum ConnectorSpecificConfig {
         key1: Secret<String>,
         base_url: Option<String>,
     },
+    D24 {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        api_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// PayHere (payhere.lk) Merchant API.
+    /// `app_id`         = App ID (OAuth client_id for `/merchant/v1/oauth/token` Basic auth)
+    /// `app_secret`     = App Secret (OAuth client_secret)
+    /// `merchant_id`    = Merchant ID (checkout form `merchant_id`, hash input)
+    /// `merchant_secret` = Merchant Secret (checkout + webhook hash secret). Never transmitted.
+    Payhere {
+        app_id: Secret<String>,
+        merchant_id: Secret<String>,
+        app_secret: Secret<String>,
+        merchant_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Global Payments — Heartland (Portico PosGateway).
+    /// `api_key` = Portico SecretAPIKey; it travels in the SOAP body at
+    /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
+    GlobalpaymentsHeartland {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+}
+
+/// Config-patch key for a `ConnectorSpecificConfig` variant.
+///
+/// The key must equal the connector's field name on `Connectors`, because the generated
+/// `ConnectorsPatch` carries `#[serde(deny_unknown_fields)]` — a mismatch is a hard
+/// `InvalidDataFormat { field_name: "config_override" }`, not a silent drop, so a merchant
+/// supplying `base_url` in `x-connector-config` has the whole request rejected.
+///
+/// Lowercasing the variant name is right for the ~105 single-word connectors. The variants
+/// below are the ones whose field name is not simply the lowercased variant.
+///
+/// Deliberately NOT listed, and deliberately not snake_cased: `RazorpayV2` -> `razorpayv2` and
+/// `BankOfAmerica` -> `bankofamerica`. Those really are the field names, so the default is
+/// correct and a blanket snake_case conversion would break two connectors that work today.
+fn connector_patch_key(variant: &str) -> String {
+    match variant {
+        "AbsaSanlam" => "absa_sanlam",
+        "GotymeSanlam" => "gotyme_sanlam",
+        "TsysTransit" => "tsys_transit",
+        "PinelabsOnline" => "pinelabs_online",
+        "TwocTwopPaco" => "twoc_twop_paco",
+        "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        other => return other.to_ascii_lowercase(),
+    }
+    .to_string()
 }
 
 impl ConnectorSpecificConfig {
@@ -1229,6 +1318,15 @@ impl ConnectorSpecificConfig {
                 merchant_id,
                 client_id
             },
+            Etisalat {
+                user_name,
+                password,
+                customer
+            },
+            Merchante {
+                profile_id,
+                profile_key
+            },
             Noon {
                 api_key,
                 business_identifier,
@@ -1386,6 +1484,7 @@ impl ConnectorSpecificConfig {
             },
             Tamara { api_key },
             Kount { api_key },
+            Nsure { api_key },
             Hyperswitch { api_key },
             Grabpay {
                 partner_id,
@@ -1424,11 +1523,25 @@ impl ConnectorSpecificConfig {
             Travelhub {
                 username,
                 password,
-                merchant_id,
+                merchant_id
+            },
+            D24 {
+                api_key,
+                key1,
+                api_secret
             },
             Paynearme { api_key, key1 },
+            GlobalpaymentsHeartland { api_key },
+            Payhere {
+                app_id,
+                merchant_id,
+                app_secret,
+                merchant_secret,
+                base_url
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
+            Paydotcom { api_key },
             TwocTwopPaco {
                 access_token,
                 office_id,
@@ -1555,7 +1668,7 @@ impl ConnectorSpecificConfig {
                 ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
                     match self {
                         Self::NoKey => "nokey".to_string(),
-                        $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
+                        $(Self::$variant { .. } => connector_patch_key(stringify!($variant)),)*
                     }
                 };
             }
@@ -1729,6 +1842,15 @@ impl ConnectorSpecificConfig {
                     merchant_id,
                     client_id
                 },
+                Etisalat {
+                    user_name,
+                    password,
+                    customer
+                },
+                Merchante {
+                    profile_id,
+                    profile_key
+                },
                 Noon {
                     api_key,
                     business_identifier,
@@ -1892,6 +2014,7 @@ impl ConnectorSpecificConfig {
                 },
                 Tamara { api_key },
                 Kount { api_key },
+                Nsure { api_key },
                 Hyperswitch { api_key },
                 Grabpay {
                     partner_id,
@@ -1930,11 +2053,25 @@ impl ConnectorSpecificConfig {
                 Travelhub {
                     username,
                     password,
-                    merchant_id,
+                    merchant_id
+                },
+                D24 {
+                    api_key,
+                    key1,
+                    api_secret
                 },
                 Paynearme { api_key, key1 },
+                GlobalpaymentsHeartland { api_key },
+                Payhere {
+                    app_id,
+                    merchant_id,
+                    app_secret,
+                    merchant_secret,
+                    base_url
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
+                Paydotcom { api_key },
                 TwocTwopPaco {
                     access_token,
                     office_id,
@@ -2121,6 +2258,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Globalpay(globalpay) => Ok(Self::Globalpay {
                 app_id: globalpay.app_id.ok_or_else(err)?,
                 app_key: globalpay.app_key.ok_or_else(err)?,
+                account_name: globalpay.account_name,
                 base_url: globalpay.base_url,
             }),
             AuthType::Hipay(hipay) => Ok(Self::Hipay {
@@ -2171,6 +2309,17 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: moneris.merchant_id.ok_or_else(err)?,
                 client_id: moneris.client_id.ok_or_else(err)?,
                 base_url: moneris.base_url,
+            }),
+            AuthType::Etisalat(etisalat) => Ok(Self::Etisalat {
+                user_name: etisalat.user_name.ok_or_else(err)?,
+                password: etisalat.password.ok_or_else(err)?,
+                customer: etisalat.customer.ok_or_else(err)?,
+                base_url: etisalat.base_url,
+            }),
+            AuthType::Merchante(merchante) => Ok(Self::Merchante {
+                profile_id: merchante.profile_id.ok_or_else(err)?,
+                profile_key: merchante.profile_key.ok_or_else(err)?,
+                base_url: merchante.base_url,
             }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
@@ -2546,6 +2695,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 auth_server_id: kount.auth_server_id,
                 base_url: kount.base_url,
             }),
+            AuthType::Nsure(nsure) => Ok(Self::Nsure {
+                api_key: nsure.api_key.ok_or_else(err)?,
+                app_id: nsure.app_id,
+                api_version: nsure.api_version,
+                base_url: nsure.base_url,
+            }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
                 base_url: hyperswitch.base_url,
@@ -2581,6 +2736,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: ilixium.api_secret.ok_or_else(err)?,
                 base_url: ilixium.base_url,
             }),
+            AuthType::GlobalpaymentsHeartland(config) => Ok(Self::GlobalpaymentsHeartland {
+                api_key: config.api_key.ok_or_else(err)?,
+                base_url: config.base_url,
+            }),
             AuthType::Worldpayraft(worldpayraft) => Ok(Self::Worldpayraft {
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
@@ -2594,6 +2753,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 terminal_id: jpmorgan_orbital.terminal_id,
                 base_url: jpmorgan_orbital.base_url,
                 merchant_config_currency: jpmorgan_orbital.merchant_config_currency,
+            }),
+            AuthType::Paydotcom(paydotcom) => Ok(Self::Paydotcom {
+                api_key: paydotcom.api_key.ok_or_else(err)?,
+                base_url: paydotcom.base_url,
             }),
             AuthType::Saferpay(saferpay) => Ok(Self::Saferpay {
                 api_key: saferpay.api_key.ok_or_else(err)?,
@@ -2612,6 +2775,19 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: paynearme.api_key.ok_or_else(err)?,
                 key1: paynearme.key1.ok_or_else(err)?,
                 base_url: paynearme.base_url,
+            }),
+            AuthType::D24(d24) => Ok(Self::D24 {
+                api_key: d24.api_key.ok_or_else(err)?,
+                key1: d24.key1.ok_or_else(err)?,
+                api_secret: d24.api_secret.ok_or_else(err)?,
+                base_url: d24.base_url,
+            }),
+            AuthType::Payhere(payhere) => Ok(Self::Payhere {
+                app_id: payhere.app_id.ok_or_else(err)?,
+                merchant_id: payhere.merchant_id.ok_or_else(err)?,
+                app_secret: payhere.app_secret.ok_or_else(err)?,
+                merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
+                base_url: payhere.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -2953,6 +3129,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Globalpay {
                         app_id: key1.clone(),
                         app_key: api_key.clone(),
+                        account_name: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3366,6 +3543,27 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Etisalat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Etisalat {
+                        user_name: api_key.clone(),
+                        password: key1.clone(),
+                        customer: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Merchante => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                        profile_key: api_key.clone(),
+                        profile_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Noon => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3662,6 +3860,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Paydotcom => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Paydotcom {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Saferpay => match auth {
                     ConnectorAuthType::MultiAuthKey {
                         api_key,
@@ -3865,6 +4070,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::GlobalpaymentsHeartland => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Boost => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
                         client_id: api_key.clone(),
@@ -3929,6 +4141,34 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         username: api_key.clone(),
                         password: key1.clone(),
                         merchant_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::D24 => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::D24 {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payhere => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Payhere {
+                        app_id: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        app_secret: api_secret.clone(),
+                        merchant_secret: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4039,6 +4279,25 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
                         auth_server_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                connector_types::FrmConnectorEnum::Nsure => match auth {
+                    // nSure needs the authorization key plus the portal
+                    // Application ID, so BodyKey (api_key + key1) is the
+                    // faithful shape. HeaderKey is accepted for accounts that
+                    // were provisioned without an app id.
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Nsure {
+                        api_key: api_key.clone(),
+                        app_id: Some(key1.peek().to_owned()),
+                        api_version: None,
+                        base_url: None,
+                    }),
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Nsure {
+                        api_key: api_key.clone(),
+                        app_id: None,
+                        api_version: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

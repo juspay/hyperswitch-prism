@@ -470,6 +470,17 @@ impl CustomerService for Customer {
 }
 impl Payments {
     #[allow(clippy::too_many_arguments)]
+    // Déjà call-graph skeleton span (`ucs::*` namespace): one node per pipeline
+    // hop on the execution-graph tape. cfg_attr keeps feature-off builds
+    // byte-identical — the convention for every déjà touchpoint.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(
+            name = "ucs::flow_orchestration",
+            skip_all,
+            fields(connector = ?connector, flow = "Authorize")
+        )
+    )]
     async fn process_authorization_internal<
         T: PaymentMethodDataTypes
             + Default
@@ -519,6 +530,7 @@ impl Payments {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .map_err(|e| {
             tracing::error!("Failed to resolve connector overrides: {:?}", e);
             e.to_grpc_error()
@@ -588,6 +600,7 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
+        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -596,7 +609,7 @@ impl Payments {
                 None,
                 event_params,
                 token_data,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             ),
@@ -663,6 +676,7 @@ impl Payments {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create common request data
@@ -1064,6 +1078,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create common request data
@@ -1270,6 +1285,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -1556,6 +1572,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -2535,6 +2552,7 @@ impl PaymentMethod {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create payment flow data
@@ -2657,10 +2675,15 @@ impl PaymentMethod {
             PaymentMethodTokenResponse,
         > = connector_data.connector.get_connector_integration_v2();
 
-        let connectors = utils::connectors_with_connector_config_overrides(
-            &metadata_payload.connector_config,
+        // Resolve effective connector URLs — applies superposition (x-environment) first,
+        // then any caller-supplied base_url override from x-connector-config on top.
+        let connectors = utils::apply_url_overrides(
             config,
+            &metadata_payload.connector,
+            &metadata_payload.connector_config,
+            metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let payment_flow_data =
@@ -3158,6 +3181,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create merchant authentication flow data
@@ -3274,6 +3298,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create minimal merchant auth flow data for access token generation
@@ -3404,6 +3429,7 @@ impl RecurringPaymentService for RecurringPayments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create payment flow data

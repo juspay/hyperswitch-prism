@@ -14,6 +14,7 @@ use common_utils::{
         RuntimeMetadataPatch,
     },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
 use domain_types::{
@@ -59,8 +60,16 @@ pub struct Config {
     /// build. Absent optional values are simply omitted and never fail startup.
     #[serde(default)]
     pub runtime_metadata: RuntimeMetadata,
-    /// Superposition configuration for connector URL resolution
-    /// This is loaded at startup from config/superposition.toml
+    /// Where Superposition policy comes from: the baked file (default) or a remote
+    /// workspace. Loadable from the `[superposition]` table and `CS__SUPERPOSITION__*`
+    /// env vars, but excluded from the per-request `x-config-override` surface via
+    /// `#[patch(ignore)]`: a request header must never be able to repoint the policy
+    /// source or hand the process a different token.
+    #[serde(default)]
+    #[patch(ignore)]
+    pub superposition: SuperpositionClientConfig,
+    /// The initialised Superposition provider (connector URL resolution, the déjà
+    /// sampler). Built at startup from `superposition` + `config/superposition.toml`.
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
@@ -73,6 +82,15 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub masking_keys: Arc<CompiledMaskingKeys>,
+    /// Déjà record/replay configuration. Loadable from the `[deja]` TOML table and
+    /// `CS__DEJA__*` env vars, but deliberately excluded from the per-request
+    /// `x-config-override` surface via `#[patch(ignore)]`: a request header must never
+    /// be able to enable recording, switch modes, or redirect the sink. The generated
+    /// `ConfigPatch` is `deny_unknown_fields`, so an override mentioning `deja` is rejected.
+    #[cfg(feature = "deja")]
+    #[serde(default)]
+    #[patch(ignore)]
+    pub deja: crate::deja_config::DejaConfig,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -387,22 +405,24 @@ impl Config {
         let env = consts::Env::current_env();
         let config_path = Self::config_path(&env, explicit_config_path);
 
-        let config = Self::builder(&env)?
-            .add_source(config::File::from(config_path).required(false))
-            .add_source(
-                config::Environment::with_prefix(consts::ENV_PREFIX)
-                    .try_parsing(true)
-                    .separator("__")
-                    .list_separator(",")
-                    .with_list_parse_key("proxy.bypass_urls")
-                    .with_list_parse_key("redis.cluster_urls")
-                    .with_list_parse_key("database.tenants")
-                    .with_list_parse_key("log.kafka.brokers")
-                    .with_list_parse_key("events.brokers")
-                    .with_list_parse_key("connector_request_kafka.brokers")
-                    .with_list_parse_key("unmasked_headers.keys"),
-            )
-            .build()?;
+        let config_builder =
+            Self::builder(&env)?.add_source(config::File::from(config_path).required(false));
+
+        let environment_source = config::Environment::with_prefix(consts::ENV_PREFIX)
+            .try_parsing(true)
+            .separator("__")
+            .list_separator(",")
+            .with_list_parse_key("proxy.bypass_urls")
+            .with_list_parse_key("redis.cluster_urls")
+            .with_list_parse_key("database.tenants")
+            .with_list_parse_key("log.kafka.brokers")
+            .with_list_parse_key("events.brokers")
+            .with_list_parse_key("connector_request_kafka.brokers")
+            .with_list_parse_key("unmasked_headers.keys");
+        #[cfg(feature = "deja")]
+        let environment_source =
+            environment_source.with_list_parse_key("deja.recording.kafka.brokers");
+        let config = config_builder.add_source(environment_source).build()?;
 
         #[allow(clippy::print_stderr)]
         let config: Self = serde_path_to_error::deserialize(config).map_err(|error| {
@@ -413,11 +433,32 @@ impl Config {
         let config = {
             let mut config = config;
             config.post_patch_processing();
+
+            // Superposition is never a reason to refuse boot. A remote source whose
+            // settings cannot describe a workspace (no endpoint/token/org/workspace) is
+            // reported — the logger is not up yet, so to stderr — and the source is set
+            // back to the file: the process serves policy from the baked
+            // config/superposition.toml, the same fail-open posture as a déjà record
+            // misconfiguration. Payments are never blocked by a policy source.
+            if config.superposition.source == SuperpositionSource::Remote {
+                #[allow(clippy::print_stderr)]
+                if let Err(error) = config.superposition.validate() {
+                    eprintln!(
+                        "superposition configuration error: {error}; source set to file, \
+                         policy comes from the baked config/superposition.toml"
+                    );
+                    config.superposition.source = SuperpositionSource::File;
+                }
+            }
             config
         };
 
         // Validate the environment field
         config.common.validate()?;
+
+        // Fail loud at boot on an unsafe déjà configuration (e.g. replay in production).
+        #[cfg(feature = "deja")]
+        config.deja.validate(&config.common.environment)?;
 
         // Fail fast on malformed platform CA config, using the same PEM parser as
         // runtime client construction. Iterates the hand-maintained list in

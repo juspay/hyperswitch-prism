@@ -106,6 +106,8 @@ message PaymentMethod {
 
     // --- GRABPAY WALLET ---
     GrabpayRedirectWallet grabpay_redirect = 187;          // GrabPay one-time-charge redirect wallet
+    NetellerRedirectWallet neteller_redirect = 188;      // Neteller
+    PayhereRedirectWallet payhere_redirect = 189;        // PayHere redirect wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
@@ -224,6 +226,7 @@ message PaymentMethod {
 }
 
 message GrabpayRedirectWallet {}
+message PayhereRedirectWallet {}
 
 // ============================================================================
 // PAYMENT METHOD CATEGORIES
@@ -338,6 +341,7 @@ message CardRedirect {
     BENEFIT = 2;
     MOMO_ATM = 3;
     CARD_REDIRECT = 4;
+    WEBPAY = 5;
   }
   CardRedirectType type = 1;
 }
@@ -727,6 +731,11 @@ message MobilePayRedirectWallet {
 // Skrill Redirect - Digital wallet for online payments
 message SkrillRedirectWallet {
   // Fields will be added as needed for Skrill Redirect integration
+}
+
+// Neteller Redirect - Digital wallet for online payments
+message NetellerRedirectWallet {
+  // Consumer email is sourced from billing details.
 }
 
 // Paysera Redirect - European digital wallet and payment service

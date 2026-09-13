@@ -18,23 +18,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // build, not a config/env value. `application_name`/`deployment_id`/`pod_name` come from config.
     config.runtime_metadata.version = ucs_env::git_describe!().to_string();
 
+    // Install the déjà runtime hook before `logger::setup` and before any instrumented
+    // call: the hook cell latches on first peek. Record misconfiguration fails open
+    // (disabled hook + stderr note, boot continues); replay misconfiguration aborts boot.
+    #[cfg(feature = "deja")]
+    let deja_report = grpc_server::deja::boot::install(
+        &config.deja,
+        Some(&config.events.brokers),
+        config.runtime_metadata.pod_name.as_deref(),
+    )
+    .map_err(|error| format!("deja replay configuration error: {error}"))?;
+
     let _guard = logger::setup(
         &config.log,
         ucs_env::service_name!(),
         [ucs_env::service_name!(), "grpc_server", "tower_http"],
     );
 
-    // Load superposition.toml for connector URL resolution
+    // Now that the logger is up, surface how the déjà hook resolved.
+    #[cfg(feature = "deja")]
+    tracing::info!(
+        mode = deja_report.mode,
+        run_id = ?deja_report.run_id,
+        detail = ?deja_report.detail,
+        "deja runtime hook installed"
+    );
+
+    // Build the Superposition provider — the remote workspace when `[superposition]`
+    // enables it (the baked file as its init-time fallback), else the baked file,
+    // watched. AFTER `logger::setup`, deliberately: this block logs through `tracing`,
+    // and events emitted before the subscriber is installed are discarded, not
+    // buffered — the source line and the fallback warning below are the signals that
+    // say where policy comes from, and they must not vanish. (Only the déjà hook
+    // install above genuinely needs to precede the logger.)
     let superposition_config_path = format!(
         "{}/config/superposition.toml",
         configs::workspace_path().display()
     );
-    match SuperpositionConfig::from_file(&superposition_config_path) {
+    match SuperpositionConfig::new(&config.superposition, &superposition_config_path).await {
         Ok(sp_config) => {
+            // `experiments_supported = false` is the loud answer to "why does my
+            // experiment never sample anything": a file source carries none.
             tracing::info!(
-                "Successfully loaded superposition.toml from {}",
-                superposition_config_path
+                source = %sp_config.source(),
+                experiments_supported = sp_config.experiments_supported(),
+                workspace = %config.superposition.workspace_id,
+                polling_interval_secs = config.superposition.polling_interval,
+                path = %superposition_config_path,
+                "superposition initialised"
             );
+            let source_kind = sp_config.source().to_string();
+            external_services::shared_metrics::SUPERPOSITION_SOURCE
+                .with_label_values(&[&source_kind])
+                .set(1);
+            #[cfg(feature = "otel")]
+            external_services::otel_metrics::record_superposition_source(&source_kind);
             config.superposition_config = Some(Arc::new(sp_config));
         }
         Err(e) => {

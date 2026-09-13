@@ -1,0 +1,15 @@
+{
+  "connector": "paydotcom",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

@@ -1602,8 +1602,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
                 | WalletData::PaymayaRedirect(_)
+                | WalletData::PayhereRedirect {}
                 | WalletData::QwikcilverWalletDirect(_)
-                | WalletData::Skrill(_) => {
+                | WalletData::Skrill(_)
+                | WalletData::Neteller(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                         connector: "Paypal",
@@ -1676,7 +1678,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => {
+            | CardRedirectData::CardRedirect {}
+            | CardRedirectData::Webpay {} => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                     connector: "Paypal",

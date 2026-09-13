@@ -861,10 +861,13 @@ pub enum WalletData {
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
     PaymayaRedirect(PaymayaRedirection),
+    PayhereRedirect {},
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
     /// Skrill redirect wallet — consumer email is sourced from billing details.
     Skrill(SkrillData),
+    /// Neteller redirect wallet — consumer email is sourced from billing details.
+    Neteller(NetellerData),
 }
 
 impl WalletData {
@@ -916,6 +919,9 @@ impl WalletData {
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct SkrillData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct NetellerData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct RevolutPayData {}
@@ -1546,6 +1552,7 @@ pub enum CardRedirectData {
     Benefit {},
     MomoAtm {},
     CardRedirect {},
+    Webpay {},
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
