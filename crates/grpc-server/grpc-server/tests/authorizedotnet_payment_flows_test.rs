@@ -422,6 +422,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         merchant_order_id: None,
         split_payments: None,
         merchant_request_id: None,
+        l2_l3_data: None,
     }
 }
 

@@ -509,6 +509,13 @@ message CompositeCaptureRequest {
   // Deprecated: use split_settlement instead. Legacy split payment configuration.
   optional SplitPaymentsDetails split_payments = 16 [deprecated = true];
   optional SplitSettlement split_settlement = 17;
+
+  // Level 2 / Level 3 interchange-optimisation data, forwarded verbatim to
+  // PaymentServiceCaptureRequest.l2_l3_data. Processors that only accept L2/L3 on
+  // the settle leg (e.g. Nuvei's /settleTransaction.do addendums) read it from
+  // there, so the composite façade has to carry it too or the data is unreachable
+  // through this surface.
+  optional L2L3Data l2_l3_data = 18;
 }
 
 // Response message for composite capture flow.

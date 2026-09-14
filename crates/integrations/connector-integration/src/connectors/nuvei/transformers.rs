@@ -6,7 +6,8 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        ConnectorSpecificClientAuthenticationResponse, L2L3Data, MandateReference,
+        MandateReferenceId,
         NuveiClientAuthenticationResponse as NuveiClientAuthenticationResponseDomain,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
@@ -29,7 +30,7 @@ use url::Url;
 
 use super::NuveiRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 // Nuvei's APM (Alternative Payment Method) identifier for ACH. Required literal
 // per Nuvei's API; reused by both BankTransfer::AchBankTransfer and
@@ -142,6 +143,10 @@ pub struct NuveiPaymentRequest<
     pub device_details: NuveiDeviceDetails,
     pub billing_address: NuveiBillingAddress,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<NuveiShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dynamic_descriptor: Option<NuveiDynamicDescriptor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub url_details: Option<NuveiUrlDetails>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
@@ -182,6 +187,145 @@ pub struct NuveiCard<
     pub expiration_year: Secret<String>,
     #[serde(rename = "CVV")]
     pub cvv: Secret<String>,
+    /// Only populated for merchant-supplied (external MPI) 3DS. Nuvei rejects a
+    /// `threeD` object on the post-challenge final `/payment.do`, so this stays
+    /// `None` for every non-external-MPI path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_d: Option<NuveiThreeD>,
+}
+
+/// `paymentOption.card.threeD`. Only the `externalMpi` member is populated by
+/// UCS today - the browser-challenge 3DS members belong to `/initPayment.do`,
+/// which this connector does not drive.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiThreeD {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_mpi: Option<NuveiExternalMpi>,
+}
+
+/// `paymentOption.card.threeD.externalMpi` - merchant-supplied 3DS values.
+///
+/// Per the Nuvei External-MPI reference this object has exactly five members.
+/// `threeDSVersion` and `xid` are **not** members: the 3DS message version is
+/// the sibling `threeD.version`, and XID is a 3DS-1 concept Nuvei does not
+/// accept here.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiExternalMpi {
+    pub eci: Option<String>,
+    pub cavv: Secret<String>,
+    /// JSON key is `dsTransID` - capital `ID`.
+    #[serde(rename = "dsTransID")]
+    pub ds_trans_id: Option<String>,
+    /// `ExemptionRequest` or `NoPreference`. Mandatory whenever external MPI
+    /// values are sent.
+    pub challenge_preference: Option<String>,
+    /// Mandatory when `challengePreference == "ExemptionRequest"`.
+    pub exemption_request_reason: Option<String>,
+}
+
+impl NuveiExternalMpi {
+    /// Build the external-MPI block from the domain 3DS authentication data.
+    /// Returns `None` when the merchant did not supply a CAVV, which is the
+    /// one member Nuvei treats as non-optional.
+    fn from_authentication_data(
+        auth_data: &domain_types::router_request_types::AuthenticationData,
+    ) -> Option<Self> {
+        let cavv = auth_data.cavv.clone()?;
+        // Nuvei accepts only these four exemption reasons; anything else is
+        // sent as a plain `NoPreference` rather than an invalid literal.
+        let exemption_request_reason =
+            auth_data
+                .exemption_indicator
+                .as_ref()
+                .and_then(|indicator| match indicator {
+                    common_enums::ExemptionIndicator::LowValue => Some("LowValuePayment"),
+                    common_enums::ExemptionIndicator::TransactionRiskAssessment => {
+                        Some("TransactionRiskAnalysis")
+                    }
+                    _ => None,
+                });
+        let challenge_preference = Some(
+            if exemption_request_reason.is_some() {
+                "ExemptionRequest"
+            } else {
+                "NoPreference"
+            }
+            .to_string(),
+        );
+        Some(Self {
+            eci: auth_data.eci.clone(),
+            cavv,
+            ds_trans_id: auth_data.ds_trans_id.clone(),
+            challenge_preference,
+            exemption_request_reason: exemption_request_reason.map(String::from),
+        })
+    }
+}
+
+/// Root-level `dynamicDescriptor` - the text and phone the cardholder sees on
+/// their statement. Does not participate in the checksum.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiDynamicDescriptor {
+    pub merchant_name: Option<Secret<String>>,
+    pub merchant_phone: Option<Secret<String>>,
+}
+
+/// Nuvei field length limits for `dynamicDescriptor` (API reference).
+const NUVEI_MERCHANT_NAME_MAX_LENGTH: usize = 25;
+const NUVEI_MERCHANT_PHONE_MAX_LENGTH: usize = 13;
+/// Nuvei rejects a `clientUniqueId` longer than 45 characters.
+const NUVEI_CLIENT_UNIQUE_ID_MAX_LENGTH: usize = 45;
+
+impl NuveiDynamicDescriptor {
+    /// Build `dynamicDescriptor` from the domain billing descriptor. Returns
+    /// `None` when neither member is populated - Nuvei rejects an empty object
+    /// on some accounts.
+    fn from_billing_descriptor(
+        descriptor: &domain_types::connector_types::BillingDescriptor,
+    ) -> Result<Option<Self>, Report<IntegrationError>> {
+        let merchant_name = descriptor
+            .name
+            .as_ref()
+            .map(|name| name.peek().trim().to_string())
+            .or_else(|| {
+                descriptor
+                    .statement_descriptor
+                    .as_ref()
+                    .map(|descriptor| descriptor.trim().to_string())
+            })
+            .filter(|name| !name.is_empty())
+            .map(|name| {
+                Secret::new(
+                    name.chars()
+                        .take(NUVEI_MERCHANT_NAME_MAX_LENGTH)
+                        .collect::<String>(),
+                )
+            });
+
+        let merchant_phone = descriptor.phone.clone();
+        if let Some(phone) = merchant_phone.as_ref() {
+            if phone.peek().len() > NUVEI_MERCHANT_PHONE_MAX_LENGTH {
+                return Err(IntegrationError::InvalidDataFormat {
+                    field_name: "billing_descriptor.phone",
+                    context: Default::default(),
+                }
+                .into());
+            }
+        }
+
+        if merchant_name.is_none() && merchant_phone.is_none() {
+            return Ok(None);
+        }
+        Ok(Some(Self {
+            merchant_name,
+            merchant_phone,
+        }))
+    }
 }
 
 /// card object used when paying with a network token: no PAN/CVV/holder name,
@@ -401,14 +545,77 @@ pub struct NuveiBillingAddress {
     pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // Nuvei's JSON keys for the extra street lines are `address2` / `address3`,
+    // NOT the camelCased `addressLine2` / `addressLine3`.
+    #[serde(rename = "address2", skip_serializing_if = "Option::is_none")]
     pub address_line2: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "address3", skip_serializing_if = "Option::is_none")]
     pub address_line3: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+}
+
+/// Root-level `shippingAddress`, a sibling of `billingAddress` on
+/// `/payment.do`. Every member is optional. Note that the county key differs
+/// from billing's (`shippingCounty` vs `county`) - neither is populated today
+/// because the UCS `AddressDetails` carries no county field.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiShippingAddress {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    #[serde(rename = "address2")]
+    pub address_line2: Option<Secret<String>>,
+    #[serde(rename = "address3")]
+    pub address_line3: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub state: Option<Secret<String>>,
+    pub zip: Option<Secret<String>>,
+    pub country: Option<String>,
+    pub email: Option<pii::Email>,
+    pub phone: Option<Secret<String>>,
+}
+
+/// Build a Nuvei `shippingAddress` from `PaymentFlowData`. Returns `None` when
+/// the caller supplied no shipping address at all, so the object is omitted
+/// rather than sent empty.
+fn get_shipping_address(resource_data: &PaymentFlowData) -> Option<NuveiShippingAddress> {
+    resource_data.get_optional_shipping()?;
+    let shipping = NuveiShippingAddress {
+        first_name: resource_data.get_optional_shipping_first_name(),
+        last_name: resource_data.get_optional_shipping_last_name(),
+        address: resource_data.get_optional_shipping_line1(),
+        address_line2: resource_data.get_optional_shipping_line2(),
+        address_line3: resource_data.get_optional_shipping_line3(),
+        city: resource_data.get_optional_shipping_city(),
+        state: resource_data.get_optional_shipping_state(),
+        zip: resource_data.get_optional_shipping_zip(),
+        country: resource_data
+            .get_optional_shipping_country()
+            .map(|country| country.to_string()),
+        email: resource_data.get_optional_shipping_email(),
+        // Nuvei's `phone` is a plain String(18); the `_plain` helper is the one
+        // that does not require a separate dialling code, matching how the
+        // billing phone is sourced.
+        phone: resource_data.get_optional_shipping_phone_number_plain(),
+    };
+    // Nuvei rejects an empty object on some accounts.
+    let is_empty = shipping.first_name.is_none()
+        && shipping.last_name.is_none()
+        && shipping.address.is_none()
+        && shipping.address_line2.is_none()
+        && shipping.address_line3.is_none()
+        && shipping.city.is_none()
+        && shipping.state.is_none()
+        && shipping.zip.is_none()
+        && shipping.country.is_none()
+        && shipping.email.is_none()
+        && shipping.phone.is_none();
+    (!is_empty).then_some(shipping)
 }
 
 /// Build a Nuvei `billingAddress` block from `PaymentFlowData`. Returns
@@ -456,6 +663,21 @@ pub struct NuveiPaymentResponse {
     pub gw_error_code: Option<i32>,
     #[serde(rename = "gwErrorReason")]
     pub gw_error_reason: Option<String>,
+    /// Filter / risk-rejection detail. Meaningful when `gwErrorCode == -1100`.
+    #[serde(rename = "gwExtendedErrorCode")]
+    pub gw_extended_error_code: Option<i64>,
+    /// Mastercard Merchant Advice Code - the network advice code.
+    pub merchant_advice_code: Option<String>,
+    /// The issuer's own decline code / text, where the acquirer forwards it.
+    pub issuer_decline_code: Option<String>,
+    pub issuer_decline_reason: Option<String>,
+    /// Stage-3 (APM provider) failure pair. Not applicable to raw card.
+    pub payment_method_error_code: Option<i64>,
+    pub payment_method_error_reason: Option<String>,
+    /// Network Transaction ID (NTID), to be stored for later MITs.
+    pub external_scheme_transaction_id: Option<String>,
+    /// Mastercard Transaction Link ID.
+    pub transaction_link_id: Option<String>,
     pub auth_code: Option<String>,
     pub session_token: Option<String>,
     pub client_unique_id: Option<String>,
@@ -470,6 +692,230 @@ pub struct NuveiPaymentResponse {
 pub struct PaymentOption {
     #[serde(rename = "redirectUrl")]
     pub redirect_url: Option<String>,
+    pub card: Option<NuveiResponseCard>,
+    pub user_payment_option_id: Option<String>,
+}
+
+/// `paymentOption.card` on a `/payment.do` or `/getTransactionDetails.do`
+/// response. Carries the issuer's AVS and CVV2 verdicts.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiResponseCard {
+    /// AVS result: `X`,`Y`,`A`,`W`,`Z`,`N`,`U`,`S`,`R`,`B`. Empty unless the
+    /// request carried `billingAddress.address` / `billingAddress.zip`.
+    pub avs_code: Option<String>,
+    /// CVV2 result: `M`,`N`,`P`,`U`,`S`.
+    pub cvv2_reply: Option<String>,
+    pub card_brand: Option<String>,
+    /// Older responses spell the brand `brand` rather than `cardBrand`.
+    pub brand: Option<String>,
+    pub card_type: Option<String>,
+    pub bin: Option<String>,
+    pub last4_digits: Option<String>,
+    pub issuer_bank_name: Option<String>,
+    pub issuer_country: Option<String>,
+}
+
+impl NuveiResponseCard {
+    fn card_network(&self) -> Option<String> {
+        self.card_brand.clone().or_else(|| self.brand.clone())
+    }
+}
+
+/// AVS code -> human description (Nuvei AVS reference).
+fn get_avs_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "X" => Some("Exact match of both the 9-digit ZIP code and the street address."),
+        "Y" => Some("Postal code and the street address match."),
+        "A" => Some("The street address matches, the ZIP code does not."),
+        "W" => Some("Postal code matches, the street address does not."),
+        "Z" => Some("Postal code matches, the street address does not."),
+        "N" => Some("Both the street address and postal code do not match."),
+        "U" => Some("Issuer is unavailable."),
+        "S" => Some("AVS not supported by issuer."),
+        "R" => Some("Retry."),
+        "B" => Some("Not authorized (declined)."),
+        _ => None,
+    }
+}
+
+/// cvv2Reply code -> human description (Nuvei CVV reference).
+fn get_cvv2_response_description(code: &str) -> Option<&'static str> {
+    match code {
+        "M" => Some("CVV2 Match"),
+        "N" => Some("CVV2 No Match"),
+        "P" => Some("Not Processed. For EU card-on-file and e-commerce network-token transactions Visa strips the CVV and returns P."),
+        "U" => Some("Issuer is not certified and/or has not supplied Visa the encryption keys."),
+        "S" => Some("CVV2 processor is unavailable."),
+        _ => None,
+    }
+}
+
+/// Surface the issuer's AVS and CVV2 verdicts (plus the processor card brand)
+/// as a structured `payment_checks` blob on `connector_response`, rather than
+/// folding them into the error message.
+fn build_nuvei_connector_response(
+    payment_option: Option<&PaymentOption>,
+    auth_code: Option<String>,
+) -> Option<domain_types::router_data::ConnectorResponseData> {
+    let card = payment_option?.card.as_ref()?;
+    let avs_code = card.avs_code.as_deref().filter(|code| !code.is_empty());
+    let cvv2_code = card.cvv2_reply.as_deref().filter(|code| !code.is_empty());
+    let card_network = card.card_network().filter(|brand| !brand.is_empty());
+    // Nuvei sends `authCode: ""` on a decline; an empty string is not an auth code.
+    let auth_code = auth_code.filter(|code| !code.is_empty());
+
+    if avs_code.is_none() && cvv2_code.is_none() && card_network.is_none() && auth_code.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = avs_code {
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
+        payment_checks.insert(
+            "avs_description".to_string(),
+            serde_json::json!(get_avs_response_description(code)),
+        );
+    }
+    if let Some(code) = cvv2_code {
+        payment_checks.insert(
+            "card_validation_result".to_string(),
+            serde_json::json!(code),
+        );
+        payment_checks.insert(
+            "card_validation_description".to_string(),
+            serde_json::json!(get_cvv2_response_description(code)),
+        );
+    }
+
+    Some(
+        domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+            domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks: (!payment_checks.is_empty())
+                    .then(|| serde_json::Value::Object(payment_checks)),
+                card_network,
+                domestic_network: None,
+                auth_code,
+            },
+        ),
+    )
+}
+
+/// The three error stages Nuvei reports, gathered from one response so the
+/// precedence rule can be applied in one place.
+pub(crate) struct NuveiErrorFields {
+    pub status: NuveiPaymentStatus,
+    pub transaction_status: Option<NuveiTransactionStatus>,
+    pub err_code: Option<i32>,
+    pub reason: Option<String>,
+    pub gw_error_code: Option<i32>,
+    pub gw_error_reason: Option<String>,
+    pub gw_extended_error_code: Option<i64>,
+    pub merchant_advice_code: Option<String>,
+    pub issuer_decline_code: Option<String>,
+    pub issuer_decline_reason: Option<String>,
+    pub payment_method_error_code: Option<i64>,
+    pub payment_method_error_reason: Option<String>,
+    pub transaction_id: Option<String>,
+}
+
+/// Apply Nuvei's three-stage error model.
+///
+/// * stage 1 - `status == ERROR`: the request was rejected before the gateway;
+///   the code/message are `errCode` / `reason`.
+/// * stage 2 - `status == SUCCESS` but `transactionStatus` is `DECLINED` /
+///   `ERROR`: a declined card still returns a top-level `SUCCESS`, so the
+///   decline text has to come from `gwErrorCode` / `gwErrorReason`.
+/// * stage 3 - the APM pair, preferred over the gateway pair when populated.
+///
+/// Returns `None` when the response is not an error at all.
+fn build_nuvei_error_response(
+    fields: NuveiErrorFields,
+    http_code: u16,
+    flow_status: FlowStatus,
+) -> Option<domain_types::router_data::ErrorResponse> {
+    let is_gateway_failure = matches!(
+        fields.transaction_status,
+        Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error)
+    ) || fields
+        .gw_error_reason
+        .as_deref()
+        .is_some_and(|reason| reason == "Missing argument");
+
+    let (code, message) = match fields.status {
+        NuveiPaymentStatus::Error => (
+            fields.err_code.map(|code| code.to_string()),
+            fields.reason.clone(),
+        ),
+        _ if is_gateway_failure => {
+            // Stage 3 (APM provider) detail wins over the gateway pair when
+            // the APM reported its own failure.
+            match (
+                fields.payment_method_error_code,
+                fields.payment_method_error_reason.clone(),
+            ) {
+                (None, None) => (
+                    fields.gw_error_code.map(|code| code.to_string()),
+                    fields.gw_error_reason.clone(),
+                ),
+                (code, reason) => (
+                    code.map(|code| code.to_string())
+                        .or_else(|| fields.gw_error_code.map(|code| code.to_string())),
+                    reason.or_else(|| fields.gw_error_reason.clone()),
+                ),
+            }
+        }
+        _ => return None,
+    };
+
+    // `gwExtendedErrorCode` is the Nuvei risk-filter code when
+    // `gwErrorCode == -1100`; keep it alongside the gateway code so GSM can
+    // key on the specific filter (1104 invalid CVV2, 1119/1120 AVS, ...).
+    let network_decline_code = fields
+        .issuer_decline_code
+        .clone()
+        .filter(|code| !code.is_empty())
+        .or_else(
+            || match (fields.gw_error_code, fields.gw_extended_error_code) {
+                (Some(gw), Some(extended)) if extended != 0 => Some(format!("{gw}:{extended}")),
+                (Some(gw), _) => Some(gw.to_string()),
+                (None, Some(extended)) => Some(extended.to_string()),
+                (None, None) => None,
+            },
+        );
+
+    let network_error_message = fields
+        .issuer_decline_reason
+        .clone()
+        .filter(|reason| !reason.is_empty())
+        .or_else(|| fields.gw_error_reason.clone())
+        .filter(|reason| !reason.is_empty());
+
+    let message = message
+        .filter(|message| !message.is_empty())
+        .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+
+    Some(domain_types::router_data::ErrorResponse {
+        code: code
+            .filter(|code| !code.is_empty())
+            .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+        message: message.clone(),
+        reason: Some(message),
+        status_code: http_code,
+        attempt_status: Some(flow_status),
+        connector_transaction_id: fields.transaction_id.clone(),
+        network_advice_code: fields
+            .merchant_advice_code
+            .clone()
+            .filter(|code| !code.is_empty()),
+        network_decline_code,
+        network_error_message,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    })
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -546,6 +992,10 @@ pub struct NuveiSyncResponse {
     pub merchant_site_id: Option<String>,
     pub version: Option<String>,
     pub transaction_details: Option<NuveiTransactionDetails>,
+    /// `/getTransactionDetails.do` echoes the same `paymentOption.card` block
+    /// as `/payment.do`, carrying the AVS and CVV2 verdicts.
+    #[serde(rename = "paymentOption")]
+    pub payment_option: Option<PaymentOption>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -560,6 +1010,412 @@ pub struct NuveiTransactionDetails {
     pub credited: Option<String>,
     pub acquiring_bank_name: Option<String>,
     pub transaction_type: Option<String>,
+    pub processed_amount: Option<String>,
+    pub processed_currency: Option<String>,
+    #[serde(rename = "gwErrorCode")]
+    pub gw_error_code: Option<i32>,
+    #[serde(rename = "gwErrorReason")]
+    pub gw_error_reason: Option<String>,
+    #[serde(rename = "gwExtendedErrorCode")]
+    pub gw_extended_error_code: Option<i64>,
+}
+
+// ---------------------------------------------------------------------------
+// Level 2 / Level 3 addendums
+//
+// Nuvei accepts interchange-optimisation data ONLY as `addendums.l23processingData`
+// on `/settleTransaction.do` - never on `/payment.do`, and only on the
+// Auth->Settle path (an auto-capture `Sale` cannot carry it). It must not be
+// confused with the root-level `items` / `amountDetails` basket that
+// `/payment.do` accepts for risk scoring, which is a different object with
+// different field names.
+//
+// `addendums` does not participate in the settle checksum (row 5 of the
+// checksum table), so adding it does not change the signed string.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiAddendums {
+    #[serde(rename = "l23processingData")]
+    pub l23_processing_data: NuveiL23ProcessingData,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiL23ProcessingData {
+    /// `0` tax not included, `1` state/provincial tax included, `2` not subject to tax.
+    pub tax_indicator: Option<String>,
+    pub customer_code: Option<String>,
+    #[serde(rename = "merchantVATRegNum")]
+    pub merchant_vat_reg_num: Option<Secret<String>>,
+    #[serde(rename = "customerVATRegNum")]
+    pub customer_vat_reg_num: Option<Secret<String>>,
+    pub destination_zip: Option<Secret<String>>,
+    pub ship_from_zip: Option<Secret<String>>,
+    pub destination_country_code: Option<String>,
+    /// `YYMMDD`.
+    pub order_date: Option<String>,
+    pub line_item_count: Option<String>,
+    pub items: Option<Vec<NuveiL23Item>>,
+    pub amount_details: Option<NuveiL23AmountDetails>,
+}
+
+impl NuveiL23ProcessingData {
+    fn is_empty(&self) -> bool {
+        self.tax_indicator.is_none()
+            && self.customer_code.is_none()
+            && self.merchant_vat_reg_num.is_none()
+            && self.customer_vat_reg_num.is_none()
+            && self.destination_zip.is_none()
+            && self.ship_from_zip.is_none()
+            && self.destination_country_code.is_none()
+            && self.order_date.is_none()
+            && self.line_item_count.is_none()
+            && self.items.is_none()
+            && self.amount_details.is_none()
+    }
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiL23Item {
+    pub commodity_code: Option<String>,
+    pub description: Option<String>,
+    pub product_code: Option<String>,
+    pub quantity: Option<String>,
+    pub unit_measure: Option<String>,
+    pub price: Option<StringMajorUnit>,
+    #[serde(rename = "vatOrTaxAmount")]
+    pub vat_or_tax_amount: Option<StringMajorUnit>,
+    #[serde(rename = "vatOrTaxRate")]
+    pub vat_or_tax_rate: Option<String>,
+    pub total_amount: Option<StringMajorUnit>,
+    pub discount_rate: Option<String>,
+    pub discount: Option<StringMajorUnit>,
+    pub tax_type: Option<String>,
+    /// `D` debit or `C` credit. Every UCS line item is a purchase.
+    pub credit_indicator: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NuveiL23AmountDetails {
+    pub total_discount: Option<StringMajorUnit>,
+    pub total_shipping: Option<StringMajorUnit>,
+    pub duty_amount: Option<StringMajorUnit>,
+    #[serde(rename = "vatOrTaxAmount")]
+    pub vat_or_tax_amount: Option<StringMajorUnit>,
+    pub tax_amount: Option<StringMajorUnit>,
+}
+
+impl NuveiL23AmountDetails {
+    fn is_empty(&self) -> bool {
+        self.total_discount.is_none()
+            && self.total_shipping.is_none()
+            && self.duty_amount.is_none()
+            && self.vat_or_tax_amount.is_none()
+            && self.tax_amount.is_none()
+    }
+}
+
+/// Nuvei field length caps for the Level 2/3 addendum (Level 2&3 reference).
+const NUVEI_L23_CUSTOMER_CODE_MAX_LENGTH: usize = 25;
+const NUVEI_L23_MERCHANT_VAT_MAX_LENGTH: usize = 20;
+const NUVEI_L23_CUSTOMER_VAT_MAX_LENGTH: usize = 13;
+const NUVEI_L23_DESCRIPTION_MAX_LENGTH: usize = 35;
+const NUVEI_L23_PRODUCT_CODE_MAX_LENGTH: usize = 12;
+const NUVEI_L23_COMMODITY_CODE_MAX_LENGTH: usize = 12;
+const NUVEI_L23_VAT_OR_TAX_RATE_MAX_LENGTH: usize = 4;
+const NUVEI_L23_DISCOUNT_RATE_MAX_LENGTH: usize = 5;
+
+/// Render a Level 2/3 rate inside the character width Nuvei allows for it.
+///
+/// The rate fields are fixed-width strings (`items[].vatOrTaxRate` is 4,
+/// `items[].discountRate` is 5) and Nuvei validates the width, rejecting the
+/// settle with `errCode 1019` when it is exceeded - confirmed live against the
+/// sandbox, which refused `"0.025"` for a 4-character `vatOrTaxRate` even though
+/// Nuvei's own documentation uses that exact value as the example.
+///
+/// So the value is rendered with the most decimal places that still fit rather
+/// than truncated as a string: truncation turns `0.025` into `0.02` and `12.5`
+/// into the un-parseable `12.`. Losing precision is logged, because it changes a
+/// number the caller supplied. A rate whose integer part alone overflows the field
+/// is malformed rather than imprecise, and is rejected.
+fn format_l23_rate(
+    field_name: &'static str,
+    rate: f64,
+    max_length: usize,
+) -> Result<String, Report<IntegrationError>> {
+    for decimals in (0..=4usize).rev() {
+        let rendered = format!("{rate:.decimals$}");
+        if rendered.chars().count() <= max_length {
+            if rendered.parse::<f64>().is_ok_and(|parsed| parsed != rate) {
+                tracing::warn!(
+                    field_name,
+                    max_length,
+                    "nuvei: rounding Level 2/3 rate to fit its documented field width; the \
+                     matching amount field is still sent at full precision"
+                );
+            }
+            return Ok(rendered);
+        }
+    }
+    Err(IntegrationError::InvalidDataFormat {
+        field_name: "l2_l3_data.order_info.order_details.rate",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!(
+                "{field_name} value {rate} does not fit Nuvei's {max_length}-character limit \
+                 even with no decimal places"
+            )),
+            suggested_action: Some(
+                "Supply a rate with a smaller integer part (Nuvei expects a fraction, e.g. 0.05 \
+                 for 5%)"
+                    .to_string(),
+            ),
+            doc_url: None,
+        },
+    }
+    .into())
+}
+
+/// Clamp a Level 2/3 string to the length Nuvei documents for it.
+///
+/// Nuvei rejects an over-long addendum field outright, so truncating is strictly
+/// better than sending a value that fails the whole settle - but it is still a
+/// deliberate lossy default, so it is logged. The field name is logged; the value
+/// is not, since several of these carry PII (VAT registration numbers, customer
+/// codes).
+fn truncate_to(field_name: &'static str, value: String, max_length: usize) -> Option<String> {
+    if value.chars().count() > max_length {
+        tracing::warn!(
+            field_name,
+            max_length,
+            "nuvei: truncating Level 2/3 addendum field to its documented maximum length"
+        );
+    }
+    let value: String = value.chars().take(max_length).collect();
+    (!value.is_empty()).then_some(value)
+}
+
+/// Warn - and do nothing else - when a caller attaches Level 2/3 data to a Nuvei
+/// Authorize.
+///
+/// `/payment.do` has no `addendums` member at all: Nuvei accepts
+/// `addendums.l23processingData` only on `/settleTransaction.do`, and only on the
+/// Auth->Settle path, so an auto-capture `Sale` has no leg that can carry it.
+///
+/// This is a warn rather than an error on purpose. `PaymentServiceAuthorizeRequest`
+/// is connector-agnostic and its `l2_l3_data` is meaningful for processors that do
+/// take L2/L3 on authorize; failing the payment because Nuvei happens to want the
+/// data one leg later would turn an interchange-optimisation miss into a declined
+/// transaction. The caller keeps a valid payment and gets told, once per request,
+/// where the data actually belongs: `PaymentServiceCaptureRequest.l2_l3_data`.
+fn warn_if_l2_l3_data_on_authorize(
+    l2_l3_data: Option<&L2L3Data>,
+    capture_method: Option<common_enums::CaptureMethod>,
+) {
+    if l2_l3_data.is_some() {
+        tracing::warn!(
+            capture_method = ?capture_method,
+            "nuvei: ignoring l2_l3_data on authorize - /payment.do does not accept \
+             `addendums`. Nuvei takes Level 2/3 data only on /settleTransaction.do, \
+             so supply it on PaymentServiceCaptureRequest.l2_l3_data and use the \
+             Auth->Settle (manual capture) path; an auto-capture Sale cannot carry it."
+        );
+    }
+}
+
+/// Build `addendums.l23processingData` from the domain `L2L3Data`.
+///
+/// Only fields the UCS domain request can actually supply are populated -
+/// nothing is hardcoded or invented. Returns `None` when the caller supplied
+/// no Level 2/3 data, so the object stays off the wire entirely.
+///
+/// Reaching this function at all means the caller is on the Auth->Settle path:
+/// `/settleTransaction.do` is only ever built for the Capture flow, which an
+/// auto-capture `Sale` never enters. The `capture_method` carried on
+/// `PaymentsCaptureData` is deliberately NOT consulted as an auto-capture guard,
+/// because the proto field is optional and its unspecified value maps to
+/// `CaptureMethod::Automatic` - gating on it would silently drop the addendum for
+/// every caller that leaves `capture_method` unset, reintroducing exactly the
+/// inertness this wiring removes.
+///
+/// The address- and customer-derived subfields of the spec's root table
+/// (`destinationZip`, `shipFromZip`, `destinationCountryCode`, `customerCode`)
+/// come out `None` on the gRPC path today: `PaymentServiceCaptureRequest` carries
+/// no `address` / `customer` block, so `L2L3Data::{shipping_details,
+/// billing_details, customer_info}` are empty there. They are read through the
+/// normal accessors regardless, so they populate as soon as the capture request
+/// grows those blocks.
+fn build_nuvei_addendums(
+    router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+    amount_converter: &(dyn common_utils::types::AmountConvertor<Output = StringMajorUnit> + Sync),
+) -> Result<Option<NuveiAddendums>, Report<IntegrationError>> {
+    let Some(l2_l3) = router_data.resource_common_data.l2_l3_data.as_deref() else {
+        return Ok(None);
+    };
+    let currency = router_data.request.currency;
+    let convert = |amount: common_utils::types::MinorUnit| {
+        amount_converter.convert(amount, currency).change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )
+    };
+
+    // `YYMMDD` per the Level 2&3 reference (note: NOT the `YYYYMMDDHHmmss`
+    // form used by the request `timeStamp`, and not one of the
+    // `common_utils::date_time::DateFormat` variants either).
+    let order_date = l2_l3
+        .get_order_date()
+        .map(|date| {
+            date.format(&time::macros::format_description!(
+                "[year repr:last_two][month][day]"
+            ))
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "l2_l3_data.order_info.order_date",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "failed to format order_date {date:?} as YYMMDD"
+                    )),
+                    suggested_action: Some(
+                        "Provide a valid l2_l3_data.order_info.order_date".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })
+        })
+        .transpose()?;
+
+    let order_tax_amount = l2_l3.get_order_tax_amount();
+    // `0` tax not included, `1` state/provincial tax included, `2` not subject to tax.
+    let tax_indicator = match l2_l3.get_tax_status() {
+        Some(common_enums::TaxStatus::Exempt) => Some("2".to_string()),
+        Some(common_enums::TaxStatus::Taxable) => Some(
+            if order_tax_amount.is_some_and(|amount| amount.get_amount_as_i64() > 0) {
+                "1"
+            } else {
+                "0"
+            }
+            .to_string(),
+        ),
+        None => None,
+    };
+
+    let order_details = l2_l3
+        .get_order_details()
+        .or_else(|| router_data.resource_common_data.order_details.clone())
+        .unwrap_or_default();
+
+    let items = order_details
+        .iter()
+        .map(|detail| {
+            Ok(NuveiL23Item {
+                commodity_code: detail.commodity_code.clone().and_then(|code| {
+                    truncate_to(
+                        "items.commodityCode",
+                        code,
+                        NUVEI_L23_COMMODITY_CODE_MAX_LENGTH,
+                    )
+                }),
+                description: truncate_to(
+                    "items.description",
+                    detail
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| detail.product_name.clone()),
+                    NUVEI_L23_DESCRIPTION_MAX_LENGTH,
+                ),
+                product_code: detail
+                    .product_id
+                    .clone()
+                    .or_else(|| detail.sku.clone())
+                    .and_then(|code| {
+                        truncate_to("items.productCode", code, NUVEI_L23_PRODUCT_CODE_MAX_LENGTH)
+                    }),
+                quantity: Some(detail.quantity.to_string()),
+                unit_measure: detail.unit_of_measure.clone(),
+                price: Some(convert(detail.amount)?),
+                vat_or_tax_amount: detail.total_tax_amount.map(convert).transpose()?,
+                vat_or_tax_rate: detail
+                    .tax_rate
+                    .map(|rate| {
+                        format_l23_rate(
+                            "items.vatOrTaxRate",
+                            rate,
+                            NUVEI_L23_VAT_OR_TAX_RATE_MAX_LENGTH,
+                        )
+                    })
+                    .transpose()?,
+                total_amount: detail.total_amount.map(convert).transpose()?,
+                discount_rate: detail
+                    .discount_percentage
+                    .map(|rate| {
+                        format_l23_rate(
+                            "items.discountRate",
+                            rate,
+                            NUVEI_L23_DISCOUNT_RATE_MAX_LENGTH,
+                        )
+                    })
+                    .transpose()?,
+                discount: detail.unit_discount_amount.map(convert).transpose()?,
+                tax_type: detail.product_tax_code.clone(),
+                credit_indicator: Some("D".to_string()),
+            })
+        })
+        .collect::<Result<Vec<_>, Report<IntegrationError>>>()?;
+
+    let amount_details = NuveiL23AmountDetails {
+        total_discount: l2_l3.get_discount_amount().map(convert).transpose()?,
+        total_shipping: l2_l3.get_shipping_cost().map(convert).transpose()?,
+        duty_amount: l2_l3.get_duty_amount().map(convert).transpose()?,
+        vat_or_tax_amount: l2_l3.get_shipping_amount_tax().map(convert).transpose()?,
+        tax_amount: order_tax_amount.map(convert).transpose()?,
+    };
+
+    let l23_processing_data = NuveiL23ProcessingData {
+        tax_indicator,
+        customer_code: l2_l3.get_customer_id().and_then(|id| {
+            truncate_to(
+                "customerCode",
+                id.get_string_repr().to_string(),
+                NUVEI_L23_CUSTOMER_CODE_MAX_LENGTH,
+            )
+        }),
+        merchant_vat_reg_num: l2_l3.get_merchant_tax_registration_id().and_then(|id| {
+            truncate_to(
+                "merchantVATRegNum",
+                id.peek().to_string(),
+                NUVEI_L23_MERCHANT_VAT_MAX_LENGTH,
+            )
+            .map(Secret::new)
+        }),
+        customer_vat_reg_num: l2_l3.get_customer_tax_registration_id().and_then(|id| {
+            truncate_to(
+                "customerVATRegNum",
+                id.peek().to_string(),
+                NUVEI_L23_CUSTOMER_VAT_MAX_LENGTH,
+            )
+            .map(Secret::new)
+        }),
+        destination_zip: l2_l3.get_shipping_zip(),
+        ship_from_zip: l2_l3.get_shipping_origin_zip(),
+        destination_country_code: l2_l3
+            .get_shipping_country()
+            .map(|country| country.to_string()),
+        order_date,
+        line_item_count: (!items.is_empty()).then(|| items.len().to_string()),
+        items: (!items.is_empty()).then_some(items),
+        amount_details: (!amount_details.is_empty()).then_some(amount_details),
+    };
+
+    Ok((!l23_processing_data.is_empty()).then_some(NuveiAddendums {
+        l23_processing_data,
+    }))
 }
 
 // Capture Request
@@ -573,6 +1429,10 @@ pub struct NuveiCaptureRequest {
     pub amount: StringMajorUnit,
     pub currency: common_enums::Currency,
     pub related_transaction_id: String,
+    /// Level 2 / Level 3 interchange-optimisation data. `/settleTransaction.do`
+    /// is the ONLY endpoint that accepts it. Does not participate in the checksum.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addendums: Option<NuveiAddendums>,
     pub time_stamp: common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss>,
     pub checksum: String,
 }
@@ -589,6 +1449,16 @@ pub struct NuveiCaptureResponse {
     pub transaction_status: Option<NuveiTransactionStatus>,
     pub err_code: Option<i32>,
     pub reason: Option<String>,
+    #[serde(rename = "gwErrorCode")]
+    pub gw_error_code: Option<i32>,
+    #[serde(rename = "gwErrorReason")]
+    pub gw_error_reason: Option<String>,
+    #[serde(rename = "gwExtendedErrorCode")]
+    pub gw_extended_error_code: Option<i64>,
+    pub merchant_advice_code: Option<String>,
+    pub issuer_decline_code: Option<String>,
+    pub issuer_decline_reason: Option<String>,
+    pub auth_code: Option<String>,
 }
 
 // Refund Request
@@ -664,6 +1534,15 @@ pub struct NuveiVoidResponse {
     pub status: NuveiPaymentStatus,
     pub err_code: Option<i32>,
     pub reason: Option<String>,
+    #[serde(rename = "gwErrorCode")]
+    pub gw_error_code: Option<i32>,
+    #[serde(rename = "gwErrorReason")]
+    pub gw_error_reason: Option<String>,
+    #[serde(rename = "gwExtendedErrorCode")]
+    pub gw_extended_error_code: Option<i64>,
+    pub merchant_advice_code: Option<String>,
+    pub issuer_decline_code: Option<String>,
+    pub issuer_decline_reason: Option<String>,
 }
 
 // Error Response
@@ -821,10 +1700,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let time_stamp = NuveiAuthType::get_timestamp();
 
         // Per Hyperswitch pattern: ALWAYS send both transaction_id AND client_unique_id
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
         let transaction_id = match &router_data.request.connector_transaction_id {
             ResponseId::ConnectorTransactionId(id) => id.clone(),
             ResponseId::EncodedData(id) => id.clone(),
@@ -914,6 +1794,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default()
                     })?;
 
+                // External MPI (merchant-supplied 3DS): when the caller already
+                // ran its own MPI we skip /initPayment.do entirely and inline
+                // the authentication values on this single /payment.do.
+                let three_d = router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .and_then(NuveiExternalMpi::from_authentication_data)
+                    .map(|external_mpi| NuveiThreeD {
+                        external_mpi: Some(external_mpi),
+                    });
+
                 NuveiPaymentOption {
                     card: Some(NuveiCardPaymentOption::Raw(NuveiCard {
                         card_number: card_data.card_number.clone(),
@@ -921,6 +1813,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_month: card_data.card_exp_month.clone(),
                         expiration_year: card_data.card_exp_year.clone(),
                         cvv: card_data.card_cvc.clone(),
+                        three_d,
                     })),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
@@ -1148,6 +2041,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             state,
         };
 
+        let shipping_address = get_shipping_address(&router_data.resource_common_data);
+
+        let dynamic_descriptor = router_data
+            .request
+            .billing_descriptor
+            .as_ref()
+            .map(NuveiDynamicDescriptor::from_billing_descriptor)
+            .transpose()?
+            .flatten();
+
         // Get device details - ipAddress is required by Nuvei
         let ip_address = router_data
             .request
@@ -1202,6 +2105,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let transaction_type =
             TransactionType::get_from_capture_method(router_data.request.capture_method, &amount);
 
+        // Level 2/3 data cannot ride on `/payment.do` at all - see
+        // `warn_if_l2_l3_data_on_authorize` for why this warns instead of failing.
+        warn_if_l2_l3_data_on_authorize(
+            router_data.resource_common_data.l2_l3_data.as_deref(),
+            router_data.request.capture_method,
+        );
+
         // Build urlDetails from router_return_url if available
         let url_details =
             router_data
@@ -1232,21 +2142,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount,
             currency,
             user_token_id,
-            client_unique_id: Some(
-                router_data
+            client_unique_id: Some(truncate_client_unique_id(
+                &router_data
                     .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
+                    .connector_request_reference_id,
+            )),
             payment_option,
             transaction_type,
             device_details,
             billing_address,
+            shipping_address,
+            dynamic_descriptor,
             url_details,
             time_stamp,
             checksum,
         })
     }
+}
+
+/// `clientUniqueId` is capped at 45 characters by Nuvei; a longer value is
+/// rejected. The value is deliberately NOT the same as `clientRequestId`
+/// semantically: it identifies the transaction (echoed on the DMN and usable
+/// as a `/getTransactionDetails.do` lookup key), whereas `clientRequestId`
+/// identifies one API call.
+fn truncate_client_unique_id(reference_id: &str) -> String {
+    reference_id
+        .chars()
+        .take(NUVEI_CLIENT_UNIQUE_ID_MAX_LENGTH)
+        .collect()
 }
 
 // Response Transformation
@@ -1260,34 +2183,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Check if the overall request status is SUCCESS or ERROR
-        if matches!(response.status, NuveiPaymentStatus::Error) {
-            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
-            let error_message = response
-                .reason
-                .clone()
-                .unwrap_or_else(|| "Unknown error".to_string());
+        // AVS / CVV verdicts are surfaced as structured payment checks on
+        // `connector_response`, never folded into the error message - they are
+        // reported on approvals as well as declines.
+        let connector_response = build_nuvei_connector_response(
+            response.payment_option.as_ref(),
+            response.auth_code.clone(),
+        )
+        .or_else(|| router_data.resource_common_data.connector_response.clone());
 
+        // Three-stage error model. A DECLINED card still returns a top-level
+        // `status: "SUCCESS"`, so the decline is detected from
+        // `transactionStatus` and described by `gwErrorCode` / `gwErrorReason`.
+        if let Some(error_response) = build_nuvei_error_response(
+            NuveiErrorFields {
+                status: response.status.clone(),
+                transaction_status: response.transaction_status.clone(),
+                err_code: response.err_code,
+                reason: response.reason.clone(),
+                gw_error_code: response.gw_error_code,
+                gw_error_reason: response.gw_error_reason.clone(),
+                gw_extended_error_code: response.gw_extended_error_code,
+                merchant_advice_code: response.merchant_advice_code.clone(),
+                issuer_decline_code: response.issuer_decline_code.clone(),
+                issuer_decline_reason: response.issuer_decline_reason.clone(),
+                payment_method_error_code: response.payment_method_error_code,
+                payment_method_error_reason: response.payment_method_error_reason.clone(),
+                transaction_id: response.transaction_id.clone(),
+            },
+            item.http_code,
+            FlowStatus::Payment(common_enums::AttemptStatus::Failure),
+        ) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
+                    connector_response,
                     ..router_data.resource_common_data.clone()
                 },
-                response: Err(domain_types::router_data::ErrorResponse {
-                    code: error_code,
-                    message: error_message.clone(),
-                    reason: Some(error_message),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
-                    connector_transaction_id: response.transaction_id.clone(),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -1341,8 +2274,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             redirection_data,
             mandate_reference: None,
             connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
+            // externalSchemeTransactionId is the Network Transaction ID (NTID),
+            // needed to key later merchant-initiated transactions.
+            network_txn_id: response
+                .external_scheme_transaction_id
+                .clone()
+                .filter(|id| !id.is_empty()),
+            network_txn_link_id: response
+                .transaction_link_id
+                .clone()
+                .filter(|id| !id.is_empty()),
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1353,6 +2294,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -1388,10 +2330,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         // Extract relatedTransactionId from connector_transaction_id
         let related_transaction_id = match &router_data.request.connector_transaction_id {
@@ -1431,6 +2374,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             &time_stamp.to_string(),
         ]);
 
+        // Level 2/3 data rides on the settle, never on /payment.do, and is not
+        // part of the checksum concatenation.
+        let addendums =
+            build_nuvei_addendums(router_data, item.connector.amount_converter_webhooks)?;
+
         Ok(Self {
             merchant_id: auth.merchant_id,
             merchant_site_id: auth.merchant_site_id,
@@ -1439,6 +2387,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             amount,
             currency,
             related_transaction_id,
+            addendums,
             time_stamp,
             checksum,
         })
@@ -1455,37 +2404,41 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Check if the overall request status is SUCCESS or ERROR
-        if matches!(response.status, NuveiPaymentStatus::Error) {
-            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
-            let error_message = response
-                .reason
-                .clone()
-                .unwrap_or_else(|| "Unknown error".to_string());
+        // AVS / CVV verdicts are echoed on getTransactionDetails too.
+        let connector_response =
+            build_nuvei_connector_response(response.payment_option.as_ref(), None)
+                .or_else(|| router_data.resource_common_data.connector_response.clone());
 
+        // Three-stage error model: stage-1 rejections carry errCode/reason,
+        // stage-2 declines keep a top-level SUCCESS and describe themselves
+        // through the gwError* fields inside transactionDetails.
+        let details = response.transaction_details.as_ref();
+        if let Some(error_response) = build_nuvei_error_response(
+            NuveiErrorFields {
+                status: response.status.clone(),
+                transaction_status: details.and_then(|td| td.transaction_status.clone()),
+                err_code: response.err_code,
+                reason: response.reason.clone(),
+                gw_error_code: details.and_then(|td| td.gw_error_code),
+                gw_error_reason: details.and_then(|td| td.gw_error_reason.clone()),
+                gw_extended_error_code: details.and_then(|td| td.gw_extended_error_code),
+                merchant_advice_code: None,
+                issuer_decline_code: None,
+                issuer_decline_reason: None,
+                payment_method_error_code: None,
+                payment_method_error_reason: None,
+                transaction_id: details.and_then(|td| td.transaction_id.clone()),
+            },
+            item.http_code,
+            FlowStatus::Payment(common_enums::AttemptStatus::Failure),
+        ) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::Failure,
+                    connector_response,
                     ..router_data.resource_common_data.clone()
                 },
-                response: Err(domain_types::router_data::ErrorResponse {
-                    code: error_code,
-                    message: error_message.clone(),
-                    reason: Some(error_message),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
-                    connector_transaction_id: response
-                        .transaction_details
-                        .as_ref()
-                        .and_then(|td| td.transaction_id.clone()),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -1498,29 +2451,51 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
             ))
         })?;
 
-        // Map transaction status to attempt status
+        // Map (transactionStatus, transactionType) to attempt status. Nuvei reports the
+        // settlement stage only through `transactionType`, so the pair is what decides
+        // whether funds actually moved. An unrecognised type must NOT be assumed captured:
+        // a future/undocumented type defaults to Pending so a sync never reports money as
+        // settled that Nuvei did not say was settled.
         let status = match transaction_details.transaction_status {
             Some(NuveiTransactionStatus::Approved) => {
-                // For PSync, we need to determine if it was authorized or captured
-                // Check transaction_type: "Auth" means authorized only, "Sale" means captured
                 match transaction_details.transaction_type.as_deref() {
-                    Some("Auth") => common_enums::AttemptStatus::Authorized,
+                    Some("Auth") | Some("InitAuth3D") => common_enums::AttemptStatus::Authorized,
                     Some("Sale") | Some("Settle") => common_enums::AttemptStatus::Charged,
-                    _ => common_enums::AttemptStatus::Charged, // Default to Charged for unknown types
+                    Some("Void") => common_enums::AttemptStatus::Voided,
+                    Some("Auth3D") => common_enums::AttemptStatus::AuthenticationPending,
+                    other => {
+                        tracing::warn!(
+                            transaction_type = ?other,
+                            "Nuvei PSync: APPROVED with an unrecognised transactionType; \
+                             reporting Pending rather than assuming settlement"
+                        );
+                        common_enums::AttemptStatus::Pending
+                    }
                 }
             }
-            Some(NuveiTransactionStatus::Declined) => common_enums::AttemptStatus::Failure,
-            Some(NuveiTransactionStatus::Error) => common_enums::AttemptStatus::Failure,
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                match transaction_details.transaction_type.as_deref() {
+                    Some("Auth") => common_enums::AttemptStatus::AuthorizationFailed,
+                    Some("Void") => common_enums::AttemptStatus::VoidFailed,
+                    Some("Auth3D") | Some("InitAuth3D") => {
+                        common_enums::AttemptStatus::AuthenticationFailed
+                    }
+                    _ => common_enums::AttemptStatus::Failure,
+                }
+            }
             Some(NuveiTransactionStatus::Redirect) => {
                 common_enums::AttemptStatus::AuthenticationPending
             }
             Some(NuveiTransactionStatus::Pending) => common_enums::AttemptStatus::Pending,
             _ => {
-                // If transaction_status is not present but status is SUCCESS, default to Pending
-                if matches!(response.status, NuveiPaymentStatus::Success) {
-                    common_enums::AttemptStatus::Pending
-                } else {
+                // transactionStatus absent: only an explicit FAILED/ERROR envelope is terminal.
+                if matches!(
+                    response.status,
+                    NuveiPaymentStatus::Failed | NuveiPaymentStatus::Error
+                ) {
                     common_enums::AttemptStatus::Failure
+                } else {
+                    common_enums::AttemptStatus::Pending
                 }
             }
         };
@@ -1551,6 +2526,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
@@ -1569,34 +2545,34 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Check if the overall request status is SUCCESS or ERROR
-        if matches!(response.status, NuveiPaymentStatus::Error) {
-            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
-            let error_message = response
-                .reason
-                .clone()
-                .unwrap_or_else(|| "Unknown error".to_string());
-
+        // Three-stage error model: a DECLINED settle/void still returns a
+        // top-level `status: "SUCCESS"`, so the decline is read from
+        // `transactionStatus` and described by the gwError* pair.
+        if let Some(error_response) = build_nuvei_error_response(
+            NuveiErrorFields {
+                status: response.status.clone(),
+                transaction_status: response.transaction_status.clone(),
+                err_code: response.err_code,
+                reason: response.reason.clone(),
+                gw_error_code: response.gw_error_code,
+                gw_error_reason: response.gw_error_reason.clone(),
+                gw_extended_error_code: response.gw_extended_error_code,
+                merchant_advice_code: response.merchant_advice_code.clone(),
+                issuer_decline_code: response.issuer_decline_code.clone(),
+                issuer_decline_reason: response.issuer_decline_reason.clone(),
+                payment_method_error_code: None,
+                payment_method_error_reason: None,
+                transaction_id: response.transaction_id.clone(),
+            },
+            item.http_code,
+            FlowStatus::Payment(common_enums::AttemptStatus::CaptureFailed),
+        ) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
+                    status: common_enums::AttemptStatus::CaptureFailed,
                     ..router_data.resource_common_data.clone()
                 },
-                response: Err(domain_types::router_data::ErrorResponse {
-                    code: error_code,
-                    message: error_message.clone(),
-                    reason: Some(error_message),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
-                    connector_transaction_id: response.transaction_id.clone(),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -1674,10 +2650,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         // Extract relatedTransactionId from connector_transaction_id
         let related_transaction_id = router_data.request.connector_transaction_id.clone();
@@ -1749,10 +2726,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Per Hyperswitch pattern: ALWAYS send both transaction_id AND client_unique_id
         // NOTE: For RSync to work correctly, we need the ORIGINAL clientUniqueId from refund creation
         // Using current connector_request_reference_id may not match the original
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
         let transaction_id = router_data.request.connector_transaction_id.clone();
 
         if transaction_id.is_empty() {
@@ -1979,10 +2957,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         // Extract relatedTransactionId from connector_transaction_id
         let related_transaction_id = router_data.request.connector_transaction_id.clone();
@@ -2053,36 +3032,33 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
         let response = &item.response;
         let router_data = &item.router_data;
 
-        // Check if the overall request status is SUCCESS or ERROR
-        if matches!(response.status, NuveiPaymentStatus::Error) {
-            let error_code = response.err_code.map(|c| c.to_string()).unwrap_or_default();
-            let error_message = response
-                .reason
-                .clone()
-                .unwrap_or_else(|| "Unknown error".to_string());
-
+        // Three-stage error model. A failed void is non-terminal for the
+        // payment itself, so the attempt status stays `VoidFailed`.
+        if let Some(error_response) = build_nuvei_error_response(
+            NuveiErrorFields {
+                status: response.status.clone(),
+                transaction_status: response.transaction_status.clone(),
+                err_code: response.err_code,
+                reason: response.reason.clone(),
+                gw_error_code: response.gw_error_code,
+                gw_error_reason: response.gw_error_reason.clone(),
+                gw_extended_error_code: response.gw_extended_error_code,
+                merchant_advice_code: response.merchant_advice_code.clone(),
+                issuer_decline_code: response.issuer_decline_code.clone(),
+                issuer_decline_reason: response.issuer_decline_reason.clone(),
+                payment_method_error_code: None,
+                payment_method_error_reason: None,
+                transaction_id: response.transaction_id.clone(),
+            },
+            item.http_code,
+            FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed),
+        ) {
             return Ok(Self {
                 resource_common_data: PaymentFlowData {
                     status: common_enums::AttemptStatus::VoidFailed,
                     ..router_data.resource_common_data.clone()
                 },
-                response: Err(domain_types::router_data::ErrorResponse {
-                    code: error_code,
-                    message: error_message.clone(),
-                    reason: Some(error_message),
-                    status_code: item.http_code,
-                    attempt_status: Some(FlowStatus::Payment(
-                        common_enums::AttemptStatus::VoidFailed,
-                    )),
-                    connector_transaction_id: response.transaction_id.clone(),
-                    network_decline_code: None,
-                    network_advice_code: None,
-                    network_error_message: None,
-                    typed_connector_response: None,
-                    raw_connector_response: None,
-                    raw_connector_request: None,
-                    typed_connector_request: None,
-                }),
+                response: Err(error_response),
                 ..router_data.clone()
             });
         }
@@ -2389,10 +3365,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let client_unique_id = router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
+        let client_unique_id = truncate_client_unique_id(
+            &router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
 
         // Convert amount using the connector's amount converter
         let amount = item
@@ -2640,6 +3617,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         expiration_month: card_data.card_exp_month.clone(),
                         expiration_year: card_data.card_exp_year.clone(),
                         cvv: card_data.card_cvc.clone(),
+                        // Zero-amount verification never carries merchant-supplied 3DS.
+                        three_d: None,
                     })),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
@@ -3310,5 +4289,219 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             response: Ok(payments_response_data),
             ..router_data.clone()
         })
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use common_utils::types::{
+        AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector,
+    };
+
+    use super::*;
+
+    const MERCHANT_ID: &str = "427583496191624621";
+    const MERCHANT_SITE_ID: &str = "142566";
+    const MERCHANT_SECRET: &str = "sandbox_secret_key";
+    const CLIENT_REQUEST_ID: &str = "nuvei-l23-test-req-1";
+    const CLIENT_UNIQUE_ID: &str = "nuvei-l23-test-uid-1";
+    const RELATED_TRANSACTION_ID: &str = "7110000000012345678";
+    const TIME_STAMP: &str = "20260910120000";
+    const AUTH_CODE: &str = "111111";
+
+    /// `SHA256(merchantId + merchantSiteId + clientRequestId + clientUniqueId +
+    /// amount + currency + relatedTransactionId + timeStamp + merchantSecretKey)` -
+    /// the form UCS builds today, i.e. the 11-element `/settleTransaction.do`
+    /// concatenation with `authCode` and `comment` contributing empty strings.
+    const SETTLE_CHECKSUM_NO_AUTH_CODE: &str =
+        "5fab4ae164614fb32e2fcf6c8ba798a3b4159372e6923fb5d7a4a95ccaa72e65";
+
+    /// The same inputs with `authCode` populated. Per the Nuvei checksum table
+    /// `authCode` sits between `relatedTransactionId` and `comment`, NOT at the end:
+    /// appending it instead would produce a different digest and `errCode 1001`.
+    const SETTLE_CHECKSUM_WITH_AUTH_CODE: &str =
+        "bd80483326d43e5907df3ac26d60820a11623aa5fc4f6fe093ea82ae28f11861";
+
+    fn test_auth() -> NuveiAuthType {
+        NuveiAuthType {
+            merchant_id: Secret::new(MERCHANT_ID.to_string()),
+            merchant_site_id: Secret::new(MERCHANT_SITE_ID.to_string()),
+            merchant_secret: Secret::new(MERCHANT_SECRET.to_string()),
+        }
+    }
+
+    /// `2.00` USD, produced through the connector's amount converter rather than a
+    /// hand-written string, so the test breaks if the unit contract ever changes.
+    fn test_amount() -> StringMajorUnit {
+        StringMajorUnitForConnector
+            .convert(MinorUnit::new(200), common_enums::Currency::USD)
+            .expect("200 USD minor units convert to a major-unit string")
+    }
+
+    fn test_time_stamp(
+    ) -> common_utils::date_time::DateTime<common_utils::date_time::YYYYMMDDHHmmss> {
+        let date = time::Date::from_calendar_date(2026, time::Month::September, 10)
+            .expect("2026-09-10 is a valid date");
+        let time_of_day = time::Time::from_hms(12, 0, 0).expect("12:00:00 is a valid time");
+        common_utils::date_time::DateTime::from(time::PrimitiveDateTime::new(date, time_of_day))
+    }
+
+    /// The 11-element `/settleTransaction.do` preimage minus the trailing secret,
+    /// with `authCode` and `comment` supplied explicitly. Empty strings for both
+    /// reproduce the 8-element form UCS builds.
+    fn settle_preimage(auth_code: &str, comment: &str) -> String {
+        format!(
+            "{MERCHANT_ID}{MERCHANT_SITE_ID}{CLIENT_REQUEST_ID}{CLIENT_UNIQUE_ID}{}USD\
+             {RELATED_TRANSACTION_ID}{auth_code}{comment}{TIME_STAMP}",
+            test_amount().get_amount_as_string(),
+        )
+    }
+
+    fn settle_checksum(auth_code: &str, comment: &str) -> String {
+        let auth = test_auth();
+        auth.generate_checksum(&[
+            MERCHANT_ID,
+            MERCHANT_SITE_ID,
+            CLIENT_REQUEST_ID,
+            CLIENT_UNIQUE_ID,
+            &test_amount().get_amount_as_string(),
+            "USD",
+            RELATED_TRANSACTION_ID,
+            auth_code,
+            comment,
+            TIME_STAMP,
+        ])
+    }
+
+    fn test_capture_request(addendums: Option<NuveiAddendums>) -> NuveiCaptureRequest {
+        NuveiCaptureRequest {
+            merchant_id: Secret::new(MERCHANT_ID.to_string()),
+            merchant_site_id: Secret::new(MERCHANT_SITE_ID.to_string()),
+            client_request_id: CLIENT_REQUEST_ID.to_string(),
+            client_unique_id: CLIENT_UNIQUE_ID.to_string(),
+            amount: test_amount(),
+            currency: common_enums::Currency::USD,
+            related_transaction_id: RELATED_TRANSACTION_ID.to_string(),
+            addendums,
+            time_stamp: test_time_stamp(),
+            checksum: settle_checksum("", ""),
+        }
+    }
+
+    fn test_addendums() -> NuveiAddendums {
+        NuveiAddendums {
+            l23_processing_data: NuveiL23ProcessingData {
+                tax_indicator: Some("1".to_string()),
+                merchant_vat_reg_num: Some(Secret::new("78875627".to_string())),
+                order_date: Some("260910".to_string()),
+                line_item_count: Some("1".to_string()),
+                items: Some(vec![NuveiL23Item {
+                    description: Some("Garden Supplies".to_string()),
+                    quantity: Some("1".to_string()),
+                    price: Some(test_amount()),
+                    total_amount: Some(test_amount()),
+                    credit_indicator: Some("D".to_string()),
+                    ..Default::default()
+                }]),
+                amount_details: Some(NuveiL23AmountDetails {
+                    tax_amount: Some(test_amount()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Pins the preimage AND the digest of the settle checksum for the form UCS
+    /// actually sends - `authCode` and `comment` absent, therefore empty.
+    #[test]
+    fn settle_checksum_preimage_and_digest_without_l2_l3() {
+        assert_eq!(
+            settle_preimage("", ""),
+            "427583496191624621142566nuvei-l23-test-req-1nuvei-l23-test-uid-12.00USD\
+             711000000001234567820260910120000"
+        );
+        assert_eq!(settle_checksum("", ""), SETTLE_CHECKSUM_NO_AUTH_CODE);
+    }
+
+    /// `addendums` is not a member of the checksum concatenation, so attaching
+    /// Level 2/3 data must leave the signed string - and therefore the digest -
+    /// byte-identical. This is the regression guard for `errCode 1001`.
+    #[test]
+    fn settle_checksum_is_byte_identical_with_and_without_l2_l3() {
+        let without = test_capture_request(None);
+        let with = test_capture_request(Some(test_addendums()));
+
+        assert_eq!(without.checksum, with.checksum);
+        assert_eq!(with.checksum, SETTLE_CHECKSUM_NO_AUTH_CODE);
+
+        let without_body =
+            serde_json::to_value(&without).expect("capture request serializes to JSON");
+        let with_body = serde_json::to_value(&with).expect("capture request serializes to JSON");
+
+        // The addendum-free body must not carry the key at all - not `null`.
+        assert!(without_body.get("addendums").is_none());
+        assert!(with_body
+            .get("addendums")
+            .and_then(|addendums| addendums.get("l23processingData"))
+            .is_some());
+
+        // Every other member of the body is untouched by the addendum.
+        for field in [
+            "merchantId",
+            "merchantSiteId",
+            "clientRequestId",
+            "clientUniqueId",
+            "amount",
+            "currency",
+            "relatedTransactionId",
+            "timeStamp",
+            "checksum",
+        ] {
+            assert_eq!(
+                without_body.get(field),
+                with_body.get(field),
+                "field {field} changed when addendums were attached"
+            );
+        }
+    }
+
+    /// Documents the concatenation the moment `authCode` IS sent: it is inserted
+    /// between `relatedTransactionId` and `comment`. Appending it to the end of the
+    /// current 8-element form yields a different digest, which Nuvei rejects with
+    /// `errCode 1001`.
+    #[test]
+    fn settle_checksum_with_auth_code_inserts_it_before_comment() {
+        assert_eq!(
+            settle_preimage(AUTH_CODE, ""),
+            "427583496191624621142566nuvei-l23-test-req-1nuvei-l23-test-uid-12.00USD\
+             7110000000012345678111111\
+             20260910120000"
+        );
+        assert_eq!(
+            settle_checksum(AUTH_CODE, ""),
+            SETTLE_CHECKSUM_WITH_AUTH_CODE
+        );
+
+        // The wrong form - authCode appended after timeStamp - must NOT match.
+        let auth = test_auth();
+        let appended = auth.generate_checksum(&[
+            MERCHANT_ID,
+            MERCHANT_SITE_ID,
+            CLIENT_REQUEST_ID,
+            CLIENT_UNIQUE_ID,
+            &test_amount().get_amount_as_string(),
+            "USD",
+            RELATED_TRANSACTION_ID,
+            TIME_STAMP,
+            AUTH_CODE,
+        ]);
+        assert_ne!(appended, SETTLE_CHECKSUM_WITH_AUTH_CODE);
+        assert_ne!(
+            SETTLE_CHECKSUM_WITH_AUTH_CODE, SETTLE_CHECKSUM_NO_AUTH_CODE,
+            "sending authCode must change the digest"
+        );
     }
 }

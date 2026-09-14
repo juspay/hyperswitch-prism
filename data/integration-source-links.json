@@ -260,5 +260,25 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "Nuvei": [
+    "https://docs.nuvei.com/documentation/accept-payment/server-to-server/rest-1-0/",
+    "https://docs.nuvei.com/api/main/indexMain_v1_0.html",
+    "https://docs.nuvei.com/api/advanced/indexAdvanced.html",
+    "https://docs.nuvei.com/documentation/features/authentication/",
+    "https://docs.nuvei.com/documentation/integration/response-handling/",
+    "https://docs.nuvei.com/documentation/features/financial-operations/",
+    "https://docs.nuvei.com/documentation/features/financial-operations/auth-and-settle/",
+    "https://docs.nuvei.com/documentation/features/addendums/level-2-3/",
+    "https://docs.nuvei.com/documentation/features/3d-secure/3ds-implementations/",
+    "https://docs.nuvei.com/documentation/features/3d-secure/3ds-implementations/3ds-external-mpi/",
+    "https://docs.nuvei.com/documentation/integration/payment-facilitators/",
+    "https://docs.nuvei.com/documentation/security-docs/risk-guide/nuvei-services/",
+    "https://docs.nuvei.com/documentation/features/card-operations/",
+    "https://docs.nuvei.com/documentation/features/card-operations/card-on-file/",
+    "https://docs.nuvei.com/documentation/features/card-operations/pci-and-tokenization/",
+    "https://docs.nuvei.com/documentation/integration/webhooks/",
+    "https://docs.nuvei.com/documentation/integration/webhooks/payment-dmns/",
+    "https://docs.nuvei.com/documentation/integration/testing/testing-cards/"
   ]
 }

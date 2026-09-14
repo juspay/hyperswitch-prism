@@ -480,7 +480,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentClientAuthenticationContext: { "amount": "Money", "customer": "Customer" },
   AuthenticatorClientAuthenticationContext: { "customer": "Customer" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse: { "sessionData": "ClientAuthenticationTokenData", "error": "ErrorInfo" },
-  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "orderTaxAmount": "Money", "splitPayments": "SplitPaymentsDetails", "splitSettlement": "SplitSettlement" },
+  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "orderTaxAmount": "Money", "splitPayments": "SplitPaymentsDetails", "splitSettlement": "SplitSettlement", "l2L3Data": "L2L3Data" },
   PaymentServiceCaptureResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData", "splits": "ConnectorSplitResponseData", "splitSettlement": "SplitSettlementResponse", "mandateReferenceDetails": "MandateReferenceDetails", "rawConnectorStatus": "RawConnectorStatus" },
   PaymentServiceCreateOrderRequest: { "amount": "Money", "state": "ConnectorState", "orderDetails": "OrderDetailsWithAmount" },
   PaymentServiceCreateOrderResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "sessionData": "ClientAuthenticationTokenData", "rawConnectorStatus": "RawConnectorStatus" },
