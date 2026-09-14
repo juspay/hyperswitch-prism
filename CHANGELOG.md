@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.14.1
+
+### Bug Fixes
+
+- **metrics:** Remove the boot-time OTel superposition source gauge ([#2292](https://github.com/juspay/connector-service/pull/2292)) ([`0277e3e`](https://github.com/juspay/connector-service/commit/0277e3ee2a8187d91a88c4bf0e2c1e176042c479))
+
+**Full Changelog:** [`2026.09.14.0...2026.09.14.1`](https://github.com/juspay/connector-service/compare/2026.09.14.0...2026.09.14.1)
+
+- - -
+
 ## 2026.09.14.0
 
 ### Features
