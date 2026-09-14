@@ -1077,3 +1077,8 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
+
+# GivePayments Production
+[[overrides]]
+_context_ = { connector = "givepayments", environment = "production" }
+connector_base_url = "https://api.givepayments.com"
