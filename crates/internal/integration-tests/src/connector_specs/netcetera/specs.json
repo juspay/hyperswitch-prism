@@ -1,0 +1,9 @@
+{
+  "connector": "netcetera",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate"
+  ]
+}

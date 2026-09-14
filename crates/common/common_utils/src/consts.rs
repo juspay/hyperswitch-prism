@@ -28,6 +28,26 @@ pub const MAX_GLOBAL_ID_LENGTH: u8 = 64;
 pub const MIN_GLOBAL_ID_LENGTH: u8 = 32;
 
 // =============================================================================
+// Tracing Field Name Encoding
+// =============================================================================
+
+/// Encoded dot separator used in prod infra config keys (e.g. `request_DOT_body`).
+pub const DOT_ENCODED: &str = "_DOT_";
+
+/// Lowercase variant of [`DOT_ENCODED`] for case-insensitive matching.
+/// The `config` crate lowercases all TOML keys at parse time, so runtime
+/// values contain `_dot_` instead of `_DOT_`.
+pub const DOT_ENCODED_LOWER: &str = "_dot_";
+
+/// Decode `_DOT_` back to `.` in field names from config.
+///
+/// Lowercases the input first so that both `_DOT_` (source TOML) and `_dot_`
+/// (lowercased by the `config` crate) are matched.
+pub fn decode_dot(s: &str) -> String {
+    s.to_lowercase().replace(DOT_ENCODED_LOWER, ".")
+}
+
+// =============================================================================
 // HTTP Headers
 // =============================================================================
 
@@ -37,8 +57,22 @@ pub const X_TENANT_ID: &str = "x-tenant-id";
 pub const X_REQUEST_ID: &str = "x-request-id";
 /// Header key for connector identification
 pub const X_CONNECTOR_NAME: &str = "x-connector";
+/// Header key for surcharge connector identification
+pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
+/// Header key for payout connector identification
+pub const X_PAYOUT_CONNECTOR_NAME: &str = "x-payout-connector";
+/// Header key for frm connector identification
+pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
+/// Header key for authenticator connector identification
+pub const X_AUTHENTICATOR_CONNECTOR_NAME: &str = "x-auth-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
+/// Header key for organization identification
+pub const X_ORG_ID: &str = "x-org-id";
+/// Header key for payment method identification
+pub const X_PAYMENT_METHOD: &str = "x-payment-method";
+/// Header key for payment method type identification
+pub const X_PAYMENT_METHOD_TYPE: &str = "x-payment-method-type";
 /// Header key for reference identification
 pub const X_REFERENCE_ID: &str = "x-reference-id";
 /// Header key for resource identification
@@ -51,6 +85,8 @@ pub const X_CONNECTOR_SERVICE: &str = "connector-service";
 pub const X_FLOW_NAME: &str = "x-flow";
 /// Header key for shadow mode
 pub const X_SHADOW_MODE: &str = "x-shadow-mode";
+/// Header key for named proxy selection — value must match a key in [proxy.proxies.*] config
+pub const X_PROXY_NAME: &str = "x-proxy-name";
 /// Header key for environment (superposition dimension)
 pub const X_ENVIRONMENT: &str = "x-environment";
 
@@ -165,6 +201,8 @@ pub const LOG_TIME: &str = "time";
 pub const NAME: &str = "UCS";
 /// Constant variable for payment service name
 pub const PAYMENT_SERVICE_NAME: &str = "payment_service";
+pub const PAYMENT_METHOD_SERVICE_NAME: &str = "payment_method_service";
+pub const FRM_SERVICE_NAME: &str = "frm_service";
 
 pub const CONST_DEVELOPMENT: &str = "development";
 pub const CONST_PRODUCTION: &str = "production";

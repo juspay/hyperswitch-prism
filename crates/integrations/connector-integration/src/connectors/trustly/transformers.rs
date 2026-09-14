@@ -4,7 +4,7 @@ use common_enums::{self, AttemptStatus, CountryAlpha2, Currency};
 use common_utils::{
     pii::{self, IpAddress},
     request::Method,
-    CustomerId, StringMajorUnit,
+    StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{Authorize, Refund},
@@ -101,7 +101,7 @@ pub struct TrustlyPaymentRequestParams {
 #[serde(rename_all = "PascalCase")]
 pub struct TrustlyPaymentRequestData {
     attributes: TrustlyPaymentRequestAttributes,
-    end_user_i_d: CustomerId,
+    end_user_i_d: String,
     message_i_d: String,
     notification_u_r_l: String,
     password: Secret<String>,
@@ -117,14 +117,21 @@ pub struct TrustlyPaymentRequestAttributes {
     email: pii::Email,
     fail_u_r_l: String,
     firstname: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     i_p: Option<Secret<String, IpAddress>>,
     lastname: Secret<String>,
     locale: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     mobile: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_country: Option<CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     shipping_address_postal_code: Option<Secret<String>>,
     shopper_statement: String,
     success_u_r_l: String,
@@ -190,8 +197,8 @@ fn serialize_value(value: &serde_json::Value) -> String {
     }
 }
 
-fn generate_trustly_signature<T: Serialize>(
-    method: &TrustlyMethod,
+pub fn generate_trustly_signature<T: Serialize>(
+    method: &str,
     uuid: &str,
     data: &T,
     private_key: &str,
@@ -212,7 +219,7 @@ fn generate_trustly_signature<T: Serialize>(
             context: Default::default(),
         })?;
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
 
     let mut signer = Signer::new(algorithm.message_digest(), &private_key).map_err(|_| {
         errors::IntegrationError::RequestEncodingFailed {
@@ -276,7 +283,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         field_name: "return_url",
                         context: Default::default(),
                     })?;
-                let uuid = uuid::Uuid::new_v4().to_string();
+                let uuid = common_utils::fp_utils::generate_uuid_v4();
                 let attributes = TrustlyPaymentRequestAttributes {
                     amount: item
                         .connector
@@ -364,7 +371,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let data = TrustlyPaymentRequestData {
                     attributes,
-                    end_user_i_d: item.router_data.request.get_customer_id()?,
+                    end_user_i_d: item
+                        .router_data
+                        .resource_common_data
+                        .get_connector_customer_id()?,
                     message_i_d: item
                         .router_data
                         .resource_common_data
@@ -380,7 +390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let signature = generate_trustly_signature(
-                    &TrustlyMethod::Deposit,
+                    TrustlyMethod::Deposit.as_str(),
                     uuid.as_str(),
                     &data,
                     &auth_details.private_key.expose(),
@@ -415,6 +425,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_) => Err(error_stack::report!(
                 errors::IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Trustly"),
@@ -482,9 +493,12 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response.result.uuid),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
+                        payment_account_reference: None,
                     }),
                     ..item.router_data
                 })
@@ -500,6 +514,10 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -538,6 +556,7 @@ pub struct TrustlyRefundRequestData {
     order_i_d: String,
     amount: StringMajorUnit,
     currency: Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
     attributes: Option<TrustlyRefundAttributes>,
 }
 
@@ -564,7 +583,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
-        let uuid = uuid::Uuid::new_v4().to_string();
+        let uuid = common_utils::fp_utils::generate_uuid_v4();
         let attributes = Some(TrustlyRefundAttributes {
             external_reference: item
                 .router_data
@@ -595,7 +614,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let signature = generate_trustly_signature(
-            &TrustlyMethod::Refund,
+            TrustlyMethod::Refund.as_str(),
             uuid.as_str(),
             &data,
             &auth_details.private_key.expose(),
@@ -671,6 +690,7 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     connector_refund_id: response.result.data.orderid,
                     refund_status: common_enums::RefundStatus::from(response.result.data.result),
                     status_code: item.http_code,
+                    acquirer_reference_number: None,
                 }),
                 ..item.router_data
             }),
@@ -685,6 +705,10 @@ impl TryFrom<ResponseRouterData<TrustlyRefundResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 };
 
                 Ok(Self {
@@ -743,7 +767,7 @@ pub struct TrustlyWebhookData {
     pub messageid: Secret<String>,
     pub orderid: String,
     pub enduserid: Option<String>,
-    pub accountid: Option<Secret<String>>,
+    pub accountid: Option<String>,
     pub verified: Option<String>,
     pub notificationid: String,
     pub timestamp: Option<String>,
@@ -754,15 +778,15 @@ pub struct TrustlyWebhookData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TrustlyWebhookAttributes {
-    pub bank: Secret<String>,
-    pub city: Secret<String>,
-    pub name: Secret<String>,
-    pub address: Secret<String>,
-    pub zipcode: Secret<String>,
-    pub personid: Secret<String>,
-    pub descriptor: String,
-    pub lastdigits: String,
-    pub clearinghouse: String,
+    pub bank: Option<Secret<String>>,
+    pub city: Option<Secret<String>>,
+    pub name: Option<Secret<String>>,
+    pub address: Option<Secret<String>>,
+    pub zipcode: Option<Secret<String>>,
+    pub personid: Option<Secret<String>>,
+    pub descriptor: Option<String>,
+    pub lastdigits: Option<String>,
+    pub clearinghouse: Option<String>,
 }
 
 pub fn verify_webhook_signature(
@@ -817,22 +841,40 @@ pub fn verify_webhook_signature(
         .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
 }
 
-pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector_types::EventType {
-    match event {
-        TrustlyWebhookMethod::Credit => {
+pub fn get_webhook_event(
+    event: TrustlyWebhookMethod,
+    message_id: String,
+) -> domain_types::connector_types::EventType {
+    match (event, !message_id.as_str().starts_with("payout_")) {
+        (TrustlyWebhookMethod::Credit, true) => {
             domain_types::connector_types::EventType::PaymentIntentSuccess
         }
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => {
+        (TrustlyWebhookMethod::Credit, false) => {
+            domain_types::connector_types::EventType::PayoutReversed
+        }
+        (TrustlyWebhookMethod::Debit, _) => {
+            domain_types::connector_types::EventType::PaymentIntentFailure
+        }
+        (TrustlyWebhookMethod::Cancel, true) => {
             domain_types::connector_types::EventType::PaymentIntentCancelled
         }
-        TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => {
+        (TrustlyWebhookMethod::Cancel, false) => {
+            domain_types::connector_types::EventType::PayoutCancelled
+        }
+        (TrustlyWebhookMethod::Account, _) | (TrustlyWebhookMethod::Pending, _) => {
             domain_types::connector_types::EventType::PaymentIntentProcessing
         }
-        TrustlyWebhookMethod::PayoutConfirmation => {
+        (TrustlyWebhookMethod::PayoutConfirmation, true) => {
             domain_types::connector_types::EventType::RefundSuccess
         }
-        TrustlyWebhookMethod::PayoutFailed => {
+        (TrustlyWebhookMethod::PayoutFailed, true) => {
             domain_types::connector_types::EventType::RefundFailure
+        }
+        (TrustlyWebhookMethod::PayoutConfirmation, false) => {
+            domain_types::connector_types::EventType::PayoutSuccess
+        }
+        (TrustlyWebhookMethod::PayoutFailed, false) => {
+            domain_types::connector_types::EventType::PayoutFailure
         }
     }
 }
@@ -840,7 +882,8 @@ pub fn get_webhook_event(event: TrustlyWebhookMethod) -> domain_types::connector
 pub fn get_trustly_payment_webhook_status(event: &TrustlyWebhookMethod) -> AttemptStatus {
     match event {
         TrustlyWebhookMethod::Credit => AttemptStatus::Charged,
-        TrustlyWebhookMethod::Debit | TrustlyWebhookMethod::Cancel => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Debit => AttemptStatus::Failure,
+        TrustlyWebhookMethod::Cancel => AttemptStatus::Voided,
         TrustlyWebhookMethod::Account | TrustlyWebhookMethod::Pending => AttemptStatus::Pending,
         _ => AttemptStatus::Pending,
     }
@@ -854,4 +897,23 @@ pub fn get_trustly_refund_webhook_status(
         TrustlyWebhookMethod::PayoutFailed => common_enums::RefundStatus::Failure,
         _ => common_enums::RefundStatus::Pending,
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponse {
+    pub result: TrustlyWebhookResponseResult,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResult {
+    pub signature: Secret<String>,
+    pub uuid: String,
+    pub method: String,
+    pub data: TrustlyWebhookResponseResultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResultData {
+    pub status: String,
 }

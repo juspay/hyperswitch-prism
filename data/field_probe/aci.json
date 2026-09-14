@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by aci connector"
       }
     },
     "authorize": {
@@ -224,8 +225,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -236,8 +237,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -355,8 +356,8 @@
         }
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -525,8 +526,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -569,8 +570,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -589,8 +590,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -605,12 +606,12 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -700,8 +701,8 @@
         "error": "This feature is not implemented: Selected payment method through Aci"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sofort": {
         "status": "supported",
@@ -800,6 +801,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Aci"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method"
@@ -830,37 +835,50 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by aci connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by aci connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by aci connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by aci connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by aci connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by aci connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by aci connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by aci connector"
       }
     },
     "dispute_get": {
@@ -870,12 +888,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by aci connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by aci connector"
       }
     },
     "get": {
@@ -908,7 +928,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for aci"
       }
     },
     "parse_event": {
@@ -916,14 +937,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by aci connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by aci connector"
       }
     },
     "proxy_authorize": {
@@ -960,7 +988,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
+          "body": "entityId=probe_id&amount=10.00&currency=USD&paymentType=DB&card.number=%7B%7B%24card_number%7D%7D&card.holder=John&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA&shopperResultUrl=https%3A%2F%2Fexample.com%2Freturn"
         }
       }
     },
@@ -999,7 +1027,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=%7B%7B%24card_exp_month%7D%7D&card.expiryYear=%7B%7B%24card_exp_year%7D%7D&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
+          "body": "entityId=probe_id&paymentBrand=VISA&card.number=%7B%7B%24card_number%7D%7D&card.holder=John+Doe&card.expiryMonth=03&card.expiryYear=2030&card.cvv=%7B%7B%24card_cvc%7D%7D&paymentBrand=VISA"
         }
       }
     },
@@ -1042,6 +1070,12 @@
     },
     "recurring_revoke": {
       "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for aci"
+      }
+    },
+    "refresh": {
+      "default": {
         "status": "not_implemented"
       }
     },
@@ -1072,12 +1106,14 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by aci connector"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for aci"
       }
     },
     "setup_recurring": {
@@ -1133,11 +1169,6 @@
       "default": {
         "status": "not_supported",
         "error": "Payment method not supported for mandate setup is not supported by ACI"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "verify_redirect": {

@@ -304,6 +304,11 @@ fn replace_json_dynamic_fields(s: &str) -> String {
     // Paybox NUMQUESTION URL parameter (9-digit number derived from wall clock)
     r = replace_url_param_digits(&r, "NUMQUESTION", "000000000");
 
+    // PineLabs/Qwikcilver PascalCase wire key with volatile unquoted-i64 value.
+    // `TransactionId` is derived from unix nanoseconds when no caller reference is
+    // supplied (the case for field-probe runs), so its raw value flaps every run.
+    r = replace_json_unquoted_digit_value(&r, "\"TransactionId\"", "1");
+
     r
 }
 
@@ -394,6 +399,46 @@ fn replace_json_digit_value(s: &str, json_key: &str, replacement: &str) -> Strin
     result
 }
 
+/// Replace `"KEY":<unquoted-digits>` JSON numbers (e.g. PineLabs `"TransactionId":1781…`).
+/// Mirrors `replace_json_digit_value` but consumes a raw JSON number rather than a
+/// quoted string, so keys whose value is an unquoted i64/u64 can also be normalized.
+fn replace_json_unquoted_digit_value(s: &str, json_key: &str, replacement: &str) -> String {
+    let key_bytes = json_key.as_bytes();
+    let bytes = s.as_bytes();
+    let mut result = String::with_capacity(s.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        if i + key_bytes.len() <= bytes.len() && bytes[i..i + key_bytes.len()] == *key_bytes {
+            let mut j = i + key_bytes.len();
+            while j < bytes.len() && bytes[j] == b' ' {
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b':' {
+                j += 1;
+                while j < bytes.len() && bytes[j] == b' ' {
+                    j += 1;
+                }
+                let val_start = j;
+                let mut k = val_start;
+                while k < bytes.len() && bytes[k].is_ascii_digit() {
+                    k += 1;
+                }
+                if k > val_start {
+                    result.push_str(json_key);
+                    result.push(':');
+                    result.push_str(replacement);
+                    i = k;
+                    continue;
+                }
+            }
+        }
+        push_char_at(&mut result, s, &mut i);
+    }
+
+    result
+}
+
 /// Replace `PARAM=<digits>` URL parameter values (for paybox-style bodies).
 fn replace_url_param_digits(s: &str, param_name: &str, placeholder: &str) -> String {
     let search = format!("{}=", param_name);
@@ -451,6 +496,8 @@ pub(crate) fn normalize_header_value(name: &str, value: String) -> String {
         "salt" => "probeSaltVal0001".to_string(),
         "idempotency-key" => "HS_probe00000000000000000".to_string(),
         "timestamp" => "0000000000".to_string(),
+        "date" => "2020-01-01T00:00:00+00:00".to_string(),
+        "x-gid-aux-pop" => "signature".to_string(),
         _ => normalize_content(&value),
     }
 }

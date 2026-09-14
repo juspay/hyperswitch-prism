@@ -177,6 +177,7 @@ mod uniffi_bindings_inner {
                         error_code: "DECODE_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec();
@@ -204,6 +205,7 @@ mod uniffi_bindings_inner {
                         error_code: e.error_code,
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -430,6 +432,7 @@ mod uniffi_bindings_inner {
                             error_code: "DECODE_FAILED".to_string(),
                             http_status_code: None,
                             error_info: None,
+                            ..Default::default()
                         })),
                     }
                     .encode_to_vec();
@@ -457,13 +460,30 @@ mod uniffi_bindings_inner {
                         error_code: e.error_code,
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
             }
         };
 
-        let connector = ffi_metadata.connector;
+        let connector = match ffi_metadata.connector.as_payment() {
+            Some(connector) => connector,
+            None => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: "Unsupported connector variant".to_string(),
+                        error_code: "UNSUPPORTED_CONNECTOR_VARIANT".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                        ..Default::default()
+                    })),
+                }
+                .encode_to_vec()
+            }
+        };
+
         let connector_config = match ffi_metadata.connector_config {
             Some(config) => config,
             None => {
@@ -474,6 +494,7 @@ mod uniffi_bindings_inner {
                         error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()
@@ -491,6 +512,7 @@ mod uniffi_bindings_inner {
                         error_code: "CONFIG_LOAD_FAILED".to_string(),
                         http_status_code: None,
                         error_info: None,
+                        ..Default::default()
                     })),
                 }
                 .encode_to_vec()

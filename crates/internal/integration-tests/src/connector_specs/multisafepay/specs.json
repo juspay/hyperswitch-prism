@@ -6,5 +6,6 @@
     "PaymentService/Get",
     "PaymentService/Refund",
     "RefundService/Get"
-  ]
+  ],
+  "request_id_source_field": "merchant_transaction_id"
 }

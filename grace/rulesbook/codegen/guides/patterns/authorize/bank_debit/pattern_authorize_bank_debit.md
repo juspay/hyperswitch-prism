@@ -88,13 +88,13 @@ pub enum BankDebitData {
 | Variant | Region | Key Fields | Use Case | Source |
 |---------|--------|------------|----------|--------|
 | **AchBankDebit** | USA | `account_number`, `routing_number` | US bank account debits | `payment_method_data.rs:573` |
-| **EftBankDebit** | South Africa | `account_number`, `branch_code`, `bank_name`, `bank_type` | SA EFT debit orders (e.g. Sanlam Multidata) | `payment_method_data.rs:582` |
+| **EftBankDebit** | South Africa | `account_number`, `branch_code`, `bank_name`, `bank_type` | SA EFT debit orders (e.g. AbsaSanlam Multidata) | `payment_method_data.rs:582` |
 | **SepaBankDebit** | EU | `iban` | Single Euro Payments Area | `payment_method_data.rs:589` |
 | **SepaGuaranteedBankDebit** | EU | `iban` | SEPA with payment guarantee (e.g. Novalnet Instant) | `payment_method_data.rs:593` |
 | **BecsBankDebit** | Australia | `account_number`, `bsb_number` | Australian bank debits | `payment_method_data.rs:597` |
 | **BacsBankDebit** | UK | `account_number`, `sort_code` | UK direct debits | `payment_method_data.rs:602` |
 
-> **Note on `EftBankDebit`**: Unlike other bank debit variants, EFT requires `bank_name` and `bank_type` to be populated (the Sanlam Multidata integration currently errors with `MissingRequiredField` if either is absent). See `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:176-205`.
+> **Note on `EftBankDebit`**: Unlike other bank debit variants, EFT requires `bank_name` and `bank_type` to be populated (the AbsaSanlam Multidata integration currently errors with `MissingRequiredField` if either is absent). See `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:176-205`.
 
 > **Note on `SepaGuaranteedBankDebit`**: Structurally identical to `SepaBankDebit`, but signals the connector should attempt a guaranteed/insured variant of SEPA Direct Debit. Connectors that do not distinguish the two should coerce it to the standard SEPA flow or return `NotImplemented`.
 
@@ -105,23 +105,23 @@ pub enum BankDebitData {
 | **Adyen** | ✅ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | Full mandate support |
 | **Stripe** | ✅ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | Requires mandate_data for recurring |
 | **Novalnet** | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | SEPA only |
-| **Sanlammultidata** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | EFT debit orders via Kafka transport (PR #1027); see `sanlammultidata/transformers.rs:153-214` |
+| **AbsaSanlammultidata** | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | EFT debit orders via Kafka transport (PR #1027); see `absa_sanlammultidata/transformers.rs:153-214` |
 | **PayPal** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Not implemented |
 | **Worldpay** | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | Not implemented |
 
-### EFT Bank Debit — Sanlammultidata Implementation
+### EFT Bank Debit — AbsaSanlammultidata Implementation
 
-**Source**: `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:153-214` (PR #1027)
+**Source**: `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:153-214` (PR #1027)
 
-The Sanlam Multidata integration is the first and currently only connector to implement `EftBankDebit`. The match arm (lines 153-214) maps `BankDebitData::EftBankDebit { account_number, branch_code, bank_account_holder_name, bank_name, bank_type }` onto `SanlammultidataPaymentMethod::EftDebitOrder(EftDebitOrder { homing_account, homing_branch, homing_account_name, bank_name, bank_type })`. Key field mapping:
+The AbsaSanlam Multidata integration is the first and currently only connector to implement `EftBankDebit`. The match arm (lines 153-214) maps `BankDebitData::EftBankDebit { account_number, branch_code, bank_account_holder_name, bank_name, bank_type }` onto `AbsaSanlammultidataPaymentMethod::EftDebitOrder(EftDebitOrder { homing_account, homing_branch, homing_account_name, bank_name, bank_type })`. Key field mapping:
 
 | Domain Field | Connector Field | Required? |
 |--------------|-----------------|-----------|
 | `account_number` | `homing_account` | Yes |
 | `branch_code` | `homing_branch` | Yes |
 | `bank_account_holder_name` | `homing_account_name` | Yes — errors if missing (`transformers.rs:161-174`) |
-| `bank_name` | `bank_name` (Sanlam enum) | Yes — errors if missing or unmappable (`transformers.rs:176-190`) |
-| `bank_type` | `bank_type` (Sanlam enum, e.g. `Savings`, `Cheque`, `Current`, `Bond`, `Transmission`, `SubscriptionShare`) | Yes — errors if missing (`transformers.rs:192-205`) |
+| `bank_name` | `bank_name` (AbsaSanlam enum) | Yes — errors if missing or unmappable (`transformers.rs:176-190`) |
+| `bank_type` | `bank_type` (AbsaSanlam enum, e.g. `Savings`, `Cheque`, `Current`, `Bond`, `Transmission`, `SubscriptionShare`) | Yes — errors if missing (`transformers.rs:192-205`) |
 
 ## Quick Reference
 
@@ -136,7 +136,7 @@ pub fn extract_bank_debit_data<T: PaymentMethodDataTypes>(
     match payment_method_data {
         PaymentMethodData::BankDebit(bank_debit_data) => Ok(bank_debit_data),
         _ => Err(IntegrationError::NotImplemented(
-            "Only Bank Debit payments are supported".to_string(, Default::default())
+            "Only Bank Debit payments are supported".to_string(), Default::default()
         )),
     }
 }
@@ -159,7 +159,7 @@ pub fn get_account_holder_name(
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                , context: Default::default() }.into())
+                    context: Default::default() }.into())
         }
     }
 }
@@ -353,7 +353,7 @@ PaymentMethodData::BankDebit(ref bank_debit_data) => {
             .router_data
             .request
             .payment_method_type
-            .ok_or(IntegrationError::MissingPaymentMethodType)?,
+            .ok_or(IntegrationError::MissingPaymentMethodType { context: Default::default() })?,
     )?;
 
     let (iban, account_holder) = match bank_debit_data {
@@ -444,22 +444,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let status = common_enums::AttemptStatus::from(response.status.clone());
 
-        let mandate_reference = response.mandate_id.as_ref().map(|mandate_id| MandateReference {
+        let mandate_reference = response.mandate_id.as_ref().map(|mandate_id| Box::new(MandateReference {
             connector_mandate_id: Some(mandate_id.clone()),
             payment_method_id: None,
-        });
+            connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
+        }));
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
+            // `redirection_data` is `Option<Box<RedirectForm>>` -- the Box is required.
             redirection_data: response.redirect_url.as_ref().map(|url| {
-                RedirectForm::Uri { uri: url.clone() }
+                Box::new(RedirectForm::Uri { uri: url.clone() })
             }),
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.reference.clone()),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -483,25 +489,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
 pub mod transformers;
 
-use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use common_utils::{
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync, Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void},
     connector_types::{AcceptDisputeData, DisputeDefendData, DisputeFlowData, DisputeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData},
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{Mask, Maskable};
-use interfaces::{api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types, events::connector_api_logs::ConnectorEvent};
+use interfaces::{api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types, decode::BodyDecoding, verification::SourceVerification};
 use serde::Serialize;
 use transformers::{ConnectorNameAuthorizeRequest, ConnectorNameAuthorizeResponse, ConnectorNameErrorResponse, ConnectorNameSyncRequest, ConnectorNameSyncResponse};
 
 use super::macros;
-use crate::types::ResponseRouterData;
+use crate::{types::ResponseRouterData, with_error_response_body};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -552,7 +563,7 @@ macros::create_all_prerequisites!(
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
             )];
-            let mut auth_header = self.get_auth_header(&req.connector_auth_type)?;
+            let mut auth_header = self.get_auth_header(&req.connector_config)?;
             header.append(&mut auth_header);
             Ok(header)
         }
@@ -590,7 +601,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
+        auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = transformers::ConnectorNameAuthType::try_from(auth_type)
             .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -604,7 +615,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
     fn build_error_response(
         &self,
         res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: ConnectorNameErrorResponse = if res.response.is_empty() {
             ConnectorNameErrorResponse::default()
@@ -614,20 +626,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
         };
 
-        if let Some(i) = event_builder {
-            i.set_error_response_body(&response);
-        }
+        with_error_response_body!(event_builder, response);
+
+        // `attempt_status` is `Option<FlowStatus>` (`crates/types-traits/domain_types/src/router_data.rs`),
+        // NOT `Option<AttemptStatus>`. Be flow-aware and non-terminal by default:
+        //  * hard-coding `Some(FlowStatus::Payment(AttemptStatus::Failure))` here is what
+        //    reports an already-charged payment as FAILURE;
+        //  * a blanket `None` is equally wrong on refund flows -- a hard-declined refund
+        //    then stays Pending and keeps retrying.
+        // Derive it only from error codes the vendor documents as terminal, and pick the
+        // variant matching the flow (`FlowStatus::Refund(RefundStatus::Failure)` on refunds).
+        // Minimal exemplar: `crates/integrations/connector-integration/src/connectors/noon.rs:499-512`
+        // Flow-aware exemplar: `crates/integrations/connector-integration/src/connectors/flywire.rs:362-370`
+        const TERMINAL_ERROR_CODES: &[&str] = &[/* fill in from the vendor error-code table */];
+        let attempt_status = TERMINAL_ERROR_CODES
+            .contains(&response.error_code.as_deref().unwrap_or_default())
+            .then_some(FlowStatus::Payment(common_enums::AttemptStatus::Failure));
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.error_code.unwrap_or_default(),
-            message: response.error_message.unwrap_or_default(),
+            code: response.error_code.clone().unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
             reason: response.error_description,
-            attempt_status: None,
+            attempt_status,
             connector_transaction_id: response.transaction_id,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            ..Default::default()
         })
     }
 }
@@ -662,11 +688,19 @@ macros::macro_connector_implementation!(
     }
 );
 
-use interfaces::verification::SourceVerification;
+// `SourceVerification` and `BodyDecoding` are NON-generic traits
+// (`crates/types-traits/interfaces/src/verification.rs:20` and
+// `crates/types-traits/interfaces/src/decode.rs`). Write exactly ONE blanket impl of
+// each per connector -- never one per flow, and never with flow/data/request/response
+// type parameters (that is an E0107 "wrong number of generic arguments").
+// Exemplar: `crates/integrations/connector-integration/src/connectors/travelhub.rs:175`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
+    SourceVerification for ConnectorName<T>
+{
+}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::marker::Send + 'static + Serialize>
-    SourceVerification<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
-    for ConnectorName<T>
+    BodyDecoding for ConnectorName<T>
 {
 }
 
@@ -686,9 +720,9 @@ use common_utils::{ext_traits::OptionExt, pii, request::Method, types::MinorUnit
 use domain_types::{
     connector_flow::{self, Authorize, PSync},
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId},
-    errors::{self, IntegrationError},
+    errors::{self, IntegrationError, IntegrationErrorContext},
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorAuthType, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -704,15 +738,24 @@ pub struct ConnectorNameAuthType {
     pub api_key: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for ConnectorNameAuthType {
+impl TryFrom<&ConnectorSpecificConfig> for ConnectorNameAuthType {
     type Error = IntegrationError;
 
-    fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
+    fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
+            // One variant per connector in `ConnectorSpecificConfig`
+            // (domain_types/src/router_data.rs) -- no generic `HeaderKey` variant exists.
+            ConnectorSpecificConfig::ConnectorName { api_key, .. } => Ok(Self {
                 api_key: api_key.to_owned(),
             }),
-            _ => Err(IntegrationError::FailedToObtainAuthType { context: Default::default() }),
+            _ => Err(IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the connector account is configured with ConnectorName credentials".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            }),
         }
     }
 }
@@ -833,7 +876,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
                 ConnectorNamePaymentMethod::BankDebit(bank_debit_request)
             }
             _ => return Err(IntegrationError::NotImplemented(
-                "Only Bank Debit payments are supported".to_string(, Default::default())
+                "Only Bank Debit payments are supported".to_string(), Default::default()
             ).into()),
         };
 
@@ -920,7 +963,7 @@ fn get_account_holder_name<T: PaymentMethodDataTypes>(
                 .or_else(|| router_data.resource_common_data.get_billing_full_name().ok())
                 .ok_or_else(|| IntegrationError::MissingRequiredField {
                     field_name: "bank_account_holder_name",
-                , context: Default::default() })
+                    context: Default::default() })
         }
     }
 }
@@ -940,22 +983,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
 
         let status = common_enums::AttemptStatus::from(response.status.clone());
 
-        let mandate_reference = response.mandate_id.as_ref().map(|id| domain_types::connector_types::MandateReference {
+        let mandate_reference = response.mandate_id.as_ref().map(|id| Box::new(domain_types::connector_types::MandateReference {
             connector_mandate_id: Some(id.clone()),
             payment_method_id: None,
-        });
+            connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
+        }));
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+            // `redirection_data` is `Option<Box<RedirectForm>>` -- the Box is required.
             redirection_data: response.redirect_url.as_ref().map(|url| {
-                RedirectForm::Uri { uri: url.clone() }
+                Box::new(RedirectForm::Uri { uri: url.clone() })
             }),
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.reference.clone(),
             incremental_authorization_allowed: None,
+            splits: None,
             status_code: item.http_code,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -1055,7 +1104,7 @@ is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
 | Sub-type | Region | Account Identifier | Routing Identifier | Holder Name Source | Special Handling |
 |----------|--------|-------------------|-------------------|-------------------|------------------|
 | **AchBankDebit** | USA | `account_number` | `routing_number` | `bank_account_holder_name` or billing name | State code conversion |
-| **EftBankDebit** | South Africa | `account_number` | `branch_code` | `bank_account_holder_name` (required — no billing fallback at connector) | `bank_name` + `bank_type` required; Kafka transport (Sanlammultidata) |
+| **EftBankDebit** | South Africa | `account_number` | `branch_code` | `bank_account_holder_name` (required — no billing fallback at connector) | `bank_name` + `bank_type` required; Kafka transport (AbsaSanlammultidata) |
 | **SepaBankDebit** | EU | `iban` | N/A | `bank_account_holder_name` or billing name | IBAN validation |
 | **SepaGuaranteedBankDebit** | EU | `iban` | N/A | `bank_account_holder_name` or billing name | Same shape as SEPA; signals guaranteed/insured debit |
 | **BecsBankDebit** | Australia | `account_number` | `bsb_number` | `bank_account_holder_name` or billing name | BSB formatting |
@@ -1173,16 +1222,16 @@ impl From<ConnectorBankDebitStatus> for common_enums::AttemptStatus {
 
 ## Best Practices
 
-### Non-HTTP Transports: Kafka-Based Request Publish (Sanlammultidata)
+### Non-HTTP Transports: Kafka-Based Request Publish (AbsaSanlammultidata)
 
-**Unique integration shape**: Most bank debit connectors publish authorize requests over HTTPS. Sanlammultidata is the first bank debit connector in the codebase to use a **Kafka-based request publish** pattern instead — the authorize request is serialized and produced to a Kafka topic, and the downstream processor consumes it out-of-band. Callers should not expect a synchronous response body on the produce call.
+**Unique integration shape**: Most bank debit connectors publish authorize requests over HTTPS. AbsaSanlammultidata is the first bank debit connector in the codebase to use a **Kafka-based request publish** pattern instead — the authorize request is serialized and produced to a Kafka topic, and the downstream processor consumes it out-of-band. Callers should not expect a synchronous response body on the produce call.
 
-Key surface area (see `crates/integrations/connector-integration/src/connectors/sanlammultidata.rs`):
+Key surface area (see `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata.rs`):
 
-- **Transport declaration**: `get_transport_type(&self) -> TransportType::Kafka` — `sanlammultidata.rs:234-236`.
-- **Topic derivation**: `get_kafka_topic` returns `"{base_url}_payments_queue"` — `sanlammultidata.rs:245-250`.
-- **Record assembly**: `build_kafka_record` uses `KafkaRecordBuilder::new().topic(...).attach_default_headers().headers(...).set_optional_payload(self.get_request_body(req)?).build()` — `sanlammultidata.rs:259-271`.
-- **Imports**: `common_utils::request::{KafkaRecord, KafkaRecordBuilder, TransportType}` — `sanlammultidata.rs:9`.
+- **Transport declaration**: `get_transport_type(&self) -> TransportType::Kafka` — `absa_sanlammultidata.rs:234-236`.
+- **Topic derivation**: `get_kafka_topic` returns `"{base_url}_payments_queue"` — `absa_sanlammultidata.rs:245-250`.
+- **Record assembly**: `build_kafka_record` uses `KafkaRecordBuilder::new().topic(...).attach_default_headers().headers(...).set_optional_payload(self.get_request_body(req)?).build()` — `absa_sanlammultidata.rs:259-271`.
+- **Imports**: `common_utils::request::{KafkaRecord, KafkaRecordBuilder, TransportType}` — `absa_sanlammultidata.rs:9`.
 
 Implications when implementing a Kafka-transport connector:
 
@@ -1330,11 +1379,11 @@ async fn test_bank_debit_mandate_creation() {
 - **Adyen**: `crates/integrations/connector-integration/src/connectors/adyen/transformers.rs:1654-1696`
 - **Stripe**: `crates/integrations/connector-integration/src/connectors/stripe/transformers.rs:1204-1260`
 - **Novalnet**: `crates/integrations/connector-integration/src/connectors/novalnet/transformers.rs:467-527`
-- **Sanlammultidata (EFT)**: `crates/integrations/connector-integration/src/connectors/sanlammultidata/transformers.rs:153-214` — Kafka transport wiring at `crates/integrations/connector-integration/src/connectors/sanlammultidata.rs:234-271`
+- **AbsaSanlammultidata (EFT)**: `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata/transformers.rs:153-214` — Kafka transport wiring at `crates/integrations/connector-integration/src/connectors/absa_sanlammultidata.rs:234-271`
 
 ## Change Log
 
 | Version | Date | Pinned SHA | Summary |
 |---------|------|------------|---------|
-| 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add Sanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
+| 1.4.0 | 2026-04-20 | `60540470cf84a350cc02b0d41565e5766437eb95` | Document new `EftBankDebit` and `SepaGuaranteedBankDebit` variants (enum now has 6 variants, was 4). Add AbsaSanlammultidata (PR #1027) as first EFT implementer and first bank-debit connector using a Kafka-based request-publish transport. Update Supported Connectors matrix and Sub-type Variations to reflect all six variants. |
 | 1.3.0 | 2026-02-19 | (prior)  | Prior revision — documented 4 bank debit variants (ACH, SEPA, BECS, BACS). |

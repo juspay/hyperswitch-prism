@@ -1,0 +1,238 @@
+name: Release a stable version
+
+on:
+  workflow_dispatch:
+    inputs:
+      calver_tag:
+        description: "CalVer nightly tag to release from (e.g. 2026.05.07.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Dry run — preview version and changelog without publishing"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
+jobs:
+  authorize:
+    uses: ./.github/workflows/authorize-release.yml
+    # The membership check authenticates with a GitHub app token minted
+    # from the secrets below and never uses GITHUB_TOKEN.
+    permissions: {}
+    secrets:
+      HYPERSWITCH_BOT_APP_ID: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
+      HYPERSWITCH_BOT_APP_PRIVATE_KEY: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+
+  tag-release:
+    name: Bump version, tag, and generate changelog
+    runs-on: ubuntu-latest
+    needs: [authorize]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      previous_tag: ${{ steps.version.outputs.previous_tag }}
+      next_tag: ${{ steps.version.outputs.next_tag }}
+
+    steps:
+      - name: Validate CalVer tag
+        shell: bash
+        env:
+          CALVER_TAG: ${{ inputs.calver_tag }}
+        run: |
+          if [[ "${CALVER_TAG}" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+(-[a-zA-Z0-9._-]+)?$ ]]; then
+            echo "Valid CalVer tag: ${CALVER_TAG}"
+          else
+            echo "::error::${CALVER_TAG} is not a valid CalVer tag (expected YYYY.MM.DD.N or YYYY.MM.DD.N-suffix)"
+            exit 1
+          fi
+
+      - name: Checkout repository at CalVer tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.calver_tag }}
+          fetch-depth: 0
+          token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+
+      - name: Install cocogitto
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cocogitto@6.3.0
+          checksum: true
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+          checksum: true
+
+      - name: Compute next version
+        id: version
+        shell: bash
+        env:
+          CALVER_TAG: ${{ inputs.calver_tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          if ! PREVIOUS_TAG="$(cog get-version 2>/dev/null)"; then
+            echo "::error::cog get-version failed — could not determine the previous SemVer tag. Refusing to guess a baseline version."
+            exit 1
+          fi
+          PREVIOUS_TAG="v${PREVIOUS_TAG#v}"
+
+          # cog prints the computed version on stdout; logs go to stderr.
+          # Read stdout only — never scrape mixed log output for versions.
+          NEXT_VERSION="$(cog bump --dry-run --auto --skip-untracked 2>/dev/null | tail -1)"
+          NEXT_VERSION="${NEXT_VERSION#v}"
+          NEXT_TAG="v${NEXT_VERSION}"
+
+          if [ -z "${NEXT_VERSION}" ]; then
+            echo "::error::cog bump --auto produced no version — run 'cog bump --dry-run --auto --skip-untracked' locally against this tag to debug."
+            exit 1
+          fi
+
+          if [[ ! "${NEXT_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Computed version '${NEXT_VERSION}' is not valid SemVer (expected X.Y.Z)"
+            exit 1
+          fi
+
+          echo "previous_tag=${PREVIOUS_TAG}" >> "$GITHUB_OUTPUT"
+          echo "next_tag=${NEXT_TAG}"         >> "$GITHUB_OUTPUT"
+          echo "version=${NEXT_VERSION}"      >> "$GITHUB_OUTPUT"
+
+          echo "### Version Bump Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| calver_tag | \`${CALVER_TAG}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| previous   | \`${PREVIOUS_TAG}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| next       | \`${NEXT_TAG}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| dry_run    | \`${DRY_RUN}\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          PREVIOUS_TAG="${{ steps.version.outputs.previous_tag }}"
+          NEXT_TAG="${{ steps.version.outputs.next_tag }}"
+
+          export GIT_CLIFF__GIT__TAG_PATTERN='^v[0-9]+\.[0-9]+\.[0-9]+$'
+
+          if git rev-parse "${PREVIOUS_TAG}" >/dev/null 2>&1; then
+            git-cliff \
+              --config '.github/git-cliff-changelog.toml' \
+              --strip all \
+              --tag "${NEXT_TAG}" \
+              "${PREVIOUS_TAG}..HEAD" > release-notes.md
+          else
+            git-cliff \
+              --config '.github/git-cliff-changelog.toml' \
+              --strip all \
+              --tag "${NEXT_TAG}" > release-notes.md
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Release Notes Preview" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          head -60 release-notes.md >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+      - name: Create SemVer tag on CalVer SHA
+        if: ${{ inputs.dry_run == false }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+        run: |
+          TAG="${{ steps.version.outputs.next_tag }}"
+          CALVER_SHA="$(git rev-parse HEAD)"
+          # Idempotent so a partial-failure re-run works: reuse the tag if it
+          # already points at this SHA; fail only if it points elsewhere.
+          if EXISTING_SHA="$(gh api "/repos/{owner}/{repo}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null)"; then
+            if [ "${EXISTING_SHA}" = "${CALVER_SHA}" ]; then
+              echo "Tag ${TAG} already exists on ${CALVER_SHA} — reusing it."
+            else
+              echo "::error::tag ${TAG} already exists but points at ${EXISTING_SHA}, not ${CALVER_SHA}. Refusing to move a release tag."
+              exit 1
+            fi
+          else
+            gh api \
+              --method POST \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              '/repos/{owner}/{repo}/git/refs' \
+              --raw-field "ref=refs/tags/${TAG}" \
+              --raw-field "sha=${CALVER_SHA}"
+            echo "Created tag ${TAG} on ${CALVER_SHA}."
+          fi
+
+      - name: Create GitHub release (draft)
+        if: ${{ inputs.dry_run == false }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+        run: |
+          TAG="${{ steps.version.outputs.next_tag }}"
+          if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
+            truncate -s 124000 release-notes.md
+            printf '\n\n_Full changelog available in the release artifact._\n' >> release-notes.md
+          fi
+          # Idempotent: refresh notes if a draft from a previous run already exists.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists — updating its notes."
+            gh release edit "${TAG}" --title "${TAG}" --notes-file release-notes.md
+          else
+            gh release create "${TAG}" \
+              --title "${TAG}" \
+              --notes-file release-notes.md \
+              --draft
+          fi
+
+
+  # Dispatched rather than invoked with `uses:`. npm trusted publishing
+  # validates the OIDC token's workflow_ref, which for a reusable workflow
+  # resolves to *this* file rather than the one running `npm publish` — and a
+  # package may only have one trusted publisher. Dispatching gives release-sdks
+  # its own top-level run, so this path and manual dispatch both authenticate
+  # against the single registered publisher (juspay/hyperswitch-prism ::
+  # release-sdks.yml).
+  #
+  # A PAT is required: a workflow_dispatch triggered with GITHUB_TOKEN does not
+  # create a new workflow run.
+  publish-sdks:
+    name: Publish SDKs
+    runs-on: ubuntu-latest
+    needs: [tag-release]
+    if: ${{ inputs.dry_run == false && needs.tag-release.result == 'success' }}
+    steps:
+      - name: Dispatch SDK release
+        env:
+          GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          TAG: ${{ needs.tag-release.outputs.next_tag }}
+          VERSION: ${{ needs.tag-release.outputs.version }}
+        run: |
+          # Dispatch on the release tag, not the branch: the publish job runs in
+          # the `production` environment, whose deployment policy only admits
+          # release tags. This also makes the OIDC ref claim the exact tag being
+          # published.
+          gh workflow run release-sdks.yml \
+            --repo "${{ github.repository }}" \
+            --ref "${TAG}" \
+            --field publish_java=true \
+            --field publish_python=true \
+            --field publish_javascript=true \
+            --field preview_only=false \
+            --field ref="${TAG}" \
+            --field version="${VERSION}"
+
+          echo "Dispatched release-sdks.yml for ${TAG} (version ${VERSION})"
+          echo "Track it at ${{ github.server_url }}/${{ github.repository }}/actions/workflows/release-sdks.yml"

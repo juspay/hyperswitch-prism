@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nmi"
       }
     },
     "authorize": {
@@ -174,8 +175,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -186,8 +187,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -222,8 +223,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -238,7 +239,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -279,7 +280,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -387,8 +388,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -431,8 +432,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -451,8 +452,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -467,12 +468,12 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -535,8 +536,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -578,6 +579,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported"
@@ -607,37 +612,50 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by nmi connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by nmi connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nmi connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by nmi connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nmi"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for nmi"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nmi connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nmi connector"
       }
     },
     "dispute_get": {
@@ -647,12 +665,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nmi connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nmi connector"
       }
     },
     "get": {
@@ -679,22 +699,58 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nmi connector"
       }
     },
     "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nmi"
       }
     },
     "pre_authenticate": {
@@ -764,7 +820,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=0330&cvv=%7B%7B%24card_cvc%7D%7D"
         }
       }
     },
@@ -802,7 +858,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
+          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=0330&cvv=%7B%7B%24card_cvc%7D%7D"
         }
       }
     },
@@ -843,6 +899,12 @@
       }
     },
     "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for nmi"
+      }
+    },
+    "refresh": {
       "default": {
         "status": "not_implemented"
       }
@@ -892,7 +954,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nmi connector"
       }
     },
     "setup_recurring": {
@@ -947,11 +1010,6 @@
       "default": {
         "status": "not_supported",
         "error": "Selected payment method through NMI SetupMandate is not supported by NMI"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "verify_redirect": {

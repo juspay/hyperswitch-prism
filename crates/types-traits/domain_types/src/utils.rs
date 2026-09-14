@@ -9,6 +9,7 @@ use common_utils::{
     consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
 };
 use error_stack::{report, Result, ResultExt};
+use hyperswitch_masking::{PeekInterface, Secret};
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
@@ -50,10 +51,7 @@ impl ValueExt for Value {
     where
         T: serde::de::DeserializeOwned,
     {
-        let debug = format!(
-            "Unable to parse {type_name} from serde_json::Value: {:?}",
-            &self
-        );
+        let debug = format!("Unable to parse {type_name} from serde_json::Value: {self:?}");
         serde_json::from_value::<T>(self)
             .change_context(ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| debug)
@@ -106,10 +104,19 @@ pub fn handle_json_response_deserialization_failure(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
     }
 }
 
+#[cfg_attr(feature = "deja", track_caller)]
+#[cfg_attr(
+    feature = "deja",
+    deja::id(component = "domain_types", operation = "generate_random_bytes", codec = SerdeCodec,)
+)]
 pub fn generate_random_bytes(length: usize) -> Vec<u8> {
     // returns random bytes of length n
     let mut rng = rand::thread_rng();
@@ -647,6 +654,19 @@ pub fn convert_spain_state_to_code(state: &str) -> Result<String, crate::errors:
             field_name: "address.state",
             context: Default::default(),
         })?,
+    }
+}
+
+/// Expand a 2-digit card expiry year (`"31"`) to 4 digits (`"2031"`) using the
+/// current century. Anything that isn't exactly 2 characters passes through
+/// unchanged, including vault template tokens like `{{$card_exp_year}}`.
+pub fn expand_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
+    let y = year.peek();
+    if y.len() == 2 {
+        let century = common_utils::date_time::now().year() / 100;
+        Secret::new(format!("{century}{y}"))
+    } else {
+        Secret::new(y.clone())
     }
 }
 

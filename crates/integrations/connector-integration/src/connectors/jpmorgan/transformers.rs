@@ -4,20 +4,21 @@ use common_utils::{fp_utils::when, pii::SecretSerdeValue};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, Refund, RepeatPayment,
-        ServerAuthenticationToken, SetupMandate, Void,
+        ServerAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         JpmorganClientAuthenticationResponse as JpmorganClientAuthenticationResponseDomain,
         MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -34,6 +35,26 @@ type ResponseError = error_stack::Report<ConnectorError>;
 
 const JPMORGAN_GETTING_STARTED_DOC: &str =
     "https://developer.payments.jpmorgan.com/docs/commerce-solutions/online-payments/guides/getting-started";
+
+impl TryFrom<Option<common_enums::BankType>> for requests::JpmorganAchAccountType {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(bank_type: Option<common_enums::BankType>) -> Result<Self, Self::Error> {
+        match bank_type {
+            Some(common_enums::BankType::Savings) => Ok(Self::Savings),
+            Some(common_enums::BankType::Checking) | None => Ok(Self::Checking),
+            Some(bank) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: format!("Bank type {bank:?} is not supported by jpmorgan"),
+                connector: "jpmorgan",
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Provide a valid bank account type".to_owned()),
+                    additional_context: None,
+                    doc_url: None,
+                },
+            })),
+        }
+    }
+}
 
 /// Build an `IntegrationErrorContext` for a missing JPMorgan connector config field.
 fn jpmorgan_missing_field_context(field_name: &str) -> IntegrationErrorContext {
@@ -118,7 +139,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         JpmorganRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -131,7 +152,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: JpmorganRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -148,7 +169,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<responses::JpmorganAuthUpdateResponse, Self>>
     for RouterDataV2<
         F,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     >
@@ -256,32 +277,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 let exp_month_str = card_data.card_exp_month.peek().to_string();
                 let exp_year_str = card_data.get_expiry_year_4_digit().peek().to_string();
@@ -350,32 +346,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: Default::default(),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 // Extract first name and last name from account holder name or billing info
                 let (first_name, last_name) =
@@ -387,11 +358,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 // Determine account type based on bank_type field, default to Checking
-                let account_type = if let Some(common_enums::BankType::Savings) = bank_type {
-                    requests::JpmorganAchAccountType::Savings
-                } else {
-                    requests::JpmorganAchAccountType::Checking
-                };
+                let account_type = requests::JpmorganAchAccountType::try_from(*bank_type)?;
 
                 let ach = requests::JpmorganAch {
                     account_number: account_number.clone(),
@@ -436,34 +403,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                let merchant =
-                    requests::JpmorganMerchant {
-                        merchant_software: requests::JpmorganMerchantSoftware {
-                            company_name: auth.company_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "company_name",
-                                    context: jpmorgan_missing_field_context("company_name"),
-                                },
-                            )?,
-                            product_name: auth.product_name.clone().ok_or(
-                                IntegrationError::MissingRequiredField {
-                                    field_name: "product_name",
-                                    context: jpmorgan_missing_field_context("product_name"),
-                                },
-                            )?,
-                        },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: jpmorgan_missing_field_context(
-                                        "merchant_purchase_description",
-                                    ),
-                                })?,
-                        },
-                    };
+                let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                 // For CardToken, the token is passed in the payment_method_type
                 // instead of raw card details
@@ -513,31 +453,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                             let auth = JpmorganAuthType::try_from(&router_data.connector_config)?;
 
-                            let merchant = requests::JpmorganMerchant {
-                                merchant_software: requests::JpmorganMerchantSoftware {
-                                    company_name: auth.company_name.clone().ok_or(
-                                        IntegrationError::MissingRequiredField {
-                                            field_name: "company_name",
-                                            context: Default::default(),
-                                        },
-                                    )?,
-                                    product_name: auth.product_name.clone().ok_or(
-                                        IntegrationError::MissingRequiredField {
-                                            field_name: "product_name",
-                                            context: Default::default(),
-                                        },
-                                    )?,
-                                },
-                                soft_merchant: requests::JpmorganSoftMerchant {
-                                    merchant_purchase_description: auth
-                                        .merchant_purchase_description
-                                        .clone()
-                                        .ok_or(IntegrationError::MissingRequiredField {
-                                            field_name: "merchant_purchase_description",
-                                            context: Default::default(),
-                                        })?,
-                                },
-                            };
+                            let merchant = requests::JpmorganMerchant::try_from(&auth)?;
 
                             let amount = JpmorganAmountConvertor::convert(
                                 router_data.request.minor_amount,
@@ -689,6 +605,104 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// VoidPC (post-capture void/reversal) request transformer.
+///
+/// JPMorgan uses the same `PATCH /payments/{id}` endpoint with `{"isVoid": true}`
+/// for both pre-capture void and post-capture reversal. The transaction ID is used
+/// to build the URL in the connector implementation.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for requests::JpmorganVoidPcRequest
+{
+    type Error = Error;
+    fn try_from(
+        _item: JpmorganRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self { is_void: true })
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<responses::JpmorganPaymentsResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = ResponseError;
+    fn try_from(
+        item: ResponseRouterData<responses::JpmorganPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Map JPMorgan's transaction state directly to `PostCaptureVoidStatus` —
+        // the Reverse flow has its own status enum, so we don't go through
+        // `AttemptStatus`. `Closed` / `Authorized` mean the PATCH was accepted
+        // but the transaction did not move to `Voided`, so the reversal did
+        // not apply. `Declined` / `Error` are matched explicitly to keep the
+        // match exhaustive.
+        let post_capture_void_status = match item.response.transaction_state {
+            responses::JpmorganTransactionState::Voided => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            responses::JpmorganTransactionState::Pending => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            responses::JpmorganTransactionState::Closed
+            | responses::JpmorganTransactionState::Authorized
+            | responses::JpmorganTransactionState::Declined
+            | responses::JpmorganTransactionState::Error => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+        };
+
+        let response = if post_capture_void_status.is_post_capture_void_failure() {
+            Err(ErrorResponse {
+                attempt_status: None,
+                code: item.response.response_code.clone(),
+                message: item
+                    .response
+                    .response_message
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: item.response.response_message.clone(),
+                status_code: item.http_code,
+                connector_transaction_id: Some(item.response.transaction_id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.transaction_id.clone()),
+                description: None,
+                status_code: item.http_code,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.router_data
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         JpmorganRouterData<
@@ -772,6 +786,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             connector_mandate_id: Some(item.transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self::TransactionResponse {
@@ -780,9 +795,12 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             mandate_reference: Some(Box::new(mandate_reference)),
             connector_metadata: None,
             network_txn_id,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
+            splits: None,
+            payment_account_reference: None,
         })
     }
 }
@@ -806,7 +824,7 @@ fn build_payments_response_result(
 ) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
     if is_payment_failure(status) {
         Ok(Err(ErrorResponse {
-            attempt_status: Some(status),
+            attempt_status: Some(FlowStatus::Payment(status)),
             code: response.response_code.clone(),
             message: response
                 .response_message
@@ -818,6 +836,10 @@ fn build_payments_response_result(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }))
     } else {
         Ok(Ok(PaymentsResponseData::try_from(response)?))
@@ -837,6 +859,7 @@ impl TryFrom<&responses::JpmorganRefundResponse> for RefundsResponseData {
             connector_refund_id: item.transaction_id.clone(),
             refund_status,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
+            acquirer_reference_number: None,
         })
     }
 }
@@ -987,7 +1010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         JpmorganRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1000,7 +1023,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: JpmorganRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1027,7 +1050,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<responses::JpmorganClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >
@@ -1065,24 +1088,21 @@ impl TryFrom<&JpmorganAuthType> for requests::JpmorganMerchant {
                 company_name: auth.company_name.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "company_name",
-                        context: Default::default(),
+                        context: jpmorgan_missing_field_context("company_name"),
                     },
                 )?,
                 product_name: auth.product_name.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "product_name",
-                        context: Default::default(),
+                        context: jpmorgan_missing_field_context("product_name"),
                     },
                 )?,
             },
-            soft_merchant: requests::JpmorganSoftMerchant {
-                merchant_purchase_description: auth.merchant_purchase_description.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "merchant_purchase_description",
-                        context: Default::default(),
-                    },
-                )?,
-            },
+            soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                requests::JpmorganSoftMerchant {
+                    merchant_purchase_description: d,
+                }
+            }),
         })
     }
 }
@@ -1316,17 +1336,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card: Some(requests::JpmorganMitCardByNti {
                         account_number: card_data.card_number.clone(),
                         expiry,
-                        original_network_transaction_id: nti.clone(),
+                        original_network_transaction_id: nti.network_transaction_id.clone(),
                     }),
                     transaction_reference: None,
                 }
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    "NetworkTokenWithNTI mandate reference is not implemented for \
-                     JPMorgan RepeatPayment"
+                    "NetworkTokenWithNTI mandate reference is not implemented for JPMorgan RepeatPayment"
                         .to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId for stored JPMorgan transaction_reference repeat payments, or use NetworkMandateId with card data for raw-card NTI MITs. NetworkTokenWithNTI is not mapped for JPMorgan RepeatPayment."
+                                .to_string(),
+                        ),
+                        doc_url: Some(JPMORGAN_GETTING_STARTED_DOC.to_owned()),
+                        additional_context: Some(
+                            "JPMorgan RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer builds either transaction_reference from connector_mandate_id or card.accountNumber, expiry, and originalNetworkTransactionId from NetworkMandateId; it does not build a JPMorgan MIT payload from network token credentials plus NTI."
+                                .to_string(),
+                        ),
+                    },
                 )
                 .into());
             }

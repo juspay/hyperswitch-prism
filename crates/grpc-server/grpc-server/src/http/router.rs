@@ -33,8 +33,45 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payments::capture),
         )
         .route(
+            "/composite/payments/verify_redirect_response",
+            post(handlers::composite::payments::verify_redirect_response),
+        )
+        .route(
             "/composite/events/handle",
             post(handlers::composite::events::handle_event),
+        )
+        .route(
+            "/composite/events/notify",
+            post(handlers::composite::events::notify),
+        )
+        // Composite Payment Method Service routes
+        .route(
+            "/composite/payment_methods/create",
+            post(handlers::composite::payment_methods::create),
+        )
+        .route(
+            "/composite/payment_methods/get",
+            post(handlers::composite::payment_methods::get),
+        )
+        .route(
+            "/composite/payment_methods/recharge",
+            post(handlers::composite::payment_methods::recharge),
+        )
+        .route(
+            "/composite/payment_methods/eligibility",
+            post(handlers::composite::payment_methods::eligibility),
+        )
+        .route(
+            "/composite/pre_authenticate",
+            post(handlers::composite::payments::pre_authenticate),
+        )
+        .route(
+            "/composite/frm/pre_risk_check",
+            post(handlers::composite::frm::pre_risk_check),
+        )
+        .route(
+            "/composite/frm/post_risk_check",
+            post(handlers::composite::frm::post_risk_check),
         )
         .route("/payments/authorize", post(handlers::payments::authorize))
         // .route(
@@ -76,6 +113,10 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/repeat_everything",
             post(handlers::payments::repeat_everything),
         )
+        .route(
+            "/payments/revoke_mandate",
+            post(handlers::payments::revoke_mandate),
+        )
         .route("/payments/refund", post(handlers::payments::refund))
         // .route("/payments/dispute", post(handlers::payments::dispute))
         .route(
@@ -94,16 +135,28 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/server_authentication_token",
             post(handlers::payments::server_authentication_token),
         )
+        .route(
+            "/payments/client_authentication_token",
+            post(handlers::payments::client_authentication_token),
+        )
         .route("/payments/transform", post(handlers::payments::transform))
         .route(
             "/payments/verify_redirect_response",
             post(handlers::payments::verify_redirect_response),
+        )
+        .route(
+            "/payment_method/eligibility",
+            post(handlers::payments::eligibility),
         )
         // EventService routes
         .route("/events/parse", post(handlers::payments::parse_event))
         .route("/events/handle", post(handlers::payments::handle_event))
         // RefundService routes
         .route("/refunds/get", post(handlers::refunds::get_refund))
+        .route(
+            "/refunds/void_post_refund",
+            post(handlers::refunds::void_post_refund),
+        )
         .route(
             "/refunds/transform",
             post(handlers::refunds::transform_refund),

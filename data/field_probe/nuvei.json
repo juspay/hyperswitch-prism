@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nuvei"
       }
     },
     "authorize": {
@@ -210,8 +211,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -222,8 +223,8 @@
         "error": "DanamonVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -340,8 +341,8 @@
         }
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -469,8 +470,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -510,11 +511,11 @@
       },
       "OpenBanking": {
         "status": "not_supported",
-        "error": "Bank redirect method OpenBanking not supported by Nuvei is not supported by nuvei"
+        "error": "Bank redirect method OpenBanking { bank_name: None, account_number: None, sort_code: None, iban: None, account_holder_name: None, additional_details: None } not supported by Nuvei is not supported by nuvei"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -533,8 +534,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -549,12 +550,12 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
@@ -617,8 +618,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Sofort": {
         "status": "supported",
@@ -701,6 +702,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
@@ -753,11 +758,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -781,7 +781,8 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nuvei connector"
       }
     },
     "create_server_session_authentication_token": {
@@ -808,14 +809,28 @@
         }
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nuvei"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for nuvei"
+      }
+    },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nuvei connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nuvei connector"
       }
     },
     "dispute_get": {
@@ -825,12 +840,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nuvei connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nuvei connector"
       }
     },
     "get": {
@@ -862,7 +879,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nuvei connector"
       }
     },
     "parse_event": {
@@ -870,14 +888,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nuvei"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for nuvei"
       }
     },
     "proxy_authorize": {
@@ -899,6 +924,12 @@
       }
     },
     "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by nuvei connector"
+      }
+    },
+    "refresh": {
       "default": {
         "status": "not_implemented"
       }
@@ -948,7 +979,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nuvei connector"
       }
     },
     "setup_recurring": {
@@ -967,11 +999,6 @@
       "default": {
         "status": "not_supported",
         "error": "Payment method not supported for SetupMandate is not supported by nuvei"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "verify_redirect": {

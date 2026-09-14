@@ -7,10 +7,16 @@ plugins {
 }
 
 group = "io.hyperswitch"
-version = "0.0.5"
+version = System.getenv("VERSION") ?: "0.0.0-dev"
 
 repositories {
     mavenCentral()
+}
+
+// Increase file size limit for the Kotlin compiler daemon to handle large generated files
+// (e.g. Payment.java ~21MB exceeds the default ~20MB limit)
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinDaemonJvmArguments.add("-Didea.max.intellisense.filesize=30000")
 }
 
 dependencies {
@@ -78,8 +84,8 @@ if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
             url = "https://github.com/juspay/hyperswitch-prism"
 
             license {
-                name = "MIT License"
-                url = "https://opensource.org/licenses/MIT"
+                name = "Apache License, Version 2.0"
+                url = "https://github.com/juspay/hyperswitch-prism/tree/main?tab=Apache-2.0-1-ov-file"
             }
 
             developer {
@@ -118,8 +124,8 @@ publishing {
 
                 licenses {
                     license {
-                        name.set("MIT License")
-                        url.set("https://opensource.org/licenses/MIT")
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://github.com/juspay/hyperswitch-prism/tree/main?tab=Apache-2.0-1-ov-file")
                     }
                 }
 

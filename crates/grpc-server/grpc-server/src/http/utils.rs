@@ -44,6 +44,7 @@ where
             Err(rejection) => Err(HttpError {
                 status: StatusCode::BAD_REQUEST,
                 message: rejection.to_string(),
+                details: None,
             }
             .into_response()),
         }

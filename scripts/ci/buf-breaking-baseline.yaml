@@ -1,0 +1,11 @@
+# --against-config for buf breaking: tells buf where the proto module root is in the baseline
+# branch (same path as buf.yaml). Required because buf reads the baseline via file://…/.git
+# and needs an explicit module config to resolve bare imports like import "payment.proto".
+version: v2
+deps:
+  - buf.build/googleapis/googleapis
+modules:
+  - path: crates/types-traits/grpc-api-types/proto
+breaking:
+  use:
+    - FILE

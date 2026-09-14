@@ -1,0 +1,28 @@
+{
+  "get_customer_by_email": {
+    "grpc_req": {
+      "merchant_customer_id": "cust_auto_generate",
+      "email": {
+        "value": "auto_generate"
+      }
+    },
+    "assert": {
+      "lookup_status": {
+        "one_of": [
+          "CUSTOMER_LOOKUP_STATUS_FOUND",
+          "CUSTOMER_LOOKUP_STATUS_NOT_FOUND"
+        ]
+      },
+      "error": {
+        "must_not_exist": true
+      },
+      "status_code": {
+        "one_of": [
+          200
+        ]
+      }
+    },
+    "is_default": true,
+    "display_name": "Get | Customer by Email"
+  }
+}

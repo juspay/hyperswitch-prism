@@ -18,7 +18,7 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L225) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L117) · [Rust](../../examples/nmi/nmi.rs#L282)
+**Examples:** [Python](../../examples/nmi/nmi.py#L236) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L120) · [Rust](../../examples/nmi/nmi.rs#L310)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L244) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L133) · [Rust](../../examples/nmi/nmi.rs#L298)
+**Examples:** [Python](../../examples/nmi/nmi.py#L255) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L136) · [Rust](../../examples/nmi/nmi.rs#L326)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L269) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L155) · [Rust](../../examples/nmi/nmi.rs#L321)
+**Examples:** [Python](../../examples/nmi/nmi.py#L280) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L158) · [Rust](../../examples/nmi/nmi.rs#L349)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L294) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L177) · [Rust](../../examples/nmi/nmi.rs#L344)
+**Examples:** [Python](../../examples/nmi/nmi.py#L305) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L180) · [Rust](../../examples/nmi/nmi.rs#L372)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/nmi/nmi.py#L316) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L196) · [Rust](../../examples/nmi/nmi.rs#L363)
+**Examples:** [Python](../../examples/nmi/nmi.py#L327) · [JavaScript](../../examples/nmi/nmi.js) · [Kotlin](../../examples/nmi/nmi.kt#L199) · [Rust](../../examples/nmi/nmi.rs#L391)
 
 ## API Reference
 
@@ -168,6 +168,8 @@ Retrieve current payment status from the connector.
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
@@ -209,7 +211,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Revolut Pay | ⚠ |
 | MiFinity | ⚠ |
 | Bluecode | ⚠ |
-| Paze | x |
+| Paze | ⚠ |
 | Samsung Pay | ⚠ |
 | MB Way | ⚠ |
 | Satispay | ⚠ |
@@ -236,8 +238,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Poland | ⚠ |
 | Slovakia | ⚠ |
 | UK | ⚠ |
-| PIS | x |
+| PIS | ⚠ |
 | Generic | ⚠ |
+| WebPay | ⚠ |
 | Local | ⚠ |
 | iDEAL | ⚠ |
 | Sofort | ⚠ |
@@ -250,7 +253,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Interac | ⚠ |
 | Bizum | ⚠ |
 | EFT | ⚠ |
-| DuitNow | x |
+| DuitNow | ⚠ |
 | ACH | ⚠ |
 | SEPA | ⚠ |
 | BACS | ⚠ |
@@ -273,10 +276,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | BACS | x |
 | BECS | x |
 | SEPA Guaranteed | x |
-| Crypto | x |
+| Crypto | ⚠ |
 | Reward | ⚠ |
-| Givex | x |
-| PaySafeCard | x |
+| Givex | ⚠ |
+| PaySafeCard | ⚠ |
 | E-Voucher | ⚠ |
 | Boleto | ⚠ |
 | Efecty | ⚠ |
@@ -313,7 +316,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-  "google_pay": {
+  "google_pay_sdk": {
     "type": "CARD",
     "description": "Visa 1111",
     "info": {
@@ -342,7 +345,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L350) · [Kotlin](../../examples/nmi/nmi.kt#L214) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L375) · [Kotlin](../../examples/nmi/nmi.kt#L217) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.Capture
 
@@ -353,7 +356,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L359) · [Kotlin](../../examples/nmi/nmi.kt#L226) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L384) · [Kotlin](../../examples/nmi/nmi.kt#L229) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.Get
 
@@ -364,7 +367,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L368) · [Kotlin](../../examples/nmi/nmi.kt#L236) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L393) · [Kotlin](../../examples/nmi/nmi.kt#L239) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -375,7 +378,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L386) · [Kotlin](../../examples/nmi/nmi.kt#L273) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L429) · [Kotlin](../../examples/nmi/nmi.kt#L307) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -386,7 +389,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L395) · [Kotlin](../../examples/nmi/nmi.kt#L302) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L438) · [Kotlin](../../examples/nmi/nmi.kt#L336) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.Refund
 
@@ -397,7 +400,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L413) · [Kotlin](../../examples/nmi/nmi.kt#L365) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L456) · [Kotlin](../../examples/nmi/nmi.kt#L399) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -408,7 +411,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L431) · [Kotlin](../../examples/nmi/nmi.kt#L387) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L474) · [Kotlin](../../examples/nmi/nmi.kt#L421) · [Rust](../../examples/nmi/nmi.rs)
 
 #### PaymentService.Void
 
@@ -419,7 +422,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts) · [Kotlin](../../examples/nmi/nmi.kt#L426) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts) · [Kotlin](../../examples/nmi/nmi.kt#L460) · [Rust](../../examples/nmi/nmi.rs)
 
 ### Refunds
 
@@ -432,7 +435,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L422) · [Kotlin](../../examples/nmi/nmi.kt#L375) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L465) · [Kotlin](../../examples/nmi/nmi.kt#L409) · [Rust](../../examples/nmi/nmi.rs)
 
 ### Mandates
 
@@ -445,7 +448,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L404) · [Kotlin](../../examples/nmi/nmi.kt#L334) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L447) · [Kotlin](../../examples/nmi/nmi.kt#L368) · [Rust](../../examples/nmi/nmi.rs)
 
 ### Authentication
 
@@ -458,4 +461,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L377) · [Kotlin](../../examples/nmi/nmi.kt#L244) · [Rust](../../examples/nmi/nmi.rs)
+**Examples:** [Python](../../examples/nmi/nmi.py) · [TypeScript](../../examples/nmi/nmi.ts#L420) · [Kotlin](../../examples/nmi/nmi.kt#L278) · [Rust](../../examples/nmi/nmi.rs)

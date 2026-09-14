@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for stripe"
       }
     },
     "authorize": {
@@ -209,9 +210,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSIsImhlYWRlciI6eyJlcGhlbWVyYWxQdWJsaWNLZXkiOiJwcm9iZSIsInB1YmxpY0tleUhhc2giOiJwcm9iZSIsInRyYW5zYWN0aW9uSWQiOiJwcm9iZV90eG5faWQifX0="
               },
               "payment_method": {
                 "display_name": "Visa 1111",
@@ -237,7 +238,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&pk_token=%7B%22version%22%3A%22EC_v1%22%2C%22data%22%3A%22probe%22%2C%22signature%22%3A%22probe%22%2C%22header%22%3A%7B%22ephemeralPublicKey%22%3A%22probe%22%2C%22publicKeyHash%22%3A%22probe%22%2C%22transactionId%22%3A%22probe_txn_id%22%7D%7D&pk_token_instrument_name=debit&pk_token_payment_network=Visa&pk_token_transaction_id=probe_txn_id&capture_method=automatic&expand%5B0%5D=latest_charge"
         }
       },
       "ApplePayDecrypted": {
@@ -249,7 +250,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -564,8 +565,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "not_implemented",
@@ -576,8 +577,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "not_implemented",
@@ -664,8 +665,8 @@
         }
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "not_implemented",
@@ -680,7 +681,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -715,8 +716,50 @@
         }
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.stripe.com/v1/payment_intents",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "stripe-version": "2022-11-15",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&card%5Bnumber%5D=4111111111111111&card%5Bexp_year%5D=2030&card%5Bexp_month%5D=03&card%5Bcryptogram%5D=AAAAAA%3D%3D&card%5Beci%5D=05&card%5Btokenization_method%5D=android_pay&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
@@ -843,8 +886,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "not_implemented",
@@ -915,8 +958,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -935,8 +978,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -951,12 +994,12 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
@@ -1128,8 +1171,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -1197,6 +1240,10 @@
           "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=wechat_pay&payment_method_options%5Bwechat_pay%5D%5Bclient%5D=web&capture_method=automatic&payment_method_types%5B0%5D=wechat_pay&expand%5B0%5D=latest_charge"
         }
       },
+      "Webpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Wero": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
@@ -1253,7 +1300,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by stripe connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by stripe connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for stripe"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -1275,29 +1340,22 @@
         }
       }
     },
-    "create_order": {
+    "customer_get": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for stripe"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for stripe"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for stripe"
       }
     },
     "dispute_get": {
@@ -1307,12 +1365,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for stripe"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by stripe connector"
       }
     },
     "get": {
@@ -1341,7 +1401,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -1371,17 +1446,38 @@
     },
     "parse_event": {
       "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for stripe"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for stripe"
       }
     },
     "proxy_authorize": {
@@ -1417,7 +1513,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_proxy_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=%7B%7B%24card_exp_month%7D%7D&payment_method_data%5Bcard%5D%5Bexp_year%5D=%7B%7B%24card_exp_year%7D%7D&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_proxy_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
         }
       }
     },
@@ -1457,7 +1553,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=%7B%7B%24card_exp_month%7D%7D&payment_method_data%5Bcard%5D%5Bexp_year%5D=%7B%7B%24card_exp_year%7D%7D&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
+          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
         }
       }
     },
@@ -1500,6 +1596,12 @@
       }
     },
     "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by stripe connector"
+      }
+    },
+    "refresh": {
       "default": {
         "status": "not_implemented"
       }
@@ -1553,7 +1655,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by stripe connector"
       }
     },
     "setup_recurring": {
@@ -1631,33 +1734,41 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through stripe"
-      }
-    },
-    "tokenize": {
-      "default": {
         "status": "supported",
         "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
           "amount": {
-            "minor_amount": 1000,
+            "minor_amount": 0,
             "currency": "USD"
           },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
           "address": {
             "billing_address": {}
-          }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://api.stripe.com/v1/payment_methods",
+          "url": "https://api.stripe.com/v1/setup_intents",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -1665,7 +1776,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "type=card&card%5Bnumber%5D=4111111111111111&card%5Bexp_month%5D=03&card%5Bexp_year%5D=2030&card%5Bcvc%5D=737"
+          "body": "confirm=true&usage=off_session&payment_method=pm_1AbcXyzStripeTestToken&metadata%5Border_id%5D=probe_tokenized_mandate_001&expand%5B0%5D=latest_attempt"
         }
       }
     },

@@ -168,11 +168,14 @@ pub enum PaysafeRefundStatus {
 pub type PaysafeRSyncResponse = PaysafeRefundResponse;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Vec<String>>,
+    /// Paysafe serializes this as `fieldErrors`; without the camelCase rename
+    /// the per-field diagnostics were silently dropped on deserialization.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field_errors: Option<Vec<FieldError>>,
 }
@@ -188,8 +191,47 @@ pub struct PaysafeErrorResponse {
     pub error: Error,
 }
 
+/// CreateConnectorCustomer response body (`POST v1/customers`).
+///
+/// `id` is the Paysafe customer id (used as the connector_customer_id and later
+/// as the `{customerId}` path segment when minting a reusable payment handle).
+/// Mirrors hyperswitch's `PaysafeCustomerResponse`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCustomerResponse {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_customer_id: Option<String>,
+}
+
+/// Authorize-flow response.
+///
+/// Non-redirect payment methods (card no-3DS, Apple Pay, and settlements of an
+/// existing payment handle) POST to `v1/payments` and return a
+/// [`PaysafePaymentsResponse`]. Redirect APMs (Skrill, Interac e-Transfer,
+/// paysafecard) instead POST to `v1/paymenthandles` and return a
+/// [`PaysafePaymentHandleResponse`] carrying the customer redirect `links`.
+///
+/// The variants are discriminated structurally (`untagged`): only
+/// `PaysafePaymentsResponse` has the required `amount` + `currencyCode` fields, so
+/// a payment-handle body (which lacks them) cannot match `Payment` and falls
+/// through to `PaymentHandle`. `Payment` is listed first so a genuine payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaysafeAuthorizeResponse {
+    Payment(PaysafePaymentsResponse),
+    PaymentHandle(PaysafePaymentHandleResponse),
+}
+
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenResponse = PaysafePaymentHandleResponse;
-pub type PaysafeAuthorizeResponse = PaysafePaymentsResponse;
+/// PreAuthenticate returns a payment-handle body; distinct type name so the macro doesn't collide
+/// with Authorize's.
+pub type PaysafePreAuthenticateResponse = PaysafeAuthorizeResponse;
+/// Authenticate re-fetches the payment handle (same shape as PSync); distinct type name so the
+/// macro doesn't collide with PSync's.
+pub type PaysafeAuthenticateResponse = PaysafeSyncResponse;
 pub type PaysafeCaptureResponse = PaysafeSettlementResponse;
 pub type PaysafeRepeatPaymentResponse = PaysafePaymentsResponse;

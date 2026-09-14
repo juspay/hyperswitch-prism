@@ -146,6 +146,9 @@ _PROBE_PM_BY_CATEGORY: list[tuple[str, list[tuple[str, str]]]] = [
         ("OpenBankingPis", "PIS"),
         ("OpenBanking", "Generic"),
     ]),
+    ("Card Redirect", [
+        ("Webpay", "WebPay"),
+    ]),
     ("Bank Redirect", [
         ("LocalBankRedirect", "Local"),
         ("Ideal", "iDEAL"),
@@ -223,8 +226,8 @@ for _category, pms in _PROBE_PM_BY_CATEGORY:
 # 
 # EXCEPTIONS: Only add entries here when the auto-derived key doesn't match probe data
 _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
-    # CustomerService.Create breaks the pattern (would be "customer_create")
-    ("CustomerService", "Create"): "create_customer",
+    # CustomerService.Create now uses prefixed pattern to match probe data
+    ("CustomerService", "Create"): "customer_create",
     # Eligibility is a short name that doesn't need prefix
     ("PaymentMethodService", "Eligibility"): "eligibility",
     # Tokenize is a short name that doesn't need prefix  
@@ -275,7 +278,7 @@ _SERVICE_PREFIXES: dict[str, str] = {
 }
 
 
-def _derive_flow_key(service_name: str, rpc_name: str) -> str | None:
+def _derive_flow_key(service_name: str, rpc_name: str) -> Optional[str]:
     """
     Derive probe flow_key from gRPC service and RPC name.
     
@@ -1092,7 +1095,7 @@ def generate_connector_doc(
                 a("|----------------|:---------:|")
                 for pm_key, pm_label in _PROBE_PM_DISPLAY.items():
                     if pm_key in pm_support:
-                        pm_status = probe_connector.get("flows", {}).get("authorize", {}).get(pm_key, {}).get("status", "unknown")
+                        pm_status = probe_connector.get("flows", {}).get(f, {}).get(pm_key, {}).get("status", "unknown")
                         mark = _status_to_mark(pm_status)
                         a(f"| {pm_label} | {mark} |")
                 a("")
@@ -1678,6 +1681,7 @@ def generate_all_connector_doc(probe_data: dict[str, dict], output_dir: Path) ->
                 # Shorten category names for compact display
                 short_cat = {
                     "Card": "CARD",
+                    "Card Redirect": "Card Redirect",
                     "Wallet": "WALLET", 
                     "BNPL": "BNPL",
                     "UPI": "UPI",

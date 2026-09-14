@@ -1,6 +1,6 @@
 {
   "name": "hyperswitch-prism",
-  "version": "0.0.8",
+  "version": "0.0.0-dev",
   "description": "Hyperswitch Payments SDK — Node.js client for connector integrations via UniFFI FFI",
   "main": "dist/src/index.js",
   "repository": {
@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/juspay/hyperswitch-prism#readme",
   "types": "dist/src/index.d.ts",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "hyperswitch",
     "prism",

@@ -13,7 +13,13 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { aci: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        aci: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            entityId: { value: 'YOUR_ENTITY_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

@@ -1,0 +1,77 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Package: ucs.v2
+// File: surcharge.proto
+//
+// Overview:
+//   This file defines the data types and request/response messages for the
+//   SurchargeService API. It enables merchants to calculate additional fees
+//   for payment processing based on payment method, region, and other factors.
+//
+// Related Files:
+//   - services.proto       — gRPC service definitions
+
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// SURCHARGE ENUMS
+// ============================================================================
+
+// Strategy for handling calculated surcharge
+enum SurchargeStrategy {
+  SURCHARGE_STRATEGY_UNSPECIFIED = 0;
+  APPLY = 1;  // Apply the calculated surcharge to the payment
+  WAIVE = 2;  // Do not apply, just return the calculated amount
+}
+
+// ============================================================================
+// SURCHARGE REQUESTS
+// ============================================================================
+
+// Request message for calculating surcharge fees
+message SurchargeServiceCalculateRequest {
+  // Identification
+  optional string merchant_surcharge_id = 1;  // Merchant reference for this calculation
+
+  // Amount Information
+  Money amount = 2;  // Amount to calculate surcharge for (minor units)
+
+  // Card Information
+  string card_bin = 3;  // First 6-8 digits of card number (NICN)
+
+  // Location Information
+  SecretString postal_code = 4;  // Billing postal/ZIP code for regional fees
+
+  // Optional Fields
+  optional string previous_connector_surcharge_id = 5;  // Previous surcharge id from connector (for subsequent calls)
+  optional CountryAlpha2 country = 6;                  // ISO alpha-2 country code (defaults to USA)
+  optional SurchargeStrategy surcharge_strategy = 7;   // Strategy for handling surcharge (defaults to APPLY)
+}
+
+// ============================================================================
+// SURCHARGE RESPONSES
+// ============================================================================
+
+// Response message containing calculated surcharge details
+message SurchargeServiceCalculateResponse {
+  // Identification (echoed back)
+  optional string merchant_surcharge_id = 1;  // Echo of merchant_reference_id from request
+
+  // Calculation Results
+  optional Money surcharge_amount = 2;        // Calculated surcharge fee in minor units (transactionFee)
+  optional double surcharge_percentage = 3; // Surcharge rate as percentage (transactionFeePercent)
+
+  // Connector Reference
+  optional string connector_surcharge_id = 4;  // Unique ID from connector for referencing this calculation
+
+  // Status Information 
+  uint32 status_code = 5; // HTTP status code from the connector
+  optional ErrorInfo error = 6;         // Detailed error information (if status = FAILURE)
+}

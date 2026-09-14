@@ -1,0 +1,124 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4923030000176175"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "168"
+            },
+            "card_holder_name": {
+              "value": "Peach Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4923030000176175"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "168"
+            },
+            "card_holder_name": {
+              "value": "Peach Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4923030000176175"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "168"
+            },
+            "card_holder_name": {
+              "value": "Peach Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4923030000176175"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "168"
+            },
+            "card_holder_name": {
+              "value": "Peach Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4923030000176175"
+            },
+            "card_exp_month": {
+              "value": "01"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "168"
+            },
+            "card_holder_name": {
+              "value": "Peach Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    }
+  }
+}

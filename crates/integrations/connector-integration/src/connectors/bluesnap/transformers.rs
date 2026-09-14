@@ -10,6 +10,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -54,7 +55,9 @@ pub use responses::{
 const DISPLAY_METADATA: &str = "Y";
 
 fn convert_metadata_to_request_metadata(metadata: serde_json::Value) -> Vec<RequestMetadata> {
-    let hashmap: std::collections::HashMap<Option<String>, Option<serde_json::Value>> =
+    // BTreeMap, not HashMap: this map's iteration order becomes the ORDER of the
+    // metaData ARRAY in the request body, so it must not vary per process.
+    let hashmap: std::collections::BTreeMap<Option<String>, Option<serde_json::Value>> =
         serde_json::from_str(&metadata.to_string()).unwrap_or_default();
 
     hashmap
@@ -116,7 +119,9 @@ fn map_ecp_account_type(
         (_, Some(common_enums::BankType::Transmission))
         | (_, Some(common_enums::BankType::Current))
         | (_, Some(common_enums::BankType::Bond))
-        | (_, Some(common_enums::BankType::SubscriptionShare)) => {
+        | (_, Some(common_enums::BankType::SubscriptionShare))
+        | (_, Some(common_enums::BankType::Salary))
+        | (_, Some(common_enums::BankType::Payment)) => {
             Err(IntegrationError::NotSupported {
                 message: format!("Bank type {bank_type:?} is not supported by BlueSnap"),
                 connector: "bluesnap",
@@ -714,9 +719,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BluesnapAuthorizeResp
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -749,9 +757,12 @@ impl TryFrom<ResponseRouterData<BluesnapCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -787,9 +798,12 @@ impl TryFrom<ResponseRouterData<BluesnapVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -822,9 +836,12 @@ impl TryFrom<ResponseRouterData<BluesnapPSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -850,6 +867,7 @@ impl TryFrom<ResponseRouterData<BluesnapRefundResponse, Self>>
                 connector_refund_id: item.response.refund_transaction_id.to_string(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -915,6 +933,7 @@ impl TryFrom<ResponseRouterData<BluesnapRefundSyncResponse, Self>>
                 connector_refund_id: item.response.transaction_id.clone(),
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -935,7 +954,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         super::BluesnapRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -948,7 +967,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: super::BluesnapRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -971,7 +990,7 @@ pub struct BluesnapClientAuthResponse {
 impl TryFrom<ResponseRouterData<BluesnapClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

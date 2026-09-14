@@ -1,1 +1,9 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "request_extended_authorization": true
+      }
+    }
+  }
+}

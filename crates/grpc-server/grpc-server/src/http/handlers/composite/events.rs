@@ -5,7 +5,7 @@ use axum::{
 };
 use grpc_api_types::payments::{
     composite_event_service_server::CompositeEventService, CompositeEventHandleRequest,
-    CompositeEventHandleResponse,
+    CompositeEventHandleResponse, CompositeNotifyRequest, CompositeNotifyResponse,
 };
 use std::sync::Arc;
 
@@ -21,5 +21,13 @@ http_handler!(
     CompositeEventHandleRequest,
     CompositeEventHandleResponse,
     handle_event,
+    composite_event_service
+);
+
+http_handler!(
+    notify,
+    CompositeNotifyRequest,
+    CompositeNotifyResponse,
+    notify,
     composite_event_service
 );

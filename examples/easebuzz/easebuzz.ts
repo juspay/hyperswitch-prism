@@ -6,8 +6,8 @@
 // Run a scenario:  npx tsx easebuzz.ts checkout_autocapture
 
 import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_order", "get", "refund", "refund_get"];
+const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_order", "get", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -23,6 +23,29 @@ const _defaultConfig: types.IConnectorConfig = {
     },
 };
 
+
+function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_txn_001",  // Identification.
+        "amount": {  // The amount for the payment.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment method to be used.
+            "upiCollect": {  // UPI Collect.
+                "vpaId": {"value": "test@upi"}  // Virtual Payment Address.
+            }
+        },
+        "captureMethod": captureMethod,  // Method for capturing the payment.
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
+        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
+        "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+    };
+}
 
 function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
     return {
@@ -79,6 +102,15 @@ function _buildRefundGetRequest(): types.IRefundServiceGetRequest {
 
 
 // ANCHOR: scenario_functions
+// Flow: PaymentService.Authorize (UpiCollect)
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
+
+    return authorizeResponse;
+}
+
 // Flow: PaymentService.Capture
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -127,7 +159,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    capture, createOrder, get, refund, refundGet, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest
+    authorize, capture, createOrder, get, refund, refundGet, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateOrderRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

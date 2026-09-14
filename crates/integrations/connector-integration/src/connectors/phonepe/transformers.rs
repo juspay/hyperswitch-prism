@@ -15,7 +15,7 @@ use domain_types::{
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, UpiData, UpiSource, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::BrowserInformation,
     router_response_types::RedirectForm,
@@ -759,11 +759,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             mandate_reference: None,
                             connector_metadata,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 data.merchant_transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
+                            payment_account_reference: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: common_enums::AttemptStatus::AuthenticationPending,
@@ -783,11 +786,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             mandate_reference: None,
                             connector_metadata: get_wait_screen_metadata(),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 data.merchant_transaction_id.clone(),
                             ),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
+                            payment_account_reference: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             ..item.router_data.resource_common_data
@@ -846,11 +852,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status,
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
                     connector_transaction_id,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1088,9 +1098,12 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: get_sync_metadata(bin),
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(merchant_transaction_id.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
+                            payment_account_reference: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status,
@@ -1107,11 +1120,17 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                             message: response.message.clone(),
                             reason: None,
                             status_code: item.http_code,
-                            attempt_status: Some(common_enums::AttemptStatus::Failure),
+                            attempt_status: Some(FlowStatus::Payment(
+                                common_enums::AttemptStatus::Failure,
+                            )),
                             connector_transaction_id: data.transaction_id.clone(),
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         }),
                         ..item.router_data
                     })
@@ -1138,7 +1157,7 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                     message: error_message,
                     reason: None,
                     status_code: item.http_code,
-                    attempt_status,
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
                     connector_transaction_id: response
                         .data
                         .as_ref()
@@ -1146,6 +1165,10 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
+                    typed_connector_response: None,
+                    raw_connector_response: None,
+                    raw_connector_request: None,
+                    typed_connector_request: None,
                 }),
                 ..item.router_data
             })
@@ -1626,9 +1649,12 @@ impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             });
             Ok(router_data)
         } else {
@@ -1659,11 +1685,15 @@ impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
                 message: error_message.clone(),
                 reason: Some(error_message),
                 status_code: item.http_code,
-                attempt_status,
+                attempt_status: attempt_status.map(FlowStatus::Payment),
                 connector_transaction_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -1897,6 +1927,7 @@ impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             });
             Ok(router_data)
         } else {
@@ -1911,6 +1942,10 @@ impl TryFrom<ResponseRouterData<PhonepeRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -2167,6 +2202,7 @@ impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             });
             Ok(router_data)
         } else {
@@ -2185,6 +2221,10 @@ impl TryFrom<ResponseRouterData<PhonepeRefundSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }
@@ -2372,9 +2412,12 @@ impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             });
             Ok(router_data)
         } else {
@@ -2405,11 +2448,15 @@ impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
                 message: error_message.clone(),
                 reason: Some(error_message),
                 status_code: item.http_code,
-                attempt_status,
+                attempt_status: attempt_status.map(FlowStatus::Payment),
                 connector_transaction_id,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
             Ok(router_data)
         }

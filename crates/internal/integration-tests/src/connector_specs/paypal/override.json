@@ -1,6 +1,34 @@
 {
   "PaymentService/Authorize": {
+    "no3ds_auto_capture_google_pay_encrypted": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
     "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
+      },
       "assert": {
         "status": {
           "one_of": [
@@ -15,6 +43,93 @@
         "redirection_data.form.form_fields.redirect_uri": {
           "must_exist": true
         }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_bancontact": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_klarna": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_affirm": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_afterpay_clearpay": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_przelewy24": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_sepa_bank_transfer": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_bacs_bank_transfer": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_upi_collect": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_upi_intent": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    },
+    "no3ds_auto_capture_upi_qr": {
+      "grpc_req": {
+        "shipping_cost": 100
+      }
+    }
+  },
+  "PaymentService/CompleteAuthorize": {
+    "threeds_complete_authorize_credit_card": {
+      "grpc_req": {
+        "shipping_cost": 100
       }
     }
   },
@@ -46,14 +161,29 @@
       "assert": {
         "source_verified": {
           "must_not_exist": true
-        }
+        },
+        "event_status": null
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": {
+          "must_not_exist": true
+        },
+        "event_status": null
       }
     },
     "refund_succeeded": {
       "assert": {
         "source_verified": {
           "must_not_exist": true
-        }
+        },
+        "event_status": null
+      }
+    },
+    "invalid_signature": {
+      "assert": {
+        "event_status": null
       }
     }
   }

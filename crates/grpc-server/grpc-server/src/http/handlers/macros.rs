@@ -32,6 +32,7 @@ macro_rules! http_handler {
                 http_headers_to_grpc_metadata(&headers).map_err(|status| HttpError {
                     status: StatusCode::BAD_REQUEST,
                     message: status.message().to_string(),
+                    details: None,
                 })?;
             *grpc_request.metadata_mut() = grpc_metadata;
             let grpc_response = state.$service_field.$service_method(grpc_request).await?;

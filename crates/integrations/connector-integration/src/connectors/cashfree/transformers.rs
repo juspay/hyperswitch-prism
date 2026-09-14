@@ -1,5 +1,5 @@
 use common_enums;
-use common_utils::types::AmountConvertor;
+use common_utils::{pii::EmailStrategy, types::AmountConvertor};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
@@ -12,7 +12,7 @@ use domain_types::{
         ResponseTransformationErrorContext,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{report, Report, ResultExt};
@@ -106,7 +106,7 @@ pub struct CashfreeOrderSplitsType {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CashfreeCustomerDetails {
     pub customer_id: String,
-    pub customer_email: Option<String>,
+    pub customer_email: Option<Secret<String, EmailStrategy>>,
     pub customer_phone: Secret<String>,
     pub customer_name: Option<String>,
 }
@@ -534,7 +534,7 @@ impl
                 .unwrap_or_else(|| "guest".to_string()),
             customer_email: billing
                 .as_ref()
-                .and_then(|b| b.email.as_ref().map(|e| e.peek().to_string())),
+                .and_then(|b| b.email.clone().map(|email| email.expose())),
             customer_phone: Secret::new(
                 billing
                     .as_ref()
@@ -808,9 +808,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response.cf_payment_id.map(|id| id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1010,9 +1013,12 @@ impl TryFrom<ResponseRouterData<CashfreeCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1136,9 +1142,12 @@ impl TryFrom<ResponseRouterData<CashfreeVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1203,11 +1212,15 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
                             .clone()
                             .unwrap_or_else(|| payment.payment_message.clone().unwrap_or_default()),
                         reason: error.error_description.clone(),
-                        attempt_status: Some(attempt_status),
+                        attempt_status: Some(FlowStatus::Payment(attempt_status)),
                         connector_transaction_id: Some(order_id),
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     }),
                     ..router_data
                 });
@@ -1225,9 +1238,12 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             ..router_data
         })
@@ -1334,6 +1350,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
@@ -1373,6 +1390,7 @@ impl TryFrom<ResponseRouterData<CashfreeRefundSyncResponse, Self>>
                 connector_refund_id: response.refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,

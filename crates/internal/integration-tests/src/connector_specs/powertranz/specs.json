@@ -9,5 +9,6 @@
     "RefundService/Get",
     "PaymentService/SetupRecurring",
     "PaymentService/Void"
-  ]
+  ],
+  "request_id_source_field": "merchant_transaction_id"
 }

@@ -9,12 +9,13 @@ import asyncio
 import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
+from payments import CustomerClient
 from payments import EventClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -85,12 +86,20 @@ def _build_capture_request(connector_transaction_id: str):
 def _build_create_client_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest(
         merchant_client_session_id="probe_sdk_session_001",  # Infrastructure.
-        payment=payment_pb2.PaymentClientAuthenticationContext(  # FrmClientAuthenticationContext frm = 5; // future: device fingerprinting PayoutClientAuthenticationContext payout = 6; // future: payout verification widget.
+        payment=payment_pb2.PaymentClientAuthenticationContext(
             amount=payment_pb2.Money(
                 minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
                 currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
             ),
         ),
+    )
+
+def _build_customer_create_request():
+    return payment_pb2.CustomerServiceCreateRequest(
+        merchant_customer_id="cust_probe_123",  # Identification.
+        customer_name="John Doe",  # Name of the customer.
+        email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
+        phone_number=payment_methods_pb2.SecretString(value="4155552671"),  # Phone number of the customer.
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -111,12 +120,12 @@ def _build_get_request(connector_transaction_id: str):
     )
 
 def _build_parse_event_request():
-    return payment_pb2.EventServiceParseRequest(
+    return events_pb2.EventServiceParseRequest(
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}",  # Body of the HTTP request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -474,6 +483,15 @@ async def process_create_client_authentication_token(merchant_transaction_id: st
     return {"session_data": create_response.session_data}
 
 
+async def process_customer_create(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Create"""
+    customer_client = CustomerClient(config)
+
+    customer_response = await customer_client.customer_create(_build_customer_create_request())
+
+    return {"customer_id": customer_response.connector_customer_id}
+
+
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Get"""
     payment_client = PaymentClient(config)
@@ -487,9 +505,9 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     """Flow: EventService.ParseEvent"""
     event_client = EventClient(config)
 
-    parse_response = await event_client.parse_event(_build_parse_event_request())
+    parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"event_type": parse_response.event_type}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

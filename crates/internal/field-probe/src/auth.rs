@@ -5,8 +5,9 @@ use common_utils::metadata::{HeaderMaskingConfig, MaskedMetadata};
 use domain_types::{
     connector_types::ConnectorEnum,
     router_data::{
-        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeCardAccountId,
-        PaysafePaymentMethodDetails,
+        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeApplePayAccountId,
+        PaysafeCardAccountId, PaysafeInteracAccountId, PaysafePaymentMethodDetails,
+        PaysafeRedirectAccountId,
     },
 };
 use hyperswitch_masking::Secret;
@@ -39,6 +40,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Calida => ConnectorSpecificConfig::Calida {
             api_key: k(),
             base_url: None,
+            shop_name: None,
         },
         ConnectorEnum::Celero => ConnectorSpecificConfig::Celero {
             api_key: k(),
@@ -80,6 +82,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        // Netcetera is an authentication-only (3DS) connector without a
+        // dedicated auth config variant yet; probe with no credentials.
+        ConnectorEnum::Netcetera => ConnectorSpecificConfig::NoKey,
         ConnectorEnum::Nexixpay => ConnectorSpecificConfig::Nexixpay {
             api_key: k(),
             base_url: None,
@@ -165,6 +170,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Globalpay => ConnectorSpecificConfig::Globalpay {
             app_id: id(),
             app_key: k(),
+            account_name: Some(Secret::new("probe_account_name".to_string())),
             base_url: None,
         },
         ConnectorEnum::Hipay => ConnectorSpecificConfig::Hipay {
@@ -205,6 +211,32 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                     common_enums::enums::Currency::USD,
                     PaysafeAchAccountId {
                         account_id: Some(Secret::new("probe_ach_acct".to_string())),
+                    },
+                )])),
+                interac: Some(HashMap::from([(
+                    common_enums::enums::Currency::CAD,
+                    PaysafeInteracAccountId {
+                        three_ds: Some(Secret::new("probe_interac_acct".to_string())),
+                    },
+                )])),
+                apple_pay: Some(HashMap::from([(
+                    common_enums::enums::Currency::USD,
+                    PaysafeApplePayAccountId {
+                        encrypt: Some(Secret::new("probe_applepay_encrypt".to_string())),
+                        decrypt: Some(Secret::new("probe_applepay_decrypt".to_string())),
+                    },
+                )])),
+                skrill: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        three_ds: Some(Secret::new("probe_skrill_acct".to_string())),
+                    },
+                )])),
+                neteller: None,
+                pay_safe_card: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        three_ds: Some(Secret::new("probe_paysafecard_acct".to_string())),
                     },
                 )])),
             }),
@@ -279,12 +311,29 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             base_url: None,
             secondary_base_url: None,
         },
+        ConnectorEnum::Moneris => ConnectorSpecificConfig::Moneris {
+            client_secret: s(),
+            merchant_id: m(),
+            client_id: id(),
+            base_url: None,
+        },
+        ConnectorEnum::Etisalat => ConnectorSpecificConfig::Etisalat {
+            user_name: u(),
+            password: p(),
+            customer: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Merchante => ConnectorSpecificConfig::Merchante {
+            profile_id: id(),
+            profile_key: k(),
+            base_url: None,
+        },
         ConnectorEnum::Nmi => ConnectorSpecificConfig::Nmi {
             api_key: k(),
             public_key: None,
             base_url: None,
         },
-        ConnectorEnum::Sanlam => ConnectorSpecificConfig::Sanlam {
+        ConnectorEnum::AbsaSanlam => ConnectorSpecificConfig::AbsaSanlam {
             api_key: k(),
             merchant_id: m(),
             base_url: None,
@@ -555,6 +604,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_password: p(),
             merchant_code: Secret::new("probe_merchant_code".to_string()),
             base_url: None,
+            issuer_id: None,
+            organizational_unit_id: None,
+            jwt_mac_key: None,
         },
         ConnectorEnum::Zift => ConnectorSpecificConfig::Zift {
             user_name: u(),
@@ -663,6 +715,172 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_kid: k(),
             merchant_private_key: s(),
             juspay_public_key: s(),
+            base_url: None,
+        },
+        ConnectorEnum::Maya => ConnectorSpecificConfig::Maya {
+            public_key: k(),
+            secret_key: s(),
+            base_url: None,
+        },
+        ConnectorEnum::TsysTransit => ConnectorSpecificConfig::TsysTransit {
+            device_id: id(),
+            transaction_key: k(),
+            developer_id: s(),
+            base_url: None,
+            merchant_street_address: None,
+            customer_service_phone_number: None,
+            merchant_url: None,
+        },
+        ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
+            access_token: s(),
+            office_id: s(),
+            paco_kid: s(),
+            merchant_signing_private_key: s(),
+            merchant_encryption_private_key: s(),
+            paco_signing_public_key: s(),
+            paco_encryption_public_key: s(),
+            response_audience: None,
+            base_url: None,
+        },
+        ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
+            api_key: k(),
+            merchant_id: m(),
+            juspay_encryption_public_key: Some(s()),
+            response_decryption_private_key: Some(s()),
+            card_sync_key_id: Some(s()),
+            base_url: None,
+        },
+        ConnectorEnum::Glomopay => ConnectorSpecificConfig::Glomopay {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Payconex => ConnectorSpecificConfig::Payconex {
+            api_key: k(),
+            account_id: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Tamara => ConnectorSpecificConfig::Tamara {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Hyperswitch => ConnectorSpecificConfig::Hyperswitch {
+            api_key: k(),
+            base_url: None,
+        },
+
+        ConnectorEnum::Qwikcilver => ConnectorSpecificConfig::Qwikcilver {
+            bootstrap_bearer_token: k(),
+            terminal_id: k(),
+            username: k(),
+            password: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Flywire => ConnectorSpecificConfig::Flywire {
+            api_key: s(),
+            shared_secret: None,
+            recipient_id: "ZENDD".to_string(),
+            base_url: None,
+        },
+        ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
+            public_key: u(),
+            private_key: p(),
+            base_url: None,
+        },
+        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
+            api_key: k(),
+            auth_server_id: None,
+            base_url: None,
+        },
+        ConnectorEnum::Givepayments => ConnectorSpecificConfig::Givepayments {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Grabpay => ConnectorSpecificConfig::Grabpay {
+            partner_id: k(),
+            partner_secret: k(),
+            client_id: k(),
+            client_secret: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Tesouro => ConnectorSpecificConfig::Tesouro {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Boost => ConnectorSpecificConfig::Boost {
+            client_id: k(),
+            merchant_secret: k(),
+            public_key: None,
+            base_url: None,
+        },
+        ConnectorEnum::Citigate => ConnectorSpecificConfig::Citigate {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Paynearme => ConnectorSpecificConfig::Paynearme {
+            api_key: k(),
+            key1: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Ilixium => ConnectorSpecificConfig::Ilixium {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::GlobalpaymentsHeartland => {
+            ConnectorSpecificConfig::GlobalpaymentsHeartland {
+                api_key: k(),
+                base_url: None,
+            }
+        }
+        ConnectorEnum::Worldpayraft => ConnectorSpecificConfig::Worldpayraft {
+            license: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::JpmorganOrbital => ConnectorSpecificConfig::JpmorganOrbital {
+            username: k(),
+            password: k(),
+            merchant_id: k(),
+            // Stratus + terminal 001 is the combination every Orbital example uses;
+            // both are mandatory in a real request, so the probe must supply them.
+            bin: Some("000001".to_string()),
+            terminal_id: Some("001".to_string()),
+            base_url: None,
+            merchant_config_currency: None,
+        },
+        ConnectorEnum::Paydotcom => ConnectorSpecificConfig::Paydotcom {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Saferpay => ConnectorSpecificConfig::Saferpay {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            key2: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Travelhub => ConnectorSpecificConfig::Travelhub {
+            username: k(),
+            password: k(),
+            merchant_id: k(),
+            base_url: None,
+        },
+        ConnectorEnum::D24 => ConnectorSpecificConfig::D24 {
+            api_key: k(),
+            key1: k(),
+            api_secret: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Payhere => ConnectorSpecificConfig::Payhere {
+            app_id: k(),
+            merchant_id: k(),
+            app_secret: k(),
+            merchant_secret: k(),
             base_url: None,
         },
     }

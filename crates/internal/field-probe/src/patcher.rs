@@ -44,8 +44,13 @@ fn full_customer() -> grpc_api_types::payments::Customer {
         email: Some(Secret::new("test@example.com".to_string())),
         id: Some("cust_probe_123".to_string()),
         connector_customer_id: Some("cust_probe_123".to_string()),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
         phone_country_code: Some("+1".to_string()),
+        first_name: Some("John".to_string()),
+        last_name: Some("Doe".to_string()),
+        salutation: None,
+        customer_document_details: None,
+        date_of_birth: Some(Secret::new("1990-01-01".to_string())),
     }
 }
 
@@ -76,9 +81,16 @@ where
     }
 }
 
-/// Strips parenthetical notes and type annotations from connector error strings.
+/// Strips parenthetical notes, type annotations and trailing prose from connector error strings.
 /// "foo (bar from SomeFlow)" → "foo"
 /// "field_name: SomeType"    → "field_name"
+/// "billing.email. Airwallex Skrill requires …" → "billing.email"
+///
+/// The last form comes from `combine_error_message_with_context`, which renders
+/// `IntegrationError::MissingRequiredField` as `"Missing required field: {field}. {context}"`.
+/// A field path never contains ". " (a dot inside a path is not followed by a space), so cutting
+/// at the first sentence boundary recovers the path while keeping the merchant-facing prose in
+/// the message itself.
 fn clean_error_field(field: &str) -> &str {
     field
         .split(" (")
@@ -89,6 +101,11 @@ fn clean_error_field(field: &str) -> &str {
         .next()
         .unwrap_or(field)
         .trim()
+        .split(". ")
+        .next()
+        .unwrap_or(field)
+        .trim()
+        .trim_end_matches('.')
 }
 
 /// Parses a config key into (target_path, flow).
@@ -231,7 +248,12 @@ where
     };
 
     for (field, value) in overrides {
-        set_at_path(&mut json, field, Value::String(value.clone()));
+        // TOML types map straight onto JSON, so an override keeps whatever type
+        // it was written with: `"12345"` stays a string, `46` becomes a number.
+        let Ok(value) = serde_json::to_value(value) else {
+            continue;
+        };
+        set_at_path(&mut json, field, value);
     }
 
     if let Ok(patched) = serde_json::from_value(json) {
@@ -447,6 +469,16 @@ mod tests {
         );
         assert_eq!(clean_error_field("field_name: String"), "field_name");
         assert_eq!(clean_error_field("  field_name  "), "field_name");
+        // `combine_error_message_with_context` appends ". {additional_context}" to the base
+        // message, so the extracted field carries the remediation prose. Only the path survives.
+        assert_eq!(
+            clean_error_field(
+                "billing.first_name. Airwallex Blik requires blik.shopper_name, sourced from \
+                 billing.address first_name + last_name"
+            ),
+            "billing.first_name"
+        );
+        assert_eq!(clean_error_field("billing.email."), "billing.email");
     }
 
     #[test]

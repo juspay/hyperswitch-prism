@@ -4,19 +4,29 @@
 # This stub exposes per-service client classes to static analysers
 # (Pylance, pyright, mypy) so IDEs offer completions and type checking.
 from payments.generated.sdk_config_pb2 import ConnectorConfig, RequestConfig
+from payments.generated.events_pb2 import (
+    EventServiceHandleRequest,
+    EventServiceHandleResponse,
+    EventServiceParseRequest,
+    EventServiceParseResponse,
+)
+from payments.generated.frm_pb2 import (
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+)
 from payments.generated.payment_pb2 import (
     CustomerServiceCreateRequest,
     CustomerServiceCreateResponse,
+    CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     DisputeServiceAcceptRequest,
     DisputeServiceAcceptResponse,
     DisputeServiceDefendRequest,
     DisputeServiceDefendResponse,
     DisputeServiceSubmitEvidenceRequest,
     DisputeServiceSubmitEvidenceResponse,
-    EventServiceHandleRequest,
-    EventServiceHandleResponse,
-    EventServiceParseRequest,
-    EventServiceParseResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -29,6 +39,10 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceRefreshResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -54,6 +68,16 @@ from payments.generated.payment_pb2 import (
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
+    RecurringPaymentServiceChargeRequest,
+    RecurringPaymentServiceChargeResponse,
+    RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse,
+    RefundResponse,
+    RefundServiceGetRequest,
+)
+from payments.generated.payouts_pb2 import (
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
@@ -70,20 +94,22 @@ from payments.generated.payment_pb2 import (
     PayoutServiceTransferResponse,
     PayoutServiceVoidRequest,
     PayoutServiceVoidResponse,
-    RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse,
-    RecurringPaymentServiceRevokeRequest,
-    RecurringPaymentServiceRevokeResponse,
-    RefundResponse,
-    RefundServiceGetRequest,
+)
+from payments.generated.surcharge_pb2 import (
+    SurchargeServiceCalculateRequest,
+    SurchargeServiceCalculateResponse,
 )
 
 class _ConnectorClientBase:
     def __init__(self, config: ConnectorConfig, defaults: RequestConfig | None = ..., lib_path: str | None = ...) -> None: ...
 
 class CustomerClient(_ConnectorClientBase):
-    def create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
+    def customer_create(self, request: CustomerServiceCreateRequest, options: RequestConfig | None = ...) -> CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
+        ...
+
+    def customer_get(self, request: CustomerServiceGetRequest, options: RequestConfig | None = ...) -> CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
         ...
 
 
@@ -108,6 +134,16 @@ class EventClient(_ConnectorClientBase):
 
     def parse_event(self, request: EventServiceParseRequest, options: RequestConfig | None = ...) -> EventServiceParseResponse:
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
+        ...
+
+
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    def post_risk_check(self, request: FrmServicePostRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        ...
+
+    def pre_risk_check(self, request: FrmServicePreRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
         ...
 
 
@@ -140,6 +176,14 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 
 
 class PaymentMethodClient(_ConnectorClientBase):
+    def eligibility(self, request: PaymentMethodServiceEligibilityRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceEligibilityResponse:
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        ...
+
+    def refresh(self, request: PaymentMethodServiceRefreshRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
+        ...
+
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
         ...
@@ -216,6 +260,10 @@ class PayoutClient(_ConnectorClientBase):
         """PayoutService.CreateRecipient — Create payout recipient."""
         ...
 
+    def payout_eligibility(self, request: PayoutMethodEligibilityRequest, options: RequestConfig | None = ...) -> PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
+        ...
+
     def payout_enroll_disburse_account(self, request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig | None = ...) -> PayoutServiceEnrollDisburseAccountResponse:
         """PayoutService.EnrollDisburseAccount — Enroll disburse account."""
         ...
@@ -250,4 +298,10 @@ class RecurringPaymentClient(_ConnectorClientBase):
 class RefundClient(_ConnectorClientBase):
     def refund_get(self, request: RefundServiceGetRequest, options: RequestConfig | None = ...) -> RefundResponse:
         """RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication."""
+        ...
+
+
+class SurchargeClient(_ConnectorClientBase):
+    def surcharge_calculate(self, request: SurchargeServiceCalculateRequest, options: RequestConfig | None = ...) -> SurchargeServiceCalculateResponse:
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
         ...

@@ -75,6 +75,38 @@ macro_rules! with_response_body {
     };
 }
 
+/// Serialize the connector response once, build `RouterDataV2` via `TryFrom<ResponseRouterData>`,
+/// set both event response data and `typed_connector_response`, and return `Ok(result)`.
+///
+/// Replaces the 12-line boilerplate block in every manual `handle_response_v2`.
+#[macro_export]
+macro_rules! finalize_connector_response {
+    ($event_builder:expr, $response:expr, $data:expr, $status_code:expr) => {{
+        use domain_types::connector_types::RawConnectorRequestResponse;
+        let masked = common_utils::events::MaskedSerdeValue::from_masked_optional(
+            &$response,
+            "connector_response",
+        );
+        if let Some(ref msv) = masked {
+            if let Some(evt) = $event_builder {
+                evt.response_data = Some(msv.clone());
+            }
+        }
+        let mut result = error_stack::ResultExt::change_context(
+            RouterDataV2::try_from(ResponseRouterData {
+                response: $response,
+                router_data: $data.clone(),
+                http_code: $status_code,
+            }),
+            $crate::ConnectorError::response_handling_failed($status_code),
+        )?;
+        result
+            .resource_common_data
+            .set_typed_connector_response(masked.as_ref().map(|m| m.inner().to_string()));
+        Ok(result)
+    }};
+}
+
 pub trait PaymentsAuthorizeRequestData {
     fn get_router_return_url(&self) -> Result<String, Error>;
 }
@@ -86,6 +118,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
         self.router_return_url
             .clone()
             .ok_or_else(missing_field_err("return_url"))
+    }
+}
+
+/// Exposes the requested [`PaymentMethodType`] across the different payment flow request types.
+///
+/// Flows that do not carry a payment method type (e.g. capture and void) return `None`, so
+/// connectors can uniformly read the payment method type in generic response handlers.
+pub trait GetOptionalPaymentMethodType {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType>;
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for PaymentsAuthorizeData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsSyncData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for RepeatPaymentData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsCaptureData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentVoidData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
     }
 }
 
@@ -220,6 +290,10 @@ pub(crate) fn handle_json_response_deserialization_failure(
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         }),
     }
 }
@@ -231,7 +305,8 @@ pub fn is_refund_failure(status: enums::RefundStatus) -> bool {
         }
         common_enums::RefundStatus::ManualReview
         | common_enums::RefundStatus::Pending
-        | common_enums::RefundStatus::Success => false,
+        | common_enums::RefundStatus::Success
+        | common_enums::RefundStatus::Unknown => false,
     }
 }
 
@@ -286,21 +361,21 @@ where
 
 pub trait SplitPaymentData {
     fn get_split_payment_data(&self)
-        -> Option<domain_types::connector_types::SplitPaymentsRequest>;
+        -> Option<domain_types::connector_types::SplitPaymentsDetails>;
 }
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -308,7 +383,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
 impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -316,7 +391,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
 impl SplitPaymentData for PaymentsSyncData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -324,16 +399,16 @@ impl SplitPaymentData for PaymentsSyncData {
 impl SplitPaymentData for PaymentVoidData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for SetupMandateRequestData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
@@ -579,4 +654,181 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
             .flat_map(|v| collect_values_by_removing_signature(v, signature))
             .collect(),
     }
+}
+
+pub fn build_card_holder_name(
+    explicit_name: &Option<Secret<String>>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    explicit_name.clone().or_else(|| {
+        let first = billing_first_name.map(|n| n.expose()).unwrap_or_default();
+        let last = billing_last_name.map(|n| n.expose()).unwrap_or_default();
+        let full = format!("{first} {last}").trim().to_string();
+        if full.is_empty() {
+            None
+        } else {
+            Some(Secret::new(full))
+        }
+    })
+}
+
+/// Card networks (notably Mastercard) require the cardholder name to contain only
+/// English (ASCII) characters; accented characters are transliterated to the
+/// closest ASCII equivalent.
+pub fn normalize_cardholder_name(name: Secret<String>) -> Secret<String> {
+    Secret::new(unidecode::unidecode(&name.expose()))
+}
+
+pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
+    domain_types::utils::expand_expiry_year_to_four_digits(year)
+}
+
+/// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
+pub trait CardTypeCode {
+    fn type_code(&self) -> Option<&'static str>;
+}
+
+impl CardTypeCode for domain_types::utils::CardIssuer {
+    fn type_code(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::AmericanExpress => "003",
+            Self::Master => "002",
+            Self::Maestro => "042",
+            Self::Visa => "001",
+            Self::Discover => "004",
+            Self::DinersClub => "005",
+            Self::CarteBlanche => "006",
+            Self::JCB => "007",
+            Self::CartesBancaires => "036",
+            Self::UnionPay => "062",
+        })
+    }
+}
+
+impl CardTypeCode for common_enums::CardNetwork {
+    fn type_code(&self) -> Option<&'static str> {
+        match self {
+            Self::Visa => Some("001"),
+            Self::Mastercard => Some("002"),
+            Self::AmericanExpress => Some("003"),
+            Self::Discover => Some("004"),
+            Self::DinersClub => Some("005"),
+            Self::JCB => Some("007"),
+            Self::Maestro => Some("042"),
+            Self::CartesBancaires => Some("036"),
+            Self::UnionPay => Some("062"),
+            _ => None,
+        }
+    }
+}
+
+pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<String> {
+    let s = value.peek();
+    if s.len() > max_len {
+        Secret::new(s.chars().take(max_len).collect())
+    } else {
+        Secret::new(s.clone())
+    }
+}
+
+pub fn build_error_response(
+    code: String,
+    message: String,
+    status_code: u16,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
+    ErrorResponse {
+        code,
+        message: message.clone(),
+        reason: Some(message),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
+/// Validates and normalizes a Chilean RUT (Rol Único Tributario).
+///
+/// A RUT is 7-8 body digits plus one check character (`0-9` or `K`), i.e. 8-9
+/// characters once dots and the hyphen are stripped. Returns the normalized
+/// form: separators removed and the check character upper-cased.
+///
+/// Both the shape **and** the mod-11 check digit are verified. Shape alone is
+/// not enough: a transposed digit keeps the length and the character classes
+/// intact, so it would still reach the connector and come back as an opaque
+/// validation error — which is exactly what this function exists to prevent.
+///
+/// `DocumentKind::Other` — the only spelling a RUT can arrive as, since
+/// `DocumentKind` has no `Rut` variant — skips the checksum validation that
+/// `Cpf`/`Cnpj` get, which is why it is done here.
+pub fn validate_and_normalize_chilean_rut(
+    document: &Secret<String>,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let normalized: String = document
+        .peek()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+
+    let invalid = || {
+        error_stack::report!(IntegrationError::InvalidDataFormat {
+            field_name: "payer.document",
+            context: errors::IntegrationErrorContext::default(),
+        })
+    };
+
+    if !(8..=9).contains(&normalized.len()) {
+        return Err(invalid());
+    }
+
+    let (body, check) = normalized.split_at(normalized.len() - 1);
+    if !body.chars().all(|c| c.is_ascii_digit()) {
+        return Err(invalid());
+    }
+    if !check.chars().all(|c| c.is_ascii_digit() || c == 'K') {
+        return Err(invalid());
+    }
+
+    // Mod-11 check digit. Weights cycle 2,3,4,5,6,7 from the rightmost body
+    // digit; 11 - (sum mod 11) yields 11 => '0' and 10 => 'K'.
+    let sum: u32 = body
+        .chars()
+        .rev()
+        .zip((2..=7).cycle())
+        .map(|(digit, weight)| digit.to_digit(10).unwrap_or(0) * weight)
+        .sum();
+    let expected = match 11 - (sum % 11) {
+        11 => '0',
+        10 => 'K',
+        // 1..=9 are the only remaining values, so this cannot truncate.
+        other => char::from_digit(other, 10).unwrap_or('0'),
+    };
+    if !check.starts_with(expected) {
+        return Err(invalid());
+    }
+
+    Ok(Secret::new(normalized))
+}
+
+/// Serializes a [`common_enums::Currency`] as its ISO 4217 numeric code
+/// (e.g. `"840"` for USD). Use with `#[serde(serialize_with = "...")]` on
+/// connectors whose `currency_code` field expects the numeric code rather than
+/// the default UPPERCASE alpha-3 representation.
+pub fn serialize_currency_as_iso4217_numeric<S>(
+    currency: &common_enums::Currency,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_str(currency.iso_4217())
 }

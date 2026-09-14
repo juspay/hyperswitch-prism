@@ -8,6 +8,8 @@
     "PaymentService/Refund",
     "RefundService/Get",
     "PaymentMethodService/Tokenize",
-    "PaymentService/Void"
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void",
+    "PaymentService/Authorize"
   ]
 }

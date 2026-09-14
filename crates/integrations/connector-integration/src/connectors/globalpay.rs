@@ -2,32 +2,27 @@ pub mod transformers;
 
 use std::fmt::Debug;
 
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
-    errors::CustomResult, events, ext_traits::ByteSliceExt, request::RequestContent,
-    types::StringMinorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMinorUnit,
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
-        DefendDispute, IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodToken,
-        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PostAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets, EventContext, EventType,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
+    errors::WebhookError,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -35,28 +30,29 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Mask, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
+use sha2::{Digest, Sha512};
 use transformers as globalpay;
 use transformers::{
+    GlobalpayAccessTokenErrorResponse, GlobalpayAccessTokenRequest, GlobalpayAccessTokenResponse,
     GlobalpayAuthorizeResponse, GlobalpayCaptureRequest, GlobalpayCaptureResponse,
-    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayPSyncResponse,
-    GlobalpayPaymentsRequest, GlobalpayRSyncResponse, GlobalpayRefundRequest,
-    GlobalpayRefundResponse, GlobalpayRepeatPaymentRequest, GlobalpayRepeatPaymentResponse,
-    GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse, GlobalpayVoidRequest,
-    GlobalpayVoidResponse,
+    GlobalpayClientAuthRequest, GlobalpayClientAuthResponse, GlobalpayConfirmRequest,
+    GlobalpayConfirmResponse, GlobalpayPSyncResponse, GlobalpayPaymentMethodTokenRequest,
+    GlobalpayPaymentMethodTokenResponse, GlobalpayPaymentsRequest, GlobalpayRSyncResponse,
+    GlobalpayRefundRequest, GlobalpayRefundResponse, GlobalpayRepeatPaymentRequest,
+    GlobalpayRepeatPaymentResponse, GlobalpaySetupMandateRequest, GlobalpaySetupMandateResponse,
+    GlobalpayVoidRequest, GlobalpayVoidResponse,
 };
 
 use crate::connectors::macros;
 use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
-use crate::with_response_body;
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -109,7 +105,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: GlobalpayClientAuthRequest,
             response_body: GlobalpayClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: SetupMandate,
@@ -122,24 +118,35 @@ macros::create_all_prerequisites!(
             request_body: GlobalpayRepeatPaymentRequest,
             response_body: GlobalpayRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ServerAuthenticationToken,
+            request_body: GlobalpayAccessTokenRequest,
+            response_body: GlobalpayAccessTokenResponse,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ),
+        (
+            flow: PaymentMethodToken,
+            request_body: GlobalpayPaymentMethodTokenRequest<T>,
+            response_body: GlobalpayPaymentMethodTokenResponse,
+            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: GlobalpayConfirmRequest,
+            response_body: GlobalpayConfirmResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
         amount_converter: StringMinorUnit
     ],
     member_functions: {
-        /// Build headers for payment flows with OAuth token
-        pub fn build_payment_headers<F, Req, Res>(
+        pub fn build_headers(
             &self,
-            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req
-                .resource_common_data
-                .get_access_token()
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
-                .attach_printable("Failed to get OAuth access token for GlobalPay")?;
-
-            Ok(vec![
+            access_token: &str,
+        ) -> Vec<(String, Maskable<String>)> {
+            vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
                     self.common_get_content_type().to_string().into(),
@@ -152,81 +159,29 @@ macros::create_all_prerequisites!(
                     headers::AUTHORIZATION.to_string(),
                     format!("Bearer {access_token}").into_masked(),
                 ),
-            ])
+            ]
         }
 
-
-        /// Build headers for sync flows with OAuth token (no content-type, no idempotency)
-        pub fn build_payment_sync_headers<F, Req, Res>(
+        pub fn get_headers_from_access_token(
             &self,
-            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+            access_token: Option<ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req
-                .resource_common_data
-                .get_access_token()
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
-                .attach_printable("Failed to get OAuth access token for GlobalPay")?;
-
-            Ok(vec![
-                (
-                    headers::X_GP_VERSION.to_string(),
-                    API_VERSION.to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {access_token}").into_masked(),
-                ),
-            ])
-        }
-
-        /// Build headers for refund flows with OAuth token
-        pub fn build_refund_headers<F, Req, Res>(
-            &self,
-            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req
-                .resource_common_data
-                .get_access_token()
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
-                .attach_printable("Failed to get OAuth access token for GlobalPay refund flow")?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::X_GP_VERSION.to_string(),
-                    API_VERSION.to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {access_token}").into_masked(),
-                ),
-            ])
-        }
-
-        /// Build headers for refund sync flows with OAuth token (no content-type, no idempotency)
-        pub fn build_refund_sync_headers<F, Req, Res>(
-            &self,
-            req: &RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let access_token = req
-                .resource_common_data
-                .get_access_token()
-                .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
-                .attach_printable("Failed to get OAuth access token for GlobalPay refund flow")?;
-
-            Ok(vec![
-                (
-                    headers::X_GP_VERSION.to_string(),
-                    API_VERSION.to_string().into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    format!("Bearer {access_token}").into_masked(),
-                ),
-            ])
+            let token = access_token.ok_or_else(|| IntegrationError::FailedToObtainAuthType {
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the OAuth access token is obtained via the \
+                         ServerAuthenticationToken flow before initiating this operation."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "GlobalPay requires an OAuth access token on \
+                         `resource_common_data.access_token`, but it was None."
+                            .to_string(),
+                    ),
+                },
+            })?;
+            Ok(self.build_headers(&token.access_token.expose()))
         }
 
         /// Get base URL for payment endpoints
@@ -244,21 +199,19 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.globalpay.base_url
         }
+
+        /// Get base URL for merchant authentication endpoints
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.globalpay.base_url
+        }
     }
 );
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 // Main service trait - aggregates all other traits
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Globalpay<T>
@@ -281,24 +234,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macros::macro_connector_payout_implementation!(
-    connector: Globalpay,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Globalpay<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Globalpay<T>
 {
 }
 
@@ -330,21 +267,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ServerAuthentication for Globalpay<T>
 {
 }
@@ -354,35 +276,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// ===== AUTHENTICATION FLOW TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Globalpay<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPostAuthenticateV2<T> for Globalpay<T>
-{
-}
-
-// ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Globalpay<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Globalpay<T>
 {
 }
 
@@ -390,6 +285,227 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Globalpay<T>
 {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let signature = request.headers.get("x-gp-signature").ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookSignatureNotFound).attach_printable(
+                "x-gp-signature header is missing from the GlobalPay webhook request",
+            )
+        })?;
+        Ok(signature.as_bytes().to_vec())
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let secret = std::str::from_utf8(&connector_webhook_secret.secret)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("GlobalPay webhook secret bytes are not valid UTF-8")?;
+
+        // Normalise through serde_json::Value so the key order is deterministic.
+        let body_value: serde_json::Value = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body as JSON for signature construction",
+            )?;
+
+        let mut message = serde_json::to_string(&body_value)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to re-serialize GlobalPay webhook body to JSON string")?;
+
+        // GlobalPay signature = SHA-512(serialised_json + merchant_secret)
+        message.push_str(secret);
+        Ok(message.into_bytes())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let secrets = connector_webhook_secret.ok_or_else(|| {
+            error_stack::report!(WebhookError::WebhookVerificationSecretNotFound).attach_printable(
+                "Webhook secret is required for GlobalPay signature verification; \
+                     configure it in the connector's webhook settings",
+            )
+        })?;
+
+        let received_signature =
+            self.get_webhook_source_verification_signature(&request, &secrets)?;
+        let message = self.get_webhook_source_verification_message(&request, &secrets)?;
+
+        let computed_hex = hex::encode(Sha512::digest(&message));
+
+        let received_signature_str = std::str::from_utf8(&received_signature)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("GlobalPay x-gp-signature header value is not valid UTF-8")?;
+
+        Ok(computed_hex == received_signature_str)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"TRN_probe_001","status":"CAPTURED","type":"SALE","amount":"1099"}"#
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body for event type detection")?;
+
+        let event_type = if body.transaction_type
+            == Some(globalpay::GlobalpayWebhookTransactionType::Refund)
+        {
+            match body.status {
+                globalpay::GlobalpayWebhookStatus::Captured
+                | globalpay::GlobalpayWebhookStatus::Funded => EventType::RefundSuccess,
+                globalpay::GlobalpayWebhookStatus::Declined
+                | globalpay::GlobalpayWebhookStatus::Failed
+                | globalpay::GlobalpayWebhookStatus::Rejected
+                | globalpay::GlobalpayWebhookStatus::Reversed => EventType::RefundFailure,
+                _ => EventType::RefundProcessing,
+            }
+        } else {
+            match body.status {
+                globalpay::GlobalpayWebhookStatus::Captured
+                | globalpay::GlobalpayWebhookStatus::Funded => EventType::PaymentIntentSuccess,
+                globalpay::GlobalpayWebhookStatus::Preauthorized => {
+                    EventType::PaymentIntentAuthorizationSuccess
+                }
+                globalpay::GlobalpayWebhookStatus::Declined
+                | globalpay::GlobalpayWebhookStatus::Failed
+                | globalpay::GlobalpayWebhookStatus::Rejected => EventType::PaymentIntentFailure,
+                globalpay::GlobalpayWebhookStatus::Reversed => EventType::PaymentIntentCancelled,
+                _ => EventType::PaymentIntentProcessing,
+            }
+        };
+
+        Ok(event_type)
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body for event reference extraction",
+            )?;
+
+        let reference =
+            if body.transaction_type == Some(globalpay::GlobalpayWebhookTransactionType::Refund) {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(body.id),
+                    merchant_refund_id: None,
+                    connector_transaction_id: None,
+                    merchant_transaction_id: body.reference,
+                })
+            } else {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(body.id),
+                    merchant_transaction_id: body.reference,
+                })
+            };
+
+        Ok(Some(reference))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable(
+                "Failed to parse GlobalPay webhook body in process_payment_webhook",
+            )?;
+
+        let status = AttemptStatus::from(&body.status);
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(body.id)),
+            status,
+            connector_response_reference_id: body.reference.clone(),
+            connector_request_reference_id: body.reference,
+            mandate_reference: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(raw_body),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let raw_body = String::from_utf8_lossy(&request.body).to_string();
+
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body in process_refund_webhook")?;
+
+        let refund_status = RefundStatus::from(&body.status);
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id: Some(body.id),
+            merchant_transaction_id: body.reference.clone(),
+            status: refund_status,
+            connector_response_reference_id: body.reference,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(raw_body),
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let body: globalpay::GlobalpayWebhookBody = request
+            .body
+            .parse_struct("GlobalpayWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse GlobalPay webhook body for resource object")?;
+        Ok(Box::new(body))
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Globalpay<T>
@@ -413,13 +529,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// ===== CONNECTOR CUSTOMER TRAIT IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Globalpay<T>
-{
-}
-
-// ===== MAIN CONNECTOR INTEGRATION IMPLEMENTATIONS =====
 // Authorize flow implementation using macro
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -438,7 +547,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -466,7 +575,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_sync_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -475,7 +584,21 @@ macros::macro_connector_implementation!(
             let transaction_id = req
                 .request
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_transaction_id is required to construct the \
+                             GET /transactions/{id} URL for GlobalPay PSync"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Ensure the payment was initiated and a connector_transaction_id \
+                             was captured before attempting a sync"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?;
             Ok(format!("{}/transactions/{}", self.connector_base_url_payments(req), transaction_id))
         }
     }
@@ -499,7 +622,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -510,17 +633,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-// Payment Void Post Capture
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
 
 // Payment Capture flow implementation using macro
 macros::macro_connector_implementation!(
@@ -540,7 +652,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -549,7 +661,21 @@ macros::macro_connector_implementation!(
             let transaction_id = req
                 .request
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "connector_transaction_id is required to construct the \
+                             POST /transactions/{id}/capture URL for GlobalPay Capture"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Ensure the payment was authorized and a connector_transaction_id \
+                             was captured before attempting a capture"
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?;
             Ok(format!("{}/transactions/{}/capture", self.connector_base_url_payments(req), transaction_id))
         }
     }
@@ -573,7 +699,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_refund_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -602,7 +728,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_refund_sync_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -632,7 +758,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -667,7 +793,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_payment_headers(req)
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
         fn get_url(
             &self,
@@ -678,38 +804,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Globalpay<T>
-{
-}
-
-// Order Create
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Globalpay<T>
-{
-}
-
-// Session Token
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Globalpay<T>
-{
-}
-
 // ClientAuthenticationToken flow implementation using macro
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -717,7 +811,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(GlobalpayClientAuthRequest),
     curl_response: GlobalpayClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -726,7 +820,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            _req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            _req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 (
@@ -741,7 +835,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = &req.resource_common_data.connectors.globalpay.base_url;
             Ok(format!("{base_url}/accesstoken"))
@@ -749,218 +843,158 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Dispute Accept
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Globalpay<T>
-{
-}
-
-// Dispute Defend
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Globalpay<T>
-{
-}
-
-// Submit Evidence
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Globalpay<T>
-{
-}
-
-// Payment Token (required by PaymentTokenV2 trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Globalpay<T>
-{
-}
-
-// Access Token (required by ServerAuthentication trait)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Globalpay<T>
-{
-    fn get_headers(
-        &self,
-        _req: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        Ok(vec![
-            (
-                headers::CONTENT_TYPE.to_string(),
-                self.common_get_content_type().to_string().into(),
-            ),
-            (
-                headers::X_GP_VERSION.to_string(),
-                API_VERSION.to_string().into(),
-            ),
-        ])
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayAccessTokenRequest),
+    curl_response: GlobalpayAccessTokenResponse,
+    flow_name: ServerAuthenticationToken,
+    resource_common_data: MerchantAuthenticationFlowData,
+    flow_request: ServerAuthenticationTokenRequestData,
+    flow_response: ServerAuthenticationTokenResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.common_get_content_type().to_string().into(),
+                ),
+                (
+                    headers::X_GP_VERSION.to_string(),
+                    API_VERSION.to_string().into(),
+                ),
+            ])
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/accesstoken", self.connector_base_url_merchant_auth(req)))
+        }
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: GlobalpayAccessTokenErrorResponse = res
+                .response
+                .parse_struct("GlobalpayAccessTokenErrorResponse")
+                .change_context(crate::utils::response_deserialization_fail(
+                    res.status_code,
+                    "globalpay: access token error response did not match expected format",
+                ))?;
+            with_error_response_body!(event_builder, response);
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error_code,
+                message: response.detailed_error_description,
+                reason: None,
+                attempt_status: None,
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
+            })
+        }
     }
+);
 
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayPaymentMethodTokenRequest<T>),
+    curl_response: GlobalpayPaymentMethodTokenResponse,
+    flow_name: PaymentMethodToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodTokenizationData<T>,
+    flow_response: PaymentMethodTokenResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/payment-methods", self.connector_base_url_payments(req)))
+        }
     }
+);
 
-    fn get_url(
-        &self,
-        req: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        let base_url = &req.resource_common_data.connectors.globalpay.base_url;
-        Ok(format!("{base_url}/accesstoken"))
-    }
-
-    fn get_request_body(
-        &self,
-        req: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
-        let request = globalpay::GlobalpayAccessTokenRequest::try_from(req)?;
-        Ok(Some(RequestContent::Json(Box::new(request))))
-    }
-
-    fn build_request_v2(
-        &self,
-        req: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        let request_body = self.get_request_body(req)?;
-        let mut request_builder = common_utils::request::RequestBuilder::new()
-            .method(common_utils::request::Method::Post)
-            .url(&self.get_url(req)?)
-            .attach_default_headers()
-            .headers(self.get_headers(req)?);
-
-        if let Some(body) = request_body {
-            request_builder = request_builder.set_body(body);
+// PostAuthenticate (Confirm Transaction) flow
+//
+// Triggered after the payer completes an APM redirect (e.g. PayPal). GlobalPay
+// requires an explicit POST /transactions/{id}/confirmation call to transfer funds.
+// The connector transaction ID (TRN_xxx) is sourced from
+// `resource_common_data.connector_order_id`, which the Prism router populates from
+// the `connector_order_reference_id` field of the PostAuthenticate gRPC request.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Globalpay,
+    curl_request: Json(GlobalpayConfirmRequest),
+    curl_response: GlobalpayConfirmResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.get_headers_from_access_token(req.resource_common_data.access_token.clone())
         }
 
-        Ok(Some(request_builder.build()))
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_transaction_id = req
+                .request
+                .connector_order_reference_id
+                .as_deref()
+                .ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "connector_order_reference_id",
+                    context: IntegrationErrorContext {
+                        additional_context: None,
+                        suggested_action: Some(
+                            "Populate connector_order_reference_id with the TRN_xxx returned \
+                             by the Authorize step to construct the \
+                             POST /transactions/{id}/confirmation URL."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })?;
+
+            Ok(format!(
+                "{}/transactions/{}/confirmation",
+                self.connector_base_url_payments(req),
+                connector_transaction_id
+            ))
+        }
     }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-        event_builder: Option<&mut events::Event>,
-        res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            ServerAuthenticationToken,
-            PaymentFlowData,
-            ServerAuthenticationTokenRequestData,
-            ServerAuthenticationTokenResponseData,
-        >,
-        ConnectorError,
-    > {
-        let response: globalpay::GlobalpayAccessTokenResponse = res
-            .response
-            .parse_struct("GlobalpayAccessTokenResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "globalpay: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
-
-        with_response_body!(event_builder, response);
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response_v2(
-        &self,
-        res: Response,
-        event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
-
-// ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
-// Pre Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
-
-// Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
-
-// Post Authentication
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Globalpay<T>
-{
-}
-
-// ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
-// Create Connector Customer
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Globalpay<T>
-{
-}
-
-// ===== SOURCE VERIFICATION IMPLEMENTATIONS =====
-
-// ===== AUTHENTICATION FLOW SOURCE VERIFICATION =====
-
-// ===== CONNECTOR CUSTOMER SOURCE VERIFICATION =====
+);
 
 // ===== CONNECTOR COMMON IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -982,22 +1016,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         connectors.globalpay.base_url.as_ref()
     }
 
-    fn get_auth_header(
-        &self,
-        _auth_type: &ConnectorSpecificConfig,
-    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        // Note: This method should not be used for OAuth-based connectors
-        // Use build_payment_headers or build_refund_headers instead
-        Err(IntegrationError::FailedToObtainAuthType {
-            context: Default::default(),
-        }
-        .into())
-    }
-
     fn build_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: globalpay::GlobalpayErrorResponse = res
             .response
@@ -1010,6 +1033,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_code,
@@ -1020,6 +1045,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Globalpay,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        IncrementalAuthorization,
+        VoidPC,
+        MandateRevoke,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        Accept,
+        DefendDispute,
+        SubmitEvidence,
+        PreAuthenticate,
+        Authenticate,
+        CreateConnectorCustomer,
+        GetConnectorCustomer,
+    ],
+    not_supported: [
+        VoidPostRefund,
+    ],
+);

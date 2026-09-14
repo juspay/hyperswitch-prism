@@ -13,7 +13,14 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { bamboraapac: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        bamboraapac: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            accountNumber: { value: 'YOUR_ACCOUNT_NUMBER' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

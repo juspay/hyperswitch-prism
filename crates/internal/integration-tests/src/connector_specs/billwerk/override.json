@@ -1,1 +1,87 @@
-{}
+{
+  "PaymentMethodService/Tokenize": {
+    "tokenize_credit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "3530111333300000"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_debit_card": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "3530111333300000"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        }
+      }
+    },
+    "tokenize_with_metadata": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "3530111333300000"
+            },
+            "card_exp_month": {
+              "value": "03"
+            },
+            "card_exp_year": {
+              "value": "2030"
+            },
+            "card_cvc": {
+              "value": "737"
+            }
+          }
+        }
+      }
+    }
+  },
+  "MerchantAuthenticationService/CreateClientAuthenticationToken": {
+    "create_sdk_session_apple_pay": {
+      "grpc_req": {
+        "customer": {
+          "id": "billwerk_test_customer_01"
+        }
+      }
+    },
+    "create_sdk_session_google_pay": {
+      "grpc_req": {
+        "customer": {
+          "id": "billwerk_test_customer_01"
+        }
+      }
+    },
+    "create_sdk_session_with_taxes": {
+      "grpc_req": {
+        "customer": {
+          "id": "billwerk_test_customer_01"
+        }
+      }
+    }
+  }
+}

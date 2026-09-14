@@ -12,11 +12,11 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -77,7 +77,7 @@ pub struct CalidaWebhookResponse {
     pub payment_method_type: Option<String>,
     pub shop_name: Option<String>,
     pub sender_name: Option<String>,
-    pub sender_email: Option<String>,
+    pub sender_email: Option<Secret<String, pii::EmailStrategy>>,
     pub description: Option<String>,
     pub amount: FloatMajorUnit,
     pub currency: enums::Currency,
@@ -119,27 +119,6 @@ pub struct CalidaVoidRequest;
 #[derive(Debug, Serialize)]
 pub struct CalidaRefundRequest {
     pub amount: FloatMajorUnit,
-}
-
-impl TryFrom<&pii::SecretSerdeValue> for CalidaMetadataObject {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(secret_value: &pii::SecretSerdeValue) -> Result<Self, Self::Error> {
-        match secret_value.peek() {
-            Value::String(s) => {
-                serde_json::from_str(s).change_context(IntegrationError::InvalidConnectorConfig {
-                    config: "Deserializing CalidaMetadataObject from connector_meta_data string",
-                    context: Default::default(),
-                })
-            }
-            value => serde_json::from_value(value.clone()).change_context(
-                IntegrationError::InvalidConnectorConfig {
-                    config: "Deserializing CalidaMetadataObject from connector_meta_data value",
-                    context: Default::default(),
-                },
-            ),
-        }
-    }
 }
 
 // Request TryFrom implementations
@@ -186,15 +165,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .change_context(IntegrationError::RequestEncodingFailed {
                         context: Default::default(),
                     })?;
-                let calida_mca_metadata = CalidaMetadataObject::try_from(
-                    &item.router_data.resource_common_data.get_connector_meta()?,
-                )?;
+                let ConnectorSpecificConfig::Calida {
+                    shop_name: Some(shop_name),
+                    ..
+                } = &item.router_data.connector_config
+                else {
+                    return Err(IntegrationError::MissingRequiredField {
+                        field_name: "shop_name",
+                        context: Default::default(),
+                    }
+                    .into());
+                };
+                let shop_name = shop_name.clone().expose().to_owned();
 
                 Ok(Self {
                     amount,
                     currency: item.router_data.request.currency,
                     payment_provider: "bluecode_payment".to_string(),
-                    shop_name: calida_mca_metadata.shop_name.clone(),
+                    shop_name,
                     reference: item
                         .router_data
                         .resource_common_data
@@ -320,9 +308,12 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.payment_request_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
         });
 
         Ok(Self {
@@ -352,12 +343,16 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 code: NO_ERROR_CODE.to_string(),
                 message: NO_ERROR_MESSAGE.to_string(),
                 reason: Some(NO_ERROR_MESSAGE.to_string()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.order_id.clone()),
                 status_code: http_code,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             Ok(PaymentsResponseData::TransactionResponse {
@@ -366,9 +361,12 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         };
         Ok(Self {
@@ -390,11 +388,6 @@ pub struct CalidaErrorResponse {
 }
 
 // Webhooks, metadata etc.
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct CalidaMetadataObject {
-    pub shop_name: String,
-}
-
 pub fn sort_and_minify_json(value: &Value) -> Result<String, IntegrationError> {
     fn sort_value(val: &Value) -> Value {
         match val {

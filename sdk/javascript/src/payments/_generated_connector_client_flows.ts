@@ -7,11 +7,19 @@ import { types } from "./generated/proto";
 
 export class CustomerClient extends _ConnectorClientBase {
   /** CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information. */
-  async create(
+  async customerCreate(
     requestMsg: types.ICustomerServiceCreateRequest,
     options?: types.IRequestConfig | null
   ): Promise<types.CustomerServiceCreateResponse> {
-    return this._executeFlow('create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
+    return this._executeFlow('customer_create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
+  }
+
+  /** CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay). */
+  async customerGet(
+    requestMsg: types.ICustomerServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.CustomerServiceGetResponse> {
+    return this._executeFlow('customer_get', requestMsg, options, 'CustomerServiceGetRequest', 'CustomerServiceGetResponse') as Promise<types.CustomerServiceGetResponse>;
   }
 
 }
@@ -58,6 +66,25 @@ export class EventClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.EventServiceParseResponse> {
     return this._executeDirect('parse_event', requestMsg, options, 'EventServiceParseRequest', 'EventServiceParseResponse') as Promise<types.EventServiceParseResponse>;
+  }
+
+}
+
+export class FraudAndRiskManagementClient extends _ConnectorClientBase {
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(
+    requestMsg: types.IFrmServicePostRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePostRiskCheckResponse> {
+    return this._executeFlow('post_risk_check', requestMsg, options, 'FrmServicePostRiskCheckRequest', 'FrmServicePostRiskCheckResponse') as Promise<types.FrmServicePostRiskCheckResponse>;
+  }
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(
+    requestMsg: types.IFrmServicePreRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePreRiskCheckResponse> {
+    return this._executeFlow('pre_risk_check', requestMsg, options, 'FrmServicePreRiskCheckRequest', 'FrmServicePreRiskCheckResponse') as Promise<types.FrmServicePreRiskCheckResponse>;
   }
 
 }
@@ -117,6 +144,22 @@ export class PaymentMethodAuthenticationClient extends _ConnectorClientBase {
 }
 
 export class PaymentMethodClient extends _ConnectorClientBase {
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async eligibility(
+    requestMsg: types.IPaymentMethodServiceEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceEligibilityResponse> {
+    return this._executeFlow('eligibility', requestMsg, options, 'PaymentMethodServiceEligibilityRequest', 'PaymentMethodServiceEligibilityResponse') as Promise<types.PaymentMethodServiceEligibilityResponse>;
+  }
+
+  /** PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them. */
+  async refresh(
+    requestMsg: types.IPaymentMethodServiceRefreshRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceRefreshResponse> {
+    return this._executeFlow('refresh', requestMsg, options, 'PaymentMethodServiceRefreshRequest', 'PaymentMethodServiceRefreshResponse') as Promise<types.PaymentMethodServiceRefreshResponse>;
+  }
+
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */
   async tokenize(
     requestMsg: types.IPaymentMethodServiceTokenizeRequest,
@@ -267,6 +310,14 @@ export class PayoutClient extends _ConnectorClientBase {
     return this._executeFlow('payout_create_recipient', requestMsg, options, 'PayoutServiceCreateRecipientRequest', 'PayoutServiceCreateRecipientResponse') as Promise<types.PayoutServiceCreateRecipientResponse>;
   }
 
+  /** PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification). */
+  async payoutEligibility(
+    requestMsg: types.IPayoutMethodEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PayoutMethodEligibilityResponse> {
+    return this._executeFlow('payout_eligibility', requestMsg, options, 'PayoutMethodEligibilityRequest', 'PayoutMethodEligibilityResponse') as Promise<types.PayoutMethodEligibilityResponse>;
+  }
+
   /** PayoutService.EnrollDisburseAccount — Enroll disburse account. */
   async payoutEnrollDisburseAccount(
     requestMsg: types.IPayoutServiceEnrollDisburseAccountRequest,
@@ -335,6 +386,17 @@ export class RefundClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.RefundResponse> {
     return this._executeFlow('refund_get', requestMsg, options, 'RefundServiceGetRequest', 'RefundResponse') as Promise<types.RefundResponse>;
+  }
+
+}
+
+export class SurchargeClient extends _ConnectorClientBase {
+  /** SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing. */
+  async surchargeCalculate(
+    requestMsg: types.ISurchargeServiceCalculateRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.SurchargeServiceCalculateResponse> {
+    return this._executeFlow('surcharge_calculate', requestMsg, options, 'SurchargeServiceCalculateRequest', 'SurchargeServiceCalculateResponse') as Promise<types.SurchargeServiceCalculateResponse>;
   }
 
 }

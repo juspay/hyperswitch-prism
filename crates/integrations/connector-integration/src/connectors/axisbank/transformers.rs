@@ -94,7 +94,7 @@ impl From<AxisbankAuthConfig> for SharedAuthConfig {
 }
 
 /// Error response structure from Axis Bank API.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AxisbankErrorResponse {
     pub status: String,
     #[serde(rename = "responseCode")]

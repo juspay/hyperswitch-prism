@@ -1,0 +1,122 @@
+# grace-workspace · compose stack
+#
+# Two services, one image:
+#   - grace:          supervisor + dashboard (the thing users open)
+#   - opencode-serve: sidecar that grace's opencode-runner attaches to
+#                     when config.yml's runner is "opencode"
+#
+# Path-mirror strategy: host directories are bind-mounted at the SAME absolute
+# path inside the container. Required because grace stores absolute worktree
+# paths in SQLite — host and container must see identical paths or sessions
+# silently break (paths from one side don't resolve on the other).
+#
+# Run from grace/grace-workspace/:
+#     export TENXGRACE_PROJECT_ROOT=/abs/path/to/target/repo
+#     docker compose up --build
+#
+# Or from the repo root:  make grace-workspace-docker
+
+services:
+  grace:
+    build:
+      context: .
+      # Inject the parent repo as an additional named context so the Dockerfile
+      # can COPY docs-generated/all_connector.md (required by the dashboard
+      # prebuild step) without expanding the main build context to the whole
+      # repo. Requires Docker Compose v2.
+      additional_contexts:
+        repo-root: ../..
+    image: grace-workspace:latest
+    depends_on:
+      - opencode-serve
+    environment:
+      # Path-mirror: HOME inside container matches host HOME, so absolute paths
+      # stored in ~/.tenxgrace/pipeline.sqlite resolve identically on both sides.
+      HOME: ${HOME}
+      # Picked up by packages/dashboard/vite.config.ts to bind 0.0.0.0 so the
+      # dashboard is reachable from outside the container. Without this, Vite
+      # defaults to 127.0.0.1 and you can't reach it via port-forwarding.
+      HOST: 0.0.0.0
+      # claude auth — pass through all three modes, empty default lets compose
+      # boot when user is on Scenario A (no env vars, just OAuth state).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+      ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+      CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS: ${CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS:-}
+      # Skip user-level ~/.claude/settings.json inside the container. The host
+      # settings file is bind-mounted read-only at line ~69 below and often
+      # contains SessionStart/SessionEnd/PreToolUse hooks whose command paths
+      # (e.g. /Users/<user>/ai-watchman/hooks/scripts/hook.sh) are host-only —
+      # claude's exit-time hook invocation fails with "No such file or
+      # directory" and exits non-zero, which the grace engine interprets as a
+      # genuine claude failure. Loading only project+local layers sidesteps
+      # this entirely. (BUG#10 fix.)
+      TENXGRACE_CLAUDE_SETTING_SOURCES: project,local
+      # grace's own env. PROJECT_ROOT is REQUIRED — compose will fail if unset
+      # (no :- default). Everything else is optional.
+      TENXGRACE_PROJECT_ROOT: ${TENXGRACE_PROJECT_ROOT}
+      TENXGRACE_CREDS_PATH: ${TENXGRACE_CREDS_PATH:-}
+      # Parity Autopilot paths — default the prism path to TENXGRACE_PROJECT_ROOT
+      # so the parity refresh loop doesn't spam warnings every 5 minutes. The
+      # config.yml comment explicitly notes this fallback ("set
+      # PARITY_PRISM_PATH (or rely on TENXGRACE_PROJECT_ROOT)") but the runtime
+      # check doesn't apply it — set it here to be safe.
+      PARITY_PRISM_PATH: ${PARITY_PRISM_PATH:-${TENXGRACE_PROJECT_ROOT}}
+      # Opencode sidecar reachability — overrides config.yml's
+      # opencode.attachUrl. Env name matches packages/core/src/tools/
+      # opencode-runner.ts:73's `process.env.TENXGRACE_OPENCODE_ATTACH` lookup.
+      TENXGRACE_OPENCODE_ATTACH: http://opencode-serve:4096
+      # gh auth for parity / PR resolver flows. Optional.
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    volumes:
+      # State persistence. Path-mirrored so host-side `sqlite3 ~/.tenxgrace/
+      # pipeline.sqlite` Just Works.
+      - ${HOME}/.tenxgrace:${HOME}/.tenxgrace
+      # claude OAuth credentials. Read-WRITE because claude rotates the OAuth
+      # access token on its own schedule and writes the new one back into
+      # .credentials.json (and updates .claude.json's oauthAccount cache).
+      # A :ro mount made these writes fail silently — the next call would hit
+      # the API with a stale access token and 401. Letting claude mutate its
+      # own auth state inside the container also mutates the host's copy
+      # (same inode), which is the correct behavior anyway: refreshing host-
+      # side keeps subsequent host claude calls working too. (BUG#15 fix.)
+      - ${HOME}/.claude:${HOME}/.claude
+      # claude CLI's TOP-LEVEL config file (separate from the .claude/ directory).
+      # claude 2.1.x looks for this file at ${HOME}/.claude.json — without the
+      # mount it prints "Claude configuration file not found at: ...". Mounted
+      # read-WRITE alongside .claude/ for the same OAuth-refresh reason as
+      # above (the file stores oauthAccount + claudeCodeFirstTokenDate, both
+      # of which the CLI rewrites after a token refresh). (BUG#6 + BUG#15.)
+      - ${HOME}/.claude.json:${HOME}/.claude.json
+      # Target repo. Path-mirrored so worktree absolute paths match. The
+      # supervisor will create session worktrees under this directory.
+      - ${TENXGRACE_PROJECT_ROOT}:${TENXGRACE_PROJECT_ROOT}
+      # Host-cached linux builds of claude + opencode. Populated lazily by
+      # scripts/grace-docker-entrypoint.sh on first container start, then
+      # short-circuits on subsequent ups. Path-mirrored so PATH entries
+      # resolve identically on host and container (consistent with the rest
+      # of the grace layout) and the cache survives `docker compose down`.
+      - ${HOME}/.grace-docker-cli:${HOME}/.grace-docker-cli
+    ports:
+      - "3141:3141"    # dashboard (Vite)
+      - "3142:3142"    # supervisor control WebSocket
+
+  opencode-serve:
+    image: grace-workspace:latest
+    # Reuse the grace image (opencode CLI was installed in the Dockerfile).
+    # Only spawn when the user is on the opencode runner — otherwise this
+    # service is a no-op that idles on port 4096 inside the compose network.
+    command: ["opencode", "serve", "--hostname", "0.0.0.0", "--port", "4096"]
+    environment:
+      HOME: ${HOME}
+    volumes:
+      # opencode auth (from `opencode providers login` on the host).
+      - ${HOME}/.local/share/opencode:${HOME}/.local/share/opencode:ro
+      # Shared host CLI cache — sidecar uses the same opencode binary the
+      # `grace` service bootstraps (same image, same entrypoint). Without
+      # this mount the sidecar would re-fetch opencode into its own (lost)
+      # container filesystem on every start.
+      - ${HOME}/.grace-docker-cli:${HOME}/.grace-docker-cli
+    # No host port mapping — grace reaches this via compose's default service
+    # network at http://opencode-serve:4096.

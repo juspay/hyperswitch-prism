@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from payments.generated import payment_pb2
+from payments.generated import events_pb2, frm_pb2, payment_pb2, payouts_pb2, surcharge_pb2
 
 
 @dataclass
@@ -108,12 +108,19 @@ class GrpcCustomerClient:
         self._ffi    = ffi
         self._config = config
 
-    def create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
+    def customer_create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return _call_grpc(
             self._ffi, self._config,
-            "customer/create",
+            "customer/customer_create",
             req, payment_pb2.CustomerServiceCreateResponse,
+        )
+    def customer_get(self, req: payment_pb2.CustomerServiceGetRequest) -> payment_pb2.CustomerServiceGetResponse:
+        """CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay)."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "customer/customer_get",
+            req, payment_pb2.CustomerServiceGetResponse,
         )
 
 class GrpcDisputeClient:
@@ -159,19 +166,48 @@ class GrpcEventClient:
         self._ffi    = ffi
         self._config = config
 
-    def parse_event(self, req: payment_pb2.EventServiceParseRequest) -> payment_pb2.EventServiceParseResponse:
+    def parse_event(self, req: events_pb2.EventServiceParseRequest) -> events_pb2.EventServiceParseResponse:
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
         return _call_grpc(
             self._ffi, self._config,
             "event/parse_event",
-            req, payment_pb2.EventServiceParseResponse,
+            req, events_pb2.EventServiceParseResponse,
         )
-    def handle_event(self, req: payment_pb2.EventServiceHandleRequest) -> payment_pb2.EventServiceHandleResponse:
+    def handle_event(self, req: events_pb2.EventServiceHandleRequest) -> events_pb2.EventServiceHandleResponse:
         """EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get."""
         return _call_grpc(
             self._ffi, self._config,
             "event/handle_event",
-            req, payment_pb2.EventServiceHandleResponse,
+            req, events_pb2.EventServiceHandleResponse,
+        )
+    def notify_connector(self, req: payment_pb2.NotifyConnectorRequest) -> payment_pb2.NotifyConnectorResponse:
+        """EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed)."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "event/notify_connector",
+            req, payment_pb2.NotifyConnectorResponse,
+        )
+
+class GrpcFraudAndRiskManagementClient:
+    """FraudAndRiskManagementService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def pre_risk_check(self, req: frm_pb2.FrmServicePreRiskCheckRequest) -> frm_pb2.FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/pre_risk_check",
+            req, frm_pb2.FrmServicePreRiskCheckResponse,
+        )
+    def post_risk_check(self, req: frm_pb2.FrmServicePostRiskCheckRequest) -> frm_pb2.FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/post_risk_check",
+            req, frm_pb2.FrmServicePostRiskCheckResponse,
         )
 
 class GrpcMerchantAuthenticationClient:
@@ -246,12 +282,40 @@ class GrpcPaymentMethodClient:
             "payment_method/tokenize",
             req, payment_pb2.PaymentMethodServiceTokenizeResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
-        """PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction"""
+    def create(self, req: payment_pb2.PaymentMethodServiceCreateRequest) -> payment_pb2.PaymentMethodServiceCreateResponse:
+        """PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/create",
+            req, payment_pb2.PaymentMethodServiceCreateResponse,
+        )
+    def payment_method_get(self, req: payment_pb2.PaymentMethodServiceGetRequest) -> payment_pb2.PaymentMethodServiceGetResponse:
+        """PaymentMethodService.Get — Retrieve payment method details from the payment processor."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/payment_method_get",
+            req, payment_pb2.PaymentMethodServiceGetResponse,
+        )
+    def refresh(self, req: payment_pb2.PaymentMethodServiceRefreshRequest) -> payment_pb2.PaymentMethodServiceRefreshResponse:
+        """PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/refresh",
+            req, payment_pb2.PaymentMethodServiceRefreshResponse,
+        )
+    def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
+        """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/recharge",
+            req, payment_pb2.PaymentMethodServiceRechargeResponse,
+        )
+    def eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
         return _call_grpc(
             self._ffi, self._config,
             "payment_method/eligibility",
-            req, payment_pb2.PayoutMethodEligibilityResponse,
+            req, payment_pb2.PaymentMethodServiceEligibilityResponse,
         )
 
 class GrpcPaymentClient:
@@ -367,61 +431,68 @@ class GrpcPayoutClient:
         self._ffi    = ffi
         self._config = config
 
-    def payout_create(self, req: payment_pb2.PayoutServiceCreateRequest) -> payment_pb2.PayoutServiceCreateResponse:
+    def payout_create(self, req: payouts_pb2.PayoutServiceCreateRequest) -> payouts_pb2.PayoutServiceCreateResponse:
         """PayoutService.Create — Creates a payout."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/payout_create",
-            req, payment_pb2.PayoutServiceCreateResponse,
+            req, payouts_pb2.PayoutServiceCreateResponse,
         )
-    def transfer(self, req: payment_pb2.PayoutServiceTransferRequest) -> payment_pb2.PayoutServiceTransferResponse:
+    def transfer(self, req: payouts_pb2.PayoutServiceTransferRequest) -> payouts_pb2.PayoutServiceTransferResponse:
         """PayoutService.Transfer — Creates a payout fund transfer."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/transfer",
-            req, payment_pb2.PayoutServiceTransferResponse,
+            req, payouts_pb2.PayoutServiceTransferResponse,
         )
-    def payout_get(self, req: payment_pb2.PayoutServiceGetRequest) -> payment_pb2.PayoutServiceGetResponse:
+    def payout_get(self, req: payouts_pb2.PayoutServiceGetRequest) -> payouts_pb2.PayoutServiceGetResponse:
         """PayoutService.Get — Retrieve payout details."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/payout_get",
-            req, payment_pb2.PayoutServiceGetResponse,
+            req, payouts_pb2.PayoutServiceGetResponse,
         )
-    def payout_void(self, req: payment_pb2.PayoutServiceVoidRequest) -> payment_pb2.PayoutServiceVoidResponse:
+    def payout_void(self, req: payouts_pb2.PayoutServiceVoidRequest) -> payouts_pb2.PayoutServiceVoidResponse:
         """PayoutService.Void — Void a payout."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/payout_void",
-            req, payment_pb2.PayoutServiceVoidResponse,
+            req, payouts_pb2.PayoutServiceVoidResponse,
         )
-    def stage(self, req: payment_pb2.PayoutServiceStageRequest) -> payment_pb2.PayoutServiceStageResponse:
+    def stage(self, req: payouts_pb2.PayoutServiceStageRequest) -> payouts_pb2.PayoutServiceStageResponse:
         """PayoutService.Stage — Stage the payout."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/stage",
-            req, payment_pb2.PayoutServiceStageResponse,
+            req, payouts_pb2.PayoutServiceStageResponse,
         )
-    def create_link(self, req: payment_pb2.PayoutServiceCreateLinkRequest) -> payment_pb2.PayoutServiceCreateLinkResponse:
+    def create_link(self, req: payouts_pb2.PayoutServiceCreateLinkRequest) -> payouts_pb2.PayoutServiceCreateLinkResponse:
         """PayoutService.CreateLink — Creates a link between the recipient and the payout."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/create_link",
-            req, payment_pb2.PayoutServiceCreateLinkResponse,
+            req, payouts_pb2.PayoutServiceCreateLinkResponse,
         )
-    def create_recipient(self, req: payment_pb2.PayoutServiceCreateRecipientRequest) -> payment_pb2.PayoutServiceCreateRecipientResponse:
+    def create_recipient(self, req: payouts_pb2.PayoutServiceCreateRecipientRequest) -> payouts_pb2.PayoutServiceCreateRecipientResponse:
         """PayoutService.CreateRecipient — Create payout recipient."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/create_recipient",
-            req, payment_pb2.PayoutServiceCreateRecipientResponse,
+            req, payouts_pb2.PayoutServiceCreateRecipientResponse,
         )
-    def enroll_disburse_account(self, req: payment_pb2.PayoutServiceEnrollDisburseAccountRequest) -> payment_pb2.PayoutServiceEnrollDisburseAccountResponse:
+    def enroll_disburse_account(self, req: payouts_pb2.PayoutServiceEnrollDisburseAccountRequest) -> payouts_pb2.PayoutServiceEnrollDisburseAccountResponse:
         """PayoutService.EnrollDisburseAccount — Enroll disburse account."""
         return _call_grpc(
             self._ffi, self._config,
             "payout/enroll_disburse_account",
-            req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
+            req, payouts_pb2.PayoutServiceEnrollDisburseAccountResponse,
+        )
+    def payout_eligibility(self, req: payouts_pb2.PayoutMethodEligibilityRequest) -> payouts_pb2.PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payout/payout_eligibility",
+            req, payouts_pb2.PayoutMethodEligibilityResponse,
         )
 
 class GrpcRecurringPaymentClient:
@@ -460,6 +531,28 @@ class GrpcRefundClient:
             "refund/refund_get",
             req, payment_pb2.RefundResponse,
         )
+    def void_post_refund(self, req: payment_pb2.RefundServiceVoidPostRefundRequest) -> payment_pb2.RefundResponse:
+        """RefundService.VoidPostRefund — Void/reverse a refund before processor settlement."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "refund/void_post_refund",
+            req, payment_pb2.RefundResponse,
+        )
+
+class GrpcSurchargeClient:
+    """SurchargeService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def calculate(self, req: surcharge_pb2.SurchargeServiceCalculateRequest) -> surcharge_pb2.SurchargeServiceCalculateResponse:
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "surcharge/calculate",
+            req, surcharge_pb2.SurchargeServiceCalculateResponse,
+        )
 
 # ── Top-level GrpcClient ──────────────────────────────────────────────────────
 
@@ -477,15 +570,16 @@ class GrpcClient:
             connector = "stripe",
             connector_config = {"config": {"Stripe": {"api_key": "sk_test_..."}}},
         ))
-        res = client.customer.create(...)
+        res = client.customer.customer_create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.parse_event(...)
-        res = client.merchant_authentication.create_server_authentication_token(...)
+        res = client.fraud_and_risk_management.pre_risk_check(...)
     """
 
     customer: GrpcCustomerClient
     dispute: GrpcDisputeClient
     event: GrpcEventClient
+    fraud_and_risk_management: GrpcFraudAndRiskManagementClient
     merchant_authentication: GrpcMerchantAuthenticationClient
     payment_method_authentication: GrpcPaymentMethodAuthenticationClient
     payment_method: GrpcPaymentMethodClient
@@ -493,12 +587,14 @@ class GrpcClient:
     payout: GrpcPayoutClient
     recurring_payment: GrpcRecurringPaymentClient
     refund: GrpcRefundClient
+    surcharge: GrpcSurchargeClient
 
     def __init__(self, config: GrpcConfig, lib_path: Optional[str] = None) -> None:
         ffi = _GrpcFfi(lib_path)
         self.customer = GrpcCustomerClient(ffi, config)
         self.dispute = GrpcDisputeClient(ffi, config)
         self.event = GrpcEventClient(ffi, config)
+        self.fraud_and_risk_management = GrpcFraudAndRiskManagementClient(ffi, config)
         self.merchant_authentication = GrpcMerchantAuthenticationClient(ffi, config)
         self.payment_method_authentication = GrpcPaymentMethodAuthenticationClient(ffi, config)
         self.payment_method = GrpcPaymentMethodClient(ffi, config)
@@ -506,3 +602,4 @@ class GrpcClient:
         self.payout = GrpcPayoutClient(ffi, config)
         self.recurring_payment = GrpcRecurringPaymentClient(ffi, config)
         self.refund = GrpcRefundClient(ffi, config)
+        self.surcharge = GrpcSurchargeClient(ffi, config)

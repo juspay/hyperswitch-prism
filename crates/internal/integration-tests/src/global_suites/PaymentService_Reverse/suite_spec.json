@@ -6,5 +6,6 @@
     "PaymentService/Authorize",
     "PaymentService/Capture"
   ],
-  "strict_dependencies": true
+  "strict_dependencies": true,
+  "dependency_scope": "scenario"
 }

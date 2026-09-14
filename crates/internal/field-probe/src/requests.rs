@@ -31,19 +31,22 @@ use grpc_api_types::payments::{
     merchant_authentication_service_create_client_authentication_token_request::DomainContext,
     payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
     CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
-    DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
-    EventServiceHandleRequest, EvidenceDocument, EvidenceType, HttpMethod, MandateReference,
+    CustomerServiceGetRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
+    DisputeServiceSubmitEvidenceRequest, EventServiceHandleRequest, EvidenceDocument, EvidenceType,
+    HttpMethod, MandateReference,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
     PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
-    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceRefreshRequest,
+    PaymentMethodServiceTokenizeRequest, PaymentServiceAuthorizeRequest,
+    PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest, PaymentServiceGetRequest,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceProxyAuthorizeRequest,
+    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
+    PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest, ProxyCardDetails,
     RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
@@ -51,7 +54,7 @@ use grpc_api_types::payments::{
 };
 use hyperswitch_masking::Secret;
 
-use crate::sample_data::{card_payment_method, usd_money};
+use crate::sample_data::{card_payment_method, card_with_no_cvc_payment_method, usd_money};
 
 pub(crate) fn base_authorize_request_with_meta(
     pm: PaymentMethod,
@@ -181,6 +184,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
         amount: Some(usd_money(1000)),
         payment_method: Some(PaymentMethod {
             payment_method: Some(PmVariant::Token(proto::TokenPaymentMethodType {
+                token_payment_method_type: None,
                 token: Some(Secret::new("probe_pm_token".to_string())),
             })),
         }),
@@ -197,6 +201,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -204,27 +209,56 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
     }
 }
 
-pub(crate) fn base_create_customer_request() -> CustomerServiceCreateRequest {
-    // create_customer is explicitly about registering a customer — pre-populate
+pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
+    // customer_create is explicitly about registering a customer — pre-populate
     // all standard customer fields so connectors get a complete customer record.
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
         ..Default::default()
     }
 }
 
-pub(crate) fn base_tokenize_request() -> PaymentMethodServiceTokenizeRequest {
-    PaymentMethodServiceTokenizeRequest {
+pub(crate) fn base_customer_get_request() -> CustomerServiceGetRequest {
+    // customer_get is a lookup — supply the same identifying fields as create so
+    // connectors that key off merchant_customer_id or email can locate a record.
+    CustomerServiceGetRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()),
+        email: Some(Secret::new("test@example.com".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
+    PaymentMethodServiceEligibilityRequest {
         amount: Some(usd_money(1000)),
-        payment_method: Some(card_payment_method()),
         address: Some(PaymentAddress {
             billing_address: Some(Address::default()),
             shipping_address: None,
         }),
         ..Default::default()
+    }
+}
+
+pub(crate) fn base_tokenize_request_with_pm(
+    payment_method: PaymentMethod,
+) -> PaymentMethodServiceTokenizeRequest {
+    PaymentMethodServiceTokenizeRequest {
+        amount: Some(usd_money(1000)),
+        payment_method: Some(payment_method),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            shipping_address: None,
+        }),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_refresh_request() -> PaymentMethodServiceRefreshRequest {
+    PaymentMethodServiceRefreshRequest {
+        payment_method: Some(card_with_no_cvc_payment_method()),
     }
 }
 
@@ -390,9 +424,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),

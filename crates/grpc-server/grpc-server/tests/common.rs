@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use grpc_api_types::{
+    frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
     health_check::health_client::HealthClient,
     payments::{
         customer_service_client::CustomerServiceClient,
@@ -15,6 +16,7 @@ use grpc_api_types::{
     payouts::{
         payout_service_client::PayoutServiceClient, payout_service_server::PayoutServiceServer,
     },
+    surcharge::surcharge_service_client::SurchargeServiceClient,
 };
 use http::Uri;
 use hyper_util::rt::TokioIo; // Add this import
@@ -106,6 +108,18 @@ impl AutoClient for PayoutServiceClient<Channel> {
     }
 }
 
+impl AutoClient for SurchargeServiceClient<Channel> {
+    fn new(channel: Channel) -> Self {
+        Self::new(channel)
+    }
+}
+
+impl AutoClient for FraudAndRiskManagementServiceClient<Channel> {
+    fn new(channel: Channel) -> Self {
+        Self::new(channel)
+    }
+}
+
 /// Builds a gRPC server with all services registered.
 fn build_server(
     service: grpc_server::app::Service,
@@ -166,6 +180,18 @@ fn build_server(
         .add_service(
             PayoutServiceServer::with_interceptor(
                 service.payouts_service,
+                interceptor.clone(),
+            ),
+        )
+        .add_service(
+            grpc_api_types::surcharge::surcharge_service_server::SurchargeServiceServer::with_interceptor(
+                service.surcharges_service,
+                interceptor.clone(),
+            ),
+        )
+        .add_service(
+            grpc_api_types::frm::fraud_and_risk_management_service_server::FraudAndRiskManagementServiceServer::with_interceptor(
+                service.frm_service,
                 interceptor,
             ),
         )
@@ -270,7 +296,8 @@ macro_rules! grpc_test {
             common::server_and_client_stub::<$c_type>(server, base_config)
                 .await
                 .expect("Failed to create the server client pair");
-        let response = async { $body };
+        let server_fut = Box::pin(server_fut);
+        let response = Box::pin(async { $body });
 
         tokio::select! {
             _ = server_fut => panic!("Server failed"),
@@ -286,7 +313,8 @@ macro_rules! grpc_test {
                 .await
                 .expect("Failed to create the server channel");
         $(let mut $client = <$c_type as common::AutoClient>::new(channel.clone());)+
-        let response = async { $body };
+        let server_fut = Box::pin(server_fut);
+        let response = Box::pin(async { $body });
 
         tokio::select! {
             _ = server_fut => panic!("Server failed"),

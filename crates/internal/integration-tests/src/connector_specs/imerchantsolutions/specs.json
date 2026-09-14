@@ -6,6 +6,7 @@
     "PaymentService/Void",
     "PaymentService/Get",
     "PaymentService/Refund",
-    "RefundService/Get"
+    "RefundService/Get",
+    "RecurringPaymentService/Charge"
   ]
 }

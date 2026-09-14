@@ -21,7 +21,7 @@ use grpc_api_types::{
         PaymentServiceAuthorizeRequest, PaymentStatus,
     },
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use tonic::{transport::Channel, Request};
 use uuid::Uuid;
 
@@ -40,7 +40,6 @@ fn generate_unique_id(prefix: &str) -> String {
 
 // Constants for Novalnet connector
 const CONNECTOR_NAME: &str = "novalnet";
-const AUTH_TYPE: &str = "signature-key";
 const MERCHANT_ID: &str = "merchant_1234";
 
 // Test card data
@@ -53,35 +52,19 @@ const TEST_CARD_HOLDER: &str = "Test User";
 const TEST_EMAIL: &str = "customer@example.com";
 
 fn add_novalnet_metadata<T>(request: &mut Request<T>) {
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load novalnet credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let (api_key, key1, api_secret) = match auth {
-        domain_types::router_data::ConnectorAuthType::SignatureKey {
-            api_key,
-            key1,
-            api_secret,
-        } => (api_key.expose(), key1.expose(), api_secret.expose()),
-        _ => panic!("Expected SignatureKey auth type for novalnet"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
-    );
-    request
-        .metadata_mut()
-        .append("x-key1", key1.parse().expect("Failed to parse x-key1"));
-    request.metadata_mut().append(
-        "x-api-secret",
-        api_secret.parse().expect("Failed to parse x-api-secret"),
     );
     request.metadata_mut().append(
         "x-merchant-id",
@@ -130,12 +113,17 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://hyperswitch.io/".to_string()),
         webhook_url: Some("https://hyperswitch.io/".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
+            date_of_birth: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -179,8 +167,7 @@ async fn test_payment_authorization_auto_capture() {
         add_novalnet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();

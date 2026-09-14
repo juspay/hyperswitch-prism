@@ -8,6 +8,7 @@
 package examples.redsys
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentMethodAuthenticationClient
 import payments.PaymentClient

@@ -38,6 +38,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: Some("conn_cust_987654".to_string()),
@@ -45,6 +46,7 @@ mod tests {
                     attempt_id: "attempt_123456abcdef".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: Some("Payment for order #12345".to_string()),
                     return_url: Some("www.google.com".to_string()),
                     order_details: None,
@@ -72,17 +74,23 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None
+                    l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
+                    settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -93,9 +101,13 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
+                    customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(
                         domain_types::payment_method_data::Card {
                             card_number: RawCardNumber(cards::CardNumber::from_str(
@@ -110,6 +122,7 @@ mod tests {
                     ),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
                             .expect("Failed to parse email"),
@@ -182,7 +195,15 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None
+                    tokenization: None,
+                    mit_category: None,
+                    domain_data: None,
+                    partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -235,6 +256,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,
@@ -242,6 +264,7 @@ mod tests {
                     attempt_id: "".to_string(),
                     status: common_enums::AttemptStatus::Pending,
                     payment_method: common_enums::PaymentMethod::Card,
+                    payment_method_type: None,
                     description: None,
                     return_url: None,
                     order_details: None,
@@ -269,17 +292,23 @@ mod tests {
                             ..Default::default()
                         },
                         ..Default::default()
-                    },
+                    }.into(),
                     external_latency: None,
                     connector_response_headers: None,
                     raw_connector_response: None,
                     vault_headers: None,
                     raw_connector_request: None,
+                    typed_connector_request: None,
                     minor_amount_capturable: None,
                     amount: None,
                     connector_response: None,
                     recurring_mandate_payment_data: None,
-                    l2_l3_data: None
+                    l2_l3_data: None,
+                    merchant_request_id: None,
+                    sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
+                    settlement_status: None,
+                    typed_connector_response: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -290,12 +319,17 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    split_settlement: None,
+                    customer_document_details: None,
+                    customer_date_of_birth: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
+                    currency_conversion_data: None,
                     payment_method_data: PaymentMethodData::Card(Default::default()),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: common_enums::Currency::USD,
@@ -337,7 +371,15 @@ mod tests {
                     continue_redirection_url: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
-                    tokenization: None
+                    tokenization: None,
+                    mit_category: None,
+                    domain_data: None,
+                    partner_merchant_identifier_details: None,
+                    is_account_funding_transaction: None,
+                    recipient_details: None,
+                    business_country: None,
+                    additional_connector_details: None,
+                    customer: None,
 },
                 response: Err(ErrorResponse::default())
 };

@@ -1,1 +1,185 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_auto_cr_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_auto_db_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4444090101010103"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_fail_001",
+        "amount": {
+          "minor_amount": 9500,
+          "currency": "USD"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_manual_cr_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4242424242424242"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_manual_db_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4444090101010103"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "dt_3ds_cr_001",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4111111111111111"
+            },
+            "card_exp_month": {
+              "value": "06"
+            },
+            "card_exp_year": {
+              "value": "28"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Capture": {
+    "capture_full_amount": {
+      "grpc_req": {
+        "merchant_capture_id": "dt_cap_full_001"
+      }
+    },
+    "capture_partial_amount": {
+      "grpc_req": {
+        "merchant_capture_id": "dt_cap_part_001"
+      }
+    },
+    "capture_with_merchant_order_id": {
+      "grpc_req": {
+        "merchant_capture_id": "dt_cap_moi_001"
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "merchant_void_id": "dt_void_001"
+      }
+    },
+    "void_with_amount": {
+      "grpc_req": {
+        "merchant_void_id": "dt_void_amt_001"
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "merchant_void_id": "dt_void_nc_001"
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "merchant_refund_id": "dt_ref_full_001"
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "merchant_refund_id": "dt_ref_part_001"
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "merchant_refund_id": "dt_ref_rsn_001"
+      }
+    }
+  }
+}

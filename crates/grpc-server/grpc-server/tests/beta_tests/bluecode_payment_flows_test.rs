@@ -259,6 +259,8 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         amount: TEST_AMOUNT,
         currency: 146, // Currency value from working grpcurl
         state: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 

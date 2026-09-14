@@ -7,28 +7,17 @@ use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, VerifyWebhookSource, Void,
+        Authorize, PSync, RSync, Refund, ServerAuthenticationToken, VerifyWebhookSource, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, EventContext, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
+        ConnectorWebhookSecrets, EventContext, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, VerifyWebhookSourceFlowData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{Response, VerifyWebhookSourceResponseData},
@@ -52,7 +41,7 @@ use transformers::{
 };
 
 use super::macros;
-use crate::{types::ResponseRouterData, with_error_response_body};
+use crate::{finalize_connector_response, types::ResponseRouterData, with_error_response_body};
 
 // Trait for types that can provide access tokens
 pub trait AccessTokenProvider {
@@ -85,23 +74,6 @@ use error_stack::ResultExt;
 
 const TL_SIGNATURE: &str = "Tl-Signature";
 
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Truelayer<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Truelayer<T>
 {
@@ -115,27 +87,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Truelayer<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Truelayer<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -144,30 +100,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_access_token(&self, _payment_method: Option<common_enums::PaymentMethod>) -> bool {
         true
     }
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Truelayer<T>
-{
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Truelayer<T>
@@ -182,67 +114,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ServerAuthentication for Truelayer<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Truelayer<T>
-{
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Truelayer,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::VoidPC,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Truelayer<T>
-{
-}
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -258,7 +137,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: TruelayerServerAuthenticationTokenRequestData,
             response_body: TruelayerServerAuthenticationTokenResponseData,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -368,10 +247,10 @@ macros::create_all_prerequisites!(
             FlowData: AccessTokenProvider,
             Self: ConnectorIntegrationV2<F, FlowData, Req, Res>,
         {
-            let idempotency_key = uuid::Uuid::new_v4().to_string();
+            let idempotency_key = common_utils::fp_utils::generate_uuid_v4();
             let truelayer_req = self
                 .get_request_body(req)?
-                .map(|req| req.get_inner_value().expose().clone());
+                .map(|req| req.content.get_inner_value().expose().clone());
             let http_method = self.get_http_method();
 
             let mut headers = BTreeMap::new();
@@ -445,6 +324,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: truelayer::TruelayerErrorResponse = res
             .response
@@ -457,16 +337,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
+        let typed =
+            macros::serialize_typed_connector_payload(&response, "typed_connector_response");
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.title.clone(),
-            message: response.title,
+            message: response
+                .errors
+                .clone()
+                .unwrap_or_else(|| serde_json::Value::String(response.title.clone()))
+                .to_string(),
             reason: Some(response.detail),
             attempt_status: None,
             connector_transaction_id: Some(response.trace_id),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: typed,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -511,8 +401,9 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
-            self.build_error_response(res, event_builder)
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -523,7 +414,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(TruelayerServerAuthenticationTokenRequestData),
     curl_response: TruelayerServerAuthenticationTokenResponseData,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -532,7 +423,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = req.resource_common_data.connectors.truelayer.secondary_base_url.as_ref()
                 .ok_or(IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() })?;
@@ -541,7 +432,7 @@ macros::macro_connector_implementation!(
 
         fn get_headers(
             &self,
-            _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            _req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -553,7 +444,8 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
             let response: truelayer::TruelayerAccessTokenErrorResponse = res
                 .response
                 .parse_struct("TruelayerAccessTokenErrorResponse")
@@ -561,16 +453,21 @@ macros::macro_connector_implementation!(
 
             with_error_response_body!(event_builder, response);
 
+            let typed = macros::serialize_typed_connector_payload(&response, "typed_connector_response");
             Ok(ErrorResponse {
                 status_code: res.status_code,
                 code: response.error,
                 message: response.error_description.clone().unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
                 reason: response.error_details.clone().and_then(|details| details.reason),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
-                network_error_message: None
+                network_error_message: None,
+                typed_connector_response: typed,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
 })
         }
     }
@@ -622,8 +519,9 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
-            self.build_error_response(res, event_builder)
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -674,8 +572,9 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
-            self.build_error_response(res, event_builder)
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
@@ -735,141 +634,13 @@ macros::macro_connector_implementation!(
             &self,
             res: Response,
             event_builder: Option<&mut events::Event>,
-        ) -> CustomResult<ErrorResponse, ConnectorError> {
-            self.build_error_response(res, event_builder)
+            _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+            self.build_error_response(res, event_builder, _connector_config)
         }
     }
 );
 
-// Stub implementations for unsupported flows (required by macro system)
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
-    for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Truelayer<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Truelayer<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Truelayer<T>
-{
-}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyWebhookSourceV2 for Truelayer<T>
 {
@@ -964,27 +735,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     res.status_code,
                 "truelayer: response body did not match the expected format; confirm API version and connector documentation."),
             )?;
-        if let Some(event) = event_builder {
-            event.set_connector_response(&response)
-        }
-
-        RouterDataV2::try_from(ResponseRouterData {
-            response,
-            router_data: data.clone(),
-            http_code: res.status_code,
-        })
-        .change_context(crate::utils::response_handling_fail_for_connector(
-            res.status_code,
-            "truelayer",
-        ))
+        finalize_connector_response!(event_builder, response, data, res.status_code)
     }
 
     fn get_error_response_v2(
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
@@ -1005,6 +765,82 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         Ok(truelayer::get_webhook_event(webhook_body._type))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: domain_types::connector_types::RequestDetails,
+    ) -> Result<
+        Option<domain_types::connector_types::WebhookResourceReference>,
+        error_stack::Report<WebhookError>,
+    > {
+        let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
+            .body
+            .parse_struct("TruelayerWebhookEventTypeBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        // Payout webhooks carry `payout_id` and no `payment_id`, so each arm
+        // deserializes the body shape that matches its event family.
+        match event_type_body._type {
+            truelayer::TruelayerWebhookEventType::PayoutExecuted
+            | truelayer::TruelayerWebhookEventType::PayoutFailed => {
+                let payout_body: truelayer::TruelayerPayoutWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerPayoutWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Payout(
+                        domain_types::connector_types::PayoutWebhookReference {
+                            connector_payout_id: Some(payout_body.payout_id),
+                            merchant_payout_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::PaymentAuthorized
+            | truelayer::TruelayerWebhookEventType::PaymentExecuted
+            | truelayer::TruelayerWebhookEventType::PaymentReversed
+            | truelayer::TruelayerWebhookEventType::PaymentFailed
+            | truelayer::TruelayerWebhookEventType::PaymentSettlementStalled
+            | truelayer::TruelayerWebhookEventType::PaymentSettled
+            | truelayer::TruelayerWebhookEventType::PaymentCreditable
+            | truelayer::TruelayerWebhookEventType::PaymentFundsReceived => {
+                let webhook_body: truelayer::TruelayerWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Payment(
+                        domain_types::connector_types::PaymentWebhookReference {
+                            connector_transaction_id: Some(webhook_body.payment_id),
+                            merchant_transaction_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::RefundExecuted
+            | truelayer::TruelayerWebhookEventType::RefundFailed => {
+                let webhook_body: truelayer::TruelayerWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+                Ok(Some(
+                    domain_types::connector_types::WebhookResourceReference::Refund(
+                        domain_types::connector_types::RefundWebhookReference {
+                            connector_refund_id: webhook_body.refund_id,
+                            merchant_refund_id: None,
+                            connector_transaction_id: Some(webhook_body.payment_id),
+                            merchant_transaction_id: None,
+                        },
+                    ),
+                ))
+            }
+            truelayer::TruelayerWebhookEventType::PaymentDisputed
+            | truelayer::TruelayerWebhookEventType::Unknown => Ok(None),
+        }
     }
 
     fn process_payment_webhook(
@@ -1043,6 +879,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ),
             status,
             connector_response_reference_id: None,
+            connector_request_reference_id: None,
             mandate_reference: None,
             error_code,
             error_message,
@@ -1054,6 +891,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: details
+                .payment_source
+                .as_ref()
+                .and_then(|ps| ps.id.clone()),
+            connector_returned_payment_method_details:
+                truelayer::extract_returned_open_banking_details(
+                    details.payment_source.as_ref(),
+                    details.payment_method.as_ref(),
+                ),
         })
     }
 
@@ -1086,6 +932,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: details.refund_id.clone(),
+                merchant_transaction_id: None,
                 status,
                 connector_response_reference_id: details.refund_id.clone(),
                 error_code,
@@ -1099,15 +946,114 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         )
     }
 
+    fn process_payout_webhook(
+        &self,
+        request: domain_types::connector_types::RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<
+        domain_types::connector_types::PayoutWebhookDetailsResponse,
+        error_stack::Report<WebhookError>,
+    > {
+        let details: truelayer::TruelayerPayoutWebhookBody = request
+            .body
+            .parse_struct("TruelayerPayoutWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        let status = truelayer::get_truelayer_payout_webhook_status(details._type)?;
+
+        let (error_code, error_message) = if status == common_enums::PayoutStatus::Failure {
+            (
+                details.failure_reason.clone(),
+                details.failure_reason.clone(),
+            )
+        } else {
+            (None, None)
+        };
+
+        Ok(
+            domain_types::connector_types::PayoutWebhookDetailsResponse {
+                connector_payout_id: Some(details.payout_id),
+                merchant_payout_id: None,
+                status,
+                error_code,
+                error_message,
+                status_code: 200,
+            },
+        )
+    }
+
     fn get_webhook_resource_object(
         &self,
         request: domain_types::connector_types::RequestDetails,
     ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
     {
-        let details: truelayer::TruelayerWebhookBody = request
+        let event_type_body: truelayer::TruelayerWebhookEventTypeBody = request
             .body
-            .parse_struct("TruelayerWebhooksBody")
+            .parse_struct("TruelayerWebhookEventTypeBody")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        Ok(Box::new(details))
+
+        match event_type_body._type {
+            truelayer::TruelayerWebhookEventType::PayoutExecuted
+            | truelayer::TruelayerWebhookEventType::PayoutFailed => {
+                let details: truelayer::TruelayerPayoutWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerPayoutWebhookBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+                Ok(Box::new(details))
+            }
+            // Listed exhaustively rather than using `_` so that adding a new
+            // payout event to the enum fails to compile here instead of
+            // deserializing against `TruelayerWebhookBody` (which requires
+            // `payment_id`) at runtime. Mirrors `get_webhook_event_reference`.
+            truelayer::TruelayerWebhookEventType::PaymentAuthorized
+            | truelayer::TruelayerWebhookEventType::PaymentFailed
+            | truelayer::TruelayerWebhookEventType::PaymentSettled
+            | truelayer::TruelayerWebhookEventType::PaymentExecuted
+            | truelayer::TruelayerWebhookEventType::PaymentCreditable
+            | truelayer::TruelayerWebhookEventType::PaymentSettlementStalled
+            | truelayer::TruelayerWebhookEventType::RefundExecuted
+            | truelayer::TruelayerWebhookEventType::RefundFailed
+            | truelayer::TruelayerWebhookEventType::PaymentDisputed
+            | truelayer::TruelayerWebhookEventType::PaymentReversed
+            | truelayer::TruelayerWebhookEventType::PaymentFundsReceived
+            | truelayer::TruelayerWebhookEventType::Unknown => {
+                let details: truelayer::TruelayerWebhookBody = request
+                    .body
+                    .parse_struct("TruelayerWebhooksBody")
+                    .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+                Ok(Box::new(details))
+            }
+        }
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Truelayer,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        ClientAuthenticationToken,
+        Void,
+        SetupMandate,
+        RepeatPayment,
+        ServerSessionAuthenticationToken,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        MandateRevoke,
+    ],
+    not_supported: [
+        VoidPostRefund,
+        IncrementalAuthorization,
+        Capture,
+        CreateOrder,
+        SubmitEvidence,
+        DefendDispute,
+        Accept,
+        CreateConnectorCustomer,
+        GetConnectorCustomer,
+        PaymentMethodToken,
+        VoidPC,
+    ],
+);

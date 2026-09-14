@@ -89,7 +89,8 @@ pub struct Expiry {
 #[serde(rename_all = "camelCase")]
 pub struct JpmorganMerchant {
     pub merchant_software: JpmorganMerchantSoftware,
-    pub soft_merchant: JpmorganSoftMerchant,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub soft_merchant: Option<JpmorganSoftMerchant>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,6 +128,15 @@ pub struct JpmorganCaptureRequest {
 pub struct JpmorganVoidRequest {
     // As per the docs, this is not a required field
     // Since we always pass `true` in `isVoid` only during the void call, it makes more sense to have it required field
+    pub is_void: bool,
+}
+
+/// VoidPC (post-capture void/reversal) request — JPMorgan uses the same PATCH endpoint
+/// and the same `{"isVoid": true}` body regardless of whether the payment has been
+/// captured or not.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JpmorganVoidPcRequest {
     pub is_void: bool,
 }
 

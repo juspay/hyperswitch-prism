@@ -15,15 +15,25 @@ use rdkafka::{
     producer::{FutureProducer, FutureRecord, Producer},
 };
 use serde_json::json;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 struct KafkaProducer {
     producer: FutureProducer,
     enqueue_timeout: Duration,
 }
 
-static KAFKA_PRODUCER: OnceCell<Arc<KafkaProducer>> = OnceCell::new();
+pub type KafkaPublishResult = CustomResult<Result<Response, Response>, KafkaClientError>;
+
+#[async_trait::async_trait]
+pub trait KafkaPublish: Send + Sync + 'static {
+    async fn publish(&self, kafka_record: KafkaRecord) -> KafkaPublishResult;
+}
+
+static PUBLISHER: OnceCell<Arc<dyn KafkaPublish>> = OnceCell::new();
+
+pub fn set_publisher(publisher: Arc<dyn KafkaPublish>) -> bool {
+    PUBLISHER.set(publisher).is_ok()
+}
 
 pub fn init_kafka_producer(
     config: &ConnectorRequestKafkaConfig,
@@ -70,76 +80,86 @@ pub fn init_kafka_producer(
         .fetch_metadata(None, Duration::from_secs(5))
         .change_context(KafkaClientError::MetadataFetchFailed)?;
 
-    let _ = KAFKA_PRODUCER.set(Arc::new(KafkaProducer {
+    let publisher_installed = set_publisher(Arc::new(KafkaProducer {
         producer,
         enqueue_timeout: Duration::from_millis(config.enqueue_timeout_ms),
     }));
 
-    tracing::info!(brokers = %config.brokers.join(","), "Kafka producer for publishing connector requests initialized successfully");
+    if publisher_installed {
+        tracing::info!(brokers = %config.brokers.join(","), "Kafka producer for publishing connector requests initialized successfully");
+    } else {
+        tracing::warn!(
+            brokers = %config.brokers.join(","),
+            "Kafka producer for publishing connector requests was already initialized; keeping the existing producer"
+        );
+    }
 
     Ok(())
 }
 
-pub async fn publish_to_kafka(
-    kafka_record: KafkaRecord,
-) -> error_stack::Result<Result<Response, Response>, KafkaClientError> {
-    let state = KAFKA_PRODUCER
+pub async fn publish_to_kafka(kafka_record: KafkaRecord) -> KafkaPublishResult {
+    let publisher = PUBLISHER
         .get()
         .ok_or(KafkaClientError::ProducerNotInitialized)?;
 
-    // Build OwnedHeaders from the KafkaRecord headers.
-    let mut owned_headers = OwnedHeaders::new();
+    publisher.publish(kafka_record).await
+}
 
-    for (key, value) in &kafka_record.headers {
-        owned_headers = owned_headers.insert(Header {
-            key: key.as_str(),
-            value: Some(value.clone().into_inner().as_str()),
-        });
+#[async_trait::async_trait]
+impl KafkaPublish for KafkaProducer {
+    async fn publish(&self, kafka_record: KafkaRecord) -> KafkaPublishResult {
+        // Build OwnedHeaders from the KafkaRecord headers.
+        let mut owned_headers = OwnedHeaders::new();
+
+        for (key, value) in &kafka_record.headers {
+            owned_headers = owned_headers.insert(Header {
+                key: key.as_str(),
+                value: Some(value.clone().into_inner().as_str()),
+            });
+        }
+
+        let payload_bytes = match kafka_record.payload {
+            Some(
+                ref content @ (RequestContent::Json(_)
+                | RequestContent::FormUrlEncoded(_)
+                | RequestContent::Xml(_)),
+            ) => content.get_inner_value().expose().into_bytes(),
+            Some(RequestContent::RawBytes(bytes)) => bytes,
+            Some(RequestContent::FormData(_)) => Err(KafkaClientError::UnsupportedPayloadFormat {
+                format: "form_data".to_string(),
+            })?,
+            None => Vec::new(),
+        };
+
+        let delivery_result = match kafka_record.key.as_deref() {
+            Some(key) => {
+                self.producer
+                    .send(
+                        FutureRecord::to(&kafka_record.topic)
+                            .payload(&payload_bytes)
+                            .key(key)
+                            .headers(owned_headers),
+                        self.enqueue_timeout,
+                    )
+                    .await
+            }
+            None => {
+                self.producer
+                    .send(
+                        FutureRecord::<(), _>::to(&kafka_record.topic)
+                            .payload(&payload_bytes)
+                            .headers(owned_headers),
+                        self.enqueue_timeout,
+                    )
+                    .await
+            }
+        };
+
+        Ok(classify_kafka_delivery_result(
+            delivery_result,
+            &kafka_record.topic,
+        ))
     }
-
-    let payload_bytes = match kafka_record.payload {
-        Some(
-            ref content @ (RequestContent::Json(_)
-            | RequestContent::FormUrlEncoded(_)
-            | RequestContent::Xml(_)),
-        ) => content.get_inner_value().expose().into_bytes(),
-        Some(RequestContent::RawBytes(bytes)) => bytes,
-        Some(RequestContent::FormData(_)) => Err(KafkaClientError::UnsupportedPayloadFormat {
-            format: "form_data".to_string(),
-        })?,
-        None => Vec::new(),
-    };
-
-    let delivery_result = match kafka_record.key.as_deref() {
-        Some(key) => {
-            state
-                .producer
-                .send(
-                    FutureRecord::to(&kafka_record.topic)
-                        .payload(&payload_bytes)
-                        .key(key)
-                        .headers(owned_headers),
-                    state.enqueue_timeout,
-                )
-                .await
-        }
-        None => {
-            state
-                .producer
-                .send(
-                    FutureRecord::<(), _>::to(&kafka_record.topic)
-                        .payload(&payload_bytes)
-                        .headers(owned_headers),
-                    state.enqueue_timeout,
-                )
-                .await
-        }
-    };
-
-    Ok(classify_kafka_delivery_result(
-        delivery_result,
-        &kafka_record.topic,
-    ))
 }
 
 /// Map a raw rdkafka delivery result to a synthetic [`Response`].
@@ -222,5 +242,80 @@ fn classify_kafka_delivery_result(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+    use rdkafka::message::Timestamp;
+    use serde_json::Value;
+
+    const TEST_TOPIC: &str = "test_payments_queue";
+
+    fn original_message() -> OwnedMessage {
+        OwnedMessage::new(
+            Some(b"{}".to_vec()),
+            None,
+            TEST_TOPIC.to_string(),
+            Timestamp::NotAvailable,
+            0,
+            0,
+            None,
+        )
+    }
+
+    fn response_body(response: &Response) -> Value {
+        serde_json::from_slice(&response.response)
+            .expect("Kafka synthetic response should be valid JSON")
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_returns_queued_response_for_ack() {
+        let response = classify_kafka_delivery_result(Ok((0, 42)), TEST_TOPIC)
+            .expect("Acknowledged Kafka delivery should be successful");
+
+        assert_eq!(response.status_code, 200);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("queued"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_maps_rejected_broker_errors_to_200() {
+        let response = classify_kafka_delivery_result(
+            Err((
+                KafkaError::MessageProduction(RDKafkaErrorCode::InvalidTopic),
+                original_message(),
+            )),
+            TEST_TOPIC,
+        )
+        .expect("Confirmed broker rejection should be returned as a successful response");
+
+        assert_eq!(response.status_code, 200);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("rejected"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_maps_unknown_errors_to_500() {
+        let response = classify_kafka_delivery_result(
+            Err((
+                KafkaError::MessageProduction(RDKafkaErrorCode::QueueFull),
+                original_message(),
+            )),
+            TEST_TOPIC,
+        )
+        .expect_err("Unknown Kafka delivery outcome should be returned as an error response");
+
+        assert_eq!(response.status_code, 500);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("unknown"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
     }
 }

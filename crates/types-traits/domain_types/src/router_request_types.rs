@@ -146,6 +146,31 @@ pub struct AuthenticationData {
     pub transaction_id: Option<String>,
     pub network_params: Option<NetworkParams>,
     pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
+    pub created_at: Option<time::PrimitiveDateTime>,
+    pub challenge_code: Option<String>,
+    pub challenge_cancel: Option<String>,
+    pub challenge_code_reason: Option<String>,
+    pub message_extension: Option<Secret<serde_json::Value>>,
+    pub authentication_type: Option<common_enums::DecoupledAuthenticationType>,
+}
+
+impl AuthenticationData {
+    /// Single-digit CAVV algorithm code (`"0".."4"`, `"A"`) from the Cartes Bancaires
+    /// network params, as expected by connectors like Travelhub. Returns `None` when
+    /// no CAVV algorithm is present.
+    pub fn get_cavv_algorithm(&self) -> Option<&'static str> {
+        self.network_params
+            .as_ref()
+            .and_then(|params| params.cartes_bancaires.as_ref())
+            .map(|cb| match cb.cavv_algorithm {
+                common_enums::CavvAlgorithm::Zero => "0",
+                common_enums::CavvAlgorithm::One => "1",
+                common_enums::CavvAlgorithm::Two => "2",
+                common_enums::CavvAlgorithm::Three => "3",
+                common_enums::CavvAlgorithm::Four => "4",
+                common_enums::CavvAlgorithm::A => "A",
+            })
+    }
 }
 
 impl TryFrom<payments::AuthenticationData> for AuthenticationData {
@@ -163,7 +188,38 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             ucaf_collection_indicator,
             exemption_indicator,
             network_params,
+            created_at,
+            challenge_code,
+            challenge_cancel,
+            challenge_code_reason,
+            message_extension,
+            authentication_type,
         } = value;
+        let created_at = created_at
+            .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
+            .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time()));
+        let message_extension = message_extension
+            .map(|message_extension| {
+                serde_json::from_str::<serde_json::Value>(&message_extension).change_context(
+                    errors::IntegrationError::InvalidDataFormat {
+                        field_name: "message_extension",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Expected JSON-serialized 3DS message extension attributes"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    },
+                )
+            })
+            .transpose()?
+            .map(Secret::new);
+        let authentication_type = authentication_type
+            .and_then(|authentication_type| {
+                payments::DecoupledAuthenticationType::try_from(authentication_type).ok()
+            })
+            .and_then(Option::<common_enums::DecoupledAuthenticationType>::foreign_from);
         let message_version = message_version.map(|message_version|{
             SemanticVersion::from_str(&message_version).change_context(errors::IntegrationError::InvalidDataFormat {
                 field_name: "message_version",
@@ -205,6 +261,12 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                 .ok()
                 .flatten()
                 .map(common_enums::ExemptionIndicator::foreign_from),
+            created_at,
+            challenge_code,
+            challenge_cancel,
+            challenge_code_reason,
+            message_extension,
+            authentication_type,
         })
     }
 }
@@ -268,6 +330,18 @@ impl ForeignFrom<AuthenticationData> for payments::AuthenticationData {
             network_params: value
                 .network_params
                 .map(payments::NetworkParams::foreign_from),
+            created_at: value
+                .created_at
+                .map(|created_at| created_at.assume_utc().unix_timestamp()),
+            challenge_code: value.challenge_code,
+            challenge_cancel: value.challenge_cancel,
+            challenge_code_reason: value.challenge_code_reason,
+            message_extension: value
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: value.authentication_type.map(|authentication_type| {
+                payments::DecoupledAuthenticationType::foreign_from(authentication_type).into()
+            }),
         }
     }
 }
@@ -460,3 +534,46 @@ pub struct VerifyWebhookSourceRequestData {
 pub struct VerifyWebhookSourceIntegrityObject {
     pub webhook_id: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RechargeIntegrityObject {
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+/// Create-payment-method has no payment-attempt invariants worth verifying;
+/// the integrity machinery is a no-op stub. Kept as a marker so the flow
+/// can participate in the framework's CheckIntegrity bound.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CreatePaymentMethodIntegrityObject {}
+
+/// See `CreatePaymentMethodIntegrityObject`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GetPaymentMethodIntegrityObject {}
+
+/// FRM pre-risk-check integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PreRiskCheckIntegrityObject {}
+
+/// FRM post-risk-check integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PostRiskCheckIntegrityObject {}
+
+/// FRM payment outcome integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmPaymentOutcomeIntegrityObject {}
+
+/// FRM refund processed integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmRefundProcessedIntegrityObject {}
+
+/// FRM chargeback received integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmChargebackReceivedIntegrityObject {}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PaymentMethodEligibilityIntegrityObject {}
+
+/// Refresh integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RefreshPaymentMethodIntegrityObject {}

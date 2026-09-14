@@ -5,9 +5,9 @@
 // Payu — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx payu.ts checkout_autocapture
 
-import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, Currency } = types;
-export const SUPPORTED_FLOWS = ["capture", "get", "refund", "refund_get", "void"];
+import { PaymentClient, MerchantAuthenticationClient, RefundClient, types } from 'hyperswitch-prism';
+const { Environment, AuthenticationType, CaptureMethod, Currency } = types;
+export const SUPPORTED_FLOWS = ["authorize", "capture", "create_server_session_authentication_token", "get", "refund", "refund_get", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -23,6 +23,35 @@ const _defaultConfig: types.IConnectorConfig = {
 };
 
 
+function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
+    return {
+        "merchantTransactionId": "probe_txn_001",  // Identification.
+        "amount": {  // The amount for the payment.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment method to be used.
+            "upiCollect": {  // UPI Collect.
+                "vpaId": {"value": "test@upi"}  // Virtual Payment Address.
+            }
+        },
+        "captureMethod": captureMethod,  // Method for capturing the payment.
+        "address": {  // Address Information.
+            "billingAddress": {
+                "firstName": {"value": "John"},  // Personal Information.
+                "email": {"value": "test@example.com"},  // Contact Information.
+                "phoneNumber": {"value": "4155552671"},
+                "phoneCountryCode": "+1"
+            }
+        },
+        "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
+        "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
+        "browserInfo": {
+            "ipAddress": "1.2.3.4"  // Device Information.
+        }
+    };
+}
+
 function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
     return {
         "merchantCaptureId": "probe_capture_001",  // Identification.
@@ -30,6 +59,17 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
         "amountToCapture": {  // Capture Details.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+    };
+}
+
+function _buildCreateServerSessionAuthenticationTokenRequest(): types.IMerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    return {
+        "payment": {  // PayoutSessionContext payout = 6; // future FrmSessionContext frm = 7; // future.
+            "amount": {
+                "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+                "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+            }
         }
     };
 }
@@ -75,6 +115,15 @@ function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServic
 
 
 // ANCHOR: scenario_functions
+// Flow: PaymentService.Authorize (UpiCollect)
+async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentClient = new PaymentClient(config);
+
+    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
+
+    return authorizeResponse;
+}
+
 // Flow: PaymentService.Capture
 async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -82,6 +131,15 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
     const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
 
     return captureResponse;
+}
+
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+async function createServerSessionAuthenticationToken(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const merchantAuthenticationClient = new MerchantAuthenticationClient(config);
+
+    const createResponse = await merchantAuthenticationClient.createServerSessionAuthenticationToken(_buildCreateServerSessionAuthenticationTokenRequest());
+
+    return createResponse;
 }
 
 // Flow: PaymentService.Get
@@ -123,7 +181,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, get, refund, refundGet, voidPayment, _buildCaptureRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
+    authorize, capture, createServerSessionAuthenticationToken, get, refund, refundGet, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildCreateServerSessionAuthenticationTokenRequest, _buildGetRequest, _buildRefundRequest, _buildRefundGetRequest, _buildVoidRequest
 };
 
 // CLI runner

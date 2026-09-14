@@ -17,7 +17,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
-    router_data::ErrorResponse,
+    router_data::{ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -210,11 +210,15 @@ pub fn build_error_response(
         code: response_code.to_string(),
         message: response_message.to_string(),
         reason: Some(response_message.to_string()),
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: None,
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -570,11 +574,15 @@ pub fn handle_authorize_response<
                 message: response.status.clone(),
                 reason: Some(response.status.clone()),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -592,9 +600,12 @@ pub fn handle_authorize_response<
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(payload.merchant_request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         Ok(RouterDataV2 {
@@ -614,9 +625,12 @@ pub fn handle_authorize_response<
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
+            payment_account_reference: None,
         };
         Ok(RouterDataV2 {
             response: Ok(response_data),
@@ -656,11 +670,15 @@ pub fn handle_psync_response(
                 message: response.status.clone(),
                 reason: Some(response.status.clone()),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -689,12 +707,15 @@ pub fn handle_psync_response(
         connector_metadata: None,
         mandate_reference: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .payload
             .as_ref()
             .map(|p| p.merchant_request_id.clone()),
         incremental_authorization_allowed: None,
         status_code: http_code,
+        splits: None,
+        payment_account_reference: None,
     };
 
     Ok(RouterDataV2 {
@@ -744,6 +765,7 @@ pub fn handle_refund_response(
             .unwrap_or_default(),
         refund_status: status,
         status_code: http_code,
+        acquirer_reference_number: None,
     };
 
     Ok(RouterDataV2 {
@@ -789,6 +811,7 @@ pub fn handle_rsync_response(
             .unwrap_or_default(),
         refund_status: status,
         status_code: http_code,
+        acquirer_reference_number: None,
     };
 
     Ok(RouterDataV2 {

@@ -36,13 +36,19 @@ SERVICES_PROTO = REPO_ROOT / "crates/types-traits/grpc-api-types/proto/services.
 FFI_SERVICES_DIR = REPO_ROOT / "crates/ffi/ffi/src/services"
 
 PROTO_DIR = REPO_ROOT / "crates/types-traits/grpc-api-types/proto"
-PROTO_FILES = [
-    "services.proto",
-    "payment.proto",
-    "payouts.proto",
-    "payment_methods.proto",
-    "sdk_config.proto",
-]
+
+# Auto-discover proto files, excluding internal/non-public protos
+# services.proto is loaded last since it imports the others
+PROTO_EXCLUDES = {
+    "health_check.proto",  # Internal health check service
+    "composite_payment.proto",  # Composite payment implementation
+    "composite_services.proto",  # Composite services implementation
+}
+
+# Auto-discover all proto files and sort with services.proto last
+_all_proto_files = sorted(p.name for p in PROTO_DIR.glob("*.proto") if p.name not in PROTO_EXCLUDES)
+# Move services.proto to the end since it imports others
+PROTO_FILES = [f for f in _all_proto_files if f != "services.proto"] + ["services.proto"]
 
 RUST_HANDLERS_OUT = REPO_ROOT / "crates/ffi/ffi/src/handlers/_generated_flow_registrations.rs"
 RUST_FFI_FLOWS_OUT = REPO_ROOT / "crates/ffi/ffi/src/bindings/_generated_ffi_flows.rs"
@@ -99,7 +105,44 @@ def build_descriptor_set():
     finally:
         os.unlink(tmp_path)
 
+    # Populate the message → module map for the template helpers.
+    _MESSAGE_MODULE.update(build_message_module_map(desc_set))
+
     return desc_set
+
+
+# ── Message → generated-module mapping ───────────────────────────────────────
+
+# Python protobuf emits one module per .proto file, so a message's module
+# follows the file that defines it. Derived from the descriptor set rather than
+# hardcoded, so splitting a .proto (e.g. events.proto out of payment.proto)
+# needs no template edits.
+_MESSAGE_MODULE: dict[str, str] = {}
+
+
+def build_message_module_map(desc_set) -> dict[str, str]:
+    """Map every top-level message/enum name to its python `*_pb2` module."""
+    mapping: dict[str, str] = {}
+    for file_desc in desc_set.file:
+        stem = Path(file_desc.name).stem
+        if not stem:
+            continue
+        module = f"{stem}_pb2"
+        for message in file_desc.message_type:
+            mapping[message.name] = module
+        for enum in file_desc.enum_type:
+            mapping[enum.name] = module
+    return mapping
+
+
+def pb2(message_name: str) -> str:
+    """Python module defining `message_name`; falls back to payment_pb2."""
+    return _MESSAGE_MODULE.get(message_name, "payment_pb2")
+
+
+def pb2_modules(message_names) -> list[str]:
+    """Sorted, de-duplicated `*_pb2` modules needed for `message_names`."""
+    return sorted({pb2(name) for name in message_names})
 
 
 # ── Source parsing ───────────────────────────────────────────────────────────
@@ -295,7 +338,17 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
                 f"  ERROR: '{flow}_req_transformer' exists in services/*.rs but has no matching RPC in services.proto"
             )
             continue
-        flows.append({"name": flow, "module": service_flows[flow], **proto_rpcs[flow]})
+        service_name = proto_rpcs[flow]["service"]
+        connector_data_type = (
+            "domain_types::connector_types::SurchargeConnectorEnum"
+            if service_name == "SurchargeService"
+            else "domain_types::connector_types::PayoutConnectorEnum"
+            if service_name == "PayoutService"
+            else "domain_types::connector_types::FrmConnectorEnum"
+            if service_name == "FraudAndRiskManagementService"
+            else "domain_types::connector_types::ConnectorEnum"
+        )
+        flows.append({"name": flow, "module": service_flows[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})
 
     single_flows = []
     for flow in sorted(single_flow_names):
@@ -304,7 +357,17 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
                 f"  ERROR: '{flow}_transformer' exists in services/*.rs but has no matching RPC in services.proto"
             )
             continue
-        single_flows.append({"name": flow, "module": single_flow_names[flow], **proto_rpcs[flow]})
+        service_name = proto_rpcs[flow]["service"]
+        connector_data_type = (
+            "domain_types::connector_types::SurchargeConnectorEnum"
+            if service_name == "SurchargeService"
+            else "domain_types::connector_types::PayoutConnectorEnum"
+            if service_name == "PayoutService"
+            else "domain_types::connector_types::FrmConnectorEnum"
+            if service_name == "FraudAndRiskManagementService"
+            else "domain_types::connector_types::ConnectorEnum"
+        )
+        single_flows.append({"name": flow, "module": single_flow_names[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})
 
     if errors:
         for e in errors:
@@ -376,12 +439,15 @@ def grpc_method_path(service: str, rpc_name: str) -> str:
 # Used for SDK method names and gRPC examples.
 _FLOW_NAME_OVERRIDES: dict[tuple[str, str], str] = {
     ("CustomerService", "Create"): "create_customer",
+    ("CustomerService", "Get"): "customer_get",
     ("RecurringPaymentService", "Charge"): "recurring_charge",
     ("RecurringPaymentService", "Revoke"): "recurring_revoke",
     ("RefundService", "Get"): "refund_get",
     ("PayoutService", "Get"): "payout_get",
     ("PayoutService", "Create"): "payout_create",
     ("PayoutService", "Void"): "payout_void",
+    # Disambiguate from PaymentMethodService.Eligibility (both RPCs are "Eligibility").
+    ("PayoutService", "Eligibility"): "payout_eligibility",
 }
 
 
@@ -400,6 +466,8 @@ env.globals["grpc_method_path"]          = grpc_method_path
 env.globals["get_flow_method_name"]      = get_flow_method_name
 env.globals["to_camel"]      = to_camel
 env.globals["to_snake_case"] = to_snake_case
+env.globals["pb2"]          = pb2
+env.globals["pb2_modules"]  = pb2_modules
 
 
 # ── Generators ───────────────────────────────────────────────────────────────
@@ -428,12 +496,15 @@ def gen_python_clients(flows: list[dict], single_flows: list[dict]) -> None:
     for service in single_groups:
         all_groups.setdefault(service, [])
 
+    response_types = [f["response"] for f in flows + single_flows]
+
     render(
         "python/clients.py.j2",
         SDK_ROOT / "python/src/payments/_generated_service_clients.py",
         all_services=sorted(all_groups),
         groups=groups,
         single_groups=single_groups,
+        pb2_imports=pb2_modules(response_types),
     )
 
 
@@ -447,10 +518,14 @@ def gen_python_stub(flows: list[dict], single_flows: list[dict] = []) -> None:
         types.add(f["request"])
         types.add(f["response"])
 
+    imports_by_module: dict[str, list[str]] = {}
+    for name in sorted(types):
+        imports_by_module.setdefault(pb2(name), []).append(name)
+
     render(
         "python/stub.pyi.j2",
         SDK_ROOT / "python/src/payments/connector_client.pyi",
-        imports=sorted(types),
+        imports_by_module=dict(sorted(imports_by_module.items())),
         all_services=sorted(set(groups) | set(single_groups)),
         groups=groups,
         single_groups=single_groups,
@@ -691,11 +766,18 @@ def _grpc_groups(desc_set=None) -> tuple[list[str], dict[str, list[dict]]]:
 def gen_python_grpc_client(desc_set=None) -> None:
     """Generate _generated_grpc_client.py — Python gRPC sub-clients and GrpcClient from proto RPCs."""
     services, groups = _grpc_groups(desc_set)
+    rpc_types = [
+        name
+        for service in services
+        for f in groups[service]
+        for name in (f["request"], f["response"])
+    ]
     render(
         "python/grpc_client.py.j2",
         PY_GRPC_CLIENT_OUT,
         services=services,
         groups=groups,
+        pb2_imports=pb2_modules(rpc_types),
     )
 
 

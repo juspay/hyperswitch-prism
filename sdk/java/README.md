@@ -1,8 +1,8 @@
 # hyperswitch-prism
 
-**Universal Connector Service — Java/Kotlin SDK**
+**Hyperswitch Prism — Java/Kotlin SDK**
 
-A high-performance, type-safe Java/Kotlin SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
+A high-performance, type-safe Java/Kotlin SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![Maven Central](https://img.shields.io/maven-central/v/io.hyperswitch/prism.svg)](https://central.sonatype.com/artifact/io.hyperswitch/prism)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -90,13 +90,13 @@ Your Java/Kotlin App
 ### Gradle (Kotlin DSL)
 
 ```kotlin
-implementation("io.hyperswitch:prism:0.0.5")
+implementation("io.hyperswitch:prism:0.0.6")
 ```
 
 ### Gradle (Groovy DSL)
 
 ```groovy
-implementation 'io.hyperswitch:prism:0.0.5'
+implementation 'io.hyperswitch:prism:0.0.6'
 ```
 
 ### Maven
@@ -105,7 +105,7 @@ implementation 'io.hyperswitch:prism:0.0.5'
 <dependency>
   <groupId>io.hyperswitch</groupId>
   <artifactId>prism</artifactId>
-  <version>0.0.5</version>
+  <version>0.0.6</version>
 </dependency>
 ```
 

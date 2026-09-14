@@ -2,10 +2,13 @@
   "connector": "fiservcommercehub",
   "supported_suites": [
     "PaymentService/Authorize",
+    "PaymentService/Capture",
     "PaymentService/Get",
     "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void",
     "RefundService/Get",
-    "MerchantAuthenticationService/CreateServerAuthenticationToken",
-    "PaymentService/Void"
+    "RecurringPaymentService/Charge",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
   ]
 }

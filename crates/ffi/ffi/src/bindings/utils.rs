@@ -4,7 +4,7 @@
 //! and handling FFI option decoding.
 
 use bytes::Bytes;
-use domain_types::connector_types::ConnectorEnum;
+use domain_types::connector_types::ConnectorVariant;
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
@@ -58,6 +58,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Box<Co
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })?;
 
@@ -84,6 +85,7 @@ pub fn build_domain_response(response_bytes: Vec<u8>) -> Result<Response, Box<Co
                 error_code: "INVALID_STATUS_CODE".to_string(),
                 http_status_code: None,
                 error_info: None,
+                ..Default::default()
             })
         })?,
     })
@@ -119,6 +121,7 @@ pub fn parse_ffi_options_for_res(
             error_code: "EMPTY_OPTIONS".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         }));
     }
     FfiOptions::decode(Bytes::from(options_bytes)).map_err(|e| {
@@ -127,6 +130,7 @@ pub fn parse_ffi_options_for_res(
             error_code: "DECODE_FAILED".to_string(),
             http_status_code: None,
             error_info: None,
+            ..Default::default()
         })
     })
 }
@@ -159,7 +163,7 @@ pub fn parse_metadata(
             doc_url: None,
         })?;
 
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone()).map_err(
+    let connector = ConnectorVariant::foreign_try_from(config_variant.clone()).map_err(
         |e: Report<domain_types::errors::IntegrationError>| {
             common_utils::errors::ErrorSwitch::switch(e.current_context())
         },
@@ -209,7 +213,7 @@ pub fn parse_webhook_metadata(
 
     // Extract connector identity from the oneof variant.
     // This does NOT parse auth fields, just maps variant name to ConnectorEnum.
-    let connector = ConnectorEnum::foreign_try_from(config_variant.clone()).map_err(
+    let connector = ConnectorVariant::foreign_try_from(config_variant.clone()).map_err(
         |e: Report<domain_types::errors::IntegrationError>| IntegrationError {
             error_message: e.current_context().to_string(),
             error_code: "INVALID_CONNECTOR_CONFIG_VARIANT".to_string(),

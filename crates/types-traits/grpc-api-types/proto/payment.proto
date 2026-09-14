@@ -60,6 +60,77 @@ message Money {
   Currency currency = 2; // ISO 4217 currency code (e.g., "USD", "EUR")
 }
 
+// Quote details associated with a currency conversion decision.
+message CurrencyConversionQuote {
+  // Order amount for the transaction, expressed in the merchant's currency.
+  Money merchant_order_amount = 1;
+
+  // Decimal exchange rate for this currency conversion quote.
+  // It converts merchant_order_amount.currency to PaymentServiceAuthorizeRequest.amount.currency.
+  // For an accepted DCC offer, PaymentServiceAuthorizeRequest.amount is the payable amount in the cardholder currency.
+  optional string exchange_rate = 2;
+
+  // Quote identifier assigned by the connector or rate provider.
+  optional string connector_quote_id = 3;
+
+  // Exchange-rate identifier required to reference the quoted rate.
+  optional string exchange_rate_id = 4;
+
+  // Name of the CC provider that supplied the quote.
+  optional string provider = 5;
+
+  // Source used by the provider to determine the exchange rate.
+  optional string rate_source = 6;
+
+  // Percentage markup included in the exchange rate, represented exactly as
+  // supplied by the provider (for example, "3.50").
+  optional string markup_percentage = 7;
+
+  // Monetary amount of the markup included in the quote.
+  optional Money markup_amount = 8;
+
+  // Type of currency conversion: DCC, MCP, or MCC.
+  optional CurrencyConversionType currency_conversion_type = 9;
+
+  // Time when the quote was created, in Unix epoch seconds.
+  optional int64 quoted_at = 10;
+
+  // Time when the quote expires, in Unix epoch seconds.
+  optional int64 expires_at = 11;
+}
+
+// Identifies the currency conversion model used for the payment.
+enum CurrencyConversionType {
+  // Currency conversion type was not provided or could not be determined.
+  CURRENCY_CONVERSION_TYPE_UNSPECIFIED = 0;
+  // Dynamic Currency Conversion (DCC).
+  CURRENCY_CONVERSION_TYPE_DCC = 1;
+  // Multi-Currency Pricing (MCP).
+  CURRENCY_CONVERSION_TYPE_MCP = 2;
+  // Merchant Currency Conversion (MCC).
+  CURRENCY_CONVERSION_TYPE_MCC = 3;
+}
+
+// Indicates the customer's decision for a currency conversion offer.
+enum CurrencyConversionDecision {
+  // Currency conversion decision was not provided or could not be determined.
+  CURRENCY_CONVERSION_DECISION_UNSPECIFIED = 0;
+  // The customer accepted the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_ACCEPTED = 1;
+  // The customer declined the currency conversion offer.
+  CURRENCY_CONVERSION_DECISION_DECLINED = 2;
+  // Currency conversion does not apply to this payment.
+  CURRENCY_CONVERSION_DECISION_NOT_APPLICABLE = 3;
+}
+
+// Contains the customer's currency conversion decision and the quote presented to them.
+message CurrencyConversionData {
+  // Customer's decision for the currency conversion offer.
+  CurrencyConversionDecision decision = 1;
+  // Currency conversion quote presented to the customer, when available.
+  optional CurrencyConversionQuote quote = 2;
+}
+
 // Permissions wraps a repeated string field to allow optional presence
 // Used for fields like permissions where absence is semantically different from empty
 message Permissions {
@@ -103,6 +174,19 @@ message ConnectorErrorDetails {
   optional string message = 2; // Human-readable error message
   optional string reason = 3;  // Detailed explanation
   optional string connector_transaction_id = 4; // Connector's unique transaction ID for debugging and support reference
+
+  // Attempt status from the connector flow (Payment/Refund/Dispute).
+  // Extracted from ErrorResponse.attempt_status (domain_types::FlowStatus).
+  // Only one of payment_status, refund_status, or dispute_status will be set.
+  optional FlowStatus status = 5;
+}
+
+// The connector's reported status for this response: the code, message and
+// reason returned by the connector, when provided.
+message RawConnectorStatus {
+  optional string code = 1;    // Connector status/response code, e.g. "05"
+  optional string message = 2; // Status message, e.g. "Do not honor"
+  optional string reason = 3;  // Additional detail, when present
 }
 
 // Metadata consolidates all metadata types
@@ -130,8 +214,29 @@ message Customer {
   optional string id = 3;          // Internal customer ID
   optional string connector_customer_id =
       4;                                  // Customer ID in the connector system
-  optional string phone_number = 5;       // Customer's phone number
+  optional SecretString phone_number = 5; // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
+  optional string first_name = 7;       // Customer's first name
+  optional string last_name = 8;        // Customer's last name
+  optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
+  optional CustomerDocumentDetails customer_document_details =
+      10; // Customer identification document
+  optional SecretString date_of_birth = 11; // Date of birth (ISO 8601: yyyy-MM-dd)
+}
+
+// Type of customer identification document.
+enum DocumentKind {
+  DOCUMENT_KIND_UNSPECIFIED = 0; // Default, unspecified document type.
+  CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
+  CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
+  PSN = 3; // Philippine PhilSys Number (12-digit national ID), required by dLocal for GCash.
+  OTHER = 4; // Generic / other non-Brazilian national document; the connector validates it per country. Kept last as the catch-all.
+}
+
+// Customer's country-specific identification document.
+message CustomerDocumentDetails {
+  DocumentKind document_type = 1;   // The customer's document type
+  SecretString document_number = 2; // The customer's document number
 }
 
 // ============================================================================
@@ -238,6 +343,17 @@ enum DisputeStatus {
   DISPUTE_CHALLENGED = 5; // Dispute is being challenged with evidence
   DISPUTE_WON = 6;
   DISPUTE_LOST = 7;
+}
+
+// Unified flow status wrapping payment, refund, or dispute status.
+// Used to represent the attempt status in error responses and flow results.
+// Only one variant should be set at a time.
+message FlowStatus {
+  oneof status {
+    PaymentStatus payment_status = 1;  // Status for payment flow
+    RefundStatus refund_status = 2;    // Status for refund flow
+    DisputeStatus dispute_status = 3;  // Status for dispute flow
+  }
 }
 
 // Status of a mandate
@@ -427,6 +543,7 @@ enum WebhookEventType {
   // Refund events
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
+  WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -462,6 +579,21 @@ enum WebhookEventType {
   RECOVERY_PAYMENT_SUCCESS = 38; // Recovery payment success
   RECOVERY_PAYMENT_PENDING = 39; // Recovery payment pending
   RECOVERY_INVOICE_CANCEL = 40;  // Recovery invoice cancelled
+}
+
+// Type of event for outgoing connector notifications (not webhooks)
+enum NotifyEventType {
+  NOTIFY_EVENT_TYPE_UNSPECIFIED = 0; // Default unspecified event
+
+  // Surcharge events
+  SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
+  SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
+
+  // FRM events
+  FRM_PAYMENT_SUCCEEDED = 6;     // Payment authorized/captured — update FRM with outcome
+  FRM_PAYMENT_FAILURE = 7;       // Payment authorized/captured — update FRM with outcome
+  FRM_REFUND_PROCESSED = 8;      // Refund completed — notify FRM of return
+  FRM_CHARGEBACK_RECEIVED = 9;   // Chargeback opened — notify FRM of reversal
 }
 
 // Currency codes (ISO 4217)
@@ -748,11 +880,43 @@ enum Connector {
   PPRO = 113;
   FISERVCOMMERCEHUB = 114;
   TRUSTLY = 115;
-  SANLAM = 116;
+  ABSA_SANLAM = 116;
   PINELABS_ONLINE = 117;
   IMERCHANTSOLUTIONS = 118;
   AXISBANK = 119;
   EASEBUZZ = 120;
+  TWOC_TWOP_PACO = 121;
+  JUSPAY = 122;
+  TAMARA = 123;
+  PAYCONEX = 124;
+  QWIKCILVER = 125;
+  HYPERSWITCH = 126;
+  TSYS_TRANSIT = 127;
+  KOUNT = 128;
+  FLYWIRE = 129;
+  GLOMOPAY = 130;
+  GIVEPAYMENTS = 131;
+  TESOURO = 132;
+  SANTANDER = 133;
+  MAYA = 134;
+  GRABPAY = 135;
+  BOOST = 136;
+  CITIGATE = 137;
+  ILIXIUM = 138;
+  WORLDPAYRAFT = 139;
+  SAFERPAY = 140;
+  // Chase Paymentech "Orbital Gateway" JSON API. Distinct product from JPMORGAN
+  // (= JPMorgan Payments API v2) above.
+  JPMORGAN_ORBITAL = 141;
+  TRAVELHUB = 142;
+  PAYNEARME = 143;
+  D24 = 144;
+  PAYDOTCOM = 145;
+  NSURE = 146;
+  GLOBALPAYMENTS_HEARTLAND = 147;
+  PAYHERE = 148;
+  ETISALAT = 149;
+  MERCHANTE = 150;
 }
 
 // Payment method types
@@ -870,6 +1034,39 @@ enum PaymentMethodType {
   PAY_U = 110;
   EASE_BUZZ = 111;
   OPEN_BANKING = 112;
+  QWIKCILVER_WALLET = 113;
+  SKRILL = 114;
+  PAYMAYA = 115;
+  GRAB_PAY = 116;
+  // PAYMENT_METHOD_TYPE_KLARNA (not bare KLARNA): the value name KLARNA is already
+  // taken by the Connector enum in this same proto package, and protobuf requires
+  // enum value names to be unique per-package (C++ scoping). Klarna is legitimately
+  // both a connector and a payment method; this value carries the enum-name prefix
+  // that the protobuf style guide recommends for exactly this reason.
+  PAYMENT_METHOD_TYPE_KLARNA = 117;
+  BHN_CARD_NETWORK = 118;
+  BLUECODE = 119;
+  BREADPAY = 120;
+  EFT_DEBIT_ORDER = 121;
+  FLEXITI = 122;
+  INDONESIAN_BANK_TRANSFER = 123;
+  // PAYMENT_METHOD_TYPE_MIFINITY (not bare MIFINITY): the value name MIFINITY is
+  // already taken by the Connector enum in this same proto package; see the
+  // PAYMENT_METHOD_TYPE_KLARNA note above.
+  PAYMENT_METHOD_TYPE_MIFINITY = 124;
+  PAYJUSTNOW = 125;
+  PAYSERA = 126;
+  PAYSHAP = 127;
+  PAYSHAP_PROXY = 128;
+  PIX_AUTOMATICO_PUSH = 129;
+  PIX_AUTOMATICO_QR = 130;
+  PIX_EMV = 131;
+  PIX_KEY = 132;
+  PIX_QR = 133;
+  QRIS = 134;
+  SEPA_GUARANTEED_DEBIT = 135;
+  NETELLER = 136;
+  PAY_HERE = 137;
 }
 
 // Product type enumeration
@@ -951,6 +1148,22 @@ message OrderDetailsWithAmount {
   optional ProductType product_type = 14;
   // The tax code for the product
   optional string product_tax_code = 15;
+  // Stock Keeping Unit (SKU) or item identifier for the product
+  optional string sku = 16;
+  // Universal Product Code for the product
+  optional string upc = 17;
+  // Commodity code describing the product classification
+  optional string commodity_code = 18;
+  // Discount amount applied to a single unit (in minor currency units)
+  optional int64 unit_discount_amount = 19;
+  // Discount name applied to this item
+  optional string discount_name = 20;
+  // Discount percentage applied to this item
+  optional double discount_percentage = 21;
+  // Discount type applied to this item
+  optional string discount_type = 22;
+  // The URL of the product
+  optional string product_link = 23;
 }
 
 // Access token details
@@ -1020,6 +1233,16 @@ message NetworkParams {
   optional CartesBancairesParams cartes_bancaires = 1;
 }
 
+// Type of decoupled (external) 3DS authentication that was performed.
+enum DecoupledAuthenticationType {
+  // Unspecified/default value.
+  DECOUPLED_AUTHENTICATION_TYPE_UNSPECIFIED = 0;
+  // Challenge flow - the cardholder was challenged by the ACS.
+  DECOUPLED_AUTHENTICATION_TYPE_CHALLENGE = 1;
+  // Frictionless flow - authentication completed without a challenge.
+  DECOUPLED_AUTHENTICATION_TYPE_FRICTIONLESS = 2;
+}
+
 // Additional authentication data, typically from 3DS
 message AuthenticationData {
   // Electronic Commerce Indicator (ECI) from 3DS.
@@ -1045,6 +1268,26 @@ message AuthenticationData {
   optional ExemptionIndicator exemption_indicator = 10;
   // Network-specific parameters for 3DS processing.
   optional NetworkParams network_params = 11;
+  // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS
+  // authentication was performed. Used by connectors (e.g. Cybersource) that
+  // send an authenticationDate in their request.
+  optional int64 created_at = 12;
+  // 3DS challenge code from the ACS challenge flow (e.g. Cybersource
+  // challengeCode).
+  optional string challenge_code = 13;
+  // 3DS challenge cancellation indicator (e.g. Cybersource
+  // challengeCancelCode).
+  optional string challenge_cancel = 14;
+  // Reason associated with the 3DS challenge code (e.g. Cybersource
+  // signedParesStatusReason).
+  optional string challenge_code_reason = 15;
+  // JSON-serialized 3DS message extension attributes (e.g. Cartes Bancaires
+  // score used for Cybersource networkScore).
+  optional string message_extension = 16;
+  // Type of decoupled (external) authentication performed (challenge vs
+  // frictionless). Used by connectors (e.g. Cybersource
+  // effectiveAuthenticationType).
+  optional DecoupledAuthenticationType authentication_type = 17;
 }
 
 // Details of customer acceptance for mandates or terms
@@ -1066,16 +1309,34 @@ message OnlineMandate {
   string user_agent = 2;
 }
 
-// Amount data for mandate
+// Amount data for mandate.
+//
+// Also carries subscription / recurring-order context consumed by FRM risk
+// scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
+// per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1;              // Amount
-  Currency currency = 2;         // Currency code (ISO 4217)
-  optional int64 start_date = 3; // Unix timestamp for start date
-  optional int64 end_date = 4;   // Unix timestamp for end date
+  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 start_date = 3;        // Unix timestamp for start date
+  optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
       5; // Amount type for variable mandates ("exact", "max", "variable")
   optional string frequency =
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
+  optional Money amount_money = 7; // Amount in Money type
+
+  // Initial / First billing amount.
+  optional Money initial_billing_amount = 8;
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 9;
+  // Subscription status. UNSPECIFIED (0) means undefined / unset.
+  MandateStatus mandate_status = 10;
+  // Unix timestamp for the next billing date.
+  optional int64 next_billing_date = 11;
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 12;
+  // Free-form description of the subscription.
+  optional string description = 13;
 }
 
 // Mandate type with amount details
@@ -1125,14 +1386,21 @@ message BrowserInformation {
   optional string device_model = 15;
 }
 
+message MandateReferenceDetails {
+  optional string connector_mandate_id = 1;
+  optional string payment_method_id = 2;
+  optional string connector_mandate_request_reference_id = 3;
+  optional SecretString mandate_metadata = 4;
+}
+
 message MandateReference {
   oneof mandate_id_type {
     // mandate_id sent by the connector
     ConnectorMandateReferenceId connector_mandate_id = 1;
 
-    // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
+    // network_mandate_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with card data
-    string network_mandate_id = 2;
+    NetworkMandateId network_mandate_id = 2;
 
     // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with network token data
@@ -1144,12 +1412,23 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
+  optional SecretString mandate_metadata = 4;
+}
+
+message NetworkMandateId {
+  string network_transaction_id = 1;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 2;
 }
 
 message NetworkTokenWithNTI {
   string network_transaction_id = 1;
   optional SecretString token_exp_month = 2;
   optional SecretString token_exp_year = 3;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 4;
 }
 
 // Container for various address types related to a payment
@@ -1213,6 +1492,143 @@ message L2L3Data {
   optional TaxInfo tax_info = 2;
 }
 
+// Domain-specific data supplied by the merchant.
+message DomainData {
+  optional AirlineData airline_data = 1; // Airline / travel itinerary data
+  optional EducationData education_data = 2; // Education / student data
+}
+
+// Connector-agnostic education data (e.g. Flywire tuition payments).
+message EducationData {
+  optional StudentDetails student_details = 1;
+}
+
+// Student details for education payments (e.g. Flywire recipient fields).
+message StudentDetails {
+  optional string student_id = 1;
+  optional string student_first_name = 2;
+  optional string student_last_name = 3;
+  optional SecretString student_email = 4; // PII — student's email address
+}
+
+// Whether the ticket can be refunded
+enum TicketRefundability {
+  TICKET_REFUNDABILITY_UNSPECIFIED = 0;
+  REFUNDABLE = 1;
+  NON_REFUNDABLE = 2;
+}
+
+// Ticket medium — electronic vs paper
+enum TicketDeliveryType {
+  TICKET_DELIVERY_TYPE_UNSPECIFIED = 0;
+  ELECTRONIC = 1;
+  PAPER = 2;
+}
+
+// Whether the cardholder is among the passengers a fraud signal.
+enum CardholderTravelStatus {
+  CARDHOLDER_TRAVEL_STATUS_UNSPECIFIED = 0;
+  CARDHOLDER_TRAVELING = 1;
+  CARDHOLDER_NOT_TRAVELING = 2;
+}
+
+// Connector-agnostic airline / travel itinerary data. The union of fields
+// across processors (2C2P PACO, CyberSource, Adyen, Worldpay, Checkout.com,
+// Nuvei); every field is optional so each connector enforces its own required
+// subset. Amounts use Money (minor units + currency); dates are strings since
+// processors disagree on format.
+message AirlineData {
+  // ---- Booking / ticket level ----
+  optional string pnr_code = 1;                 // PNR / reservation-system code
+  optional string booking_reference = 2;        // Merchant booking / customer reference
+  optional string ticket_number = 3;            // Airline ticket number
+  optional string ticket_issue_date = 4;        // Date the ticket was issued
+  optional string booking_date_time = 5;        // Booking timestamp (RFC 3339)
+  optional string flight_date = 6;              // Departure date of the first leg
+  optional string issuing_carrier_code = 7;     // IATA code of the ticket issuer
+  optional string airline_code = 8;             // IATA numeric accounting code
+  optional string passenger_name = 9;           // Primary passenger name
+  optional uint32 number_of_passengers = 10;    // Passenger count on the ticket
+  optional string document_type = 11;           // Travel document type code
+  TicketRefundability refundability = 12;       // Refundable / non-refundable
+  TicketDeliveryType ticket_delivery_type = 13; // Electronic vs paper ticket
+  CardholderTravelStatus cardholder_travel_status = 14; // Is the cardholder a passenger
+  optional Address ticket_issue_address = 15;   // Address of the issuing agency
+  optional string booking_system_unique_id = 16; // Booking-system unique identifier
+
+  // Travel agency
+  optional string agency_code = 20;             // IATA / ARC travel agency code
+  optional string agency_name = 21;             // Travel agency name
+  optional string agency_invoice_number = 22;   // Agency-issued invoice number
+  optional string agency_plan_name = 23;        // Agency plan identifier
+
+  // Ticket-level amounts (each carries its own currency)
+  optional Money total_fare = 30;               // Total ticket fare
+  optional Money total_taxes = 31;              // Total taxes on the ticket
+  optional Money total_fee = 32;                // Total fees on the ticket
+  optional Money boarding_fee = 33;             // Chargeable boarding fee
+
+  repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
+  repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
+}
+
+// One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
+// how Address is reused for billing/shipping.
+message AirlineSegment {
+  optional uint32 sequence_no = 1;              // 1-based leg order
+  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
+  optional string flight_number = 3;            // Marketing flight number
+  optional string flight_type = 4;              // "Domestic" / "International"
+  optional string class_of_service = 5;         // F / J / Y / W
+  optional string fare_basis_code = 6;          // Fare basis code
+  optional string stopover_code = 7;            // O = stopover allowed / X = not
+  AirlineLocation departure = 8;                // Departure endpoint
+  AirlineLocation arrival = 9;                  // Arrival endpoint
+
+  // Per-leg amounts (each carries its own currency)
+  optional Money fare_amount = 10;              // Fare for this leg
+  optional Money fee_amount = 11;               // Fee for this leg
+  optional Money tax_amount = 12;               // Departure tax for this leg
+
+  // Exchange / coupon details
+  optional string exchange_ticket_number = 13;  // New ticket number on exchange
+  optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
+  optional string coupon_number = 15;           // Coupon number for this leg
+  optional string endorsements_restrictions = 16; // Endorsements / restrictions
+
+  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
+  optional string operating_flight_number = 18; // Operating flight number
+}
+
+// A flight endpoint, reused for both departure and arrival.
+message AirlineLocation {
+  optional string airport_code = 1;             // IATA-3 airport code
+  optional string city_code = 2;                // IATA-3 city code
+  optional string city_name = 3;                // City name
+  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
+  optional string country_name = 5;             // Country name
+  optional string date_time = 6;                // Local scheduled time (RFC 3339)
+}
+
+message AirlinePassenger {
+  optional uint32 sequence_no = 1;              // 1-based passenger order
+
+  // Identity fields shared with the cardholder/payer model — salutation,
+  // first_name, last_name, email (Secret) and phone_number (Secret).
+  optional Customer customer = 2;
+
+  // Passenger-specific fields not on Customer.
+  optional string middle_name = 3;              // Middle name
+  optional string gender = 4;                   // M / F / X
+  optional string date_of_birth = 5;            // Date of birth (yyyy-MM-dd)
+  optional string passenger_type = 6;           // IATA PTC, e.g. ADT
+  optional string frequent_flyer_number = 7;    // Loyalty / frequent-flyer number
+  optional string loyalty_tier = 8;             // Loyalty-program tier
+  optional SecretString passport_number = 9;    // Passport number
+  optional string nationality = 10;             // ISO 3166-1 alpha-2 nationality
+  optional SecretString ticket_number = 11;     // Per-passenger ticket number
+}
+
 // Redirection response data
 message RedirectionResponse {
   optional string params = 1;
@@ -1238,7 +1654,37 @@ message RedirectForm {
 
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
+
+    // Generic hosted-iframe redirection: load `endpoint` in an iframe and
+    // attach the connector-built `events` postMessage listener.
+    HostedIframeData hosted_iframe = 7;
+
+    // A standalone script snippet (e.g. a device-data-collection script), when
+    // the connector returns script content instead of a full HTML document.
+    ScriptData script = 8;
+
+    // Worldpay WPG (worldpayxml) Cardinal device-data-collection data; the caller
+    // renders the collection page.
+    WorldpayxmlDdcData worldpayxml_ddc = 9;
+
+    // Worldpay WPG (worldpayxml) Cardinal challenge data; the caller renders the
+    // StepUp page.
+    WorldpayxmlChallengeData worldpayxml_challenge = 10;
   }
+}
+
+// Cardinal device-data-collection data for worldpayxml.
+message WorldpayxmlDdcData {
+  // First six digits of the card number.
+  string bin = 1;
+  // Signed DDC JWT.
+  SecretString jwt = 2;
+}
+
+// Cardinal challenge data for worldpayxml.
+message WorldpayxmlChallengeData {
+  // Signed challenge JWT.
+  SecretString jwt = 1;
 }
 
 // Represents data for an HTML form to be submitted
@@ -1257,6 +1703,12 @@ message FormData {
 message HtmlData {
   // The HTML content as a string.
   string html_data = 1;
+}
+
+// Represents a standalone script snippet for redirection
+message ScriptData {
+  // The script content as a string (e.g. a `<script>` tag).
+  string script_data = 1;
 }
 
 // Represents URI data for direct redirection
@@ -1284,6 +1736,21 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Generic hosted-iframe redirection data. The connector supplies a URL to
+// load into an iframe and a self-contained postMessage listener script that
+// navigates the payer to the (pre-substituted) return URL on completion.
+message HostedIframeData {
+  // URL to load inside the iframe.
+  string endpoint = 1;
+
+  // HTTP method the client should use to fetch `endpoint`.
+  HttpMethod method = 2;
+
+  // postMessage listener script; `return_url` is already substituted by the
+  // connector so the client just inlines this verbatim in a <script> tag.
+  string events = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows
@@ -1340,46 +1807,117 @@ message RedirectResponseSecrets {
   optional string additional_secret = 2;
 }
 
-// Response for EventService.HandleEvent.
-// event_content mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
-// Returns INVALID_ARGUMENT if required EventContext fields are absent for this connector.
 
-// Response for handling an event, which may contain different types of content
-// based on the event type.
-message EventServiceHandleResponse {
+// Request for notifying connectors about events
+message NotifyConnectorRequest {
+  // Unique event identifier
+  string event_id = 1;
+
   // Event type
-  WebhookEventType event_type = 1;
+  NotifyEventType event_type = 2;
 
-  // Content
-  EventContent event_content = 2;
+  // Event content with notify connector content
+  NotifyConnectorContent content = 3;
 
-  // Verification
-  bool source_verified = 3;
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 4;
 
-  // Reference
-  optional string merchant_event_id = 4;
-
-  // Suggested HTTP response to send back to the connector for webhook acknowledgement
-  optional EventAckResponse event_ack_response = 5;
+  // Connector state for access token management (optional)
+  optional ConnectorState state = 5;
 }
 
-// Suggested HTTP response for webhook acknowledgement (status, headers, body).
-message EventAckResponse {
-  uint32 status_code = 1;
-  map<string, string> headers = 2;
-  bytes body = 3;
-}
 
 // Content of an event
-message EventContent {
+message NotifyConnectorContent {
   oneof content {
-    // Content if the event is for a payment synchronization.
-    PaymentServiceGetResponse payments_response = 1;
-    // Content if the event is for a refund synchronization.
-    RefundResponse refunds_response = 2;
-    // Content if the event is for a dispute synchronization.
-    DisputeResponse disputes_response = 3;
+    // surcharge details
+    SurchargeContent surcharge_content = 1;
+
+    // FRM notification content
+    FrmNotificationContent frm_notification = 2;
   }
+}
+
+
+// Surcharge details object
+message SurchargeContent {
+  // Connector surcharge identifier
+  string connector_surcharge_id = 1;
+}
+
+// Risk management decision outcomes from the FRM service
+enum FrmDecision {
+  FRM_DECISION_UNSPECIFIED = 0; // Default, unspecified FRM Decision
+  APPROVE = 1;                  // Transaction is low risk; proceed with payment authorization.
+  REJECT = 2;                   // Transaction is fraudulent or high risk; block the payment.
+  REVIEW = 3;                   // Transaction is suspicious; hold for manual review.
+  ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
+}
+
+// Merchant details used for FRM risk scoring.
+message MerchantDetails {
+  // Merchant identifier.
+  optional string merchant_id = 1;
+
+  // Merchant Category Code (ISO 18245).
+  optional uint32 merchant_category_code = 2;
+}
+
+// Unified FRM notification content.
+// Used for all FRM lifecycle events (payment success, refund, chargeback).
+message FrmNotificationContent {
+  // Merchant-facing identifiers
+  optional string connector_transaction_id = 1;
+  Money amount = 2;
+
+  // Correlation ID from PreRiskCheck, if available
+  optional string frm_transaction_id = 3;
+
+  // The specific notification type — exactly one must be set
+  oneof notification_type {
+    FrmPaymentDetails payment_details = 4;
+    FrmRefundDetails refund = 5;
+    FrmChargebackDetails chargeback = 6;
+  }
+
+  // Risk assessment outcome
+  optional FrmDecision frm_decision = 7;
+
+  // Merchant details for risk scoring.
+  optional MerchantDetails merchant_details = 8;
+
+  // Connector-specific feature data (e.g. AVS/CVV verification results) for the notify call.
+  optional SecretString connector_feature_data = 9;
+}
+
+// FRM payment success details
+message FrmPaymentDetails {
+  optional string connector_transaction_id = 1;
+  optional string merchant_transaction_id = 2;
+  PaymentStatus payment_status = 3;
+}
+
+// FRM refund details
+message FrmRefundDetails {
+  optional string connector_refund_id = 1;
+  optional string merchant_refund_id = 2;
+  optional string refund_reason = 3;
+}
+
+// FRM chargeback details
+message FrmChargebackDetails {
+  optional string connector_dispute_id = 1;
+  optional string merchant_dispute_id = 2;
+  optional string chargeback_reason = 3;
+}
+
+// Response for notifying connectors
+message NotifyConnectorResponse {
+  // Status of the notification
+  uint32 status_code = 1;
+
+  // Optional error information if notification failed
+  optional ErrorInfo error = 2;
 }
 
 
@@ -1443,6 +1981,38 @@ message CardConnectorResponse {
   optional string domestic_network = 4; // Domestic (co-branded) card network
   optional string auth_code =
       5; // Unique authorisation code generated for the payment
+}
+
+// Additional card information for payment processing
+message AdditionalCardInfo {
+  // The name of issuer of the card
+  optional string card_issuer = 1;
+
+  // Last 4 digits of the card number
+  optional string last4 = 2;
+
+  // The ISIN of the card
+  optional string card_isin = 3;
+
+  // Extended bin of card, contains the first 8 digits of card number
+  optional string card_extended_bin = 4;
+
+  // Card expiry month (sensitive)
+  optional SecretString card_exp_month = 5;
+
+  // Card expiry year (sensitive)
+  optional SecretString card_exp_year = 6;
+
+  // Card holder name (sensitive)
+  optional SecretString card_holder_name = 7;
+
+}
+
+// Additional payment data for various payment methods
+message AdditionalPaymentData {
+  oneof payment_method_data {
+    AdditionalCardInfo card = 1;
+  }
 }
 
 // Additional payment method data for Google Pay
@@ -1532,10 +2102,21 @@ message CardDetailUpdate {
 
 message ClientAuthenticationTokenData {
   oneof sdk_type {
+    // Wallet SDKs — standalone digital wallets, independent of payment connector
     GpayClientAuthenticationResponse google_pay = 1;
     PaypalClientAuthenticationResponse paypal = 2;
     ApplepayClientAuthenticationResponse apple_pay = 3;
+    // Connector SDKs — payment connector-specific SDKs for rendering payment forms
     ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
+    // Authenticator SDKs — account linking/verification flows
+    AuthenticatorConnectorSpecificClientAuthenticationResponse authenticator_connector_specific = 5;
+  }
+}
+
+// Generic authenticator connector-specific SDK session data — discriminated by connector
+message AuthenticatorConnectorSpecificClientAuthenticationResponse {
+  oneof connector {
+    PlaidClientAuthenticationResponse plaid = 1;
   }
 }
 
@@ -1709,6 +2290,13 @@ message RevolutClientAuthenticationResponse {
   string order_id = 1;
   // The client authentication token for SDK initialization
   SecretString token = 2;
+}
+
+// Plaid Link SDK initialization data — link_token for Plaid Link initialization
+message PlaidClientAuthenticationResponse {
+  SecretString link_token = 1;                    // Required: The Plaid Link token
+  optional int64 expires_in_seconds = 2;          // Seconds until the link_token expires
+  optional string hosted_link_url = 3;            // Hosted Link URL (if enabled)
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
@@ -1918,6 +2506,73 @@ message SecretInfoToInitiateSdk {
 }
 
 // ============================================================================
+// RECIPIENT TYPES
+// ============================================================================
+
+// Recipient bank account identified by IBAN.
+message RecipientBankAccountIban {
+  SecretString iban = 1;
+}
+
+// Recipient bank account identified by account number + routing number.
+message RecipientBankAccountRoutingNumber {
+  SecretString account_number = 1;
+  SecretString routing_number = 2;
+}
+
+// Recipient bank account identified by account number + BIC.
+message RecipientBankAccountBic {
+  SecretString account_number = 1;
+  SecretString bic = 2;
+}
+
+// Recipient bank account identified by a bare account number only (no bank identifier required by the scheme).
+message RecipientBareAccountNumber {
+  SecretString account_number = 1;
+}
+
+// Recipient bank account identified by truncated PAN (first 6 + last 4 digits).
+message RecipientBankAccountTruncatedPan {
+  SecretString card_isin = 1; // First 6 digits of the PAN
+  SecretString last4 = 2;     // Last 4 digits of the PAN
+}
+
+// The account a recipient holds at a bank — discriminated by scheme.
+message RecipientBankAccount {
+  oneof bank_account_type {
+    RecipientBankAccountIban iban = 1;
+    RecipientBankAccountRoutingNumber routing_number = 2;
+    RecipientBankAccountBic bic = 3;
+    RecipientBareAccountNumber account_number = 4;
+    RecipientBankAccountTruncatedPan truncated_pan = 5;
+  }
+}
+
+// The account that receives the funds.
+message RecipientAccount {
+  oneof account_type {
+    RecipientBankAccount bank_account = 1; // Funds credited to a bank account
+    CardNumberType card_number = 2;         // Funds credited to a card
+    SecretString wallet_id = 3;            // Funds credited to a wallet
+    SecretString email = 4;               // Account identified by email
+    SecretString phone_number = 5;        // Account identified by phone
+    SecretString social_network_id = 6;   // Account identified by social network handle
+  }
+}
+
+// Details about the recipient of funds.
+message RecipientDetails {
+  // The account the funds are credited to.
+  optional RecipientAccount account = 1;
+  // The recipient's phone number.
+  optional SecretString phone_number = 2;
+  // The recipient's tax identifier (e.g. CPF/CNPJ for Brazil, CUIT for Argentina).
+  optional SecretString tax_id = 3;
+  // The recipient's address.
+  optional Address address = 4;
+}
+
+// ============================================================================
 // PAYMENT SERVICE REQUESTS
 // ============================================================================
 
@@ -2019,6 +2674,71 @@ message PaymentServiceAuthorizeRequest {
   // Send the connector order identifier here if an order was created before
   // authorize
   optional string connector_order_id = 44;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors for authorize requests.
+  optional string merchant_request_id = 45;
+
+  // Domain-specific data (e.g. airline itinerary) the merchant supplies for
+  // connectors that need it. Connectors map from this into their own payloads.
+  optional DomainData domain_data = 46;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 47;
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
+  optional SplitSettlement split_settlement = 52;
+
+  // MIT Category — for CIT (this request) it signals the future intended MIT
+  // type; for Authorize-as-MIT (with mandate_id set) it signals the actual
+  // MIT category being processed. Mirrors the field on
+  // RecurringPaymentServiceChargeRequest.
+  optional MitCategory mit_category = 48;
+
+  // Surcharge amount to send separately for connectors that support a first-class
+  // surcharge field. This does not change the transaction amount.
+  optional Money surcharge_amount = 49;
+
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 50;
+
+  // Currency conversion quote and decision data passed through the
+  // authorization flow for future connector-specific processing.
+  optional CurrencyConversionData currency_conversion_data = 51;
+
+  // Indicates whether this payment is an account funding transaction (AFT),
+  // where funds are pulled from a pre-funded account rather than a card.
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 53;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 54;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 55;
+
+  // Merchant business country, ISO 3166-1 alpha-2
+  optional string business_country = 56;
+}
+
+// Partner / external-platform application details.
+message PartnerApplicationDetails {
+  optional string name = 1;
+  optional string version = 2;
+  optional string integrator = 3;
+}
+
+// Merchant application details.
+message MerchantApplicationDetails {
+  optional string name = 1;
+  optional string version = 2;
+}
+
+// Partner and merchant application identifiers initiating the request.
+message PartnerMerchantIdentifierDetails {
+  optional PartnerApplicationDetails partner_details = 1;
+  optional MerchantApplicationDetails merchant_details = 2;
 }
 
 // Response message for a payment authorization
@@ -2045,18 +2765,45 @@ message PaymentServiceAuthorizeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 25;
   optional SecretString raw_connector_request = 12;
+  optional SecretString typed_connector_request = 26;
 
   // Payment Details
   optional int64 captured_amount = 13;
   optional int64 capturable_amount = 14;
-  optional int64 authorized_amount = 15;
+  optional int64 authorized_amount = 15 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  optional Money authorized_money = 20; // populated from AuthoriseIntegrityObject for integrity check
 
   // Mandate and Connector Response
-  optional MandateReference mandate_reference = 16;
+  optional MandateReference mandate_reference = 16 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 19;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 21;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 27;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 22;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 23;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 24;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 28;
+
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
+  optional string sender_payment_instrument_id = 29;
 }
 
 // Request message for synchronizing payment status
@@ -2096,6 +2843,32 @@ message PaymentServiceGetRequest {
 
   // Payment Experience
   optional PaymentExperience payment_experience = 14;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 15;
+
+  // Payment method type, supplied by the caller so connectors that need it on
+  // sync (e.g. Adyen, to build connector_response) can populate it.
+  optional PaymentMethodType payment_method_type = 16;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 17;
+
+  optional ConnectorMandateReferenceId mandate_reference = 18;
+}
+
+// Settlement phase reported by the connector on PaymentServiceGetResponse.
+enum SettlementStatus {
+  // Connector emitted the field but the txn is in neither Settled nor
+  // Not-Settled phase (terminal or in-flight states).
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  // Funds finalised — Refund is the valid reversal.
+  SETTLEMENT_STATUS_SETTLED = 1;
+  // Authorised only, settlement pending — Void is the valid reversal.
+  SETTLEMENT_STATUS_NOT_SETTLED = 2;
 }
 
 // Response message for a payment status synchronization
@@ -2111,8 +2884,11 @@ message PaymentServiceGetResponse {
   map<string, string> response_headers = 5;
 
   // Transaction Details
-  optional MandateReference mandate_reference = 6;
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
   optional string network_transaction_id = 7;
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 31;
 
   // Payment Details
   optional Money amount = 8;
@@ -2139,7 +2915,9 @@ message PaymentServiceGetResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 24;
+  optional SecretString typed_connector_response = 38;
   optional SecretString raw_connector_request = 25;
+  optional SecretString typed_connector_request = 39;
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data = 26;
@@ -2148,6 +2926,38 @@ message PaymentServiceGetResponse {
   optional bool incremental_authorization_allowed = 27;
   // Payment method updates
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
+
+  // Opaque connector-issued reference to the funding source the payer used (PayPal payer_id;
+  // TrueLayer/Trustly bank-account id). Persist and replay to that connector for closed-loop payouts.
+  optional string sender_payment_instrument_id = 30;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 32;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 41;
+
+  optional SecretString connector_feature_data = 33;
+
+  // Settlement phase reported by the connector. See SettlementStatus for the
+  // per-value semantics. Absent when the connector doesn't distinguish phases.
+  optional SettlementStatus settlement_status = 34;
+
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 35;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 36;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 37;
+
+  // Payment method details received from the connector mid-payment, intended for
+  // saving for the returning-customer flow.
+  optional PaymentMethod connector_returned_payment_method_details = 40;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 42;
 }
 
 // Request message for voiding a payment
@@ -2176,6 +2986,15 @@ message PaymentServiceVoidRequest {
   optional bool test_mode = 10;
   // Additional Context
   optional string merchant_order_id = 11;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 12;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 13;
 }
 
 // Response message for a payment void operation
@@ -2196,15 +3015,35 @@ message PaymentServiceVoidResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 17;
 
   // Mandate Details
-  optional MandateReference mandate_reference = 9;
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 10;
 
   optional SecretString connector_feature_data =
       11; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 12;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 13;
+  optional SecretString typed_connector_response = 18;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 14;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 15;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 16;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 19;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2224,6 +3063,15 @@ message PaymentServiceReverseRequest {
   optional SecretString metadata = 6; // Additional metadata for the connector
   optional SecretString connector_feature_data =
       7; // Connector-specific metadata for the transaction
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 8;
+
+  // Sandbox/test mode flag (true for test environment). Connectors that branch
+  // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
+  // the real value; defaulting to None/test mode breaks live-URL substitution.
+  optional bool test_mode = 9;
 }
 
 // Response message for reversing a captured payment if not yet settled (similar
@@ -2240,6 +3088,19 @@ message PaymentServiceReverseResponse {
 
   // Reference
   optional string merchant_reverse_id = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 11;
+  optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 12;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 9;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 10;
 }
 
 // Request message for creating an access token
@@ -2254,6 +3115,9 @@ message MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
   // Environment Configuration
   optional bool test_mode =
       5; // A boolean value to indicate if the connector is in Test mode
+
+  // Per-request idempotency / correlation token propagated from the parent composite request.
+  optional string merchant_request_id = 6;
 }
 
 // Response message for creating an access token
@@ -2289,6 +3153,8 @@ message PaymentSessionContext {
   Money amount = 1;
   optional SecretString metadata = 2;
   optional BrowserInformation browser_info = 3;
+  optional Customer customer = 4;
+  optional PaymentAddress address = 5;
 }
 
 // Response message for creating a connector session
@@ -2311,6 +3177,7 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
   // Domain-specific context
   oneof domain_context {
     PaymentClientAuthenticationContext payment = 4;
+    AuthenticatorClientAuthenticationContext authenticator = 8; // Account linking, identity verification
     // FrmClientAuthenticationContext frm = 5;      // future: device fingerprinting
     // PayoutClientAuthenticationContext payout = 6; // future: payout verification widget
   }
@@ -2332,13 +3199,30 @@ message PaymentClientAuthenticationContext {
   optional string return_url = 8;
 }
 
+// Authenticator-specific context for client authentication token creation
+message AuthenticatorClientAuthenticationContext {
+  optional string return_url = 1;           // OAuth redirect URL for Link completion
+  optional string webhook_url = 2;          // Webhook endpoint for events
+  repeated CountryAlpha2 country_codes = 3; // ISO-3166-1 alpha-2 country codes
+  optional string locale = 4;               // Locale/language preference (e.g., "en", "es", "en-US")
+  optional Customer customer = 5;           // User/customer context
+  optional string metadata = 6;             // Additional provider-specific config as JSON
+
+  // Native app identifier for returning control to the client app after the
+  // hosted flow completes (e.g. an Android package name). Sent by merchants
+  // integrating from a native app instead of return_url.
+  optional string native_app_identifier = 7;
+}
+
 // Response message for SDK session
 message MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse {
   ClientAuthenticationTokenData session_data = 1;
   optional ErrorInfo error = 2;
   uint32 status_code = 3;
   optional SecretString raw_connector_response = 4;
+  optional SecretString typed_connector_response = 6;
   optional SecretString raw_connector_request = 5;
+  optional SecretString typed_connector_request = 7;
 }
 
 // Request message for capturing a payment
@@ -2370,6 +3254,22 @@ message PaymentServiceCaptureRequest {
 
   // Additional Context
   optional string merchant_order_id = 11;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 12;
+
+  // Order-level tax amount. Some processors require this again on capture so
+  // settlement receives the Level II sales tax value.
+  optional Money order_tax_amount = 13;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 14;
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
+  optional SplitSettlement split_settlement = 15;
 }
 
 // Response message for a payment capture operation
@@ -2391,18 +3291,43 @@ message PaymentServiceCaptureResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 19;
 
   // Payment Details
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10;
+  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
 
   optional SecretString connector_feature_data =
       12; // Connector-specific metadata for the transaction
+
+  // Additional connector response details (e.g. AVS / CVV checks, auth code)
+  optional ConnectorResponseData connector_response = 13;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 14;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 21;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 15;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 17;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 16;
+  optional SecretString typed_connector_response = 20;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 18;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 22;
 }
 
 // Request message for creating an order
@@ -2429,6 +3354,10 @@ message PaymentServiceCreateOrderRequest {
   // Payment Method Type
   optional PaymentMethodType payment_method_type =
       8; // The type of payment method (e.g., apple_pay, google_pay)
+
+  // Order line items. Required by some connectors (e.g. Airwallex PayLater /
+  // Klarna) when creating the order/payment-intent.
+  repeated OrderDetailsWithAmount order_details = 9;
 }
 
 // Response message for create order operation
@@ -2448,11 +3377,16 @@ message PaymentServiceCreateOrderResponse {
 
   // Raw Request/Response for debugging
   optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 11;
   optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 12;
 
   // SDK Session Data
   optional ClientAuthenticationTokenData session_data =
       9; // SDK session data for wallets (Apple Pay, Google Pay) and other SDK types
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 10;
 }
 
 // Request message for processing a refund
@@ -2493,6 +3427,21 @@ message PaymentServiceRefundRequest {
       15; // Indicates the sub type of payment method. (e.g., card,
           // bank_redirect, bank_transfer)
   optional string customer_id = 16; // Merchant's customer ID
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 17;
+
+  // Connector-side identifier for the original payment that this refund targets.
+  optional string connector_order_id = 18;
+
+  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  optional PaymentMethod payment_method = 19;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 20;
+  // Split settlement refund (supersedes split_refunds).
+  optional SplitSettlementRefund split_settlement_refund = 21;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -2537,7 +3486,58 @@ message RefundResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 21;
+  optional SecretString typed_connector_response = 27;
   optional SecretString raw_connector_request = 22;
+  optional SecretString typed_connector_request = 28;
+
+  // Connector/domain state metadata to persist across calls.
+  // For refund-reverse, carries the underlying TSYS void status while the
+  // user-facing `status` field remains `RefundSuccess`.
+  optional SecretString state_metadata = 23;
+
+  // Merchant's reference for the original payment/transaction the refund
+  // belongs to
+  optional string merchant_transaction_id = 24;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 25;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_refund_id — e.g. secondary refund references, invoice numbers.
+  optional string connector_reference_id = 26;
+  // Applied split settlement for the refund.
+  optional SplitSettlementResponse split_settlement = 29;
+}
+
+// Request message for voiding/reversing a refund before settlement.
+message RefundServiceVoidPostRefundRequest {
+  // Identification
+  optional string merchant_refund_id = 1;
+  string connector_refund_id = 2;
+
+  // Reverse Details
+  optional string cancellation_reason = 4;
+
+  // Browser Information
+  optional BrowserInformation browser_info = 5;
+
+  optional SecretString refund_metadata = 6;
+
+  // State Information
+  optional ConnectorState state = 7;
+
+  // Environment Configuration
+  optional bool test_mode = 8;
+
+  // Payment Method Type
+  optional PaymentMethodType payment_method_type = 9;
+
+  optional SecretString connector_feature_data = 10;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  optional string merchant_request_id = 11;
+
+  // Connector-side identifier for the original payment that this refund targets.
+  optional string connector_order_id = 12;
 }
 
 // Request message for creating a dispute
@@ -2588,6 +3588,10 @@ message DisputeResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
+  optional SecretString typed_connector_request = 20;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  optional string connector_reference_id = 19;
 }
 
 // Request message for setting up a mandate
@@ -2675,6 +3679,29 @@ message PaymentServiceSetupRecurringRequest {
 
   // Mandate setup details
   optional SetupMandateDetails setup_mandate_details = 35;
+
+  // MIT Category — for CIT (this SetupRecurring request) it signals the
+  // future intended MIT type (e.g. Recurring vs Installment), so connectors
+  // can emit the correct CIT-side credential-on-file intent codes.
+  optional MitCategory mit_category = 36;
+
+  // Partner / merchant application identifiers initiating the request.
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 37;
+
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 38;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 39;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 40;
+
+  // Sandbox/test mode flag (true for test environment). When unset, connectors
+  // that branch endpoint construction on this (e.g. Adyen's merchant-prefixed
+  // live URL) default to test mode and skip live-URL substitution.
+  optional bool test_mode = 41;
 }
 
 // Response message for a mandate setup operation
@@ -2692,7 +3719,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6; // Reference to the created mandate
+  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -2718,8 +3745,24 @@ message PaymentServiceSetupRecurringResponse {
   // Raw Request for debugging
   optional SecretString raw_connector_request =
       14; // Raw request to the connector for debugging
+  optional SecretString typed_connector_request = 20;
   optional SecretString connector_feature_data =
       15; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 16;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 17;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 19;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 18;
+  optional SecretString typed_connector_response = 21;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+  optional string payment_account_reference = 22;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -2799,6 +3842,39 @@ message RecurringPaymentServiceChargeRequest {
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 31;
+
+  optional CustomerDocumentDetails customer_document_details =
+      32; // Customer identification document
+
+  // Additional payment data for various payment methods
+  optional AdditionalPaymentData additional_payment_data = 33;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 34;
+  // Unified, connector-agnostic split settlement: a marketplace/platform cut plus
+  // N per-vendor splits. Supersedes split_payments; new connectors read this field.
+  optional SplitSettlement split_settlement = 39;
+
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
+
+  optional AuthenticationType auth_type = 36;
+
+  optional string complete_authorize_url = 37;
+
+  // Channel through which the repeat payment was initiated.
+  optional PaymentChannel payment_channel = 38;
+
+  // Indicates whether this payment is an account funding transaction (AFT).
+  // When set to true, recipient_details must also be provided for the flow to be valid.
+  optional bool is_account_funding_transaction = 40;
+
+  // Details about the recipient of funds. Mandatory when is_account_funding_transaction is true.
+  optional RecipientDetails recipient_details = 41;
+
+  // Additional connector-specific information received from the merchant for the transaction
+  optional AdditionalConnectorDetails additional_connector_details = 42;
 }
 
 // Response message for repeat payment operation
@@ -2817,14 +3893,16 @@ message RecurringPaymentServiceChargeResponse {
   // Transaction Details
   optional string network_transaction_id = 7;
   optional string merchant_charge_id = 8;
-  optional MandateReference mandate_reference = 9;
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // State Information
   optional ConnectorState state = 10;
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 21;
   optional SecretString raw_connector_request = 12;
+  optional SecretString typed_connector_request = 22;
 
   // Payment Details
   optional int64 captured_amount =
@@ -2833,6 +3911,30 @@ message RecurringPaymentServiceChargeResponse {
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 15;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 16;
+  // Applied split settlement (supersedes splits).
+  optional SplitSettlementResponse split_settlement = 23;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 17;
+
+  // Redirection data (e.g. 3DS challenge or buyer-approval URL) for wallet-MIT /
+  // repeat payments that require buyer interaction. Mirrors
+  // PaymentServiceAuthorizeResponse.redirection_data so a redirected recurring
+  // charge can surface a next_action to the buyer.
+  optional RedirectForm redirection_data = 18;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 19;
+
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 20;
+
+  // Payment Account Reference (PAR): a network-assigned token linking tokenized and non-tokenized transactions for the same underlying card, used for reconciliation and risk tooling.
+   optional string payment_account_reference = 24;
 }
 
 // Request message for a mandate revoke operation
@@ -2859,7 +3961,9 @@ message RecurringPaymentServiceRevokeResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 7;
+  optional SecretString typed_connector_response = 9;
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 10;
 }
 
 // ============================================================================
@@ -2902,6 +4006,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant transaction identifier.
+  optional string merchant_transaction_id = 15;
 }
 
 // Response message for pre-authentication step
@@ -2928,6 +4035,7 @@ message PaymentMethodAuthenticationServicePreAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 11;
+  optional SecretString typed_connector_response = 13;
   // Authentication Results
   optional AuthenticationData authentication_data = 12;
 }
@@ -2971,6 +4079,12 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Capture Settings
   optional CaptureMethod capture_method = 14;
+
+  // URL for webhook notifications
+  optional string webhook_url = 15;
+
+  // Domain-specific data (e.g. student fields for tuition payments)
+  optional DomainData domain_data = 16;
 }
 
 // Response message for authentication step
@@ -2999,6 +4113,10 @@ message PaymentMethodAuthenticationServiceAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 12;
+  optional SecretString typed_connector_response = 14;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 13;
 }
 
 // Request message for post-authentication step
@@ -3035,7 +4153,7 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
-  
+
   // Capture Settings
   optional CaptureMethod capture_method = 15;
 }
@@ -3069,6 +4187,10 @@ message PaymentMethodAuthenticationServicePostAuthenticateResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 13;
+  optional SecretString typed_connector_response = 15;
+
+  // The connector's reported status for this response.
+  optional RawConnectorStatus raw_connector_status = 14;
 }
 
 // Request message for incremental authorization
@@ -3087,6 +4209,11 @@ message PaymentServiceIncrementalAuthorizationRequest {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Sandbox/test mode flag (true for test environment). Connectors that branch
+  // endpoint construction on this (e.g. Adyen's merchant-prefixed live URL) need
+  // the real value; defaulting to None/test mode breaks live-URL substitution.
+  optional bool test_mode = 7;
 }
 
 // Response message for incremental authorization
@@ -3102,131 +4229,14 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString typed_connector_request = 9;
+  optional SecretString raw_connector_response = 8;
+  optional SecretString typed_connector_response = 10;
 }
 
-// IDs extracted from a payment webhook.
-// connector_transaction_id: connector-assigned ID (e.g. Stripe "pi_xxx", Adyen "pspReference" on capture events).
-// merchant_transaction_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
-//                           on transaction events, Stripe metadata.order_id).
-// Exactly one is expected to be present; both may be present when the connector echoes both.
-message PaymentEventReference {
-  optional string connector_transaction_id = 1;
-  optional string merchant_transaction_id  = 2;
-}
-
-// IDs extracted from a refund webhook.
-// connector_refund_id:      connector-assigned refund ID (e.g. PayPal refund resource.id).
-// merchant_refund_id:       merchant reference echoed for the refund (e.g. Adyen "merchantReference"
-//                           on refund events).
-// connector_transaction_id: parent payment ID, if the connector includes it.
-message RefundEventReference {
-  optional string connector_refund_id      = 1;
-  optional string merchant_refund_id       = 2;
-  optional string connector_transaction_id = 3;  // Parent payment ID, if present.
-}
-
-// IDs extracted from a dispute webhook.
-// Connectors typically reference disputes via the parent payment's connector_transaction_id
-// (e.g. Adyen originalReference, PayPal seller_transaction_id).
-// connector_dispute_id is populated when the connector issues a dispute-specific identifier.
-message DisputeEventReference {
-  optional string connector_dispute_id     = 1;
-  optional string connector_transaction_id = 2;  // Parent payment ID.
-}
-
-// IDs extracted from a mandate webhook.
-message MandateEventReference {
-  optional string connector_mandate_id = 1;
-}
-
-// IDs extracted from a payout webhook.
-// connector_payout_id: connector-assigned payout ID (e.g. PayPal payout_batch_id).
-// merchant_payout_id:  merchant reference echoed by the connector (e.g. Adyen "merchantReference"
-//                      on payout events).
-message PayoutEventReference {
-  optional string connector_payout_id = 1;
-  optional string merchant_payout_id  = 2;
-}
-
-// Resource reference extracted from a webhook payload.
-// The oneof variant identifies the entity class. Unset for non-resource events (e.g. account/capability notifications).
-message EventReference {
-  oneof resource {
-    PaymentEventReference payment = 1;
-    RefundEventReference  refund  = 2;
-    DisputeEventReference dispute = 3;
-    MandateEventReference mandate = 4;
-    PayoutEventReference  payout  = 5;
-  }
-}
-
-// Request for EventService.ParseEvent. No credentials required.
-message EventServiceParseRequest {
-  RequestDetails request_details = 1;
-}
-
-// Response for EventService.ParseEvent.
-message EventServiceParseResponse {
-  optional EventReference   reference  = 1;  // Absent for non-resource events (e.g. account/capability notifications).
-  optional WebhookEventType event_type = 2;
-}
-
-// Business context the caller passes back to fill UCS's stateless gap.
-// UCS is stateless — it cannot retrieve the original request parameters.
-// Pass back the fields from your original request that correspond to the
-// EventReference arm returned by ParseEvent.
-// UCS returns INVALID_ARGUMENT with an actionable message if a required field
-// is missing for the connector being handled.
-message EventContext {
-  oneof event_context {
-    PaymentEventContext  payment  = 1;
-    RefundEventContext   refund   = 2;
-    DisputeEventContext  dispute  = 3;
-    MandateEventContext  mandate  = 4;
-    PayoutEventContext   payout   = 5;
-  }
-}
-
-// Context from the original PaymentServiceAuthorizeRequest.
-// Required by connectors whose webhook payloads do not unambiguously distinguish
-// AUTHORIZED from CAPTURED (e.g. Noon, Fiuu).
-message PaymentEventContext {
-  // From original PaymentServiceAuthorizeRequest.capture_method.
-  optional CaptureMethod capture_method = 1;
-}
-
-// Context from the original RefundServiceRefundRequest.
-// Reserved for future use — no connectors currently require it.
-message RefundEventContext {
-}
-
-// Context from the original dispute flow.
-// Reserved for future use — no connectors currently require it.
-message DisputeEventContext {
-}
-
-// Context from the original mandate flow.
-// Reserved for future use — no connectors currently require it.
-message MandateEventContext {
-}
-
-// Context from the original mandate flow.
-// Reserved for future use — no connectors currently require it.
-message PayoutEventContext {
-}
-
-// Request for EventService.HandleEvent.
-// Supply event_context for connectors that require it (see connector integration guide).
-// access_token required for connectors that verify webhooks via an outbound API call
-// (e.g. PayPal POST /v1/notifications/verify-webhook-signature requires OAuth2).
-message EventServiceHandleRequest {
-  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
-  optional string         merchant_event_id = 1;
-  RequestDetails          request_details   = 2;
-  optional WebhookSecrets webhook_secrets   = 3;
-  optional AccessToken    access_token      = 4;
-  optional EventContext   event_context     = 5;
-}
 
 // Request message for VerifyRedirectResponse
 message PaymentServiceVerifyRedirectResponseRequest {
@@ -3238,6 +4248,9 @@ message PaymentServiceVerifyRedirectResponseRequest {
 
   // Security
   optional RedirectResponseSecrets redirect_response_secrets = 3;
+
+  // Connector-owned metadata from the original redirect flow.
+  optional SecretString connector_feature_data = 4;
 }
 
 // Response message for VerifyRedirectResponse
@@ -3260,6 +4273,10 @@ message PaymentServiceVerifyRedirectResponseResponse {
 
   // Raw Response
   optional SecretString raw_connector_response = 7;
+  optional SecretString typed_connector_response = 9;
+
+  // Connector-specific metadata produced while parsing the redirect response.
+  optional SecretString connector_feature_data = 8;
 }
 
 // ============================================================================
@@ -3295,6 +4312,16 @@ message RefundServiceGetRequest {
 
   // Amount Information
   optional Money refund_amount = 15;
+
+  // Request ID generated by the caller system for payment gateway requests.
+  // Required by some connectors that demand a per-request idempotency token.
+  optional string merchant_request_id = 16;
+
+  // Connector-side identifier for the original payment that this refund sync targets.
+  optional string connector_order_id = 17;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 18;
 }
 
 // ============================================================================
@@ -3335,6 +4362,7 @@ message DisputeServiceSubmitEvidenceResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 9;
+  optional SecretString typed_connector_request = 10;
 }
 
 // Request message for retrieving dispute information
@@ -3373,6 +4401,7 @@ message DisputeServiceDefendResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
 }
 
 // Request message for accepting a dispute
@@ -3400,6 +4429,7 @@ message DisputeServiceAcceptResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 8;
+  optional SecretString typed_connector_request = 9;
 }
 
 // ============================================================================
@@ -3434,6 +4464,19 @@ message PaymentMethodServiceTokenizeRequest {
 
   // Environment Configuration
   optional bool test_mode = 9;
+
+  // State Information
+  optional ConnectorState state = 10;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 11;
+
+  // Mandate/Recurring configuration
+  optional FutureUsage setup_future_usage = 12;      // Indicates future usage intention (e.g. off_session for mandates)
+  optional CustomerAcceptance customer_acceptance = 13; // Details of customer consent for mandate setup
+  optional SetupMandateDetails setup_mandate_details = 14; // Mandate data for recurring payment setup
 }
 
 // Response message for tokenizing a payment method
@@ -3451,34 +4494,253 @@ message PaymentMethodServiceTokenizeResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  optional string connector_payment_method_id = 7; // Connector-issued payment method ID
 }
 
-// Request message for getting a payment method
-message PaymentMethodServiceGetRequest {
-  // Identification
-  optional string merchant_payment_method_id = 1;
-  // Payment Method Information
-  string payment_method_token = 2;
+message PaymentMethodServiceCreateRequest {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional Customer customer = 2; // Customer information
+  optional string description = 3; // Human-readable description of the payment method
+  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional ConnectorState state = 5;   // State Information (for access token)
+  optional string product_id = 6; // Product or program under which the payment method exists
 
-  // State Information
-  optional ConnectorState state = 3;
+  optional SecretString metadata = 7; // Additional metadata for the connector
+  optional SecretString connector_feature_data = 8; // Connector-specific metadata for the transaction
+  optional bool test_mode = 9;
 }
 
-// Response message for getting a payment method
-message PaymentMethodServiceGetResponse {
-  // Payment Method Information
-  PaymentMethod payment_method = 1;
+message PaymentMethodServiceCreateResponse {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method created
 
   // Customer Information
-  optional Customer customer = 2;
+  optional Customer customer = 4;
+  optional Address address = 5;
 
   // Error Information
-  optional ErrorInfo error = 3;
-  uint32 status_code = 4;
-  map<string, string> response_headers = 5;
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
 
-  // Reference
-  optional string merchant_payment_method_id = 6;
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString typed_connector_response = 11;
+  optional SecretString raw_connector_request = 10;
+  optional SecretString typed_connector_request = 12;
+}
+
+message PaymentMethodServiceGetRequest {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+
+  // Customer Information
+  optional Customer customer = 3;
+  optional ConnectorState state = 4;   // State Information (for access token)
+  optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
+  optional SecretString metadata = 6; // Additional metadata for the connector
+  optional bool test_mode = 7;
+  PaymentMethodType payment_method_type = 8; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional string payment_method_token = 9;  // PaymentMethod Token Information
+}
+
+message PaymentMethodServiceGetResponse {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method
+
+  // Customer Information
+  optional Customer customer = 4;
+  optional Address address = 5;
+
+  // Error Information
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString typed_connector_response = 11;
+  optional SecretString raw_connector_request = 10;
+  optional SecretString typed_connector_request = 12;
+}
+
+// Refresh a stored card against the network updater.
+message PaymentMethodServiceRefreshRequest {
+  PaymentMethod payment_method = 1;
+}
+
+message PaymentMethodServiceRefreshResponse {
+  RefreshResult result = 1;
+  uint32 status_code = 2;                   // HTTP status code from the connector
+  optional ErrorInfo error = 3;             // Error details if the call failed
+  map<string, string> response_headers = 4; // Response headers from the connector
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 5;
+  optional SecretString typed_connector_response = 7;
+  optional SecretString raw_connector_request = 6;
+  optional SecretString typed_connector_request = 8;
+}
+
+// One arm per instrument; each carries its own outcome type.
+message RefreshResult {
+  oneof result {
+    CardRefreshResult card = 1;
+  }
+}
+
+message CardRefreshResult {
+  CardRefreshOutcome outcome = 1;
+  CardDetailsWithNoCvc card = 2;
+}
+
+enum CardRefreshOutcome {
+  // Unmapped network code, or a failure when `error` is set. Branch on `error`.
+  CARD_REFRESH_OUTCOME_UNSPECIFIED = 0;
+  CARD_REFRESH_ACCOUNT_UPDATED = 1;     // Card reissued; the returned card is the new one
+  CARD_REFRESH_EXPIRY_UPDATED = 2;      // Same card number, new expiry
+  CARD_REFRESH_NO_CHANGE = 3;           // Stored card is current
+  CARD_REFRESH_CLOSED = 4;              // Account closed; stop using the card
+  CARD_REFRESH_NOT_FOUND = 5;           // No update available; card not found, or the BIN is not participating
+  CARD_REFRESH_CONTACT_ISSUER = 6;      // Issuer advises contacting the cardholder
+}
+
+// Status of a recharge operation
+enum RechargeStatus {
+  RECHARGE_STATUS_UNSPECIFIED = 0; // Default unspecified status
+  RECHARGE_SUCCESS = 1;             // Recharge completed successfully
+  RECHARGE_FAILURE = 2;             // Recharge failed
+  RECHARGE_PENDING = 3;             // Recharge is being processed
+}
+
+enum WalletStatus {
+  WALLET_STATUS_UNSPECIFIED = 0;
+  ACTIVE_WALLET = 1; // Wallet is operational and can process transactions
+  INACTIVE_WALLET = 2; // Wallet is suspended or closed
+}
+
+message PaymentMethodDetails {
+  oneof details {
+    WalletDetails wallet = 1; // Wallet-specific details (stored value, container, or hybrid)
+    BankAccountDetails bank_account = 2; // Bank account details (ACH, BACS, SEPA, EFT)
+  }
+}
+
+message WalletDetails {
+  string wallet_account_id = 1; // Unique wallet identifier from connector (e.g., QwikWallet number)
+  optional SecretString wallet_pin = 2; // wallet PIN for authentication
+  optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
+  optional string wallet_holder_name = 4; // Name registered on the wallet account
+  optional int64 balance = 5; // Current wallet balance in minor currency units (for stored value wallets)
+  optional string product_id = 6; // Product or program identifier under which the wallet exists
+  repeated WalletItem items = 7; // Payment method items stored in this wallet (for container/hybrid wallets)
+}
+
+// Status of a wallet item (payment method within a container/hybrid wallet)
+enum WalletItemStatus {
+  WALLET_ITEM_STATUS_UNSPECIFIED = 0; // Default unspecified status
+  WALLET_ITEM_ACTIVE = 1;              // Item is active and can be used
+  WALLET_ITEM_INACTIVE = 2;            // Item is inactive or suspended
+  WALLET_ITEM_DEPLETED = 3;            // Item balance is fully used (for balance-bearing items)
+  WALLET_ITEM_EXPIRED = 4;             // Item has expired
+}
+
+// Represents a payment method item within a container or hybrid wallet
+// Examples: gift card in Amazon Pay, prepaid card in Apple Wallet, loyalty card, etc.
+message WalletItem {
+  // Instance-specific metadata for this item within the wallet
+  string wallet_item_id = 1;                      // Unique identifier for this item within the wallet
+  string product_id = 2;                   // Product or program identifier under which this item exists
+  WalletItemStatus status = 3;             // Current status of this item (ACTIVE, INACTIVE, DEPLETED, EXPIRED)
+  optional Money available_balance = 4;    // Remaining balance if this item is balance-bearing
+  optional string expiry_date = 5;         // Expiry date in ISO 8601 format (e.g., "2026-12-31")
+}
+
+// Bank account details containing one or more accounts
+message BankAccountDetails {
+  repeated BankAccount accounts = 1;
+}
+
+// Individual bank account credential with routing details
+message BankAccount {
+  SecretString account_name = 1;                 // Account display name
+  SecretString account_id = 2;                   // Unique account identifier
+  optional BankType bank_type = 3;               // Account type: checking, savings
+  optional BankHolderType bank_holder_type = 4;  // Bank holder type
+  optional Money balance = 5;                    // Current balance
+  optional Money available_balance = 6;          // Available balance
+  oneof account_details {                        // Account details discriminated by region
+    BankAccountDetailsAch ach = 7;               // US ACH
+    BankAccountDetailsBacs bacs = 8;             // UK BACS
+    BankAccountDetailsSepa sepa = 9;             // EU SEPA
+  }
+  optional string bank_name = 10;                // Name of the financial institution
+}
+
+// ACH bank account details (United States)
+message BankAccountDetailsAch {
+  SecretString account_number = 1;
+  SecretString routing_number = 2;
+}
+
+// BACS bank account details (United Kingdom)
+message BankAccountDetailsBacs {
+  SecretString account_number = 1;
+  SecretString sort_code = 2;
+}
+
+// SEPA bank account details (European Union)
+message BankAccountDetailsSepa {
+  SecretString iban = 1;
+  SecretString bic = 2;
+}
+
+// Request message for recharging a payment method
+message PaymentMethodServiceRechargeRequest {
+  // Identifiers
+  optional string merchant_payment_method_id = 1;  // Merchant's payment method ID (e.g., wallet number)
+  optional string connector_payment_method_id = 2; // Connector's payment method ID (wallet number at connector's end)
+  optional string merchant_request_id = 3;         // Request ID generated by the caller system
+  optional string merchant_recharge_id = 4;        // Merchant's recharge tracking ID (invoice number or reference)
+
+  // Recharge Details
+  string product_id = 5;                           // Product or program under which the payment method exists
+  Money amount = 6;                                // Recharge amount in minor currency units
+  optional string description = 7;                 // Human-readable description or notes about the recharge
+  PaymentMethodType payment_method_type = 8;       // Type of payment method (WALLET, GIFT_CARD, PREPAID_CARD, etc.)
+
+  // Configuration
+  optional ConnectorState state = 9;               // State information for multi-step flows (access token, session data)
+  optional SecretString metadata = 10; // Additional metadata for the connector
+  optional SecretString connector_feature_data = 11; // Connector-specific metadata for the transaction
+  optional bool test_mode = 12;                    // Sandbox/test mode flag (true for test environment)
+}
+
+// Response message for recharging a payment method
+message PaymentMethodServiceRechargeResponse {
+  // Identifiers
+  optional string merchant_payment_method_id = 1;  // Merchant's payment method ID
+  optional string connector_payment_method_id = 2; // Connector's payment method ID
+  optional string merchant_recharge_id = 3;        // Merchant's recharge tracking ID
+  optional string connector_recharge_id = 4;       // Connector's recharge tracking ID (invoice number or reference)
+
+  // Recharge Result
+  RechargeStatus status = 5;                       // Status of the recharge operation (SUCCESS, FAILURE, PENDING)
+  PaymentMethodDetails payment_method_details = 6; // Updated payment method details after recharge
+
+  // Error and Debugging Information
+  optional ErrorInfo error = 7;                    // Error details if the recharge failed
+  uint32 status_code = 8;                          // HTTP status code from the connector
+  map<string, string> response_headers = 9;        // Response headers from the connector
+  optional SecretString raw_connector_response = 10; // Raw response from the connector for debugging
+  optional SecretString typed_connector_response = 12;
+  optional SecretString raw_connector_request = 11;  // Raw request sent to the connector for debugging
+  optional SecretString typed_connector_request = 13;
 }
 
 // ============================================================================
@@ -3493,7 +4755,7 @@ message CustomerServiceCreateRequest {
   // Customer Information
   optional string customer_name = 2; // Name of the customer
   optional SecretString email = 3;   // Email address of the customer
-  optional string phone_number = 4;  // Phone number of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 5;
@@ -3505,6 +4767,11 @@ message CustomerServiceCreateRequest {
 
   // Environment Configuration
   optional bool test_mode = 8;
+
+  // Deprecated: use split_settlement instead. Legacy split payment configuration
+  // (platform fees, transfers, etc.), read only by connectors still on the old
+  // split_payments contract (e.g. Stripe, Adyen).
+  optional SplitPaymentsDetails split_payments = 9;
 }
 
 // Response message for creating a customer
@@ -3527,13 +4794,30 @@ message CustomerServiceGetRequest {
   optional string merchant_customer_id = 1;
 
   // Customer Information
-  string connector_customer_id = 2;
+  optional string connector_customer_id = 2;
+  optional SecretString email = 3;         // Email address of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
+
+  // Connector-specific metadata for the transaction (required by the generic
+  // flow runner in field-probe, which injects `connector_feature_data` into
+  // every probe request regardless of flow shape).
+  optional SecretString connector_feature_data = 5;
+}
+
+// Outcome of a connector-side customer lookup. Explicit signal so callers
+// don't have to infer presence-of-id vs absent as found-vs-not-found, which
+// would silently misroute malformed responses into a duplicate CREATE.
+enum CustomerLookupStatus {
+  CUSTOMER_LOOKUP_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_LOOKUP_STATUS_FOUND = 1;
+  CUSTOMER_LOOKUP_STATUS_NOT_FOUND = 2;
 }
 
 // Response message for getting a customer
 message CustomerServiceGetResponse {
-  // Customer Information
-  Customer customer = 1;
+  // Customer Information. Absent when lookup_status is CUSTOMER_NOT_FOUND;
+  // populated when lookup_status is CUSTOMER_FOUND.
+  optional Customer customer = 1;
 
   // Error Information
   optional ErrorInfo error = 2;
@@ -3542,6 +4826,11 @@ message CustomerServiceGetResponse {
 
   // Reference
   optional string merchant_customer_id = 5;
+
+  // Lookup outcome. Connectors implementing GetConnectorCustomer must set
+  // this so the caller can distinguish "not found" from partially populated
+  // or malformed responses.
+  CustomerLookupStatus lookup_status = 6;
 }
 
 // Request message for updating a customer
@@ -3553,7 +4842,7 @@ message CustomerServiceUpdateRequest {
   string connector_customer_id = 2;
   optional string customer_name = 3; // Name of the customer
   optional SecretString email = 4;   // Email address of the customer
-  optional string phone_number = 5;  // Phone number of the customer
+  optional SecretString phone_number = 5;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 6;
@@ -3607,15 +4896,29 @@ message StripeConfig {
   optional string base_url = 50;
 }
 
+message AciConfig {
+  SecretString api_key = 1;
+  SecretString entity_id = 2;
+  optional string base_url = 50;
+}
+
 message BamboraConfig {
   SecretString merchant_id = 1;
   SecretString api_key = 2;
   optional string base_url = 50;
 }
 
-message CalidaConfig {
-  SecretString api_key = 1;
+message BamboraapacConfig {
+  SecretString username = 1;
+  SecretString password = 2;
+  SecretString account_number = 3;
   optional string base_url = 50;
+}
+
+message CalidaConfig {
+SecretString api_key = 1;
+optional SecretString shop_name = 2;
+optional string base_url = 50;
 }
 
 message CeleroConfig {
@@ -3737,6 +5040,13 @@ message CashfreeConfig {
   optional string base_url = 50;
 }
 
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
+  optional string base_url = 50;
+}
+
 message CryptopayConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
@@ -3755,9 +5065,18 @@ message FiservemeaConfig {
   optional string base_url = 50;
 }
 
+message FinixConfig {
+  SecretString finix_user_name = 1;
+  SecretString finix_password = 2;
+  SecretString merchant_identity_id = 3;
+  SecretString merchant_id = 4;
+  optional string base_url = 50;
+}
+
 message GlobalpayConfig {
   SecretString app_id = 1;
   SecretString app_key = 2;
+  optional SecretString account_name = 3;  // GlobalPay capability/account name (e.g. "transaction_processing"); required in production, where the value is assigned by the merchant's account manager
   optional string base_url = 50;
 }
 
@@ -3787,9 +5106,36 @@ message PaysafeCardAccountId {
 
 message PaysafeAchAccountId { optional SecretString account_id = 1; }
 
+// Dedicated Apple Pay processing account, split by token flow.
+// Mirrors hyperswitch's `ApplePayAccountDetails`: `encrypt` is used for the
+// encrypted PKPaymentToken flow, `decrypt` for the decrypted-token flow.
+message PaysafeApplePayAccountId {
+  optional SecretString encrypt = 1;
+  optional SecretString decrypt = 2;
+}
+
+// Interac e-Transfer processing account. Native metadata key `three_ds`
+// (mirrors hyperswitch `RedirectAccountId`) so the same MCA metadata is portable
+// between the native and UCS paths.
+message PaysafeInteracAccountId { optional SecretString three_ds = 1; }
+
+// Redirect-APM processing account (Skrill, paysafecard). Native metadata key
+// `three_ds` (mirrors hyperswitch `RedirectAccountId`).
+message PaysafeRedirectAccountId { optional SecretString three_ds = 1; }
+
 message PaysafePaymentMethodDetails {
   map<string, PaysafeCardAccountId> card = 1;
   map<string, PaysafeAchAccountId> ach = 2;
+  // Dedicated Apple Pay processing accounts, keyed by currency.
+  map<string, PaysafeApplePayAccountId> apple_pay = 3;
+  // Interac e-Transfer processing accounts, keyed by currency.
+  map<string, PaysafeInteracAccountId> interac = 4;
+  // Skrill wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> skrill = 5;
+  // paysafecard processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> pay_safe_card = 6;
+  // Neteller wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> neteller = 7;
 }
 
 message LoonioConfig {
@@ -3798,11 +5144,20 @@ message LoonioConfig {
   optional string base_url = 50;
 }
 
+message DeutschebankConfig {
+  SecretString customer_identifier = 1;
+  SecretString key_id = 2;
+  SecretString signing_private_key = 3;
+  SecretString client_certificate_bundle = 4;
+  optional string base_url = 50;
+}
+
 message PaysafeConfig {
   SecretString username = 1;
   SecretString password = 2;
   optional string base_url = 50;
-  // Card and ACH account IDs per currency
+  // Per-currency processing account IDs for card, ACH, Apple Pay, Interac,
+  // Skrill and paysafecard.
   optional PaysafePaymentMethodDetails account_id = 51;
 }
 
@@ -3986,6 +5341,10 @@ message WorldpayxmlConfig {
   SecretString api_username = 1;
   SecretString api_password = 2;
   SecretString merchant_code = 3;
+  // Cardinal 3DS JWT credentials, from the merchant connector account metadata.
+  optional SecretString issuer_id = 4;
+  optional SecretString organizational_unit_id = 5;
+  optional SecretString jwt_mac_key = 6;
   optional string base_url = 50;
 }
 
@@ -4004,9 +5363,15 @@ message FiservcommercehubConfig {
   optional string base_url = 50;
 }
 
-message SanlamConfig {
+message AbsaSanlamConfig {
   SecretString api_key = 1;
   SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
+message GotymeSanlamConfig {
+  SecretString api_key = 1;
+  SecretString profile_id = 2;
   optional string base_url = 50;
 }
 
@@ -4017,6 +5382,15 @@ message ItaubankConfig {
   optional SecretString private_key = 4;
   optional string base_url = 50;
   optional string secondary_base_url = 51;
+}
+
+message SantanderConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  string workspace_id = 3;
+  optional SecretString certificates = 4;
+  optional SecretString private_key = 5;
+  optional string base_url = 50;
 }
 
 message GigadatConfig {
@@ -4112,6 +5486,12 @@ message PayloadConfig {
   optional string base_url = 50;
 }
 
+message PlacetopayConfig {
+  SecretString login = 1;
+  SecretString tran_key = 2;
+  optional string base_url = 50;
+}
+
 message EbanxConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -4198,11 +5578,319 @@ message ImerchantsolutionsConfig {
   optional string base_url = 3;
 }
 
+message GivepaymentsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
+}
+
 message AxisbankConfig {
   SecretString merchant_kid = 3;
   SecretString juspay_kid = 4;
   SecretString merchant_private_key = 5;
   SecretString juspay_public_key = 6;
+  optional string base_url = 50;
+}
+
+message MayaConfig {
+  SecretString public_key = 1;
+  SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
+message TsysTransitConfig {
+  SecretString device_id = 1;
+  SecretString transaction_key = 2;
+  SecretString developer_id = 3;
+  optional SecretString merchant_street_address = 4;
+  optional SecretString customer_service_phone_number = 5;
+  optional string merchant_url = 6;
+  optional string base_url = 50;
+}
+
+message FlywireConfig {
+  // Flywire Payments Platform API key (X-Authentication-Key header).
+  SecretString api_key = 1;
+  // HMAC SHA-256 shared secret for inbound webhook signature verification.
+  // Optional in sandbox; required for production.
+  optional SecretString shared_secret = 2;
+  // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
+  // Drives currency, payout target, required institutional fields.
+  string recipient_id = 3;
+  optional string base_url = 50;
+}
+
+message PlaidConfig {
+  // Plaid client_id — used as `client_id` in every API request body.
+  SecretString client_id = 1;
+  // Plaid secret — used as `secret` in every API request body.
+  SecretString secret = 2;
+  // Application name displayed to users in the Plaid Link UI.
+  optional string client_name = 3;
+  optional string base_url = 50;
+}
+
+message AffirmConfig {
+  // Affirm public API key — used as the HTTP Basic auth username.
+  SecretString public_key = 1;
+  // Affirm private API key — used as the HTTP Basic auth password.
+  SecretString private_key = 2;
+  optional string base_url = 50;
+}
+
+message TwocTwopPacoConfig {
+  // Company access token, used as both the `token`/`apikey` HTTP header and
+  // as the `iss` / `CompanyApiKey` JWT claim.
+  SecretString access_token = 1;
+  // PACO multi-merchant scoping key, present in every JOSE request body.
+  SecretString office_id = 2;
+  // 32-hex-char JWE key id, environment-specific (UAT vs PRD).
+  SecretString paco_kid = 3;
+  // Merchant RSA private key (PEM) — signs the request JWS (PS256).
+  SecretString merchant_signing_private_key = 4;
+  // Merchant RSA private key (PEM) — decrypts the response JWE (RSA-OAEP).
+  SecretString merchant_encryption_private_key = 5;
+  // PACO RSA public key (PEM) — verifies the response JWS.
+  SecretString paco_signing_public_key = 6;
+  // PACO RSA public key (PEM) — encrypts the request JWE.
+  SecretString paco_encryption_public_key = 7;
+  // Expected `aud` claim on JOSE response JWTs. Defaults to the access_token
+  // when None. Set if PACO emits a different aud on a specific office.
+  optional SecretString response_audience = 8;
+  optional string base_url = 50;
+}
+
+message TamaraConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+// Single field auth types
+message InterpaymentsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message JuspayConfig {
+  SecretString api_key = 1;
+  SecretString merchant_id = 2;
+
+  optional SecretString juspay_encryption_public_key = 3;
+  optional SecretString response_decryption_private_key = 4;
+  optional SecretString card_sync_key_id = 5;
+
+  optional string base_url = 50;
+}
+
+// Qwikcilver (Pine Labs stored-value wallet) credentials.
+message QwikcilverConfig {
+  // Long-lived Bearer token used only on the /authorize bootstrap call.
+  SecretString bootstrap_bearer_token = 1;
+  SecretString terminal_id = 2;
+  SecretString username = 3;
+  SecretString password = 4;
+  optional string base_url = 50;
+}
+
+message PayconexConfig {
+  SecretString api_key = 1;
+  SecretString account_id = 2;
+  optional string base_url = 50;
+}
+
+message KountConfig {
+  SecretString api_key = 1;
+  // Kount OAuth authorization-server id for the token endpoint
+  // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
+  // specific; falls back to the sandbox auth server when unset.
+  optional string auth_server_id = 2;
+  optional string base_url = 50;
+}
+
+message NsureConfig {
+  // nSure.ai authorization key, sent verbatim in the `Authorization` header
+  // (no `Bearer`/`Basic` prefix). Shown as "API Key (Authorization Code)" in
+  // the nSure.ai management portal under My Account.
+  SecretString api_key = 1;
+  // nSure.ai Application ID, shown as "Application ID" in the same portal
+  // screen. Identifies the merchant application.
+  optional string app_id = 2;
+  // API version sent in the `x-nsure-api-version` header (`apiVersion.major.minor`).
+  // Defaults to 2.0.0 when unset.
+  optional string api_version = 3;
+  optional string base_url = 50;
+}
+
+message HyperswitchConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message GlomopayConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message GrabpayConfig {
+  SecretString partner_id = 1;
+  SecretString partner_secret = 2;
+  SecretString client_id = 3;
+  SecretString client_secret = 4;
+  SecretString merchant_id = 5;
+  optional string base_url = 50;
+}
+
+message TesouroConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
+message BoostConfig {
+  SecretString client_id = 1;
+  SecretString merchant_secret = 2;
+  optional SecretString public_key = 3;
+  optional string base_url = 50;
+}
+
+message CitigateConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
+// PayNearMe API v3.0.
+// api_key = API Secret Key (HMAC-SHA256 signing key, never transmitted)
+// key1    = Site Identifier, sent as the `site_identifier` body field
+message PaynearmeConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
+message IlixiumConfig {
+  // Digest Calculation Password (never transmitted; input to X-MERCHANT-DIGEST)
+  SecretString api_key = 1;
+  // MerchantId - sent in the request body as merchant.merchantId
+  SecretString key1 = 2;
+  // AccountId - sent in the request body as merchant.accountId
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
+message GlobalpaymentsHeartlandConfig {
+  // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
+  // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message MonerisConfig {
+  SecretString client_secret = 1;
+  SecretString merchant_id = 2;
+  SecretString client_id = 3;
+  optional string base_url = 50;
+}
+
+message EtisalatConfig {
+  SecretString user_name = 1; // Maps from connector_account_details.api_key (primary credential).
+  SecretString password = 2;  // Maps from connector_account_details.key1 (secondary credential).
+  SecretString customer = 3;  // Maps from connector_account_details.api_secret — merchant identifier assigned by EPG (sandbox: "Demo Merchant").
+  optional string base_url = 50;
+}
+
+message MerchanteConfig {
+  SecretString profile_id = 1;
+  SecretString profile_key = 2;
+  optional string base_url = 50;
+}
+
+message WorldpayraftConfig {
+  SecretString license = 1;
+  SecretString merchant_id = 2;
+  optional string base_url = 50;
+}
+
+// JP Morgan Orbital (Chase Paymentech Orbital Gateway). NOT JpmorganConfig, which
+// configures the OAuth2-based JPMorgan Payments API v2.
+message JpmorganOrbitalConfig {
+  // Header orbitalConnectionUsername
+  SecretString username = 1;
+  // Header orbitalConnectionPassword
+  SecretString password = 2;
+  // Header merchantID, also echoed in the request body as merchant.merchantID
+  SecretString merchant_id = 3;
+  // Body merchant.bin: "000001" (Stratus, US) or "000002" (Tandem, Canada).
+  // Merchant provisioning fact, not a secret.
+  optional string bin = 4;
+  // Body merchant.terminalID: 3 digits ("001" on Stratus). Not a secret.
+  optional string terminal_id = 5;
+  optional string base_url = 50;
+  // ISO-4217 alphabetic code the MID is provisioned for (e.g. "USD"). Optional:
+  // when absent no currency validation happens. Orbital derives the currency from
+  // the MID setup and has no field to receive it, so a request in another currency
+  // would otherwise be charged at the numeric amount in the MID's currency.
+  optional string merchant_config_currency = 51;
+}
+
+// Saferpay (SIX Payment Services) Transaction interface.
+// api_key    = API username (HTTP Basic username)
+// key1       = API password (HTTP Basic password)
+// api_secret = CustomerId   (RequestHeader.CustomerId)
+// key2       = TerminalId   (request body TerminalId)
+message SaferpayConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
+  SecretString key2 = 4;
+  optional string base_url = 50;
+}
+
+message TravelhubConfig {
+  // Basic-auth credential — sent in the Authorization header as
+  // `Basic base64(username:password)`. Identifies the caller, never the order.
+  SecretString username = 1;
+  // Basic-auth credential, paired with `username` in the Authorization header.
+  SecretString password = 2;
+  // TravelHub merchant identifier — goes in every API request BODY as `merchantId`
+  // (authorize, capture, status, cancel, refund, refund-status). This is what resolves
+  // which merchant account the orderId belongs to; distinct from the Basic-auth username.
+  SecretString merchant_id = 3;
+  // Optional endpoint override. When unset, the server's configured TravelHub base URL
+  // is used (e.g. https://preprod.travel.worldline-solutions.com/travelhub).
+  optional string base_url = 50;
+}
+
+message D24Config {
+  // Directa24 API Key -- sent verbatim in the X-Login header
+  SecretString api_key = 1;
+  // Directa24 read-only API Key -- X-Login on read-only GET endpoints
+  SecretString key1 = 2;
+  // Directa24 API Signature -- HMAC key only, never transmitted
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
+// Pay.com REST API v1.
+// api_key = the `x-paycom-api-key` value (test_… for sandbox, live_… for production).
+message PaydotcomConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
+message PayhereConfig {
+  // PayHere App ID -- OAuth client_id, sent in the Basic auth header to
+  // /merchant/v1/oauth/token together with `app_secret`.
+  SecretString app_id = 1;
+  // PayHere Merchant ID -- sent as `merchant_id` in the hosted-checkout form
+  // and used as the first input of the checkout hash.
+  SecretString merchant_id = 2;
+  // PayHere App Secret -- OAuth client_secret, paired with `app_id` for the
+  // token endpoint Basic auth.
+  SecretString app_secret = 3;
+  // PayHere Merchant Secret -- hash secret only (checkout MD5 hash + webhook
+  // md5sig verification), never transmitted.
+  SecretString merchant_secret = 4;
   optional string base_url = 50;
 }
 
@@ -4448,8 +6136,8 @@ message ConnectorSpecificConfig {
     // TRUSTLY = 116
     TrustlyConfig trustly = 115;
 
-    // SANLAM = 116
-    SanlamConfig sanlam = 116;
+    // ABSA_SANLAM = 116
+    AbsaSanlamConfig absa_sanlam = 116;
 
     // PINELABS_ONLINE = 117
     PinelabsOnlineConfig pinelabs_online = 117;
@@ -4462,6 +6150,98 @@ message ConnectorSpecificConfig {
 
     // EASEBUZZ = 120
     EasebuzzConfig easebuzz = 120;
+
+    // TWOC_TWOP_PACO = 121
+    TwocTwopPacoConfig twoc_twop_paco = 121;
+
+    // BAMBORAAPAC = 7
+    BamboraapacConfig bamboraapac = 122;
+
+    // PLACETOPAY = 65
+    PlacetopayConfig placetopay = 123;
+
+    // FINIX = 111
+    FinixConfig finix = 124;
+
+    // ACI = 125
+    AciConfig aci = 125;
+
+    // INTERPAYMENTS = 126
+    InterpaymentsConfig interpayments = 126;
+
+    // JUSPAY = 122
+    JuspayConfig juspay = 127;
+    // TAMARA = 123
+    TamaraConfig tamara = 128;
+
+    // PAYCONEX = 124
+    PayconexConfig payconex = 129;
+
+    // QWIKCILVER = 125
+    QwikcilverConfig qwikcilver = 130;
+    // CHECKOUT = 126
+    CheckoutConfig checkout = 131;
+    // HYPERSWITCH = 126
+    HyperswitchConfig hyperswitch = 132;
+    // TSYS_TRANSIT = 127
+    TsysTransitConfig tsys_transit = 133;
+    // KOUNT = 128
+    KountConfig kount = 134;
+    // AFFIRM = 135
+    AffirmConfig affirm = 135;
+    // FLYWIRE = 129
+    FlywireConfig flywire = 136;
+    // GLOMOPAY = 137
+    GlomopayConfig glomopay = 137;
+    // GIVEPAYMENTS = 138
+    GivepaymentsConfig givepayments = 138;
+
+    // TESOURO = 139
+    TesouroConfig tesouro = 139;
+    // DEUTSCHEBANK = 140
+    DeutschebankConfig deutschebank = 140;
+    // PLAID = 87
+    PlaidConfig plaid = 141;
+    // SANTANDER = 133
+    SantanderConfig santander = 142;
+    // MAYA = 134
+    MayaConfig maya = 143;
+    // GRABPAY = 135
+    GrabpayConfig grabpay = 144;
+    // BOOST = 136
+    BoostConfig boost = 145;
+    // CITIGATE = 137
+    CitigateConfig citigate = 146;
+    // MONERIS = 48
+    MonerisConfig moneris = 147;
+    // ILIXIUM = 138
+    IlixiumConfig ilixium = 148;
+    // WORLDPAYRAFT = 139
+    WorldpayraftConfig worldpayraft = 149;
+    // GOTYME_SANLAM = 141 (enum entry pending; 140 is TRAVELHUB)
+    GotymeSanlamConfig gotyme_sanlam = 150;
+    // SAFERPAY = 140
+    SaferpayConfig saferpay = 151;
+    // JPMORGAN_ORBITAL = 141
+    JpmorganOrbitalConfig jpmorgan_orbital = 152;
+    // TRAVELHUB = 142
+    TravelhubConfig travelhub = 153;
+    // PAYNEARME = 143
+    PaynearmeConfig paynearme = 154;
+    // D24 = 144
+    D24Config d24 = 155;
+    // PAYDOTCOM = 145
+    PaydotcomConfig paydotcom = 156;
+    // NSURE = 146
+    NsureConfig nsure = 157;
+    // GLOBALPAYMENTS_HEARTLAND = 147
+    GlobalpaymentsHeartlandConfig globalpayments_heartland = 158;
+    // PAYHERE = 148
+    PayhereConfig payhere = 159;
+    // ETISALAT = 149
+    EtisalatConfig etisalat = 160;
+    // MERCHANTE = 150
+    MerchanteConfig merchante = 161;
   }
 }
 
@@ -4559,6 +6339,9 @@ message PaymentServiceProxyAuthorizeRequest {
   // authorize
   optional string connector_order_id = 26;
   optional int64 shipping_cost = 27;    // Cost of shipping for the order
+
+  // Domain-specific data (e.g. airline itinerary) for connectors that need it.
+  optional DomainData domain_data = 28;
 }
 
 message PaymentServiceProxySetupRecurringRequest {
@@ -4581,4 +6364,404 @@ message PaymentServiceProxySetupRecurringRequest {
   // Order Details
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
+
+  // Sandbox/test mode flag (true for test environment). Same purpose as on
+  // PaymentServiceSetupRecurringRequest/PaymentServiceProxyAuthorizeRequest:
+  // connectors that branch endpoint construction on this (e.g. Adyen's
+  // merchant-prefixed live URL) need the real value.
+  optional bool test_mode = 18;
+}
+
+// ============================================================================
+// SPLIT REFUND TYPES
+// ============================================================================
+
+// Request for split refunds (platform fee reversals, transfers, etc.)
+// DEPRECATED: use SplitSettlementRefund instead. Retained during the migration window.
+message SplitRefundsDetails {
+  oneof split_refund_type {
+    StripeSplitRefundData stripe_split_refund = 1;
+    AdyenSplitData adyen_split_refund = 2;
+  }
+}
+
+// Stripe-specific split refund data
+message StripeSplitRefundData {
+  string charge_id = 1;
+  string transfer_account_id = 2;
+  PaymentChargeType charge_type = 3;
+  ChargeRefundsOptions options = 4;
+}
+
+// Type of charge for Stripe split refunds
+enum PaymentChargeType {
+  PAYMENT_CHARGE_TYPE_UNSPECIFIED = 0;
+  STRIPE_DIRECT = 1;
+  STRIPE_DESTINATION = 2;
+}
+
+// Options for charge refunds (destination vs direct)
+message ChargeRefundsOptions {
+  oneof charge_option {
+    DestinationChargeRefund destination = 1;
+    DirectChargeRefund direct = 2;
+  }
+}
+
+// Destination charge refund options
+message DestinationChargeRefund {
+  bool revert_platform_fee = 1;
+  bool revert_transfer = 2;
+}
+
+// Direct charge refund options
+message DirectChargeRefund {
+  bool revert_platform_fee = 1;
+}
+
+// Adyen-specific split refund data
+message AdyenSplitData {
+  optional string store = 1;
+  repeated AdyenSplitItem split_items = 2;
+}
+
+// Individual split item for Adyen
+message AdyenSplitItem {
+  optional int64 amount = 1;
+  AdyenSplitType split_type = 2;
+  optional string account = 3;
+  string reference = 4;
+  optional string description = 5;
+}
+
+// Adyen split type enumeration
+enum AdyenSplitType {
+  ADYEN_SPLIT_TYPE_UNSPECIFIED = 0;
+  BALANCE_ACCOUNT = 1;
+  ACQUIRING_FEES = 2;
+  PAYMENT_FEE = 3;
+  ADYEN_FEES = 4;
+  ADYEN_COMMISSION = 5;
+  ADYEN_MARKUP = 6;
+  INTERCHANGE = 7;
+  SCHEME_FEE = 8;
+  COMMISSION = 9;
+  TOP_UP = 10;
+  VAT = 11;
+}
+
+// ============================================================================
+// SPLIT PAYMENT TYPES
+// ============================================================================
+
+// Request for split payments (platform fees, transfers, etc.)
+// DEPRECATED: use SplitSettlement instead. Retained during the migration window.
+message SplitPaymentsDetails {
+  oneof split_payment_type {
+    StripeSplitPaymentData stripe_split_payment = 1;
+    AdyenSplitData adyen_split_payment = 2;
+  }
+}
+
+// Stripe-specific split payment data
+message StripeSplitPaymentData {
+  PaymentChargeType charge_type = 1;
+  optional int64 application_fees = 2;
+  string transfer_account_id = 3;
+  optional string on_behalf_of = 4;
+}
+
+// ============================================================================
+// ELIGIBILITY — Pre-checkout eligibility for payment methods requiring
+//                customer/order details before authorization (e.g. BNPL).
+// ============================================================================
+
+// Eligibility status reason codes returned by the connector.
+enum EligibilityStatus {
+  ELIGIBILITY_STATUS_UNSPECIFIED = 0; // Default, status not specified
+  INELIGIBLE = 1;                     // Customer is ineligible
+  ELIGIBLE = 2;                       // Customer is eligible
+}
+
+// Request to check pre-checkout eligibility for a payment method.
+// Used by PaymentMethodService.Eligibility (e.g. BNPL connectors like Tamara).
+message PaymentMethodServiceEligibilityRequest {
+  // Order amount and currency using the shared Money message.
+  Money amount = 1;
+
+  // Customer details (phone, email, name, etc.).
+  // At a minimum the connector requires phone_number and/or email.
+  optional Customer customer = 2;
+
+  // Billing and shipping address. Many BNPL connectors gate eligibility on
+  // the billing country and use the address for risk scoring.
+  optional PaymentAddress address = 3;
+
+  // Order line items. BNPL eligibility frequently depends on the cart
+  // contents (category, quantity, per-item amount).
+  repeated OrderDetailsWithAmount order_details = 4;
+
+  // Market/country the eligibility check is for. BNPL availability is
+  // country-gated; set this when it cannot be derived from the address.
+  optional CountryAlpha2 country = 5;
+
+  // The specific payment method (e.g. a BNPL variant) eligibility is being
+  // checked for, when the caller wants to scope the check.
+  optional PaymentMethodType payment_method_type = 6;
+
+  // Description for connector-rendered eligibility messaging.
+  optional string description = 7;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 8;
+
+  // Connector-specific feature data for the transaction.
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag (true for test environment).
+  optional bool test_mode = 10;
+
+  // Connector-issued payment method ID (e.g. wallet number) being checked,
+  // when known. Mirrors PaymentMethodServiceGetRequest's identifier so
+  // connectors can reuse the same lookup as PaymentMethodService.Get.
+  optional string connector_payment_method_id = 11;
+
+  // State Information (for access token), set by CompositePaymentMethodService.Eligibility
+  // after bootstrapping the connector's session token.
+  optional ConnectorState state = 12;
+}
+
+// Response from a pre-checkout eligibility check.
+message PaymentMethodServiceEligibilityResponse {
+  EligibilityStatus eligibility = 1;
+
+  // HTTP status code returned by the upstream connector.
+  uint32 status_code = 2;
+
+  // Structured error details (only present on failure).
+  optional ErrorInfo error_info = 3;
+
+  // Raw request sent to the connector (for debugging).
+  optional SecretString raw_connector_request = 4;
+  optional SecretString typed_connector_request = 7;
+
+  // Raw response received from the connector (for debugging).
+  optional SecretString raw_connector_response = 5;
+  optional SecretString typed_connector_response = 8;
+
+  // Response headers from the connector.
+  map<string, string> response_headers = 6;
+
+  // Payment method details resolved as part of the eligibility check (e.g.
+  // wallet/gift-card balance and items), when the connector call that
+  // determines eligibility also returns them.
+  optional PaymentMethodDetails payment_method_details = 9;
+}
+
+// ============================================================================
+// SPLIT RESPONSE TYPES
+// ============================================================================
+
+// Stripe-specific split response data (includes charge_id)
+message StripeSplitResponseData {
+  optional string charge_id = 1;
+  PaymentChargeType charge_type = 2;
+  optional int64 application_fees = 3;
+  string transfer_account_id = 4;
+  optional string on_behalf_of = 5;
+}
+
+// Response data for connector split payments
+// DEPRECATED: use SplitSettlementResponse instead. Retained during the migration window.
+message ConnectorSplitResponseData {
+  oneof split_response_type {
+    StripeSplitResponseData stripe_split_response = 1;
+    AdyenSplitData adyen_split_response = 2;
+  }
+}
+
+// ============================================================================
+// SPLIT SETTLEMENT — Unified, connector-agnostic split contract.
+// Supersedes SplitPaymentsDetails / SplitRefundsDetails / ConnectorSplitResponseData.
+// A payment settled across a marketplace (the platform's own cut) + N vendor
+// sub-accounts. Applied synchronously by the connector (inline "destinations"
+// model). Any settlement/UTR fields on the response are populated only when the
+// connector returns them; euler-internal correlation lives above UCS.
+// ============================================================================
+
+// Whether the connector applied the split.
+enum SplitAppliedStatus {
+  SPLIT_APPLIED_STATUS_UNSPECIFIED = 0;
+  SPLIT_APPLIED = 1;
+  SPLIT_NOT_APPLIED = 2;
+}
+
+// Per-split settlement lifecycle status (only for connectors that report it).
+enum SplitSettlementStatus {
+  SPLIT_SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  SPLIT_SETTLEMENT_STATUS_PENDING = 1;
+  SPLIT_SETTLEMENT_STATUS_SETTLED = 2;
+  SPLIT_SETTLEMENT_STATUS_FAILED = 3;
+}
+
+// ---- Payment split (request) ----
+
+// Wrapper carried by every payment request that supports split.
+message SplitSettlement {
+  // Marketplace / platform share of the settlement, when applicable.
+  optional SplitSettlementMarketplace marketplace_split_details = 1;
+  // Per-vendor splits (a payment can split across many vendors).
+  repeated SplitSettlementVendor vendor_split_details = 2;
+}
+
+// Marketplace / platform share (the merchant's own cut) — leaner than a vendor line.
+message SplitSettlementMarketplace {
+  // Marketplace share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it settles: the connector's own id for the marketplace/platform account.
+  optional string connector_sub_account_id = 3;
+}
+
+// Per-vendor split line.
+message SplitSettlementVendor {
+  // Vendor share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it settles: the connector's own id for the payee (vendor) account.
+  optional string connector_sub_account_id = 3;
+  // Commission retained by the merchant from this vendor's share.
+  optional Money merchant_commission = 4;
+  // Per-split description forwarded to the connector.
+  optional string description = 5;
+  // The merchant's OWN per-split reference; forwarded to the connector as its per-split
+  // reference (e.g. Adyen split item `reference`) and echoed on the response for matching.
+  optional string merchant_reference_id = 6;
+  // Connector-specific per-split attributes (opaque here; typed inside the connector),
+  // e.g. Adyen split_type. Masked (SecretString) — contents are opaque to us and may
+  // carry caller-supplied data, so it must never be logged in the clear.
+  optional SecretString split_metadata = 7;
+}
+
+// ---- Refund split (request) ----
+
+// Wrapper carried by every refund request that supports split. Mirrors SplitSettlement
+// but each line's amount is the portion of THIS refund to claw back from that account.
+message SplitSettlementRefund {
+  // Marketplace / platform share of the refund, when applicable.
+  optional SplitSettlementRefundMarketplace marketplace_split_details = 1;
+  // Per-vendor refund splits (a refund can span many vendors).
+  repeated SplitSettlementRefundVendor vendor_split_details = 2;
+}
+
+// Marketplace / platform share to reverse on this refund — leaner than a vendor line.
+message SplitSettlementRefundMarketplace {
+  // Marketplace refund share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money refund_amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it reverses: the connector's own id for the marketplace/platform account.
+  optional string connector_sub_account_id = 3;
+}
+
+// Per-vendor refund split line.
+message SplitSettlementRefundVendor {
+  // Vendor refund share as an amount or a percent — exactly one.
+  oneof split_value {
+    Money refund_amount = 1;
+    double percentage = 2;
+  }
+  // WHERE it reverses: the connector's own id for the payee (vendor) account.
+  optional string connector_sub_account_id = 3;
+  // Commission to reverse from the merchant on this vendor's refunded share.
+  optional Money merchant_commission = 4;
+  // The merchant's OWN reference for this refund split; forwarded to the connector.
+  optional string merchant_reference_id = 5;
+  // Connector-specific per-split attributes (opaque here; typed inside the connector),
+  // e.g. Adyen split_type. Masked (SecretString) — contents are opaque to us and may
+  // carry caller-supplied data, so it must never be logged in the clear.
+  optional SecretString split_metadata = 6;
+}
+
+// ---- Response split (payment responses only) ----
+
+// Wrapper on the response — also holds split_applied (a property of the split as a whole).
+message SplitSettlementResponse {
+  // Whether the connector actually applied the split for this transaction.
+  optional SplitAppliedStatus split_applied = 1;
+  // Marketplace / platform share of the settlement, as reported by the connector.
+  optional SplitSettlementResponseMarketplace marketplace_split_details = 2;
+  // Per-vendor settlement lines, as reported by the connector.
+  repeated SplitSettlementResponseVendor vendor_split_details = 3;
+}
+
+// Marketplace / platform settlement line echoed back by the connector.
+message SplitSettlementResponseMarketplace {
+  // Amount settled to the marketplace/platform for this transaction.
+  optional Money amount = 1;
+  // WHERE it settled: the connector's own id for the marketplace/platform account.
+  optional string connector_sub_account_id = 2;
+  // Portion of this settlement that has since been refunded/reversed.
+  optional Money refunded_amount = 3;
+  // Net amount settled after refunds/reversals (amount minus refunded_amount).
+  optional Money total_settlement_amount = 4;
+  // WHEN it paid out: the connector's id for the payout/settlement event (T+n).
+  optional string connector_settlement_id = 5;
+  // Per-line settlement lifecycle status (pending / settled / failed), when reported.
+  optional SplitSettlementStatus settlement_status = 6;
+  // When the settlement occurred (connector-provided timestamp/date string).
+  optional string settlement_date = 7;
+  // Bank UTR, once the money has moved.
+  optional string utr = 8;
+}
+
+// Per-vendor settlement line echoed back by the connector.
+message SplitSettlementResponseVendor {
+  // Amount settled to this vendor for this transaction.
+  optional Money amount = 1;
+  // WHERE it settled: the connector's own id for the payee (vendor) account.
+  optional string connector_sub_account_id = 2;
+  // Commission retained by the merchant from this vendor's settled share.
+  optional Money merchant_commission = 3;
+  // Echoed from the request so the caller matches this response line to its request line.
+  optional string merchant_reference_id = 4;
+  // Portion of this vendor's share that has since been refunded/reversed.
+  optional Money refunded_amount = 5;
+  // Net amount settled to this vendor after refunds/reversals.
+  optional Money total_settlement_amount = 6;
+  // WHEN it paid out: the connector's id for the payout/settlement event (T+n).
+  optional string connector_settlement_id = 7;
+  // Per-line settlement lifecycle status (pending / settled / failed), when reported.
+  optional SplitSettlementStatus settlement_status = 8;
+  // When the settlement occurred (connector-provided timestamp/date string).
+  optional string settlement_date = 9;
+  // Bank UTR, once the money has moved.
+  optional string utr = 10;
+  // The connector's id for the TRANSFER of this slice to the vendor (e.g. Stripe tr_…).
+  optional string connector_transaction_id = 11;
+}
+
+// Additional connector-specific details to be passed through to the
+// connector for the transaction. Currently only the Checkout variant is defined.
+message AdditionalConnectorDetails {
+  // Checkout specific additional information for the transaction.
+  optional CheckoutAdditionalInformation checkout = 1;
+  optional WorldpayxmlAdditionalInformation worldpayxml = 2;
+}
+
+message WorldpayxmlAdditionalInformation {
+  optional string funding_transaction_type = 1;
+  optional string payment_purpose = 2;
+}
+
+// Checkout.com-specific additional information to be included in the payment request.
+message CheckoutAdditionalInformation {
+  // Free-text description of the reason or intent behind the payment (e.g. "Invoice payment",
+  // "Goods purchase"). Forwarded verbatim to Checkout.com as the purpose of the transaction.
+  optional string purpose_of_payment = 1;
 }

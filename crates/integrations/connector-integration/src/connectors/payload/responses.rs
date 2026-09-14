@@ -143,6 +143,16 @@ pub struct PayloadEventDetails {
     pub value: Option<serde_json::Value>, // Changed to handle any value type including null
 }
 
+// CreateConnectorCustomer response — POST /customers
+// Mirrors the hyperswitch reference at
+// hyperswitch/crates/hyperswitch_connectors/src/connectors/payload/responses.rs
+// (struct CustomerResponse). Only the `id` field is required to populate
+// `ConnectorCustomerResponse.connector_customer_id` in UCS.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadCustomerResponse {
+    pub id: String,
+}
+
 // Type aliases to avoid duplicate templating types in macro
 pub type PayloadAuthorizeResponse = PayloadPaymentsResponse;
 pub type PayloadPSyncResponse = PayloadPaymentsResponse;

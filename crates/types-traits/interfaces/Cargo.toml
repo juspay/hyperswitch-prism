@@ -25,10 +25,17 @@ thiserror = { workspace = true }
 bytes = { workspace = true }
 time = "0.3.41"
 tracing-actix-web = "0.7.18"
+tracing = { workspace = true }
 async-trait = "0.1.88"
 actix-web = "4.11.0"
 
 error-stack = "0.4.1"
+
+[features]
+# Déjà call-graph instrumentation (`ucs::*` / `connector::*` spans). A pure cfg
+# switch — no dependencies — so feature-off builds are byte-identical. Enabled
+# by grpc-server's `deja` umbrella feature.
+deja = []
 
 [lints]
 workspace = true

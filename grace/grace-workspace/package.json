@@ -1,0 +1,21 @@
+{
+  "name": "10xgrace",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "bootstrap": "bash scripts/setup.sh",
+    "check": "bash scripts/setup.sh --doctor",
+    "build": "pnpm -r build",
+    "predev": "pnpm build",
+    "dev": "concurrently --kill-others-on-fail -n core,cli,dashboard,supervisor -c cyan,magenta,green,yellow \"pnpm -C packages/core dev\" \"pnpm -C packages/cli dev\" \"pnpm -C packages/dashboard dev\" \"node --watch packages/cli/dist/index.js supervisor\"",
+    "supervisor": "node packages/cli/dist/index.js supervisor",
+    "docker-up": "concurrently --kill-others-on-fail -n supervisor,dashboard -c yellow,green \"pnpm supervisor\" \"pnpm -C packages/dashboard dev --host 0.0.0.0\"",
+    "engine": "node packages/cli/dist/index.js run",
+    "clear": "rm -f ~/.tenxgrace/pipeline.sqlite ~/.tenxgrace/pipeline.sqlite-wal ~/.tenxgrace/pipeline.sqlite-shm ~/.tenxgrace/resume.json ~/.10xgrace/pipeline.sqlite ~/.10xgrace/pipeline.sqlite-wal ~/.10xgrace/pipeline.sqlite-shm ~/.10xgrace/resume.json && rm -rf ~/.tenxgrace/sessions ~/.tenxgrace/pr-resolver ~/.tenxgrace/pr-resolver-state.json ~/.10xgrace/sessions && echo '✓ Cleared pipeline DB, session worktrees, and PR-resolver state (current + legacy). Restart pnpm dev.'",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

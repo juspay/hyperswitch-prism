@@ -1,0 +1,38 @@
+# Build context exclusions for `docker build`. Keep this list tight — every
+# unignored file adds to the context tarball that ships to the daemon.
+
+# Dep + build artifacts (the image rebuilds these from pnpm-lock.yaml).
+node_modules
+packages/*/node_modules
+packages/*/dist
+dist
+
+# Local secrets / generated state.
+.env
+.env.local
+.env.*.local
+
+# Test + Playwright artifacts (never relevant inside the image).
+.playwright-mcp
+test-results
+playwright-report
+*.log
+
+# Git data — large and unused inside the container.
+.git
+.gitignore
+.gitattributes
+
+# Editor / OS noise.
+.DS_Store
+.vscode
+.idea
+
+# Docs / images at workspace root.
+*.png
+*.gif
+
+# Docker artifacts themselves don't need to ship into the image.
+Dockerfile
+docker-compose.yml
+.dockerignore

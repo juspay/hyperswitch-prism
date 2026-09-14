@@ -13,8 +13,11 @@ import com.sun.jna.ptr.IntByReference
 import java.io.File
 import java.nio.charset.StandardCharsets
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import types.Payouts.*
+import types.Surcharge.*
+import types.Frm.*
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -130,8 +133,13 @@ class GrpcCustomerClient internal constructor(
     /**
      * CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
      */
-    suspend fun create(req: CustomerServiceCreateRequest): CustomerServiceCreateResponse =
-        callGrpc(config, "customer/create", req, CustomerServiceCreateResponse.parser())
+    suspend fun customer_create(req: CustomerServiceCreateRequest): CustomerServiceCreateResponse =
+        callGrpc(config, "customer/customer_create", req, CustomerServiceCreateResponse.parser())
+    /**
+     * CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay).
+     */
+    suspend fun customer_get(req: CustomerServiceGetRequest): CustomerServiceGetResponse =
+        callGrpc(config, "customer/customer_get", req, CustomerServiceGetResponse.parser())
 }
 
 /**
@@ -178,6 +186,29 @@ class GrpcEventClient internal constructor(
      */
     suspend fun handle_event(req: EventServiceHandleRequest): EventServiceHandleResponse =
         callGrpc(config, "event/handle_event", req, EventServiceHandleResponse.parser())
+    /**
+     * EventService.NotifyConnector — Notify connectors about events (payment succeeded, refund succeeded, refund failed).
+     */
+    suspend fun notify_connector(req: NotifyConnectorRequest): NotifyConnectorResponse =
+        callGrpc(config, "event/notify_connector", req, NotifyConnectorResponse.parser())
+}
+
+/**
+ * FraudAndRiskManagementService — gRPC sub-client.
+ */
+class GrpcFraudAndRiskManagementClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+     */
+    suspend fun pre_risk_check(req: FrmServicePreRiskCheckRequest): FrmServicePreRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/pre_risk_check", req, FrmServicePreRiskCheckResponse.parser())
+    /**
+     * FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+     */
+    suspend fun post_risk_check(req: FrmServicePostRiskCheckRequest): FrmServicePostRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/post_risk_check", req, FrmServicePostRiskCheckResponse.parser())
 }
 
 /**
@@ -238,10 +269,30 @@ class GrpcPaymentMethodClient internal constructor(
     suspend fun tokenize(req: PaymentMethodServiceTokenizeRequest): PaymentMethodServiceTokenizeResponse =
         callGrpc(config, "payment_method/tokenize", req, PaymentMethodServiceTokenizeResponse.parser())
     /**
-     * PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction
+     * PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
      */
-    suspend fun eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
-        callGrpc(config, "payment_method/eligibility", req, PayoutMethodEligibilityResponse.parser())
+    suspend fun create(req: PaymentMethodServiceCreateRequest): PaymentMethodServiceCreateResponse =
+        callGrpc(config, "payment_method/create", req, PaymentMethodServiceCreateResponse.parser())
+    /**
+     * PaymentMethodService.Get — Retrieve payment method details from the payment processor.
+     */
+    suspend fun payment_method_get(req: PaymentMethodServiceGetRequest): PaymentMethodServiceGetResponse =
+        callGrpc(config, "payment_method/payment_method_get", req, PaymentMethodServiceGetResponse.parser())
+    /**
+     * PaymentMethodService.Refresh — Refresh a payment method the caller already holds in full. The request carries the instrument itself, not a reference to it: use Refresh when you own the complete payment method details and the provider exposes an endpoint that evaluates them.
+     */
+    suspend fun refresh(req: PaymentMethodServiceRefreshRequest): PaymentMethodServiceRefreshResponse =
+        callGrpc(config, "payment_method/refresh", req, PaymentMethodServiceRefreshResponse.parser())
+    /**
+     * PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds.
+     */
+    suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
+        callGrpc(config, "payment_method/recharge", req, PaymentMethodServiceRechargeResponse.parser())
+    /**
+     * PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+     */
+    suspend fun eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
+        callGrpc(config, "payment_method/eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
 }
 
 /**
@@ -368,6 +419,11 @@ class GrpcPayoutClient internal constructor(
      */
     suspend fun enroll_disburse_account(req: PayoutServiceEnrollDisburseAccountRequest): PayoutServiceEnrollDisburseAccountResponse =
         callGrpc(config, "payout/enroll_disburse_account", req, PayoutServiceEnrollDisburseAccountResponse.parser())
+    /**
+     * PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
+     */
+    suspend fun payout_eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
+        callGrpc(config, "payout/payout_eligibility", req, PayoutMethodEligibilityResponse.parser())
 }
 
 /**
@@ -399,6 +455,24 @@ class GrpcRefundClient internal constructor(
      */
     suspend fun refund_get(req: RefundServiceGetRequest): RefundResponse =
         callGrpc(config, "refund/refund_get", req, RefundResponse.parser())
+    /**
+     * RefundService.VoidPostRefund — Void/reverse a refund before processor settlement.
+     */
+    suspend fun void_post_refund(req: RefundServiceVoidPostRefundRequest): RefundResponse =
+        callGrpc(config, "refund/void_post_refund", req, RefundResponse.parser())
+}
+
+/**
+ * SurchargeService — gRPC sub-client.
+ */
+class GrpcSurchargeClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+     */
+    suspend fun calculate(req: SurchargeServiceCalculateRequest): SurchargeServiceCalculateResponse =
+        callGrpc(config, "surcharge/calculate", req, SurchargeServiceCalculateResponse.parser())
 }
 
 // ── Top-level GrpcClient ──────────────────────────────────────────────────────
@@ -410,6 +484,8 @@ class GrpcClient(config: GrpcConfig) {
         GrpcDisputeClient(config)
     val event: GrpcEventClient =
         GrpcEventClient(config)
+    val fraud_and_risk_management: GrpcFraudAndRiskManagementClient =
+        GrpcFraudAndRiskManagementClient(config)
     val merchant_authentication: GrpcMerchantAuthenticationClient =
         GrpcMerchantAuthenticationClient(config)
     val payment_method_authentication: GrpcPaymentMethodAuthenticationClient =
@@ -424,4 +500,6 @@ class GrpcClient(config: GrpcConfig) {
         GrpcRecurringPaymentClient(config)
     val refund: GrpcRefundClient =
         GrpcRefundClient(config)
+    val surcharge: GrpcSurchargeClient =
+        GrpcSurchargeClient(config)
 }

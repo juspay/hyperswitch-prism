@@ -3,8 +3,8 @@
     "grpc_req": {
       "merchant_order_id": "auto_generate",
       "request_details": {
-        "method": "GET",
-        "url": "https://example.com/payment/redirect?status=success&payment_id=test_12345",
+        "method": "HTTP_METHOD_GET",
+        "uri": "https://example.com/payment/redirect?status=success&payment_id=test_12345",
         "headers": {},
         "body": ""
       }
@@ -27,8 +27,8 @@
     "grpc_req": {
       "merchant_order_id": "auto_generate",
       "request_details": {
-        "method": "GET",
-        "url": "https://example.com/payment/redirect?status=approved&payment_id=test_67890&amount=10000&currency=USD",
+        "method": "HTTP_METHOD_GET",
+        "uri": "https://example.com/payment/redirect?status=approved&payment_id=test_67890&amount=10000&currency=USD",
         "headers": {},
         "body": ""
       }
@@ -50,8 +50,8 @@
     "grpc_req": {
       "merchant_order_id": "auto_generate",
       "request_details": {
-        "method": "GET",
-        "url": "https://example.com/payment/redirect?status=success&payment_id=tampered_xyz&signature=invalid",
+        "method": "HTTP_METHOD_GET",
+        "uri": "https://example.com/payment/redirect?status=success&payment_id=tampered_xyz&signature=invalid",
         "headers": {},
         "body": ""
       }

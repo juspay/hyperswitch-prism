@@ -40,6 +40,9 @@ pub enum CardNetworkLowercase {
     Pulse,
     Accel,
     Nyce,
+    Prop,
+    PrivateLabel,
+    Dinacard,
 }
 
 #[derive(Debug, Serialize)]

@@ -2,15 +2,15 @@
 
 use common_utils::{
     events,
-    request::{KafkaRecord, Method, Request, RequestBuilder, RequestContent, TransportType},
+    request::{ConnectorRequestData, KafkaRecord, Method, Request, RequestBuilder, TransportType},
     CustomResult,
 };
 use domain_types::{
-    errors::{ConnectorError, IntegrationError},
-    router_data::ErrorResponse,
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{Maskable, Secret};
 use serde_json::json;
 
 use crate::api;
@@ -67,17 +67,13 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_url(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<String, IntegrationError> {
-        // metrics::UNIMPLEMENTED_FLOW
-        //     .add(1, router_env::metric_attributes!(("connector", self.id()))); // TODO: discuss env
-        Ok(String::new())
-    }
+    ) -> CustomResult<String, IntegrationError>;
 
     /// returns request body
     fn get_request_body(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+    ) -> CustomResult<Option<ConnectorRequestData>, IntegrationError> {
         Ok(None)
     }
 
@@ -93,12 +89,17 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         TransportType::Http
     }
 
-    /// returns kafka topic
+    /// returns kafka topic; default returns Err(NotImplemented).
     fn get_kafka_topic(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<String, IntegrationError> {
-        Ok(String::new())
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            std::any::type_name::<Flow>(),
+            IntegrationErrorContext::default(),
+        )
+        .into())
     }
 
     /// returns kafka key
@@ -109,35 +110,58 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         Ok(None)
     }
 
+    /// returns kafka record; default returns Err(NotImplemented).
     fn build_kafka_record(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<KafkaRecord>, IntegrationError> {
-        Ok(None)
+        Err(IntegrationError::connector_flow_not_implemented(
+            self.id(),
+            std::any::type_name::<Flow>(),
+            IntegrationErrorContext::default(),
+        )
+        .into())
     }
 
     /// builds the request and returns it
+    // Déjà call-graph skeleton span: covers get_url/get_headers/get_request_body
+    // from above, so even a connector that hand-overrides those is one visible
+    // hop on the graph. Inert unless the `deja` feature is on.
+    #[cfg_attr(
+        feature = "deja",
+        tracing::instrument(name = "ucs::build_request", skip_all)
+    )]
     fn build_request_v2(
         &self,
         req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<Request>, IntegrationError> {
+        let request_data = self.get_request_body(req)?;
+        let (body, typed_request_value) = match request_data {
+            Some(data) => (
+                Some(data.content),
+                data.typed_request.map(|msv| msv.inner().clone()),
+            ),
+            None => (None, None),
+        };
         Ok(Some(
             RequestBuilder::new()
                 .method(self.get_http_method())
                 .url(self.get_url(req)?.as_str())
                 .attach_default_headers()
                 .headers(self.get_headers(req)?)
-                .set_optional_body(self.get_request_body(req)?)
+                .set_optional_body(body)
+                .set_typed_connector_request(typed_request_value)
                 .add_certificate(self.get_certificate(req)?)
                 .add_certificate_key(self.get_certificate_key(req)?)
+                .add_ca_certificate_pem(self.get_ca_certificate(req)?)
                 .build(),
         ))
     }
 
-    /// accepts the raw api response and decodes it
+    /// accepts the raw api response and decodes it; default returns Err(ResponseHandlingFailed).
     fn handle_response_v2(
         &self,
-        data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+        _data: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
         event_builder: Option<&mut events::Event>,
         _res: domain_types::router_response_types::Response,
     ) -> CustomResult<RouterDataV2<Flow, ResourceCommonData, Req, Resp>, ConnectorError>
@@ -150,14 +174,28 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         if let Some(e) = event_builder {
             e.set_connector_response(&json!({"error": "Not Implemented"}))
         }
-        Ok(data.clone())
+        Err(ConnectorError::ResponseHandlingFailed {
+            context: domain_types::errors::ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(format!(
+                    "{}: handle_response_v2 not implemented for flow {}",
+                    self.id(),
+                    std::any::type_name::<Flow>()
+                )),
+            },
+        }
+        .into())
     }
 
     /// accepts the raw api error response and decodes it
+    ///
+    /// `connector_config` carries the per-merchant credentials (PEMs, kid,
+    /// access tokens) needed to decrypt encrypted error bodies.
     fn get_error_response_v2(
         &self,
         res: domain_types::router_response_types::Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         if let Some(event) = event_builder {
             event.set_connector_response(&json!({"error": "Error response parsing not implemented", "status_code": res.status_code}))
@@ -170,6 +208,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         &self,
         res: domain_types::router_response_types::Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let error_message = match res.status_code {
             500 => "internal_server_error",
@@ -202,6 +241,10 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 
@@ -216,7 +259,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         Ok(None)
     }
 
@@ -224,7 +267,19 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     fn get_certificate_key(
         &self,
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
-    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
         Ok(None)
+    }
+    /// returns an extra CA certificate (PEM, may be a bundle) to add as a trust
+    /// anchor for this connector's outbound HTTPS client
+    fn get_ca_certificate(
+        &self,
+        _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
+    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+        Ok(None)
+    }
+
+    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+        common_enums::CallConnectorAction::Trigger
     }
 }

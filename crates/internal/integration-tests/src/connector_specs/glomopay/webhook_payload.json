@@ -1,0 +1,192 @@
+{
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "payment",
+          "event_type": "success",
+          "data": {
+            "id": "payt_686f7cc3pe69T",
+            "payin_id": "order_686f7c8c7txqj",
+            "payin_type": "orders",
+            "customer_id": "cust_686f7c6evv6Nv",
+            "requested_amount": 100000,
+            "requested_currency": "USD",
+            "payment_amount": 374580,
+            "payment_currency": "AED",
+            "fees": {
+              "txn_fee": { "currency": "USD", "amount": 1000 },
+              "fx_fee": { "currency": "USD", "amount": 1000 },
+              "referral_fee": { "currency": "USD", "amount": 0 }
+            },
+            "error_code": null,
+            "error_description": null,
+            "error_message": null,
+            "funds_available": false
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_payment_success"
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "payment",
+          "event_type": "failed",
+          "data": {
+            "id": "payt_686f7cc3pe69U",
+            "payin_id": "order_686f7c8c7txqk",
+            "payin_type": "orders",
+            "customer_id": "cust_686f7c6evv6Nv",
+            "requested_amount": 100000,
+            "requested_currency": "USD",
+            "payment_amount": 374580,
+            "payment_currency": "AED",
+            "fees": {
+              "txn_fee": { "currency": "USD", "amount": 0 },
+              "fx_fee": { "currency": "USD", "amount": 0 },
+              "referral_fee": { "currency": "USD", "amount": 0 }
+            },
+            "error_code": "PAYMENT_DECLINED",
+            "error_description": "The payment attempt was declined.",
+            "error_message": "Payment declined by issuer",
+            "funds_available": false
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_payment_failed"
+    }
+  },
+  "payment_in_progress": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "payment",
+          "event_type": "in_progress",
+          "data": {
+            "id": "payt_686f7cc3pe69T",
+            "payin_id": "order_686f7c8c7txqj",
+            "payin_type": "orders",
+            "customer_id": "cust_686f7c6evv6Nv",
+            "requested_amount": 100000,
+            "requested_currency": "USD",
+            "payment_amount": 374580,
+            "payment_currency": "AED",
+            "fees": {
+              "txn_fee": { "currency": "USD", "amount": 1000 },
+              "fx_fee": { "currency": "USD", "amount": 1000 },
+              "referral_fee": { "currency": "USD", "amount": 0 }
+            },
+            "error_code": null,
+            "error_description": null,
+            "error_message": null,
+            "funds_available": false
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_payment_in_progress"
+    }
+  },
+  "payment_funds_available": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "payment",
+          "event_type": "funds_available",
+          "data": {
+            "id": "payt_686f7cc3pe69T",
+            "payin_id": "order_686f7c8c7txqj",
+            "payin_type": "orders",
+            "customer_id": "cust_686f7c6evv6Nv",
+            "requested_amount": 100000,
+            "requested_currency": "USD",
+            "payment_amount": 374580,
+            "payment_currency": "AED",
+            "fees": {
+              "txn_fee": { "currency": "USD", "amount": 1000 },
+              "fx_fee": { "currency": "USD", "amount": 1000 },
+              "referral_fee": { "currency": "USD", "amount": 0 }
+            },
+            "error_code": null,
+            "error_description": null,
+            "error_message": null,
+            "funds_available": true
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_payment_funds_available"
+    }
+  },
+  "refund_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "refund",
+          "event_type": "success",
+          "data": {
+            "id": "refund_682c42dfkOVpL",
+            "payment_id": "payt_681cadccoSbsj",
+            "amount": 10000,
+            "currency": "USD",
+            "fees": {
+              "fx_fees": { "currency": "USD", "amount": 0 },
+              "txn_fees": { "currency": "USD", "amount": 200 }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_refund_success"
+    }
+  },
+  "refund_failed": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "refund",
+          "event_type": "failed",
+          "data": {
+            "id": "refund_682c42dfkOVpM",
+            "payment_id": "payt_681cadccoSbsj",
+            "amount": 10000,
+            "currency": "USD",
+            "fees": {
+              "fx_fees": { "currency": "USD", "amount": 0 },
+              "txn_fees": { "currency": "USD", "amount": 0 }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_refund_failed"
+    }
+  },
+  "refund_action_required": {
+    "grpc_req": {
+      "request_details": {
+        "headers": {},
+        "body": {
+          "entity_type": "refund",
+          "event_type": "action_required",
+          "data": {
+            "id": "refund_682c42dfkOVpN",
+            "payment_id": "payt_681cadccoSbsj",
+            "amount": 10000,
+            "currency": "USD",
+            "fees": {
+              "fx_fees": { "currency": "USD", "amount": 0 },
+              "txn_fees": { "currency": "USD", "amount": 0 }
+            }
+          }
+        }
+      },
+      "merchant_event_id": "glomopay_webhook_refund_action_required"
+    }
+  }
+}

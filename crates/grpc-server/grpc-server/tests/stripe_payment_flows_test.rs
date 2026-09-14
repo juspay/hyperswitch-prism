@@ -3,7 +3,7 @@
 #![allow(clippy::panic)]
 
 use grpc_server::app;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use ucs_env::configs;
 mod common;
 mod utils;
@@ -43,7 +43,6 @@ fn generate_unique_id(prefix: &str) -> String {
 
 // Constants for Stripe connector
 const CONNECTOR_NAME: &str = "stripe";
-const AUTH_TYPE: &str = "header-key";
 const MERCHANT_ID: &str = "merchant_1234";
 
 // Test card data
@@ -57,24 +56,19 @@ const TEST_EMAIL: &str = "customer@example.com";
 
 fn add_stripe_metadata<T>(request: &mut Request<T>) {
     // Get API credentials using the common credential loading utility
-    let auth = utils::credential_utils::load_connector_auth(CONNECTOR_NAME)
-        .expect("Failed to load Stripe credentials");
+    let connector_config = utils::credential_utils::connector_config_header(CONNECTOR_NAME)
+        .expect("Failed to load connector config");
 
-    let api_key = match auth {
-        domain_types::router_data::ConnectorAuthType::HeaderKey { api_key } => api_key.expose(),
-        _ => panic!("Expected HeaderKey auth type for Stripe"),
-    };
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
-    );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
     );
     request.metadata_mut().append(
         "x-merchant-id",
@@ -143,12 +137,17 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             "https://hyperswitch.io/connector-service/authnet_webhook_grpcurl".to_string(),
         ),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: Some("cus_TE8065JzRWlLQf".to_string()),
             connector_customer_id: Some("cus_TE8065JzRWlLQf".to_string()),
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
+            date_of_birth: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress::default()),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -180,6 +179,10 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        split_payments: None,
+        merchant_request_id: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -191,6 +194,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()
@@ -273,8 +277,7 @@ async fn test_payment_authorization_auto_capture() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -298,8 +301,7 @@ async fn test_payment_authorization_manual_capture() {
         add_stripe_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -347,8 +349,7 @@ async fn test_payment_sync_auto_capture() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -390,8 +391,7 @@ async fn test_payment_void() {
         add_stripe_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -461,8 +461,7 @@ async fn test_refund() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -509,8 +508,7 @@ async fn test_refund_sync() {
             add_stripe_metadata(&mut grpc_request);
 
             // Send the request
-            let response = client
-                .authorize(grpc_request)
+            let response = Box::pin(client.authorize(grpc_request))
                 .await
                 .expect("gRPC authorize call failed")
                 .into_inner();

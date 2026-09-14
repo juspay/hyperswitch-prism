@@ -1,1 +1,22 @@
-{}
+{
+  "CustomerService/Create": {
+    "create_customer": {
+      "grpc_req": {
+        "email": {
+          "value": "stax.test@sandbox.example.com"
+        },
+        "customer_name": "Stax Test User",
+        "phone_number": "+19794113855"
+      }
+    },
+    "CustomerService/Create": {
+      "grpc_req": {
+        "email": {
+          "value": "stax.test@sandbox.example.com"
+        },
+        "customer_name": "Stax Test User",
+        "phone_number": "+19794113855"
+      }
+    }
+  }
+}

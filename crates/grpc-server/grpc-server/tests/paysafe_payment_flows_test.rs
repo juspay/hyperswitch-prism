@@ -68,12 +68,11 @@ use grpc_api_types::{
         RefundStatus,
     },
 };
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use tonic::{transport::Channel, Request};
 
 // Constants for Paysafe connector
 const CONNECTOR_NAME: &str = "paysafe";
-const AUTH_TYPE: &str = "body-key";
 const MERCHANT_ID: &str = "merchant_paysafe_test";
 
 // Test card data - Paysafe test cards
@@ -101,51 +100,43 @@ fn get_timestamp() -> u64 {
         .as_secs()
 }
 
-// Helper function to load Paysafe credentials from environment or file
+// Helper function to load the Paysafe connector config from environment or file
 // Returns None if credentials are not available (for skipping tests)
-fn load_paysafe_credentials() -> Option<(String, String)> {
-    // Try environment variables first (for quick testing)
-    if let (Ok(api_key), Ok(key1)) = (
-        std::env::var("TEST_PAYSAFE_API_KEY"),
-        std::env::var("TEST_PAYSAFE_KEY1"),
-    ) {
-        return Some((api_key, key1));
+//
+// Note on the #[ignore]d tests below. They previously reported PASS in ~15ms
+// without issuing a request: the old loader could not produce a BodyKey auth
+// type for Paysafe, so every one of them returned early here. Reading the
+// credentials correctly made them run for the first time, and they fail — the
+// flow needs a payment handle the tests never obtain. They are ignored rather
+// than left green, so the gap is visible instead of counted as coverage.
+fn load_paysafe_config() -> Option<String> {
+    // Environment override for quick local testing: the full x-connector-config
+    // JSON, e.g. {"config":{"Paysafe":{"username":"...","password":"..."}}}
+    if let Ok(config) = std::env::var("TEST_PAYSAFE_CONFIG") {
+        return Some(config);
     }
 
-    // Fallback to credentials file
-    match utils::credential_utils::load_connector_auth(CONNECTOR_NAME) {
-        Ok(auth) => match auth {
-            domain_types::router_data::ConnectorAuthType::BodyKey { api_key, key1 } => {
-                Some((api_key.expose(), key1.expose()))
-            }
-            _ => panic!("Expected BodyKey auth type for paysafe"),
-        },
-        Err(_) => None, // Credentials not found - tests will be skipped
-    }
+    utils::credential_utils::connector_config_header(CONNECTOR_NAME).ok()
 }
 
 // Helper function to add Paysafe metadata headers to a request
 // Returns false if credentials are not available
 fn add_paysafe_metadata<T>(request: &mut Request<T>) -> bool {
-    let Some((api_key, key1)) = load_paysafe_credentials() else {
+    let Some(connector_config) = load_paysafe_config() else {
         return false;
     };
+
+    request.metadata_mut().append(
+        "x-connector-config",
+        connector_config
+            .parse()
+            .expect("Failed to parse x-connector-config"),
+    );
 
     request.metadata_mut().append(
         "x-connector",
         CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
     );
-    request
-        .metadata_mut()
-        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
-
-    request.metadata_mut().append(
-        "x-api-key",
-        api_key.parse().expect("Failed to parse x-api-key"),
-    );
-    request
-        .metadata_mut()
-        .append("x-key1", key1.parse().expect("Failed to parse x-key1"));
 
     request.metadata_mut().append(
         "x-merchant-id",
@@ -217,12 +208,17 @@ fn create_payment_authorize_request(
         }),
         return_url: Some("https://duck.com".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
+            date_of_birth: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress {
             billing_address: Some(grpc_api_types::payments::Address {
@@ -274,6 +270,10 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        split_payments: None,
+        merchant_request_id: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -285,6 +285,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: Some(format!(
             "paysafe_capture_{}_{}",
@@ -334,6 +335,9 @@ fn create_refund_sync_request(transaction_id: &str, refund_id: &str) -> RefundSe
         connector_feature_data: None,
         payment_method_type: None,
         refund_amount: None,
+        split_refunds: None,
+        merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 
@@ -374,9 +378,10 @@ async fn test_health() {
 
 // Test payment authorization with automatic capture
 #[tokio::test]
+#[ignore = "needs a Paysafe payment_handle_token: the request sends a raw card, and the server rejects it with MISSING_REQUIRED_FIELD before any call goes out. Obtain a handle via PaymentMethodService.Tokenize first."]
 async fn test_payment_authorization_auto_capture() {
     // Skip test if credentials are not available
-    if load_paysafe_credentials().is_none() {
+    if load_paysafe_config().is_none() {
         return;
     }
 
@@ -389,8 +394,7 @@ async fn test_payment_authorization_auto_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -408,9 +412,10 @@ async fn test_payment_authorization_auto_capture() {
 
 // Test payment authorization with manual capture
 #[tokio::test]
+#[ignore = "needs a Paysafe payment_handle_token: the request sends a raw card, and the server rejects it with MISSING_REQUIRED_FIELD before any call goes out. Obtain a handle via PaymentMethodService.Tokenize first."]
 async fn test_payment_authorization_manual_capture() {
     // Skip test if credentials are not available
-    if load_paysafe_credentials().is_none() {
+    if load_paysafe_config().is_none() {
         return;
     }
 
@@ -423,8 +428,7 @@ async fn test_payment_authorization_manual_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -474,9 +478,10 @@ async fn test_payment_authorization_manual_capture() {
 
 // Test payment sync
 #[tokio::test]
+#[ignore = "needs a Paysafe payment_handle_token: the request sends a raw card, and the server rejects it with MISSING_REQUIRED_FIELD before any call goes out. Obtain a handle via PaymentMethodService.Tokenize first."]
 async fn test_payment_sync() {
     // Skip test if credentials are not available
-    if load_paysafe_credentials().is_none() {
+    if load_paysafe_config().is_none() {
         return;
     }
 
@@ -489,8 +494,7 @@ async fn test_payment_sync() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -532,8 +536,7 @@ async fn test_refund() {
         let mut grpc_request = Request::new(request);
         add_paysafe_metadata(&mut grpc_request);
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -576,8 +579,7 @@ async fn test_refund_sync() {
             let mut grpc_request = Request::new(request);
             add_paysafe_metadata(&mut grpc_request);
 
-            let response = payment_client
-                .authorize(grpc_request)
+            let response = Box::pin(payment_client.authorize(grpc_request))
                 .await
                 .expect("Payment authorization failed");
 
@@ -624,9 +626,10 @@ async fn test_refund_sync() {
 
 // Test payment void (cancellation)
 #[tokio::test]
+#[ignore = "needs a Paysafe payment_handle_token: the request sends a raw card, and the server rejects it with MISSING_REQUIRED_FIELD before any call goes out. Obtain a handle via PaymentMethodService.Tokenize first."]
 async fn test_payment_void() {
     // Skip test if credentials are not available
-    if load_paysafe_credentials().is_none() {
+    if load_paysafe_config().is_none() {
         return;
     }
 
@@ -639,8 +642,7 @@ async fn test_payment_void() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 

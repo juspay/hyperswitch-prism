@@ -10,7 +10,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -26,7 +26,7 @@ use crate::{connectors::powertranz::PowertranzRouterData, types::ResponseRouterD
 fn powertranz_transaction_identifier(reference_id: &str) -> String {
     match uuid::Uuid::parse_str(reference_id) {
         Ok(u) => u.to_string(),
-        Err(_) => uuid::Uuid::new_v4().to_string(),
+        Err(_) => common_utils::fp_utils::generate_uuid_v4(),
     }
 }
 
@@ -279,6 +279,10 @@ pub fn build_powertranz_error_response(
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             };
         }
     }
@@ -295,6 +299,10 @@ pub fn build_powertranz_error_response(
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         };
     }
 
@@ -308,6 +316,10 @@ pub fn build_powertranz_error_response(
         network_decline_code: None,
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -361,7 +373,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?;
 
                 Ok(Self {
-                    transaction_identifier: uuid::Uuid::new_v4().to_string(),
+                    transaction_identifier: common_utils::fp_utils::generate_uuid_v4(),
                     total_amount: amount,
                     currency_code,
                     three_d_secure: Some(false),
@@ -563,9 +575,12 @@ impl<T: PaymentMethodDataTypes, F> TryFrom<ResponseRouterData<PowertranzPayments
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -604,9 +619,12 @@ impl<F> TryFrom<ResponseRouterData<PowertranzPaymentsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -645,9 +663,12 @@ impl<F> TryFrom<ResponseRouterData<PowertranzCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -686,9 +707,12 @@ impl<F> TryFrom<ResponseRouterData<PowertranzVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -727,6 +751,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRefundResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -761,6 +786,7 @@ impl<F> TryFrom<ResponseRouterData<PowertranzRSyncResponse, Self>>
                 connector_refund_id: response.transaction_identifier.clone(),
                 refund_status,
                 status_code: http_code,
+                acquirer_reference_number: None,
             }),
             ..router_data
         })
@@ -926,7 +952,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 http_code,
             );
             Err(domain_types::router_data::ErrorResponse {
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.transaction_identifier.clone()),
                 ..err
             })
@@ -937,6 +963,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 connector_mandate_id: Some(response.transaction_identifier.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             }));
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -947,9 +974,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         };
 
@@ -1116,7 +1146,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
                 http_code,
             );
             Err(domain_types::router_data::ErrorResponse {
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.transaction_identifier.clone()),
                 ..err
             })
@@ -1129,9 +1159,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzRepeatPayme
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         };
 

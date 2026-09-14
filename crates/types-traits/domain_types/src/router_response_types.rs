@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use common_utils::Method;
 use grpc_api_types::payments::Money;
+use hyperswitch_masking::Secret;
 
 #[derive(Debug, Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RedirectForm {
@@ -46,14 +47,29 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    HostedIframe {
+        endpoint: String,
+        method: Method,
+        events: String,
+    },
     WorldpayDDCForm {
         endpoint: url::Url,
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: Secret<String>,
+    },
+    WorldpayxmlRedirectForm {
+        jwt: Secret<String>,
+    },
     Uri {
         uri: String,
+    },
+    Script {
+        script_data: String, // A standalone script snippet
     },
 }
 

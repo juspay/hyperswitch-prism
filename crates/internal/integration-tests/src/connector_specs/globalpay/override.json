@@ -1,1 +1,73 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-cc"
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-auto-dc"
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-fail",
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4000120000001154"
+            }
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-manual-cc"
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-manual-dc"
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-3ds-cc"
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-eps"
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "merchant_transaction_id": "gp-auth-ideal"
+      }
+    }
+  },
+  "PaymentService/SetupRecurring": {
+    "setup_recurring": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "gp-setup-r"
+      }
+    },
+    "PaymentService/SetupRecurring": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "gp-setup-default"
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "gp-setup-wh"
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "grpc_req": {
+        "merchant_recurring_payment_id": "gp-setup-oc"
+      }
+    }
+  }
+}

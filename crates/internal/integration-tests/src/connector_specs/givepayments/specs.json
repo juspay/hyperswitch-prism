@@ -1,0 +1,10 @@
+{
+  "connector": "givepayments",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "RecurringPaymentService/Charge"
+  ]
+}

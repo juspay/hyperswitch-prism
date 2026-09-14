@@ -13,7 +13,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -541,6 +541,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -827,11 +828,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -843,11 +847,15 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -895,11 +903,14 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -911,11 +922,15 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -961,11 +976,14 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure {
@@ -977,11 +995,15 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
                 message: format!("Void status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1037,11 +1059,14 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -1053,11 +1078,15 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1098,6 +1127,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {
@@ -1114,6 +1144,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1166,6 +1200,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 }),
             refund_status,
             status_code: http_code,
+            acquirer_reference_number: None,
         };
 
         if refund_status == enums::RefundStatus::Failure {
@@ -1182,6 +1217,10 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             });
         } else {
             router_data_out.response = Ok(response_payload);
@@ -1227,6 +1266,10 @@ impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         });
 
         Ok(router_data_out)

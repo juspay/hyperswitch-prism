@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, CardNetwork, RefundStatus};
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::consts;
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::payment_method_data::Card as DomainCard;
@@ -12,7 +12,9 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse, FlowStatus,
+    },
     router_data_v2::RouterDataV2,
     utils::{get_card_issuer, CardIssuer},
 };
@@ -22,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Re-export from common utils for use in this connector
+use crate::utils::CardTypeCode;
 pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 
 // Type alias for WellsfargoRouterData to avoid using super::
@@ -476,22 +479,6 @@ fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     card_type.to_string()
 }
 
-/// Convert CardNetwork to CyberSource card type code (for vault token flows where BIN is unavailable)
-fn card_network_to_type_code(network: &CardNetwork) -> Option<&'static str> {
-    match network {
-        CardNetwork::Visa => Some("001"),
-        CardNetwork::Mastercard => Some("002"),
-        CardNetwork::AmericanExpress => Some("003"),
-        CardNetwork::Discover => Some("004"),
-        CardNetwork::DinersClub => Some("005"),
-        CardNetwork::JCB => Some("007"),
-        CardNetwork::UnionPay => Some("062"),
-        CardNetwork::Maestro => Some("042"),
-        CardNetwork::CartesBancaires => Some("036"),
-        _ => None,
-    }
-}
-
 /// Get card type code.
 /// - If BIN detection succeeds (real card number), use the card issuer code.
 /// - If BIN detection fails (e.g. vault token placeholder), fall back to card_network.
@@ -503,7 +490,7 @@ fn get_card_type_code(
         Err(_) => match card_data
             .card_network
             .as_ref()
-            .and_then(|network| card_network_to_type_code(network))
+            .and_then(|network| network.type_code())
         {
             Some(code) => Ok(code.to_string()),
             None => Err(IntegrationError::MissingRequiredField {
@@ -547,7 +534,7 @@ fn build_error_response(
         message: error_message.clone(),
         reason: Some(error_message),
         status_code: http_code,
-        attempt_status: status,
+        attempt_status: status.map(FlowStatus::Payment),
         connector_transaction_id: Some(response.id.clone()),
         network_decline_code: response
             .processor_information
@@ -555,6 +542,10 @@ fn build_error_response(
             .and_then(|info| info.response_code.clone()),
         network_advice_code: None,
         network_error_message: None,
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
     }
 }
 
@@ -629,6 +620,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotSupported {
                 message: "Payment method".to_string(),
                 connector: "Wellsfargo",
@@ -1195,12 +1187,15 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1268,12 +1263,15 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1321,12 +1319,15 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1374,12 +1375,15 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1436,6 +1440,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1454,14 +1459,16 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone())
                     .or_else(|| Some(response.id.clone())),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
-
+                splits: None,
                 status_code: item.http_code,
+                payment_account_reference: None,
             })
         } else {
             // Build error response using helper function
@@ -1511,6 +1518,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                 connector_refund_id: response.id.clone(),
                 refund_status: status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             })
         } else {
             // Build error response using helper function
@@ -1567,6 +1575,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     } else {
                         // Other failure cases
@@ -1591,6 +1603,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                             network_decline_code: None,
                             network_advice_code: None,
                             network_error_message: None,
+                            typed_connector_response: None,
+                            raw_connector_response: None,
+                            raw_connector_request: None,
+                            typed_connector_request: None,
                         })
                     }
                 } else {
@@ -1599,6 +1615,7 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         connector_refund_id: response.id.clone(),
                         refund_status: status,
                         status_code: item.http_code,
+                        acquirer_reference_number: None,
                     })
                 }
             }
@@ -1621,6 +1638,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 } else {
                     // No status and no error - return unknown status error
@@ -1634,6 +1655,10 @@ impl TryFrom<ResponseRouterData<WellsfargoRSyncResponse, Self>>
                         network_decline_code: None,
                         network_advice_code: None,
                         network_error_message: None,
+                        typed_connector_response: None,
+                        raw_connector_response: None,
+                        raw_connector_request: None,
+                        typed_connector_request: None,
                     })
                 }
             }

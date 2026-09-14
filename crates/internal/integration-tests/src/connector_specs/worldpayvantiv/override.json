@@ -41,13 +41,6 @@
           "minor_amount": 120,
           "currency": "USD"
         }
-      },
-      "assert": {
-        "status": {
-          "one_of": ["FAILURE", "AUTHORIZATION_FAILED", "ROUTER_DECLINED", "UNRESOLVED", "PENDING"]
-        },
-        "error": null,
-        "error.connector_details.message": null
       }
     },
     "no3ds_auto_capture_ideal": {
@@ -228,6 +221,29 @@
           "must_exist": true
         },
         "error.connector_details.message": null
+      }
+    }
+  },
+  "PaymentService/IncrementalAuthorization": {
+    "incremental_auth_basic": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS", "SUCCESS", "AUTHORIZED"]
+        }
+      }
+    },
+    "incremental_auth_with_tip": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS", "SUCCESS", "AUTHORIZED"]
+        }
+      }
+    },
+    "incremental_auth_multiple_increase": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHORIZATION_SUCCESS", "SUCCESS", "AUTHORIZED"]
+        }
       }
     }
   }

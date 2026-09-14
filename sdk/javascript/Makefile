@@ -15,7 +15,7 @@ include $(SDK_ROOT)/../common.mk
 # SDK-specific paths continued
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-javascript
-PACKAGE_VERSION  := $(shell node -p "require('$(SDK_ROOT)/package.json').version")
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell node -p "require('$(SDK_ROOT)/package.json').version"))
 JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-$(PACKAGE_VERSION).tgz
 
 # ---------------------------------------------------------------------------
@@ -54,10 +54,12 @@ install-codegen-deps:
 generate-bindings:
 	@[ -f "$(LIBRARY)" ] || \
 		(echo "Error: FFI library not found at $(LIBRARY). Run 'make build-ffi-lib' first." && exit 1)
-	@echo "Copying FFI library to $(GENERATED_OUT)/..."
-	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(LIBRARY) $(GENERATED_OUT)/
-	@echo "Library copied to $(GENERATED_OUT)/"
+	@# Stage the current platform's lib under generated/<platform>-<arch>/ so
+	@# local dev/test resolves it the same way the packaged multi-arch layout does.
+	@echo "Copying FFI library to $(GENERATED_OUT)/$(NODE_TARGET)/..."
+	@mkdir -p $(GENERATED_OUT)/$(NODE_TARGET)
+	@cp -f $(LIBRARY) $(GENERATED_OUT)/$(NODE_TARGET)/
+	@echo "Library copied to $(GENERATED_OUT)/$(NODE_TARGET)/"
 
 # ---------------------------------------------------------------------------
 # generate-proto
@@ -65,14 +67,19 @@ generate-bindings:
 # from the .proto files using protobufjs (pbjs/pbts). Output is placed in the
 # generated output directory alongside the native FFI library.
 # ---------------------------------------------------------------------------
+PROTO_EXCLUDES_JS := health_check.proto composite_payment.proto composite_services.proto
+
+# Auto-discover proto files (excluding known internal ones)
+PROTO_FILES_JS := $(shell ls $(PROTO_DIR)/*.proto | xargs -n1 basename | grep -v -E "$(subst . ,|,$(PROTO_EXCLUDES_JS))")
+
 generate-proto: install-deps
 	@echo "Generating static protobuf JS module..."
+	@echo "  Proto files: $(PROTO_FILES_JS)"
 	@mkdir -p $(GENERATED_OUT)
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbjs \
 		-t static-module -w commonjs --no-delimited --no-convert --alt-comment \
 		-p $(PROTO_DIR) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto \
-		$(PROTO_DIR)/sdk_config.proto \
+		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_JS)) \
 		-o $(GENERATED_OUT)/proto.js
 	@echo "Proto JS generated: $(GENERATED_OUT)/proto.js"
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbts \
@@ -130,7 +137,13 @@ build-ts: install-deps
 pack-archive: build-ts
 	@echo "Packing npm archive..."
 	@mkdir -p $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version $(VERSION) --no-git-tag-version --allow-same-version
+endif
 	@npm pack --pack-destination $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version 0.0.0-dev --no-git-tag-version --allow-same-version
+endif
 	@echo "Tarball created: $(JS_TARBALL)"
 
 # ---------------------------------------------------------------------------
@@ -141,13 +154,52 @@ pack-archive: build-ts
 # generated/ already contains the proto files from a prior generate-proto step
 # or downloaded CI artifact.
 # ---------------------------------------------------------------------------
+# Supported platforms, one entry per: <cargo-triple>:<node platform-arch dir>.
+# Each native lib is bundled under generated/<platform>-<arch>/ (matching Node's
+# process.platform + process.arch) so the loader picks the correct architecture
+# at runtime. Adding a platform here is a one-line change.
+JS_PLATFORMS := \
+  x86_64-unknown-linux-gnu:linux-x64 \
+  aarch64-unknown-linux-gnu:linux-arm64 \
+  aarch64-apple-darwin:darwin-arm64
+
+# node platform-arch dir for the CURRENT build platform (used by generate-bindings).
+NODE_TARGET := $(strip \
+  $(if $(filter x86_64-unknown-linux-gnu,$(PLATFORM)),linux-x64,\
+  $(if $(filter aarch64-unknown-linux-gnu,$(PLATFORM)),linux-arm64,\
+  $(if $(filter aarch64-apple-darwin,$(PLATFORM)),darwin-arm64,\
+  $(if $(filter x86_64-apple-darwin,$(PLATFORM)),darwin-x64,\
+  unknown-$(PLATFORM))))))
+
 dist:
 	@echo "Building JavaScript SDK distribution package..."
 	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
-	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@# The published tarball bundles each platform's native lib under
+	@# generated/<platform>-<arch>/ so a single package works on every platform
+	@# and the loader selects by process.arch. Fail closed if a required binary
+	@# is missing unless ALLOW_PARTIAL_DIST=1 (deliberate single-platform build;
+	@# do NOT publish such a partial set).
+	@built=0; missing=0; \
+	for entry in $(JS_PLATFORMS); do \
+		triple=$${entry%%:*}; target=$${entry##*:}; \
+		ext=so; case "$$triple" in *apple-darwin) ext=dylib;; esac; \
+		lib="$(REPO_ROOT)/target/$$triple/release/libconnector_service_ffi.$$ext"; \
+		if [ ! -f "$$lib" ]; then echo "  missing $$triple: $$lib"; missing=1; continue; fi; \
+		mkdir -p "$(GENERATED_OUT)/$$target"; \
+		cp -f "$$lib" "$(GENERATED_OUT)/$$target/"; \
+		echo "  staged $$target/libconnector_service_ffi.$$ext"; \
+		built=$$((built+1)); \
+	done; \
+	if [ "$$missing" = "1" ]; then \
+		if [ "$(ALLOW_PARTIAL_DIST)" = "1" ]; then \
+			echo "  WARNING: ALLOW_PARTIAL_DIST=1 — partial platform set; do NOT publish it."; \
+		else \
+			echo "ERROR: release package needs every platform's native binary (see above)." >&2; \
+			echo "       Build/stage the missing target(s), or set ALLOW_PARTIAL_DIST=1 for a deliberate single-platform build." >&2; \
+			exit 1; \
+		fi; \
+	fi; \
+	[ "$$built" -gt 0 ] || { echo "ERROR: no natives staged." >&2; exit 1; }
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution package created in $(PACKAGE_DIR)/"
 

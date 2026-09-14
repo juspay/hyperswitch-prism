@@ -1,0 +1,71 @@
+name: E2E Tests (medusa)
+
+on:
+  pull_request:
+
+concurrency:
+  group: e2e-medusa-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright E2E (UI + API)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # The plugin is a self-contained npm workspace under plugins/medusa;
+        # every run step (install, playwright) executes from there.
+        working-directory: plugins/medusa
+    env:
+      # loadCredsFile() (plugins/medusa/app/helpers/creds.ts) reads CREDS_PATH
+      # first; the harness server spawned by Playwright's webServer inherits it
+      # too. Absolute path, so it resolves regardless of working-directory.
+      CREDS_PATH: ${{ github.workspace }}/plugins/medusa/creds.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          # setup-node ignores working-directory, so point it at the workspace lockfile.
+          cache-dependency-path: plugins/medusa/package-lock.json
+
+      - name: Install dependencies
+        run: npm install # root install hydrates all workspaces
+
+      # The secret holds the full creds.json content. Write it via env (never
+      # inline) so it stays masked in logs. Fork PRs receive no secrets, so
+      # CREDS_JSON is empty there — write {} so every connector spec skips green.
+      - name: Write credentials
+        env:
+          CREDS_JSON: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+        run: |
+          if [ -z "$CREDS_JSON" ]; then
+            echo '{}' > "$CREDS_PATH"
+            echo "::warning::CONNECTOR_AUTH_PASSPHRASE empty (fork PR?) — connectors will be skipped"
+          else
+            printf '%s' "$CREDS_JSON" > "$CREDS_PATH"
+          fi
+          # Fail fast on malformed JSON (does not print contents).
+          node -e "JSON.parse(require('fs').readFileSync(process.env.CREDS_PATH, 'utf8'))"
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E suite
+        run: npx playwright test # both projects: chromium-ui + api
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          # Artifact paths are relative to the workspace root, not working-directory.
+          path: |
+            plugins/medusa/playwright-report/
+            plugins/medusa/test-results/
+          retention-days: 7

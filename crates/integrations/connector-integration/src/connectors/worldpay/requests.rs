@@ -1,4 +1,4 @@
-use common_utils::types::MinorUnit;
+use common_utils::{pii, types::MinorUnit};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +53,11 @@ pub struct Instruction<
     pub token_creation: Option<TokenCreation>,
     /// For specifying CIT vs MIT
     pub customer_agreement: Option<CustomerAgreement>,
+    /// Additional Mastercard authentication data (shopper email, phone number and IP address)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer: Option<InstructionCustomer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<Shipping>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -185,6 +190,42 @@ pub struct ExpiryDate {
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillingAddress {
+    pub address1: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address3: Option<Secret<String>>,
+    pub city: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstructionCustomer {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip_address: Option<Secret<String, pii::IpAddress>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shipping {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    pub address: ShippingAddress,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShippingAddress {
     pub address1: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub address2: Option<Secret<String>>,

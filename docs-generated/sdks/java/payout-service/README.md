@@ -36,6 +36,7 @@ The Payout Service enables you to send funds to recipients using the Java SDK. U
 | [`createLink`](./create-link.md) | Create link between recipient and payout. Associate payout with recipient. | Setting up recipient relationships |
 | [`createRecipient`](./create-recipient.md) | Create payout recipient. Store recipient bank/payment details. | First time paying a new recipient |
 | [`enrollDisburseAccount`](./enroll-disburse-account.md) | Enroll disburse account. Set up account for payouts. | Onboarding new payout accounts |
+| [`eligibility`](./eligibility.md) | Check payout eligibility before initiating a transfer. | Pre-validating a payee or bank account |
 
 ## SDK Setup
 

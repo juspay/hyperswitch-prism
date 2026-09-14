@@ -11,6 +11,10 @@ extend-exclude = [
 ]
 
 [default.extend-words]
+# Third-party crate API identifiers — josekit's upstream method is
+# `encrypter_from_pem` (alternative spelling of "encryptor").
+encrypter = "encrypter"
+
 # Financial and payment industry terms
 Iin = "Iin"  # Issuer Identification Number - valid financial term
 IIN = "IIN"  # Issuer Identification Number - acronym

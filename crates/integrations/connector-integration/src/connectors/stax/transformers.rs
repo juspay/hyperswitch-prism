@@ -19,7 +19,7 @@ use domain_types::{
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -165,9 +165,12 @@ pub struct StaxErrorResponse {
     pub validation: Option<serde_json::Value>,
     pub error: Option<serde_json::Value>,
     pub code: Option<String>,
-    /// Capture any other fields for field-level validation errors
+    /// Capture any other fields for field-level validation errors.
+    /// BTreeMap so `get_error_message`'s first-match pick over these fields is
+    /// deterministic — with a HashMap, WHICH validation message surfaces is
+    /// per-process random when several fields fail.
     #[serde(flatten)]
-    pub other: std::collections::HashMap<String, serde_json::Value>,
+    pub other: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 impl StaxErrorResponse {
@@ -410,9 +413,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxPaymentResponse, 
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -454,9 +460,12 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -530,9 +539,12 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -655,6 +667,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_refund_id,
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -686,6 +699,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_refund_id: response.id.clone(), // Top-level ID is the refund ID
                 refund_status,
                 status_code: item.http_code,
+                acquirer_reference_number: None,
             }),
             ..item.router_data
         })
@@ -791,9 +805,12 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -884,6 +901,7 @@ impl TryFrom<ResponseRouterData<StaxCustomerResponse, Self>>
         Ok(Self {
             response: Ok(domain_types::connector_types::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id.expose(),
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -1089,6 +1107,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
@@ -1127,6 +1146,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxTokenResponse, Se
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.id.expose(),
+                connector_payment_method_id: None,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -1306,6 +1327,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 connector_mandate_id: Some(token),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
 
@@ -1320,9 +1342,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1333,11 +1358,15 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.message.clone(),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         };
 
@@ -1459,9 +1488,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1472,11 +1504,15 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.message.clone(),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         };
 

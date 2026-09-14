@@ -80,6 +80,15 @@ _PROTO_OPTIONAL_FIELDS: dict[str, set[str]] = {}
 # Used to determine which pb2 module to use in generated Python code.
 _PROTO_FILE_MAP: dict[str, str] = {}
 
+# Maps a *nested* enum name (declared inside a `message { ... }` block) to the
+# name of the message that encloses it, e.g. "CardRedirectType" -> "CardRedirect".
+# Top-level enums are absent from this map.  Every language surface nests these
+# enums under their parent (TS: types.CardRedirect.CardRedirectType, Kotlin:
+# types.PaymentMethods.CardRedirect.CardRedirectType, Python:
+# payment_methods_pb2.CardRedirect.CardRedirectType, prost: card_redirect::CardRedirectType),
+# so generated references must be qualified accordingly.
+_PROTO_ENUM_PARENT: dict[str, str] = {}
+
 
 # ── Rust type mappings for value wrapper types ─────────────────────────────────
 #
@@ -115,7 +124,11 @@ def _get_client_method(flow_key: str) -> str:
     """Map flow key to ConnectorClient method name.
     
     Handles special prefixes like dispute_*, webhook_*, etc.
+    For customer_create, the SDK uses create_customer.
     """
+    # Special case: customer_create -> create_customer (SDK uses unprefixed name)
+    if flow_key == "customer_create":
+        return "create_customer"
     # Strip dispute_ prefix for dispute flows
     if flow_key.startswith("dispute_"):
         return flow_key[8:]  # Remove "dispute_" prefix
@@ -128,6 +141,17 @@ def _get_client_method(flow_key: str) -> str:
 _UNSUPPORTED_FLOWS: frozenset[str] = frozenset({
     "handle_event",
     "verify_redirect",
+})
+
+# EventService "direct" flows whose Python SDK client method runs synchronously
+# (dispatched via `_execute_direct`, not `_execute_flow`). Their call returns the
+# response object directly — it is NOT awaitable — and the response has no
+# `.status` field, so the generated example must neither `await` the call nor
+# read `.status`.
+_DIRECT_SYNC_FLOWS: frozenset[str] = frozenset({
+    "parse_event",
+    "handle_event",
+    "verify_redirect_response",
 })
 
 
@@ -215,7 +239,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
         fields_str = "\n".join(field_lines)
         return (
             f"    connector_config=payment_pb2.ConnectorSpecificConfig(\n"
-            f"        {connector_name}=payment_pb2.{config_name}(\n"
+            f"        {_conn_proto_field(connector_name)}=payment_pb2.{config_name}(\n"
             f"{fields_str}\n"
             f"        ),\n"
             f"    ),"
@@ -223,7 +247,7 @@ def _generate_connector_config_python(connector_name: str) -> str:
     # Fallback — no proto metadata found for this connector
     return (
         f"    # connector_config=payment_pb2.ConnectorSpecificConfig(\n"
-        f"    #     {connector_name}=payment_pb2.{config_name}(api_key=...),\n"
+        f"    #     {_conn_proto_field(connector_name)}=payment_pb2.{config_name}(api_key=...),\n"
         f"    # ),"
     )
 
@@ -261,13 +285,13 @@ def _generate_connector_config_typescript(
         fields_str = "\n".join(field_lines)
         return (
             f"    {config_field}: {{\n"
-            f"        {connector_name}: {{\n"
+            f"        {_to_camel(_conn_proto_field(connector_name))}: {{\n"
             f"{fields_str}\n"
             f"        }}\n"
             f"    }},"
         )
     # Fallback — no proto metadata found for this connector
-    return f"    // {config_field}: {{ {connector_name}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
+    return f"    // {config_field}: {{ {_to_camel(_conn_proto_field(connector_name))}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
 
 
 def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ") -> str:
@@ -321,12 +345,14 @@ def load_proto_type_map(proto_dir: Path) -> None:
     """Parse all *.proto files in proto_dir to build _PROTO_FIELD_TYPES and _PROTO_WRAPPER_TYPES."""
     global _PROTO_FIELD_TYPES, _PROTO_WRAPPER_TYPES, _PROTO_REPEATED_FIELDS
     global _PROTO_OPTIONAL_FIELDS, _PROTO_FILE_MAP, _PROTO_ONEOF_FIELDS, _PROTO_MAP_FIELDS
+    global _PROTO_ENUM_PARENT
 
     type_map: dict[str, dict[str, str]] = {}
     repeated_map: dict[str, set[str]] = {}
     optional_map: dict[str, set[str]] = {}
     map_map: dict[str, set[str]] = {}
     file_map: dict[str, str] = {}
+    enum_parent_map: dict[str, str] = {}
     _FIELD_RE = re.compile(
         r"^\s*(repeated\s+)?(optional\s+)?([\w<>,\s]+?)\s+(\w+)\s*=\s*\d+"
     )
@@ -366,6 +392,11 @@ def load_proto_type_map(proto_dir: Path) -> None:
                     depth -= 1
                 i += 1
             body = text[body_start : i - 1]
+
+            # Enums declared inside this message are nested — record their parent so
+            # generated code can qualify them (bare names do not resolve in any SDK).
+            for enum_m in re.finditer(r"\benum\s+(\w+)\s*\{", body):
+                enum_parent_map[enum_m.group(1)] = msg_name
 
             # Normalize multi-line field definitions (e.g. "optional FutureUsage f =\n    19;")
             # by joining the field number onto the same line as the type/name.
@@ -427,6 +458,8 @@ def load_proto_type_map(proto_dir: Path) -> None:
     _PROTO_MAP_FIELDS.update(map_map)
     _PROTO_FILE_MAP.clear()
     _PROTO_FILE_MAP.update(file_map)
+    _PROTO_ENUM_PARENT.clear()
+    _PROTO_ENUM_PARENT.update(enum_parent_map)
     # Wrapper types: messages whose only field is named "value"
     _PROTO_WRAPPER_TYPES.clear()
     _PROTO_WRAPPER_TYPES.update(
@@ -441,6 +474,30 @@ def _py_module_for_type(type_name: str) -> str:
     return f"{stem}_pb2"
 
 
+def _enum_parent(type_name: str) -> str:
+    """Return the enclosing message name for a nested proto enum, else ""."""
+    return _PROTO_ENUM_PARENT.get(type_name, "")
+
+
+def _java_outer_class(type_name: str) -> str:
+    """Return the protoc-derived Java outer class for a proto type (payment_methods -> PaymentMethods)."""
+    stem = _PROTO_FILE_MAP.get(type_name, "payment")
+    return "".join(part.capitalize() for part in stem.split("_"))
+
+
+def _py_enum_path(type_name: str) -> str:
+    """Fully-qualified Python path for a proto enum, honouring message nesting."""
+    parent = _enum_parent(type_name)
+    prefix = f"{_py_module_for_type(type_name)}."
+    return f"{prefix}{parent}.{type_name}" if parent else f"{prefix}{type_name}"
+
+
+def _rust_enum_path(type_name: str) -> str:
+    """Prost path for a proto enum — nested enums live in a snake_case parent module."""
+    parent = _enum_parent(type_name)
+    return f"{_to_snake(parent)}::{type_name}" if parent else type_name
+
+
 # ── Scenario groups ─────────────────────────────────────────────────────────────
 
 # Fallback scenario groups used when manifest.json doesn't provide them
@@ -453,7 +510,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
         ]
     },
     {
@@ -474,7 +531,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "refund"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "refund", "pm_key": None}
         ]
     },
@@ -485,7 +542,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "void"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "void", "pm_key": None}
         ]
     },
@@ -496,7 +553,7 @@ _FALLBACK_SCENARIO_GROUPS: list[dict] = [
         "flows": ["authorize", "get"],
         "pm_key": None,
         "required_flows": [
-            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay"]},
+            {"flow_key": "authorize", "pm_key_variants": ["Card", "Ach", "Sepa", "Bacs", "GooglePay", "ApplePay", "Webpay"]},
             {"flow_key": "get", "pm_key": None}
         ]
     },
@@ -562,7 +619,7 @@ JS_RESERVED = frozenset({"void", "delete", "return", "new", "in", "do", "for", "
 # All other flows use the flow key directly as the method name (snake_case).
 _FLOW_KEY_TO_METHOD: dict[str, str] = {
     "recurring_charge":          "charge",                    # RecurringPaymentService.charge()
-    "create_customer":           "create",                    # CustomerClient.create()
+    "create_customer":           "customer_create",           # CustomerClient.customerCreate() (JS/TS), create_customer (Rust/Python)
     "dispute_accept":            "accept",                    # DisputeClient.accept()
     "dispute_defend":            "defend",                    # DisputeClient.defend()
     "dispute_submit_evidence":   "submit_evidence",           # DisputeClient.submit_evidence()
@@ -1034,18 +1091,45 @@ _CONN_ENUM_OVERRIDES: dict[str, str] = {
     "razorpayv2": "RAZORPAY",  # razorpayv2 uses the same RAZORPAY proto enum
 }
 
+# Connectors whose proto identifiers are multi-word while the connector id runs the words
+# together. Both derivations below assume `id -> IDENTIFIER` and `id -> Identifier`, which
+# silently produces names that do not exist (e.g. `JpmorganorbitalConfig`) and drops the
+# generated snippet into its "no proto metadata" placeholder branch. Values are the
+# identifiers as they actually appear in payment.proto: (enum member, PascalCase stem).
+_CONN_PROTO_IDENTIFIERS: dict[str, tuple[str, str, str]] = {
+    "absasanlam": ("ABSA_SANLAM", "AbsaSanlam", "absa_sanlam"),
+    "jpmorganorbital": ("JPMORGAN_ORBITAL", "JpmorganOrbital", "jpmorgan_orbital"),
+    "pinelabsonline": ("PINELABS_ONLINE", "PinelabsOnline", "pinelabs_online"),
+    "tsystransit": ("TSYS_TRANSIT", "TsysTransit", "tsys_transit"),
+}
+
+
+def _conn_proto_field(connector_name: str) -> str:
+    """Return the ConnectorSpecificConfig oneof field name as declared in payment.proto."""
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    return override[2] if override else connector_name
+
 
 def _conn_enum(connector_name: str) -> str:
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[0]
     return _CONN_ENUM_OVERRIDES.get(connector_name, connector_name.upper())
 
 
 def _conn_enum_rust(connector_name: str) -> str:
     """Return the PascalCase Rust Connector enum variant (e.g. Stripe, Razorpay)."""
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[1]
     name = _CONN_ENUM_OVERRIDES.get(connector_name, connector_name)
     return name.replace("_", "").capitalize()
 
 
 def _conn_display(connector_name: str) -> str:
+    override = _CONN_PROTO_IDENTIFIERS.get(connector_name)
+    if override:
+        return override[1]
     return connector_name.replace("_", " ").title().replace(" ", "")
 
 
@@ -1053,7 +1137,7 @@ def _conn_display(connector_name: str) -> str:
 
 def _config_python(connector_name: str) -> str:
     return f"""\
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -1552,10 +1636,17 @@ def _py_direct_lines(
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  # {comment}" if comment else ""
 
+        # map<K,V> fields are constructed from a dict literal, NOT a synthetic
+        # `<Field>Entry` message — that entry type is nested under its parent
+        # (e.g. RequestDetails.HeadersEntry) and is not a module-level pb2
+        # attribute, so `payment_pb2.HeadersEntry()` raises AttributeError.
+        if key in _PROTO_MAP_FIELDS.get(msg_name, set()) and isinstance(val, dict):
+            lines.append(f"{pad}{key}={json.dumps(val)},{cmt_part}")
+            continue
+
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
-                em = _py_module_for_type(child_msg)
-                lines.append(f"{pad}{key}={em}.{child_msg}.Value({key}),{cmt_part}")
+                lines.append(f"{pad}{key}={_py_enum_path(child_msg)}.Value({key}),{cmt_part}")
             elif child_msg and db.is_wrapper(child_msg):
                 wm = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={wm}.{child_msg}(value={key}),{cmt_part}")
@@ -1613,9 +1704,12 @@ def _py_direct_lines(
         elif isinstance(val, (int, float)):
             lines.append(f"{pad}{key}={val},{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and _is_proto_enum(child_msg):
-                em = _py_module_for_type(child_msg)
-                lines.append(f"{pad}{key}={em}.{child_msg}.Value({json.dumps(val)}),{cmt_part}")
+            if child_msg == "bytes":
+                # proto `bytes` field — protobuf-python requires a bytes value,
+                # so encode the probe string rather than passing a raw str.
+                lines.append(f"{pad}{key}={json.dumps(val)}.encode(),{cmt_part}")
+            elif child_msg and _is_proto_enum(child_msg):
+                lines.append(f"{pad}{key}={_py_enum_path(child_msg)}.Value({json.dumps(val)}),{cmt_part}")
             elif child_msg and child_msg in _PYTHON_WRAPPER_TYPES:
                 # Special wrapper types like CardNumberType need value= wrapping
                 wm = _py_module_for_type(child_msg)
@@ -2014,14 +2108,16 @@ def render_consolidated_python(
         resp_var   = f"{flow_key.split('_')[0]}_response"
         pm_part    = f" ({pm_label})" if pm_label else ""
 
+        # `_execute_direct` EventService flows are synchronous — do not `await`.
+        await_kw = "" if flow_key in _DIRECT_SYNC_FLOWS else "await "
         body_lines: list[str] = [f"    {client_var} = {client_cls}(config)", ""]
         if flow_key in has_builder:
             if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
                 param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
                 default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
             else:
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request())')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request())')
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
@@ -2029,12 +2125,15 @@ def render_consolidated_python(
             body_lines.append(f'    return {{"status": {resp_var}.status, "transaction_id": {resp_var}.connector_transaction_id}}')
         elif flow_key == "setup_recurring":
             body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_recurring_payment_id}}')
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             body_lines.append(f'    return {{"customer_id": {resp_var}.connector_customer_id}}')
         elif flow_key == "tokenize":
             body_lines.append(f'    return {{"token": {resp_var}.payment_method_token}}')
         elif flow_key == "create_client_authentication_token":
             body_lines.append(f'    return {{"session_data": {resp_var}.session_data}}')
+        elif flow_key == "parse_event":
+            # EventServiceParseResponse has no `.status`; surface the parsed event type.
+            body_lines.append(f'    return {{"event_type": {resp_var}.event_type}}')
         else:
             body_lines.append(f'    return {{"status": {resp_var}.status}}')
 
@@ -2067,7 +2166,7 @@ def render_consolidated_python(
 import asyncio
 import sys
 {client_imports}
-from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
 {supported_flows_line}
 
@@ -2131,11 +2230,25 @@ def render_consolidated_javascript(
         grpc_req = flow_metadata.get(flow_key, {}).get("grpc_request", "")
         ts_enum_types.update(_collect_ts_enum_types(proto_req, grpc_req, db))
     
-    # Build enum imports string (only enums and values that exist at runtime)
-    enum_imports = ", ".join(sorted(ts_enum_types)) if ts_enum_types else ""
+    # Build enum imports string (only enums and values that exist at runtime).
+    # protobufjs mirrors proto nesting, so an enum declared inside a message is
+    # reached through its parent (types.CardRedirect.CardRedirectType) and cannot be
+    # destructured off `types` directly — give those their own destructuring line.
+    top_level_enums = sorted(t for t in ts_enum_types if not _enum_parent(t))
+    nested_enums: dict[str, list[str]] = {}
+    for t in sorted(ts_enum_types):
+        parent = _enum_parent(t)
+        if parent:
+            nested_enums.setdefault(parent, []).append(t)
+
+    enum_imports = ", ".join(top_level_enums)
     types_imports = "Environment"
     if enum_imports:
         types_imports += f", {enum_imports}"
+    nested_enum_imports = "".join(
+        f"\nconst {{ {', '.join(names)} }} = types.{parent};"
+        for parent, names in sorted(nested_enums.items())
+    )
 
     # Build one function block per scenario
     func_blocks:   list[str] = []
@@ -2339,7 +2452,12 @@ def render_consolidated_javascript(
                 "",
             ]
         else:
-            body_lines = list(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
+            # Flow without builder — create client manually then call method
+            body_lines = [
+                f"    const {client_var} = new {cls}(config);",
+                "",
+            ]
+            body_lines.extend(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
         # These standalone flow functions return the raw response to avoid type issues
         # with responses that don't have a status field (e.g., EventServiceHandleResponse)
         body_lines.append(f"    return {var_name};")
@@ -2375,7 +2493,7 @@ def render_consolidated_javascript(
 // Run a scenario:  npx tsx {connector_name}.ts {first_scenario}
 
 import {{ {client_imports}, types }} from 'hyperswitch-prism';
-const {{ {types_imports} }} = types;
+const {{ {types_imports} }} = types;{nested_enum_imports}
 export const SUPPORTED_FLOWS = {supported_flows_js};
 
 const _defaultConfig: types.IConnectorConfig = {{
@@ -2512,6 +2630,8 @@ def render_scenario_section(
 _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "tokenize":                             '    println("Token: ${response.paymentMethodToken}")',
     "create_customer":                      '    println("Customer: ${response.connectorCustomerId}")',
+    "customer_create":                      '    println("Customer: ${response.connectorCustomerId}")',  # Alias for create_customer (probe uses customer_create)
+    "customer_get":                         '    println("Lookup: ${response.lookupStatus.name}")',
     "dispute_accept":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_defend":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_submit_evidence":              '    println("Dispute status: ${response.disputeStatus.name}")',
@@ -2711,6 +2831,21 @@ def _rust_field(key: str) -> str:
     return f"r#{key}" if key in _RUST_KEYWORDS else key
 
 
+# Every `[deprecated = true]` field in the proto sources carries this exact
+# marker in its trailing comment (see e.g. MandateAmountData.amount/currency
+# in payment.proto). Rust denies `#[warn(deprecated)]` as an error under the
+# repo's `-D warnings` clippy/build config, so emitting a deprecated field's
+# value into a compiled example (anything wired into sdk/rust/Cargo.toml's
+# [[example]] targets) breaks CI. Skip such fields entirely in generated Rust
+# examples -- the replacement field (named in the same comment) is emitted
+# alongside it and is what examples should demonstrate.
+_DEPRECATED_FIELD_MARKER = "will be removed in a future release"
+
+
+def _is_deprecated_field(comment: str | None) -> bool:
+    return bool(comment) and _DEPRECATED_FIELD_MARKER in comment
+
+
 def _rust_struct_lines(
     obj: dict,
     msg_name: str,
@@ -2738,6 +2873,8 @@ def _rust_struct_lines(
 
     for key, val in obj.items():
         comment   = db.get_comment(msg_name, key)
+        if _is_deprecated_field(comment):
+            continue
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  // {comment}" if comment else ""
         field     = _rust_field(key)
@@ -2758,7 +2895,7 @@ def _rust_struct_lines(
         # Variable field (function parameter) — emit type-aware expression
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
-                expr = f"{child_msg}::from_str_name({key}).unwrap_or_default().into()"
+                expr = f"{_rust_enum_path(child_msg)}::from_str_name({key}).unwrap_or_default().into()"
             elif child_msg and child_msg in _RUST_WRAPPER_CONSTRUCTORS:
                 # Special Rust wrapper type with custom constructor (e.g., CardNumberType)
                 template, _, _ = _RUST_WRAPPER_CONSTRUCTORS[child_msg]
@@ -2870,10 +3007,14 @@ def _rust_struct_lines(
             lines.append(f"{pad}{field}: {wrap(str(val))},{cmt_part}")
         elif isinstance(val, str):
             if child_msg and _is_proto_enum(child_msg):
-                # For proto enums, convert string value to enum variant
-                # e.g., "USD" -> Currency::Usd
-                variant = "".join(word.capitalize() for word in val.lower().split("_"))
-                expr = f"{child_msg}::{variant}.into()"
+                # For proto enums, convert the proto value to the prost variant.
+                # prost strips the enum-name prefix from each value (e.g. HttpMethod +
+                # HTTP_METHOD_POST -> Post), so replicate that before PascalCasing.
+                # Enums whose values lack the prefix are unaffected (Currency + USD -> Usd).
+                _screaming = re.sub(r"(?<!^)(?=[A-Z])", "_", child_msg).upper()
+                _val = val[len(_screaming) + 1:] if val.upper().startswith(_screaming + "_") else val
+                variant = "".join(word.capitalize() for word in _val.lower().split("_"))
+                expr = f"{_rust_enum_path(child_msg)}::{variant}.into()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
             elif child_msg and child_msg in _RUST_WRAPPER_CONSTRUCTORS:
@@ -2887,6 +3028,10 @@ def _rust_struct_lines(
                 expr = f"Secret::new({json.dumps(val)}.to_string())"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
+            elif child_msg == "bytes":
+                # `bytes` proto fields are Vec<u8> in prost, not String.
+                expr = f"{json.dumps(val)}.as_bytes().to_vec()"
+                lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
             else:
                 expr = f"{json.dumps(val)}.to_string()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
@@ -2909,6 +3054,8 @@ def _rust_payload_lines(
 
     for key, val in obj.items():
         comment   = db.get_comment(msg_name, key)
+        if _is_deprecated_field(comment):
+            continue
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  // {comment}" if comment else ""
         field     = _rust_field(key)
@@ -3127,7 +3274,13 @@ def render_consolidated_kotlin(
     # Use wildcard imports (matching the SDK's own GeneratedFlows.kt pattern) so all
     # proto-generated classes resolve regardless of whether they have a payments typealias.
     client_imports = "\n".join(f"import payments.{t}" for t in all_client_cls)
-    enum_imports   = "\n".join(f"import payments.{t}" for t in sorted(enum_types))
+    # Top-level enums are re-exported as `payments.*` typealiases; enums nested in a
+    # message have no typealias and must be imported through their parent class.
+    enum_imports   = "\n".join(
+        (f"import types.{_java_outer_class(t)}.{_enum_parent(t)}.{t}"
+         if _enum_parent(t) else f"import payments.{t}")
+        for t in sorted(enum_types)
+    )
     imports_parts  = [p for p in [client_imports, enum_imports] if p]
     imports        = "\n".join(imports_parts)
 
@@ -3348,6 +3501,7 @@ def render_consolidated_kotlin(
 package examples.{connector_name}
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 {imports}
 import payments.ConnectorConfig
@@ -3417,7 +3571,11 @@ def render_consolidated_rust(
         # Also account for the variable field that's passed as a parameter
         missing = set(proto_fields.keys()) - payload_fields - {param_name}
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3433,7 +3591,11 @@ def render_consolidated_rust(
         payload_fields = {_to_snake(k) for k in proto_req.keys()}
         missing = set(proto_fields.keys()) - payload_fields
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3569,7 +3731,10 @@ def render_consolidated_rust(
         rpc_name  = meta.get("rpc_name", flow_key)
         pm_part   = f" ({pm_label})" if pm_label else ""
 
-        if flow_key == "authorize":
+        if svc == "EventService":
+            # EventService responses (parse/handle) carry no .status(); report the response.
+            status_block = '    Ok(format!("{response:?}"))'
+        elif flow_key == "authorize":
             status_block = (
                 '    match response.status() {\n'
                 '        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed\n'
@@ -3587,7 +3752,7 @@ def render_consolidated_rust(
             )
         elif flow_key == "tokenize":
             status_block = '    Ok(format!("token: {}", response.payment_method_token))'
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             status_block = '    Ok(format!("customer_id: {}", response.connector_customer_id))'
         elif flow_key in ("dispute_accept", "dispute_defend", "dispute_submit_evidence"):
             status_block = '    Ok(format!("dispute_status: {:?}", response.dispute_status()))'
@@ -3612,11 +3777,16 @@ def render_consolidated_rust(
                 f"}}"
             )
         elif flow_key in has_no_param_builder:
+            if svc == "EventService":
+                # EventService client methods are synchronous, single-argument calls.
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request())?;"
+            else:
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;"
             func_blocks.append(
                 f"// Flow: {svc}.{rpc_name}{pm_part}\n"
                 f"#[allow(dead_code)]\n"
                 f"pub async fn {process_fn_name}(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {{\n"
-                f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;\n"
+                f"{call_line}\n"
                 f"{status_block}\n"
                 f"}}"
             )
@@ -3753,13 +3923,14 @@ def render_llms_txt_entry(
     """
     Return one connector's block for docs/llms.txt.
     """
-    flows    = probe_connector.get("flows", {})
-    auth_pms = flows.get("authorize", {})
+    flows = probe_connector.get("flows", {})
 
-    supported_pms = [
-        pm for pm in auth_pms
-        if pm != "default" and auth_pms[pm].get("status") == "supported"
-    ]
+    supported_pms = sorted({
+        pm
+        for fdata in flows.values()
+        for pm, result in fdata.items()
+        if pm != "default" and result.get("status") == "supported"
+    })
     supported_flows = [
         fk for fk, fdata in flows.items()
         if any(v.get("status") == "supported" for v in fdata.values())

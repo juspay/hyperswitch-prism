@@ -1,0 +1,11 @@
+{
+  "connector": "grabpay",
+  "supported_suites": [
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+  ]
+}

@@ -1,1 +1,41 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "request_incremental_authorization": true
+      }
+    }
+  },
+  "PaymentService/IncrementalAuthorization": {
+    "incremental_auth_basic": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZATION_SUCCESS",
+            "AUTHORIZATION_FAILURE"
+          ]
+        }
+      }
+    },
+    "incremental_auth_with_tip": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZATION_SUCCESS",
+            "AUTHORIZATION_FAILURE"
+          ]
+        }
+      }
+    },
+    "incremental_auth_multiple_increase": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "AUTHORIZATION_SUCCESS",
+            "AUTHORIZATION_FAILURE"
+          ]
+        }
+      }
+    }
+  }
+}

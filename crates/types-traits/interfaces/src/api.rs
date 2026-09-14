@@ -42,10 +42,16 @@ pub trait ConnectorCommon {
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str;
 
     /// common error response for a connector if it is same in all case
+    ///
+    /// `connector_config` is forwarded by the dispatcher so connectors with
+    /// encrypted error bodies (e.g. JOSE-wrapped responses) can decrypt them
+    /// using credentials threaded through the request, rather than reaching
+    /// for a process-wide global.
     fn build_error_response(
         &self,
         res: domain_types::router_response_types::Response,
         _event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         Ok(ErrorResponse {
             status_code: res.status_code,
@@ -57,6 +63,10 @@ pub trait ConnectorCommon {
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
+            typed_connector_response: None,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            typed_connector_request: None,
         })
     }
 }
@@ -72,4 +82,11 @@ pub enum ApplicationResponse<R> {
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventAckResponse {
+    pub status_code: u32,
+    pub headers: Vec<(String, String)>,
+    pub body: Option<Vec<u8>>,
 }

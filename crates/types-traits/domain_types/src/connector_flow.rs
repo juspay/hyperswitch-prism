@@ -17,6 +17,9 @@ pub struct RSync;
 pub struct Refund;
 
 #[derive(Debug, Clone)]
+pub struct VoidPostRefund;
+
+#[derive(Debug, Clone)]
 pub struct Capture;
 
 #[derive(Debug, Clone)]
@@ -42,6 +45,9 @@ pub struct ServerAuthenticationToken;
 
 #[derive(Debug, Clone)]
 pub struct CreateConnectorCustomer;
+
+#[derive(Debug, Clone)]
+pub struct GetConnectorCustomer;
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodToken;
@@ -94,11 +100,55 @@ pub struct PayoutCreateRecipient;
 #[derive(Debug, Clone)]
 pub struct PayoutEnrollDisburseAccount;
 
+#[derive(Debug, Clone)]
+pub struct PayoutEligibility;
+
+#[derive(Debug, Clone)]
+pub struct SurchargeCalculate;
+
+#[derive(Debug, Clone)]
+pub struct SurchargePaymentSucceeded;
+
+#[derive(Debug, Clone)]
+pub struct SurchargeRefundSucceeded;
+
+#[derive(Debug, Clone)]
+pub struct Recharge;
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethod;
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethod;
+
+/// Refresh a stored payment method and return what the provider says changed.
+#[derive(Debug, Clone)]
+pub struct RefreshPaymentMethod;
+
+#[derive(Debug, Clone)]
+pub struct PreRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct PostRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct FrmPaymentOutcome;
+
+#[derive(Debug, Clone)]
+pub struct FrmRefundProcessed;
+
+#[derive(Debug, Clone)]
+pub struct FrmChargebackReceived;
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibility;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Rsync,
     Psync,
     Void,
@@ -115,6 +165,7 @@ pub enum FlowName {
     ServerSessionAuthenticationToken,
     ServerAuthenticationToken,
     CreateConnectorCustomer,
+    GetConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
     Authenticate,
@@ -130,4 +181,18 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
+    PayoutEligibility,
+    SurchargeCalculate,
+    SurchargePaymentSucceeded,
+    SurchargeRefundSucceeded,
+    Recharge,
+    CreatePaymentMethod,
+    GetPaymentMethod,
+    RefreshPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
+    FrmPaymentOutcome,
+    FrmRefundProcessed,
+    FrmChargebackReceived,
+    PaymentMethodEligibility,
 }

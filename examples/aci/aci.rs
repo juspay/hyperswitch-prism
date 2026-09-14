@@ -30,7 +30,16 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
 fn build_client() -> ConnectorClient {
     // Configure the connector with authentication
     let config = ConnectorConfig {
-        connector_config: None, // TODO: Add your connector config here,
+        connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Aci(AciConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
+                entity_id: Some(hyperswitch_masking::Secret::new(
+                    "YOUR_ENTITY_ID".to_string(),
+                )), // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
         options: Some(SdkOptions {
             environment: Environment::Sandbox.into(),
         }),
@@ -185,6 +194,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             payment_method: Some(payment_method::PaymentMethod::Token(
                 TokenPaymentMethodType {
                     token: Some(Secret::new("probe_pm_token".to_string())), // The token string representing a payment method.
+                    ..Default::default()
                 },
             )),
             ..Default::default()

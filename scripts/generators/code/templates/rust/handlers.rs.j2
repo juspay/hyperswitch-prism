@@ -19,5 +19,5 @@ use crate::services::{{ mod }}::{
 
 {% for f in flows %}
 // {{ f.name }}: {{ f.service }}.{{ f.rpc }} — {{ f.description }}
-impl_flow_handlers!({{ f.name }}, {{ f.request }}, {{ f.response }}, {{ f.name }}_req_transformer, {{ f.name }}_res_transformer);
+impl_flow_handlers!({{ f.name }}, {{ f.request }}, {{ f.response }}, {{ f.name }}_req_transformer, {{ f.name }}_res_transformer, {{ f.connector_data_type }});
 {% endfor %}

@@ -103,6 +103,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
             | PaymentMethodData::Upi(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
@@ -210,6 +211,10 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let redirection_data = cryptopay_response
@@ -222,12 +227,15 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: cryptopay_response
                     .data
                     .custom_id
                     .or(Some(cryptopay_response.data.id)),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
@@ -353,6 +361,10 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             })
         } else {
             let redirection_data = cryptopay_response
@@ -365,12 +377,15 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: cryptopay_response
                     .data
                     .custom_id
                     .or(Some(cryptopay_response.data.id)),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
+                payment_account_reference: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
@@ -418,6 +433,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
         let status = common_enums::AttemptStatus::from(notif.data.status.clone());
         if is_payment_failure(status) {
             Ok(Self {
+                connector_returned_payment_method_details: None,
                 error_code: Some(
                     notif
                         .data
@@ -437,6 +453,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 status: common_enums::AttemptStatus::Unknown,
                 resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),
                 connector_response_reference_id: None,
+                connector_request_reference_id: None,
                 mandate_reference: None,
                 raw_connector_response: None,
                 response_headers: None,
@@ -444,6 +461,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 amount_captured: None,
                 network_txn_id: None,
                 payment_method_update: None,
+                sender_payment_instrument_id: None,
             })
         } else {
             let amount_captured_in_minor_units =
@@ -461,6 +479,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 (Some(minor_amount), common_enums::AttemptStatus::Charged) => {
                     let amount_captured = Some(minor_amount.get_amount_as_i64());
                     Ok(Self {
+                        connector_returned_payment_method_details: None,
                         amount_captured,
                         minor_amount_captured: amount_captured_in_minor_units,
                         status,
@@ -473,6 +492,11 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         connector_response_reference_id: notif
                             .data
                             .custom_id
+                            .clone()
+                            .or_else(|| Some(notif.data.id.clone())),
+                        connector_request_reference_id: notif
+                            .data
+                            .custom_id
                             .or(Some(notif.data.id)),
                         error_code: None,
                         error_message: None,
@@ -480,14 +504,21 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         response_headers: None,
                         network_txn_id: None,
                         payment_method_update: None,
+                        sender_payment_instrument_id: None,
                     })
                 }
                 _ => Ok(Self {
+                    connector_returned_payment_method_details: None,
                     status,
                     resource_id: Some(ResponseId::ConnectorTransactionId(notif.data.id.clone())),
                     mandate_reference: None,
                     status_code: 200,
-                    connector_response_reference_id: notif.data.custom_id.or(Some(notif.data.id)),
+                    connector_response_reference_id: notif
+                        .data
+                        .custom_id
+                        .clone()
+                        .or_else(|| Some(notif.data.id.clone())),
+                    connector_request_reference_id: notif.data.custom_id.or(Some(notif.data.id)),
                     error_code: None,
                     error_message: None,
                     raw_connector_response: None,
@@ -497,6 +528,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
+                    sender_payment_instrument_id: None,
                 }),
             }
         }

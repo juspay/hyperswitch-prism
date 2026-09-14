@@ -6,15 +6,15 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{consts, pii::Email, types::MinorUnit};
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund},
+    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund},
     connector_types::{
-        PaymentCreateOrderData, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ResponseId,
     },
     payment_address::Address,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
+use crate::types::ResponseRouterData;
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
@@ -158,6 +159,30 @@ pub struct RazorpayV2CreateOrderResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub offer_id: Option<String>,
     pub created_at: i64,
+}
+
+impl TryFrom<ResponseRouterData<RazorpayV2CreateOrderResponse, Self>>
+    for RouterDataV2<
+        CreateOrder,
+        PaymentFlowData,
+        PaymentCreateOrderData,
+        PaymentCreateOrderResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<RazorpayV2CreateOrderResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let mut data = item.router_data;
+        let response = item.response;
+        data.resource_common_data.connector_order_id = Some(response.id.clone());
+        data.response = Ok(PaymentCreateOrderResponse {
+            connector_order_id: response.id,
+            session_data: None,
+        });
+        Ok(data)
+    }
 }
 
 // ============ Payment Authorization Types ============
@@ -513,6 +538,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -556,6 +582,7 @@ impl
             connector_refund_id: response.id,
             refund_status: status,
             status_code: _status_code,
+            acquirer_reference_number: None,
         };
 
         Ok(Self {
@@ -611,9 +638,12 @@ impl
                 connector_metadata: None,
                 mandate_reference: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: payment_response.order_id,
                 incremental_authorization_allowed: None,
                 status_code: _status_code,
+                splits: None,
+                payment_account_reference: None,
             }),
             RazorpayStatus::Failed => Err(ErrorResponse {
                 code: payment_response
@@ -624,11 +654,15 @@ impl
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: payment_response.error_reason,
                 status_code: _status_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(payment_response.id),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
+                typed_connector_response: None,
+                raw_connector_response: None,
+                raw_connector_request: None,
+                typed_connector_request: None,
             }),
         };
 
@@ -697,9 +731,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {
@@ -738,9 +775,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
+            payment_account_reference: None,
         };
 
         Ok(Self {

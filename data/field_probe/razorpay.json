@@ -3,265 +3,266 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for razorpay"
       }
     },
     "authorize": {
       "Ach": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "AchBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Affirm": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Afterpay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Alfamart": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "AliPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "AmazonPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "ApplePay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "ApplePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "ApplePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Bacs": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BacsBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BancontactCard": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BcaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Becs": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BillDeskRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Bizum": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Blik": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Bluecode": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BniVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Boleto": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "BriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "CashappQr": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "CashfreeRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "CimbVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "ClassicReward": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Crypto": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "DanamonVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "DuitNow": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "EaseBuzzRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Efecty": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Eft": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Eps": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "FamilyMart": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "GCash": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Giropay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Givex": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "GooglePay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "GooglePayThirdPartySdk": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Ideal": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Indomaret": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "IndonesianBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "InstantBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "InstantBankTransferFinland": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "InstantBankTransferPoland": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Interac": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "KakaoPay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Klarna": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Lawson": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "LazyPayRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "LocalBankRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "LocalBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "MandiriVaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "MbWay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Mifinity": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "MiniStop": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "MobilePayRedirect": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "MultibancoBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Netbanking": {
         "status": "error",
@@ -269,159 +270,159 @@
       },
       "OnlineBankingCzechRepublic": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingFinland": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingFpx": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingPoland": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingSlovakia": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OnlineBankingThailand": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OpenBanking": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "OpenBankingPis": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Oxxo": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PagoEfectivo": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PayEasy": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PayURedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PaypalRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PaypalSdk": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Paysera": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Paze": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "PhonePeRedirect": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Pix": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Przelewy24": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Pse": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "RedCompra": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "RedPagos": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "RevolutPay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "SamsungPay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Satispay": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Seicomart": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Sepa": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "SepaBankTransfer": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "SepaGuaranteedDebit": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "SevenEleven": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Sofort": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Swish": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "TouchNGo": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Trustly": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Twint": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "UpiCollect": {
         "status": "error",
@@ -437,15 +438,19 @@
       },
       "Vipps": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "WeChatPayQr": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
+      },
+      "Webpay": {
+        "status": "error",
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       },
       "Wero": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       }
     },
     "capture": {
@@ -473,12 +478,8 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for razorpay"
       }
     },
     "create_order": {
@@ -506,22 +507,58 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for razorpay"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/orders",
+          "method": "Post",
+          "headers": {
+            "accept": "application/json",
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "amount=1000&currency=USD&payment_capture=1"
+        }
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for razorpay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for razorpay"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for razorpay"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for razorpay"
       }
     },
     "dispute_get": {
@@ -531,12 +568,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for razorpay"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by razorpay connector"
       }
     },
     "get": {
@@ -584,7 +623,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by razorpay connector"
       }
     },
     "parse_event": {
@@ -606,33 +646,48 @@
         }
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for razorpay"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for razorpay"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for razorpay"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for razorpay"
       }
     },
     "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by razorpay connector"
+      }
+    },
+    "refresh": {
       "default": {
         "status": "not_implemented"
       }
@@ -684,28 +739,26 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by razorpay connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for razorpay"
       }
     },
     "token_authorize": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
+        "error": "Stuck on field: order_id — Missing required field: order_id (connector_order_id). Razorpay requires a pre-created `order_id` in the payment create request; it cannot be omitted."
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "tokenize": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for razorpay"
       }
     },
     "verify_redirect": {
@@ -715,7 +768,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by razorpay connector"
       }
     }
   }

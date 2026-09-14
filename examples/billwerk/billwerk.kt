@@ -8,11 +8,11 @@
 package examples.billwerk
 
 import types.Payment.*
+import types.Events.*
 import types.PaymentMethods.*
 import payments.PaymentClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
-import payments.PaymentMethodClient
 import payments.AcceptanceType
 import payments.CaptureMethod
 import payments.Currency
@@ -25,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.BillwerkConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -203,8 +203,12 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
         setupMandateDetailsBuilder.apply {
             mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
                 multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
-                    amount = 0L  // Amount.
-                    currency = Currency.USD  // Currency code (ISO 4217).
+                    amount = 0L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
+                    amountMoneyBuilder.apply {  // Amount in Money type.
+                        minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+                        currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
                 }
             }
         }
@@ -212,32 +216,6 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
     }.build()
     val response = client.token_setup_recurring(request)
     println("Status: ${response.status.name}")
-}
-
-// Flow: PaymentMethodService.Tokenize
-fun tokenize(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentMethodClient(config)
-    val request = PaymentMethodServiceTokenizeRequest.newBuilder().apply {
-        amountBuilder.apply {  // Payment Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-        paymentMethodBuilder.apply {
-            cardBuilder.apply {  // Generic card payment.
-                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
-                cardExpMonthBuilder.value = "03"
-                cardExpYearBuilder.value = "2030"
-                cardCvcBuilder.value = "737"
-                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
-            }
-        }
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-            }
-        }
-    }.build()
-    val response = client.tokenize(request)
-    println("Token: ${response.paymentMethodToken}")
 }
 
 // Flow: PaymentService.Void
@@ -262,8 +240,7 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
-        "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

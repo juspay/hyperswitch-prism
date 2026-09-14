@@ -172,6 +172,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         currency: i32::from(Currency::Usd),
         state: None,
         encoded_data: None,
+        payment_method_type: None,
     }
 }
 

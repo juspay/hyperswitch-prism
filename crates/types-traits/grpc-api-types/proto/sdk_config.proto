@@ -13,6 +13,7 @@ syntax = "proto3";
 package types;
 
 import "payment.proto";
+import "payment_methods.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -182,7 +183,11 @@ message ConnectorError {
   string error_message = 1;           // Human-readable description (e.g., "Expected JSON response, got HTML")
   string error_code = 2;              // Machine-readable code (e.g., "CONNECTOR_ERROR_RESPONSE")
   optional uint32 http_status_code = 3;  // HTTP status from connector (set for all variants when known)
-  optional ErrorInfo error_info = 4; // Standard structured error metadata  
+  optional ErrorInfo error_info = 4; // Standard structured error metadata
+  optional SecretString raw_connector_response = 5;    // Raw connector HTTP response body
+  optional SecretString raw_connector_request = 6;     // Raw connector HTTP request body
+  optional string typed_connector_response = 7;  // Typed (masked) connector response
+  optional string typed_connector_request = 8;   // Typed (masked) connector request
 }
 
 // Result type for FFI operations with explicit type discrimination

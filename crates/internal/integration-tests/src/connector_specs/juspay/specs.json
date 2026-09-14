@@ -1,0 +1,13 @@
+{
+  "connector": "juspay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "PaymentService/Void",
+    "RefundService/Get"
+  ],
+  "sync_poll_until_terminal_seconds": 60
+}
