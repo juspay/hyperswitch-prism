@@ -534,6 +534,18 @@ fn sanitize_payer_id(customer_id: Option<String>) -> Option<String> {
     })
 }
 
+/// `language` is ISO 639-1, length 2, one of `es`, `en`, `pt`, `ja` (tech spec
+/// §"Request Parameters — top level"). `browser_info.language` carries a BCP 47
+/// tag such as `es-MX`, so only its primary subtag is sent, and only when
+/// Directa24 supports it — the field is optional, so anything else is omitted
+/// rather than rejected.
+fn d24_language(language: Option<String>) -> Option<String> {
+    language.and_then(|tag| {
+        let primary = tag.split(['-', '_']).next()?.trim().to_ascii_lowercase();
+        matches!(primary.as_str(), "es" | "en" | "pt" | "ja").then_some(primary)
+    })
+}
+
 /// `invoice_id` is constrained to `^[A-Za-z0-9-_]*$` (max 128).
 fn sanitize_invoice_id(reference: &str) -> String {
     reference
@@ -771,7 +783,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             error_url: return_url,
             client_ip: request.get_ip_address_as_optional(),
             description: router_data.resource_common_data.description.clone(),
-            language: request.get_optional_language_from_browser_info(),
+            language: d24_language(request.get_optional_language_from_browser_info()),
         })
     }
 }
