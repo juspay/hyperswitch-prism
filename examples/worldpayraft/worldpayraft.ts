@@ -7,7 +7,7 @@
 
 import { PaymentClient, RecurringPaymentClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authorize", "capture", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "setup_recurring"];
+export const SUPPORTED_FLOWS = ["authorize", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "setup_recurring"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -46,17 +46,6 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         },
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return"  // URLs for Redirection and Webhooks.
-    };
-}
-
-function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentServiceCaptureRequest {
-    return {
-        "merchantCaptureId": "probe_capture_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "amountToCapture": {  // Capture Details.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
     };
 }
 
@@ -133,19 +122,6 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
     };
 }
 
-function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
-    return {
-        "merchantRefundId": "probe_refund_001",  // Identification.
-        "connectorTransactionId": connectorTransactionId,
-        "paymentAmount": 1000,  // Amount Information.
-        "refundAmount": {
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "reason": "customer_request"  // Reason for the refund.
-    };
-}
-
 function _buildSetupRecurringRequest(): types.IPaymentServiceSetupRecurringRequest {
     return {
         "merchantRecurringPaymentId": "probe_mandate_001",  // Identification.
@@ -199,58 +175,6 @@ async function processCheckoutAutocapture(merchantTransactionId: string, config:
     return { status: authorizeResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
 }
 
-// Card Payment (Authorize + Capture)
-// Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
-async function processCheckoutCard(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.MANUAL));
-
-    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
-    }
-    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
-    }
-
-    // Step 2: Capture — settle the reserved funds
-    const captureResponse = await paymentClient.capture(_buildCaptureRequest(authorizeResponse.connectorTransactionId!));
-
-    if (captureResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Capture failed: ${JSON.stringify(captureResponse.error)}`);
-    }
-
-    return { status: captureResponse.status, transactionId: authorizeResponse.connectorTransactionId!, error: authorizeResponse.error } as any;
-}
-
-// Refund
-// Return funds to the customer for a completed payment.
-async function processRefund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    // Step 1: Authorize — reserve funds on the payment method
-    const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
-
-    if (authorizeResponse.status === types.PaymentStatus.FAILURE) {
-        throw new Error(`Payment failed: ${JSON.stringify(authorizeResponse.error)}`);
-    }
-    if (authorizeResponse.status === types.PaymentStatus.PENDING) {
-        // Awaiting async confirmation — handle via webhook
-        return { status: 'pending', connectorTransactionId: authorizeResponse.connectorTransactionId };
-    }
-
-    // Step 2: Refund — return funds to the customer
-    const refundResponse = await paymentClient.refund(_buildRefundRequest(authorizeResponse.connectorTransactionId!));
-
-    if (refundResponse.status === types.RefundStatus.REFUND_FAILURE) {
-        throw new Error(`Refund failed: ${JSON.stringify(refundResponse.error)}`);
-    }
-
-    return { status: refundResponse.status, error: refundResponse.error } as any;
-}
-
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -258,15 +182,6 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     const authorizeResponse = await paymentClient.authorize(_buildAuthorizeRequest(CaptureMethod.AUTOMATIC));
 
     return authorizeResponse;
-}
-
-// Flow: PaymentService.Capture
-async function capture(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const captureResponse = await paymentClient.capture(_buildCaptureRequest('probe_connector_txn_001'));
-
-    return captureResponse;
 }
 
 // Flow: PaymentService.ProxyAuthorize
@@ -296,15 +211,6 @@ async function recurringCharge(merchantTransactionId: string, config: types.ICon
     return recurringResponse;
 }
 
-// Flow: PaymentService.Refund
-async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentClient = new PaymentClient(config);
-
-    const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
-
-    return refundResponse;
-}
-
 // Flow: PaymentService.SetupRecurring
 async function setupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -317,7 +223,7 @@ async function setupRecurring(merchantTransactionId: string, config: types.IConn
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, authorize, capture, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, setupRecurring, _buildAuthorizeRequest, _buildCaptureRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildSetupRecurringRequest
+    processCheckoutAutocapture, authorize, proxyAuthorize, proxySetupRecurring, recurringCharge, setupRecurring, _buildAuthorizeRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildSetupRecurringRequest
 };
 
 // CLI runner

@@ -4,13 +4,13 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts, errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate},
+    connector_flow::{Authorize, Capture, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData,
         SetupMandateRequestData,
     },
     errors,
@@ -32,7 +32,8 @@ use transformers::{
     WorldpayraftAuthorizeRequest, WorldpayraftAuthorizeResponse, WorldpayraftCaptureRequest,
     WorldpayraftCaptureResponse, WorldpayraftRefundRequest, WorldpayraftRefundResponse,
     WorldpayraftRepeatPaymentRequest, WorldpayraftRepeatPaymentResponse,
-    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse,
+    WorldpayraftSetupMandateRequest, WorldpayraftSetupMandateResponse, WorldpayraftVoidRequest,
+    WorldpayraftVoidResponse,
 };
 
 use crate::{connectors::macros, types::ResponseRouterData, utils, with_error_response_body};
@@ -60,6 +61,12 @@ macros::create_all_prerequisites!(
             request_body: WorldpayraftCaptureRequest,
             response_body: WorldpayraftCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            request_body: WorldpayraftVoidRequest,
+            response_body: WorldpayraftVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -153,6 +160,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         )])
     }
 
+    /// Transport-level failures only.
+    ///
+    /// Worldpay RAFT answers HTTP 200 for approvals, declines and validation errors alike
+    /// and signals the outcome in the body, so a payment decline never reaches this method
+    /// — it is surfaced by the per-flow response transformers instead. A non-2xx here means
+    /// a licence, routing or platform problem, which RAFT returns as an unwrapped
+    /// `{"fault": {...}}` body. A wrapped `{"<operation>response": {...}}` body is still
+    /// accepted, because none of the RAFT error fields live at the JSON root.
     fn build_error_response(
         &self,
         res: Response,
@@ -169,27 +184,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        Ok(ErrorResponse {
-            status_code: res.status_code,
-            code: response.return_code.unwrap_or_else(|| {
-                response
-                    .response_code
-                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string())
-            }),
-            message: response
-                .reason_code
-                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
-            reason: None,
-            attempt_status: None,
-            connector_transaction_id: None,
-            network_decline_code: None,
-            network_advice_code: None,
-            network_error_message: None,
-            raw_connector_response: None,
-            raw_connector_request: None,
-            typed_connector_response: None,
-            typed_connector_request: None,
-        })
+        Ok(response.to_error_response(res.status_code))
     }
 }
 
@@ -264,19 +259,18 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
+        /// Capture mode is expressed by endpoint choice — RAFT has no `capture=true` field.
+        /// Automatic (and `SequentialAutomatic`) capture goes to the purchase endpoint;
+        /// manual capture goes to the auth-only endpoint and is finalised by a completion.
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            use domain_types::payment_method_data::PaymentMethodData;
             let base_url = self.connector_base_url_payments(req);
-            let is_debit = matches!(
-                &req.request.payment_method_data,
-                PaymentMethodData::Card(c) if c.card_type.as_deref()
-                    .map(|t| t.eq_ignore_ascii_case(worldpayraft::CARD_TYPE_DEBIT))
-                    .unwrap_or(false)
-            );
-            let path = if is_debit { "debit/preauth" } else { "credit/authorization" };
+            let is_debit = worldpayraft::is_debit_card(&req.request.payment_method_data);
+            let is_auto_capture = worldpayraft::resolve_auto_capture(&req.request)?;
+            let path = worldpayraft::WorldpayraftOriginalOperation::from_parts(is_debit, is_auto_capture)
+                .path();
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -325,8 +319,56 @@ macros::macro_connector_implementation!(
                         ..Default::default()
                     },
                 })?;
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&connector_txn_id);
-            let path = if is_debit { "debit/completion" } else { "credit/completion" };
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(&connector_txn_id)?;
+            let path = if reference.is_debit() { "debit/completion" } else { "credit/completion" };
+            Ok(format!("{base_url}/{path}"))
+        }
+    }
+);
+
+// ===== VOID TRAIT MARKER =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Worldpayraft<T>
+{
+}
+
+// =============================================================================
+// VOID FLOW IMPLEMENTATION
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Worldpayraft,
+    curl_request: Json(WorldpayraftVoidRequest),
+    curl_response: WorldpayraftVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_headers(req)
+        }
+        /// Native RAFT publishes **no** void, reversal or cancel endpoint for cards. A void
+        /// is the original financial message re-POSTed to the endpoint that served it, with
+        /// `AuthorizationType: "RV"`. That endpoint is recovered from the operation code
+        /// carried in the first segment of the composite `connector_transaction_id` — the
+        /// same reference Capture and Refund route on — so no second lookup mechanism and no
+        /// invented path is involved.
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(
+                &req.request.connector_transaction_id,
+            )?;
+            let path = reference.operation.path();
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -365,8 +407,10 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
-            let (is_debit, _, _, _) = worldpayraft::parse_connector_transaction_id(&req.request.connector_transaction_id);
-            let path = if is_debit { "debit/refund" } else { "credit/refund" };
+            let reference = worldpayraft::WorldpayraftTransactionReference::parse(
+                &req.request.connector_transaction_id,
+            )?;
+            let path = if reference.is_debit() { "debit/refund" } else { "credit/refund" };
             Ok(format!("{base_url}/{path}"))
         }
     }
@@ -438,12 +482,20 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             self.build_headers(req)
         }
+        /// A merchant-initiated transaction is routed by capture mode just like an
+        /// Authorize. RAFT has no MIT-specific endpoint; the MIT signalling lives in
+        /// `ProcFlagsIndicators` and `TerminalData.POSEnvironment`.
         fn get_url(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}/credit/authorization"))
+            let path = if worldpayraft::resolve_repeat_auto_capture(&req.request)? {
+                "credit/purchase"
+            } else {
+                "credit/authorization"
+            };
+            Ok(format!("{base_url}/{path}"))
         }
     }
 );
@@ -456,13 +508,9 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        Void,
         CreateConnectorCustomer,
         GetConnectorCustomer,
         MandateRevoke,
-        Authenticate,
-        PostAuthenticate,
-        PreAuthenticate,
         PaymentMethodToken,
         PSync,
         RSync,
@@ -473,6 +521,16 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     ],
     not_supported: [
         Accept,
+        // Worldpay Native RAFT performs no authentication step of its own: there is no 3DS
+        // initiation, lookup, challenge, device-data-collection, method-URL or
+        // authentication-result path among the 17 credit or 14 debit endpoints. It is
+        // external-3DS passthrough only — the merchant (or Hyperswitch's own authentication
+        // service) authenticates elsewhere and hands the cryptogram, ECI and DS transaction
+        // id to Authorize inside `E-commerceData`. There is no API to implement these
+        // against, so they are not_supported rather than merely not_implemented.
+        Authenticate,
+        PostAuthenticate,
+        PreAuthenticate,
         DefendDispute,
         IncrementalAuthorization,
         SubmitEvidence,
