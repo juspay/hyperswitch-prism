@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py stripe
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -91,7 +91,7 @@ let config = ConnectorConfig {
     connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Stripe(StripeConfig {
                 api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L291) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L120) · [Rust](../../examples/stripe/stripe.rs#L370)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py#L291) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L321) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L120) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs#L370)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L310) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L136) · [Rust](../../examples/stripe/stripe.rs#L386)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py#L310) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L340) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L136) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs#L386)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L335) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L158) · [Rust](../../examples/stripe/stripe.rs#L409)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py#L335) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L366) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L158) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs#L409)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L360) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L180) · [Rust](../../examples/stripe/stripe.rs#L432)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py#L360) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L392) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L180) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs#L432)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/stripe/stripe.py#L382) · [JavaScript](../../examples/stripe/stripe.js) · [Kotlin](../../examples/stripe/stripe.kt#L199) · [Rust](../../examples/stripe/stripe.rs#L451)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py#L382) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L414) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L199) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs#L451)
 
 ## API Reference
 
@@ -440,7 +440,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L435) · [Kotlin](../../examples/stripe/stripe.kt#L217) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L435) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L217) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.Capture
 
@@ -451,7 +451,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L444) · [Kotlin](../../examples/stripe/stripe.kt#L229) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L444) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L229) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.Get
 
@@ -462,7 +462,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L471) · [Kotlin](../../examples/stripe/stripe.kt#L268) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L471) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L268) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.IncrementalAuthorization
 
@@ -473,7 +473,7 @@ Increase the authorized amount for an existing payment. Enables you to capture a
 | **Request** | `PaymentServiceIncrementalAuthorizationRequest` |
 | **Response** | `PaymentServiceIncrementalAuthorizationResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L489) · [Kotlin](../../examples/stripe/stripe.kt#L292) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L489) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L292) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -484,7 +484,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L507) · [Kotlin](../../examples/stripe/stripe.kt#L323) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L507) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L323) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -495,7 +495,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L516) · [Kotlin](../../examples/stripe/stripe.kt#L352) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L516) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L352) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.Refund
 
@@ -506,7 +506,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L534) · [Kotlin](../../examples/stripe/stripe.kt#L415) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L534) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L415) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -517,7 +517,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L552) · [Kotlin](../../examples/stripe/stripe.kt#L437) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L552) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L437) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -528,7 +528,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L561) · [Kotlin](../../examples/stripe/stripe.kt#L476) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L561) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L476) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.TokenSetupRecurring
 
@@ -539,7 +539,7 @@ Setup a recurring mandate using a connector token.
 | **Request** | `PaymentServiceTokenSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L570) · [Kotlin](../../examples/stripe/stripe.kt#L497) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L570) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L497) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 #### PaymentService.Void
 
@@ -550,7 +550,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts) · [Kotlin](../../examples/stripe/stripe.kt#L537) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L537) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 ### Refunds
 
@@ -563,7 +563,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L543) · [Kotlin](../../examples/stripe/stripe.kt#L425) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L543) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L425) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 ### Mandates
 
@@ -576,7 +576,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L525) · [Kotlin](../../examples/stripe/stripe.kt#L384) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L525) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L384) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 ### Customers
 
@@ -589,7 +589,7 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L462) · [Kotlin](../../examples/stripe/stripe.kt#L255) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L462) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L255) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)
 
 ### Authentication
 
@@ -602,4 +602,4 @@ Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. R
 | **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/stripe/stripe.py) · [TypeScript](../../examples/stripe/stripe.ts#L453) · [Kotlin](../../examples/stripe/stripe.kt#L239) · [Rust](../../examples/stripe/stripe.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.ts#L453) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.kt#L239) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/stripe/stripe.rs)

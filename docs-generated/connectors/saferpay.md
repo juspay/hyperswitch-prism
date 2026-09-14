@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py saferpay
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_API_KEY`, `YOUR_KEY1`, `YOUR_API_SECRET`, `YOUR_KEY2`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 key1: Some(hyperswitch_masking::Secret::new("YOUR_KEY1".to_string())),  // Authentication credential
                 api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
                 key2: Some(hyperswitch_masking::Secret::new("YOUR_KEY2".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -140,7 +140,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L92) · [Kotlin](../../examples/saferpay/saferpay.kt#L73) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.ts#L92) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.kt#L73) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.rs)
 
 #### PaymentService.Get
 
@@ -151,7 +151,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L101) · [Kotlin](../../examples/saferpay/saferpay.kt#L83) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.ts#L101) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.kt#L83) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.rs)
 
 #### PaymentService.Void
 
@@ -162,7 +162,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts) · [Kotlin](../../examples/saferpay/saferpay.kt#L131) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.kt#L131) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.rs)
 
 ### Refunds
 
@@ -175,7 +175,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L119) · [Kotlin](../../examples/saferpay/saferpay.kt#L119) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.ts#L119) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.kt#L119) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.rs)
 
 ### Authentication
 
@@ -188,4 +188,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/saferpay/saferpay.py) · [TypeScript](../../examples/saferpay/saferpay.ts#L110) · [Kotlin](../../examples/saferpay/saferpay.kt#L91) · [Rust](../../examples/saferpay/saferpay.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.ts#L110) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.kt#L91) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/saferpay/saferpay.rs)

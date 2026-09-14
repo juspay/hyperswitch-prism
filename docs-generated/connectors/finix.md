@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py finix
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_FINIX_USER_NAME`, `YOUR_FINIX_PASSWORD`, `YOUR_MERCHANT_IDENTITY_ID`, `YOUR_MERCHANT_ID`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 finix_password: Some(hyperswitch_masking::Secret::new("YOUR_FINIX_PASSWORD".to_string())),  // Authentication credential
                 merchant_identity_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_IDENTITY_ID".to_string())),  // Authentication credential
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -147,7 +147,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L218) · [Kotlin](../../examples/finix/finix.kt#L95) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L218) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L95) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.Get
 
@@ -158,7 +158,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L236) · [Kotlin](../../examples/finix/finix.kt#L118) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L236) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L118) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.ProxySetupRecurring
 
@@ -169,7 +169,7 @@ Setup recurring mandate using vault-aliased card data.
 | **Request** | `PaymentServiceProxySetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L263) · [Kotlin](../../examples/finix/finix.kt#L157) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L263) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L157) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.Refund
 
@@ -180,7 +180,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L281) · [Kotlin](../../examples/finix/finix.kt#L223) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L281) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L223) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.SetupRecurring
 
@@ -191,7 +191,7 @@ Configure a payment method for recurring billing. Sets up the mandate and paymen
 | **Request** | `PaymentServiceSetupRecurringRequest` |
 | **Response** | `PaymentServiceSetupRecurringResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L299) · [Kotlin](../../examples/finix/finix.kt#L245) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L299) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L245) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -202,7 +202,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L308) · [Kotlin](../../examples/finix/finix.kt#L287) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L308) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L287) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 #### PaymentService.Void
 
@@ -213,7 +213,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts) · [Kotlin](../../examples/finix/finix.kt#L308) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L308) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 ### Refunds
 
@@ -226,7 +226,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L290) · [Kotlin](../../examples/finix/finix.kt#L233) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L290) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L233) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 ### Mandates
 
@@ -239,7 +239,7 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L272) · [Kotlin](../../examples/finix/finix.kt#L192) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L272) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L192) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)
 
 ### Customers
 
@@ -252,4 +252,4 @@ Create customer record in the payment processor system. Stores customer details 
 | **Request** | `CustomerServiceCreateRequest` |
 | **Response** | `CustomerServiceCreateResponse` |
 
-**Examples:** [Python](../../examples/finix/finix.py) · [TypeScript](../../examples/finix/finix.ts#L227) · [Kotlin](../../examples/finix/finix.kt#L105) · [Rust](../../examples/finix/finix.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.ts#L227) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.kt#L105) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/finix/finix.rs)

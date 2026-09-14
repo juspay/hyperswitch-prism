@@ -4,8 +4,8 @@
 //
 // Kount — all scenarios and flows in one file.
 // Run a scenario:  cargo run --example kount -- process_checkout_card
-use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
@@ -18,9 +18,9 @@ fn build_client() -> ConnectorClient {
     let config = ConnectorConfig {
         connector_config: Some(ConnectorSpecificConfig {
             config: Some(connector_specific_config::Config::Kount(KountConfig {
-                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())), // Authentication credential
-                auth_server_id: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
-                base_url: Some("https://sandbox.example.com".to_string()), // Base URL for API calls
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                auth_server_id: Some("YOUR_AUTH_SERVER_ID".to_string()),  // Connector setting
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -31,45 +31,32 @@ fn build_client() -> ConnectorClient {
     ConnectorClient::new(config, None).unwrap()
 }
 
-pub fn build_create_server_authentication_token_request(
-) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+pub fn build_create_server_authentication_token_request() -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+
         ..Default::default()
     }
 }
 
-pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest
-{
+pub fn build_pre_authenticate_request() -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
     PaymentMethodAuthenticationServicePreAuthenticateRequest {
+
         ..Default::default()
     }
 }
+
 
 // Flow: MerchantAuthenticationService.CreateServerAuthenticationToken
 #[allow(dead_code)]
-pub async fn process_create_server_authentication_token(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .create_server_authentication_token(
-            build_create_server_authentication_token_request(),
-            &HashMap::new(),
-            None,
-        )
-        .await?;
+pub async fn process_create_server_authentication_token(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.create_server_authentication_token(build_create_server_authentication_token_request(), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
 #[allow(dead_code)]
-pub async fn process_pre_authenticate(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None)
-        .await?;
+pub async fn process_pre_authenticate(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.pre_authenticate(build_pre_authenticate_request(), &HashMap::new(), None).await?;
     Ok(format!("status: {:?}", response.status()))
 }
 
@@ -77,18 +64,11 @@ pub async fn process_pre_authenticate(
 #[tokio::main]
 async fn main() {
     let client = build_client();
-    let flow = std::env::args()
-        .nth(1)
-        .unwrap_or_else(|| "process_create_server_authentication_token".to_string());
+    let flow = std::env::args().nth(1).unwrap_or_else(|| "process_create_server_authentication_token".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
-        "process_create_server_authentication_token" => {
-            process_create_server_authentication_token(&client, "txn_001").await
-        }
+        "process_create_server_authentication_token" => process_create_server_authentication_token(&client, "txn_001").await,
         "process_pre_authenticate" => process_pre_authenticate(&client, "txn_001").await,
-        _ => {
-            eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_pre_authenticate", flow);
-            return;
-        }
+        _ => { eprintln!("Unknown flow: {}. Available: process_create_server_authentication_token, process_pre_authenticate", flow); return; }
     };
     match result {
         Ok(msg) => println!("✓ {msg}"),

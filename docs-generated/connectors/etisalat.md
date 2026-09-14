@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py etisalat
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_USER_NAME`, `YOUR_PASSWORD`, `YOUR_CUSTOMER`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -99,7 +99,7 @@ let config = ConnectorConfig {
                 user_name: Some(hyperswitch_masking::Secret::new("YOUR_USER_NAME".to_string())),  // Authentication credential
                 password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
                 customer: Some(hyperswitch_masking::Secret::new("YOUR_CUSTOMER".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L127) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L104) · [Rust](../../examples/etisalat/etisalat.rs#L162)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py#L127) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L133) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L104) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs#L162)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,19 +145,19 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L146) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L120) · [Rust](../../examples/etisalat/etisalat.rs#L178)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py#L146) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L152) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L120) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs#L178)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L171) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L142) · [Rust](../../examples/etisalat/etisalat.rs#L201)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py#L171) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L178) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L142) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs#L201)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py#L196) · [JavaScript](../../examples/etisalat/etisalat.js) · [Kotlin](../../examples/etisalat/etisalat.kt#L164) · [Rust](../../examples/etisalat/etisalat.rs#L224)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py#L196) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L204) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L164) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs#L224)
 
 ## API Reference
 
@@ -303,7 +303,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L225) · [Kotlin](../../examples/etisalat/etisalat.kt#L182) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L225) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L182) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)
 
 #### PaymentService.Capture
 
@@ -314,7 +314,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L234) · [Kotlin](../../examples/etisalat/etisalat.kt#L194) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L234) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L194) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -325,7 +325,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L243) · [Kotlin](../../examples/etisalat/etisalat.kt#L204) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L243) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L204) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)
 
 #### PaymentService.Refund
 
@@ -336,7 +336,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L261) · [Kotlin](../../examples/etisalat/etisalat.kt#L264) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L261) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L264) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)
 
 #### PaymentService.Void
 
@@ -347,7 +347,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts) · [Kotlin](../../examples/etisalat/etisalat.kt#L274) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L274) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)
 
 ### Mandates
 
@@ -360,4 +360,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/etisalat/etisalat.py) · [TypeScript](../../examples/etisalat/etisalat.ts#L252) · [Kotlin](../../examples/etisalat/etisalat.kt#L233) · [Rust](../../examples/etisalat/etisalat.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.ts#L252) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.kt#L233) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/etisalat/etisalat.rs)

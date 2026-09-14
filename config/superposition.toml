@@ -101,7 +101,7 @@ rpc_method = { position = 3, schema = { type = "string" } }
 rpc_service = { position = 4, schema = { type = "string" } }
 
 # Connector dimension - determines which payment processor URLs to use
-connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "etisalat", "merchante", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere"] } }
+connector = { position = 2, schema = { type = "string", enum = ["glomopay", "stripe", "adyen", "paypal", "razorpay", "checkout", "braintree", "worldpay", "cybersource", "payme", "bluesnap", "fiserv", "trustpay", "volt", "hipay", "xendit", "phonepe", "cashfree", "payu", "paytm", "dlocal", "rapyd", "aci", "nuvei", "forte", "authorizedotnet", "elavon", "bamboraapac", "billwerk", "paysafe", "worldpayvantiv", "worldpayxml", "tsys", "tsys_transit", "bankofamerica", "powertranz", "revolut", "airwallex", "bambora", "shift4", "multisafepay", "iatapay", "jpmorgan", "nmi", "nexixpay", "authipay", "stax", "trustpayments", "fiservemea", "datatrans", "silverflow", "celero", "globalpay", "razorpayv2", "fiuu", "payload", "cashtocode", "novalnet", "nexinets", "noon", "mifinity", "calida", "cryptopay", "helcim", "placetopay", "barclaycard", "gigadat", "loonio", "mollie", "moneris", "etisalat", "merchante", "absa_sanlam", "truelayer", "trustly", "twoc_twop_paco", "zift", "revolv3", "fiservcommercehub", "finix", "wellsfargo", "imerchantsolutions", "qwikcilver", "flywire", "boost", "plaid", "grabpay", "maya", "tamara", "ilixium", "jpmorgan_orbital", "travelhub", "d24", "globalpayments_heartland", "payhere", "givepayments"] } }
 # ============================================================================
 # Development Environment Overrides
 # ============================================================================
@@ -172,6 +172,11 @@ connector_base_url = "https://api.razorpay.com/"
 _context_ = { connector = "checkout" }
 connector_base_url = "https://api.sandbox.checkout.com/"
 
+# Checkout.com Production
+[[overrides]]
+_context_ = { connector = "checkout", environment = "production" }
+connector_base_url = "https://api.checkout.com/"
+
 # Braintree
 [[overrides]]
 _context_ = { connector = "braintree" }
@@ -215,7 +220,7 @@ connector_base_url = "https://cert.api.fiservapps.com/"
 # Fiserv Production
 [[overrides]]
 _context_ = { connector = "fiserv", environment = "production" }
-connector_base_url = "https://cert.api.fiservapps.com/"
+connector_base_url = "https://prod.api.fiservapps.com/"
 
 # TrustPay (special case with bank redirects)
 [[overrides]]
@@ -250,6 +255,11 @@ connector_base_url = "https://api-preprod.phonepe.com/apis/hermes/"
 [[overrides]]
 _context_ = { connector = "cashfree" }
 connector_base_url = "https://sandbox.cashfree.com/"
+
+# Cashfree Production
+[[overrides]]
+_context_ = { connector = "cashfree", environment = "production" }
+connector_base_url = "https://api.cashfree.com/"
 
 # PayU
 [[overrides]]
@@ -347,6 +357,11 @@ connector_base_url = "https://apitest.merchant-services.bankofamerica.com/"
 _context_ = { connector = "powertranz" }
 connector_base_url = "https://staging.ptranz.com/api"
 
+# PowerTranz Production
+[[overrides]]
+_context_ = { connector = "powertranz", environment = "production" }
+connector_base_url = "https://gateway.ptranz.com/api"
+
 # Revolut
 [[overrides]]
 _context_ = { connector = "revolut" }
@@ -376,6 +391,11 @@ connector_base_url = "https://api.shift4.com"
 [[overrides]]
 _context_ = { connector = "multisafepay" }
 connector_base_url = "https://testapi.multisafepay.com/v1/json"
+
+# MultiSafepay Production
+[[overrides]]
+_context_ = { connector = "multisafepay", environment = "production" }
+connector_base_url = "https://api.multisafepay.com/v1/json"
 
 # IATA Pay
 [[overrides]]
@@ -1057,3 +1077,8 @@ connector_base_url = "https://api-stg.directa24.com"
 [[overrides]]
 _context_ = { connector = "d24", environment = "production" }
 connector_base_url = "https://api.directa24.com"
+
+# GivePayments Production
+[[overrides]]
+_context_ = { connector = "givepayments", environment = "production" }
+connector_base_url = "https://api.givepayments.com"

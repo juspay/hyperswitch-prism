@@ -8,7 +8,7 @@ Regenerate: python3 scripts/generators/docs/generate.py payhere
 
 ## SDK Configuration
 
-Use this config for all flows in this connector. Replace `YOUR_API_KEY` with your actual credentials.
+Use this config for all flows in this connector. Replace the placeholders `YOUR_APP_ID`, `YOUR_MERCHANT_ID`, `YOUR_APP_SECRET`, `YOUR_MERCHANT_SECRET`, `YOUR_BASE_URL` with your actual values.
 
 <table>
 <tr><td><b>Python</b></td><td><b>JavaScript</b></td><td><b>Kotlin</b></td><td><b>Rust</b></td></tr>
@@ -103,7 +103,7 @@ let config = ConnectorConfig {
                 merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
                 app_secret: Some(hyperswitch_masking::Secret::new("YOUR_APP_SECRET".to_string())),  // Authentication credential
                 merchant_secret: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_SECRET".to_string())),  // Authentication credential
-                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                base_url: Some("YOUR_BASE_URL".to_string()),  // Endpoint URL, e.g. https://sandbox.example.com
                 ..Default::default()
             })),
         }),
@@ -139,7 +139,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/payhere/payhere.py) · [TypeScript](../../examples/payhere/payhere.ts#L93) · [Kotlin](../../examples/payhere/payhere.kt#L84) · [Rust](../../examples/payhere/payhere.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.ts#L93) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.kt#L84) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.rs)
 
 ### Authentication
 
@@ -152,4 +152,4 @@ Generate short-lived connector authentication token. Provides secure credentials
 | **Request** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/payhere/payhere.py) · [TypeScript](../../examples/payhere/payhere.ts#L66) · [Kotlin](../../examples/payhere/payhere.kt#L43) · [Rust](../../examples/payhere/payhere.rs)
+**Examples:** [Python](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.py) · [TypeScript](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.ts#L66) · [Kotlin](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.kt#L43) · [Rust](https://github.com/juspay/hyperswitch-prism/blob/main/examples/payhere/payhere.rs)
