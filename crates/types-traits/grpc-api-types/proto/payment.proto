@@ -5702,6 +5702,10 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+  // payment tokens are KHASH-hashed with this salt; when unset the connector
+  // falls back to the legacy HMAC-SHA256 token.
+  optional SecretString khash_config_key = 3;
   optional string base_url = 50;
 }
 
