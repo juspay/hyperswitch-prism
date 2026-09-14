@@ -40,9 +40,18 @@
     "https://developer.revolut.com/docs/accept-payments"
   ],
   "Airwallex": [
-    "https://www.airwallex.com/docs/payments/online-payments/native-api/registered-user-checkout",
-    "https://www.airwallex.com/docs/online-payments__native-api__management-of-payment-credentials",
-    "https://www.airwallex.com/docs/payments/online-payments/native-api/network-tokenization",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication/native-api-(for-api-versions-on-or-after-2024-06-14)",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/3d-secure-authentication/native-api-(for-api-versions-before-2024-06-14)",
+    "https://www.airwallex.com/docs/api/payments/payment_intents",
+    "https://www.airwallex.com/docs/api/authentication/api_access_token",
+    "https://www.airwallex.com/docs/api/changelog",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/guest-user-checkout",
+    "https://www.airwallex.com/docs/payments/integration-options/web-checkout/native-api/registered-user-checkout",
+    "https://www.airwallex.com/docs/payments/reference/payments-webhooks",
+    "https://www.airwallex.com/docs/payments/troubleshooting/error-response-codes",
+    "https://www.airwallex.com/docs/payments/test-and-go-live/test-card-numbers",
     "https://www.airwallex.com/docs/api"
   ],
   "paybox": [

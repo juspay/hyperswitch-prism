@@ -284,6 +284,14 @@ fn signature_context<'a>(
                 .and_then(Value::as_str),
             ..Default::default()
         },
+        // Airwallex signs the `x-timestamp` header bytes verbatim, so the fixture's
+        // header value — not a re-rendered integer — is what goes into the preimage.
+        "airwallex" => crate::webhook_signatures::SignatureContext {
+            raw_timestamp: grpc_req
+                .pointer("/request_details/headers/x-timestamp")
+                .and_then(Value::as_str),
+            ..Default::default()
+        },
         _ => crate::webhook_signatures::SignatureContext::default(),
     }
 }

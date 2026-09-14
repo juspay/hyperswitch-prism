@@ -171,7 +171,7 @@ pub trait BridgeRequestResponse: Send + Sync {
 pub struct Bridge<Q, S, T>(pub PhantomData<(Q, S, T)>);
 
 macro_rules! expand_fn_get_request_body {
-    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ident, $response: ty) => {
+    ($connector: ident, $curl_res: ty, $flow: ident, $resource_common_data: ty, $request: ty, $response: ty) => {
         paste::paste! {
             #[cfg_attr(feature = "deja", tracing::instrument(
                 name = "connector::request_body",
@@ -889,7 +889,10 @@ macro_rules! macro_connector_implementation {
         curl_response: $curl_res:ty,
         flow_name: $flow:ident,
         resource_common_data:$resource_common_data:ty,
-        flow_request: $request:ident,
+        // `ty`, not `ident`: a bodyless flow whose request data is generic over the connector's
+        // payment-method type (e.g. `PaymentsPostAuthenticateData<T>`) is still a valid
+        // `flow_request`. Matches the sibling arms that do take a `curl_request`.
+        flow_request: $request:ty,
         flow_response: $response:ty,
         http_method: $http_method_type:ident,
         generic_type: $generic_type:tt,
