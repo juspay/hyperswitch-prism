@@ -7756,9 +7756,15 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             context: IntegrationErrorContext::default(),
         })?;
         let currency = common_enums::Currency::foreign_try_from(amount.currency())?;
-        // Create ResponseId from resource_id
-        let connector_transaction_id =
-            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone());
+        // An empty id from the caller means "no connector transaction id yet". Keep that as
+        // `NoResponseId` so connector-level checks (`validate_psync_reference_id`,
+        // `get_connector_transaction_id`) reject the sync instead of building a request URL
+        // with an empty path segment.
+        let connector_transaction_id = if value.connector_transaction_id.trim().is_empty() {
+            ResponseId::NoResponseId
+        } else {
+            ResponseId::ConnectorTransactionId(value.connector_transaction_id.clone())
+        };
 
         let setup_future_usage = match value.setup_future_usage() {
             grpc_payment_types::FutureUsage::Unspecified => None,
@@ -8532,6 +8538,26 @@ pub fn generate_access_token_response(
                 merchant_access_token_id: None,
             },
         ),
+    }
+}
+
+/// A PSync that connector pre-flight validation rejected before dispatch.
+pub struct PaymentSyncSkipped {
+    pub connector_transaction_id: String,
+    pub merchant_transaction_id: Option<String>,
+}
+
+impl ForeignFrom<PaymentSyncSkipped> for PaymentServiceGetResponse {
+    fn foreign_from(skipped: PaymentSyncSkipped) -> Self {
+        // Unspecified + no error: UCS is stateless, so this is its "keep the previous
+        // attempt status" reply.
+        Self {
+            connector_transaction_id: skipped.connector_transaction_id,
+            merchant_transaction_id: skipped.merchant_transaction_id,
+            status: grpc_api_types::payments::PaymentStatus::Unspecified as i32,
+            error: None,
+            ..Default::default()
+        }
     }
 }
 
