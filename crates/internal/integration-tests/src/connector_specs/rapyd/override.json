@@ -3,5 +3,28 @@
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {}
     }
+  },
+  "EventService/HandleEvent": {
+    "payment_succeeded": {
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    },
+    "payment_failed": {
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    },
+    "refund_succeeded": {
+      "assert": {
+        "source_verified": {
+          "equals": false
+        }
+      }
+    }
   }
 }

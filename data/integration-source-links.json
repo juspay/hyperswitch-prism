@@ -260,5 +260,32 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "Rapyd": [
+    "https://docs.rapyd.net/en/merchant-api-reference.html",
+    "https://docs.rapyd.net/en/request-signatures.html",
+    "https://docs.rapyd.net/en/idempotency.html",
+    "https://docs.rapyd.net/en/card-payments.html",
+    "https://docs.rapyd.net/en/create-payment.html",
+    "https://docs.rapyd.net/en/retrieve-payment.html",
+    "https://docs.rapyd.net/en/complete-payment-363014.html",
+    "https://docs.rapyd.net/en/capture-payment.html",
+    "https://docs.rapyd.net/en/cancel-payment.html",
+    "https://docs.rapyd.net/en/create-refund.html",
+    "https://docs.rapyd.net/en/get-payment-method-required-fields.html",
+    "https://docs.rapyd.net/en/add-payment-method-to-customer.html",
+    "https://docs.rapyd.net/en/create-card-token.html",
+    "https://docs.rapyd.net/en/card-payment-with-3ds-verification.html",
+    "https://docs.rapyd.net/en/error-messages.html",
+    "https://docs.rapyd.net/en/rapyd-error-codes.html",
+    "https://docs.rapyd.net/en/payment-errors.html",
+    "https://docs.rapyd.net/en/card-transaction-errors.html",
+    "https://docs.rapyd.net/en/card-network-errors.html",
+    "https://docs.rapyd.net/en/merchant-advice-codes.html",
+    "https://docs.rapyd.net/en/general-errors.html",
+    "https://docs.rapyd.net/en/payment-succeeded-webhook.html",
+    "https://docs.rapyd.net/en/payment-failed-webhook.html",
+    "https://docs.rapyd.net/en/webhook-authentication.html",
+    "https://docs.rapyd.net/en/card-numbers-for-testing.html"
   ]
 }

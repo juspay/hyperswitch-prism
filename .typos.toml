@@ -33,6 +33,7 @@ Tema = "Tema" # "Banca Tema" — Italian bank (Terre Etrusche e di Maremma)
 tema = "tema" # "banca-tema" — lowercase form in TrueLayer provider ids
 Institutionnels = "Institutionnels" # French "Arkéa Banque Entreprises et Institutionnels"
 Imagin = "Imagin" # "imaginBank" — CaixaBank mobile-only brand
+STIP = "STIP" # Stand-In Processing — Visa/Mastercard term in Rapyd's card-network error table ("Force STIP")
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector
