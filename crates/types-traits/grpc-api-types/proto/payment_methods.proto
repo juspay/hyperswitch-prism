@@ -386,6 +386,9 @@ message ApplePayDecryptedData {
   
   // Cryptogram data for Apple Pay transactions
   ApplePayCryptogramData payment_data = 4;
+
+  // Identifier of the device that generated the token.
+  optional SecretString device_manufacturer_identifier = 5;
 }
 
 // Apple Pay cryptogram data structure

@@ -1291,6 +1291,8 @@ pub struct ApplePayDecryptedData {
     pub application_expiration_year: Secret<String>,
     /// The payment data, which contains the cryptogram and ECI indicator
     pub payment_data: ApplePayCryptogramData,
+    /// Identifier of the device that generated the token.
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1395,6 +1397,22 @@ impl ApplePayDecryptedData {
         let year = self.get_four_digit_expiry_year();
         let month = self.application_expiration_month.clone().expose();
         Secret::new(format!("{month}{separator}{}", year.peek()))
+    }
+
+    /// Get the device manufacturer identifier, if it is available
+    pub fn get_device_manufacturer_identifier_optional(&self) -> Option<Secret<String>> {
+        self.device_manufacturer_identifier.clone()
+    }
+
+    /// Get the device manufacturer identifier, erroring out when it is absent.
+    pub fn get_device_manufacturer_identifier(
+        &self,
+    ) -> error_stack::Result<Secret<String>, ValidationError> {
+        self.device_manufacturer_identifier.clone().ok_or_else(|| {
+            error_stack::report!(ValidationError::MissingRequiredField {
+                field_name: "device_manufacturer_identifier".to_string(),
+            })
+        })
     }
 }
 
