@@ -5,11 +5,15 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate,
+        Void,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -30,7 +34,8 @@ use transformers::{
     SaferpayCaptureResponse, SaferpayPSyncRequest, SaferpayPSyncResponse,
     SaferpayPreAuthenticateRequest, SaferpayPreAuthenticateResponse, SaferpayRefundRequest,
     SaferpayRefundResponse, SaferpayRefundSyncRequest, SaferpayRefundSyncResponse,
-    SaferpayVoidRequest, SaferpayVoidResponse,
+    SaferpayRepeatPaymentRequest, SaferpayRepeatPaymentResponse, SaferpaySetupMandateRequest,
+    SaferpaySetupMandateResponse, SaferpayVoidRequest, SaferpayVoidResponse,
 };
 
 use super::macros;
@@ -57,6 +62,10 @@ const PATH_CAPTURE: &str = "/Payment/v1/Transaction/Capture";
 const PATH_CANCEL: &str = "/Payment/v1/Transaction/Cancel";
 /// Creates a refund against a capture.
 const PATH_REFUND: &str = "/Payment/v1/Transaction/Refund";
+/// Registers raw card data as a Secure Card Data alias in a single call. Saferpay
+/// has no zero-amount authorization, so this — not a 0-value charge — is how a
+/// mandate is set up.
+const PATH_ALIAS_INSERT_DIRECT: &str = "/Payment/v1/Alias/InsertDirect";
 
 // `Amount.Value` is a string in the currency's minor units; Saferpay rejects a
 // numeric value.
@@ -108,6 +117,18 @@ macros::create_all_prerequisites!(
             request_body: SaferpayPreAuthenticateRequest<T>,
             response_body: SaferpayPreAuthenticateResponse,
             router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: SaferpaySetupMandateRequest<T>,
+            response_body: SaferpaySetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: SaferpayRepeatPaymentRequest<T>,
+            response_body: SaferpayRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -333,6 +354,88 @@ macros::macro_connector_implementation!(
     }
 );
 
+// SetupMandate Flow — standalone Secure Card Data registration.
+//
+// Saferpay sanctions no zero-amount authorization, and the docs forbid the 0.01 EUR
+// registration workaround for Visa/Mastercard, so a mandate is set up by registering
+// the card as an alias instead of by charging it. `Alias/InsertDirect` does that in a
+// single call with no redirect, matching the raw-PAN posture `AuthorizeDirect`
+// already has. The returned `Alias.Id` becomes the `connector_mandate_id`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Saferpay,
+    curl_request: Json(SaferpaySetupMandateRequest<T>),
+    curl_response: SaferpaySetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                PATH_ALIAS_INSERT_DIRECT
+            ))
+        }
+    }
+);
+
+// RepeatPayment Flow — merchant-initiated charge of a stored credential.
+//
+// Same endpoint as a non-3DS Authorize (`AuthorizeDirect`); what makes it an MIT is
+// the body: `Initiator: MERCHANT` plus the stored alias in `PaymentMeans.Alias.Id`
+// instead of a PAN. Saferpay has no dedicated recurring endpoint, and
+// `Transaction/AuthorizeReferenced` — the alternative, which chains off a previous
+// `TransactionId` rather than an alias — is out of scope: `SetupMandate` emits only
+// a `connector_mandate_id`, and `AuthorizeReferenced` accepts neither `Initiator`
+// nor `IssuerReference`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Saferpay,
+    curl_request: Json(SaferpayRepeatPaymentRequest<T>),
+    curl_response: SaferpayRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                PATH_AUTHORIZE_DIRECT
+            ))
+        }
+    }
+);
+
 // Capture Flow — settles an authorized transaction and yields the `CaptureId` that
 // a later Refund must reference.
 macros::macro_connector_implementation!(
@@ -518,6 +621,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Saferpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Saferpay<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Saferpay<T>
 {
 }
@@ -543,8 +656,105 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// Saferpay's Transaction interface exposes no signed webhook — only unauthenticated,
-// bodyless `NotifyUrl` GET pings — so there is nothing to consume or verify here.
+// Saferpay ships no consumable webhook, so this impl stays empty and every
+// `IncomingWebhook` method keeps its trait default. `get_event_type` /
+// `process_*_webhook` therefore return `WebhooksNotImplemented`, which is the
+// intended fail-closed answer: overriding them to hand back
+// `IncomingWebhookEventUnspecified` + `Ok(None)` would advertise webhook support
+// that does not exist, both to the caller and to the capability probe.
+//
+// This was re-verified against live sources rather than inherited from the tech
+// spec, which is stale on other points.
+//
+// 1. There is no webhook, event-subscription or push product at all.
+//    The complete published specification <https://saferpay.github.io/jsonapi/>
+//    (633 KB, all endpoints) contains zero occurrences of "webhook". So does every
+//    live swagger document, <https://test.saferpay.com/Api/swagger/{version}/swagger.json>
+//    — checked 1.44 (the version this connector pins), 1.53 and 1.54 (the newest
+//    that resolves; 1.55+ are 404). Their path sets are identical apart from
+//    `Transaction/DccInquiry`, and none of them declares an inbound callback
+//    schema, a signature header or an HMAC field (the single "signature" hit in
+//    1.54 is the `SIGNATURE_REQUIRED` Klarna shipping attribute). The changelog
+//    <https://github.com/saferpay/jsonapi/blob/master/texts/Changelog.md> covers
+//    1.5 (2017) through 1.53 and never adds one; every notification entry in its
+//    history is either an e-mail recipient list (v1.12 "replaced _MerchantEmail_
+//    with _MerchantEmails_ ... to which the payment notification is sent",
+//    v1.35 `TransactionNotification` = `PayerDccReceiptEmail` only) or a bare
+//    callback URL (v1.23 "added container _RedirectNotifyUrls_", v1.24 "replaced
+//    parameter `NotifyUrl` ... with the two separate parameters `SuccessNotifyUrl`
+//    and `FailNotifyUrl`"). Nor is there a Backoffice setting to register one:
+//    the docs sitemap <https://docs.saferpay.com/home/llms.txt> lists all 130
+//    pages and has no webhook, event or notification-API page, and the one page
+//    that would carry such a setting,
+//    <https://docs.saferpay.com/home/interfaces/backoffice/settings>, scopes its
+//    "Notifications" section to e-mail addresses for a human ("you can configure
+//    if, where, and in what language Saferpay should contact you in case of
+//    certain events and news. Each input accepts a comma-separated list").
+//
+// 2. What the callback URLs do deliver is nothing this trait can act on.
+//    Transaction interface, `RedirectNotifyUrls.Success` / `.Fail`
+//    <https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/transaction-interface>,
+//    §RedirectNotifyUrls: "The notification happens via http-GET and **does not
+//    carry any data (like the token)**, except parameters, that have been added to
+//    the URL by the merchant-system. ... Otherwise, the notification callback
+//    would be an empty request", and again "The notification also does not return
+//    any data to the merchants application, except your own parameters ... via
+//    GET!". The Payment Page's `Notification.SuccessNotifyUrl` /
+//    `.FailNotifyUrl` carries the identical sentence
+//    <https://docs.saferpay.com/home/integration-guide/licences-and-interfaces/payment-page>.
+//    So the request that would reach `ParseEvent` has no body, no Saferpay-set
+//    query parameter, no event type, no resource id and no signature — there is
+//    nothing to decode in `get_event_type`, nothing to return from
+//    `get_webhook_event_reference`, and `verify_webhook_source` could never
+//    honestly return `true`.
+//
+//    It is not even a payment-status event on the interface this connector uses.
+//    Same section: "Note, that at this point, no transaction has been made. The
+//    redirect ... only serves the purpose, to perform 3D Secure and DCC. The
+//    transaction itself is made, with the execution of the transaction authorize
+//    request." A `Success` ping means the redirect leg finished, not that money
+//    moved, so mapping it to any concrete `AttemptStatus` or `PaymentIntent*`
+//    event would be a fabrication.
+//
+// 3. No dispute events either, and nothing to poll for them. "chargeback" and
+//    "dispute" appear zero times in the full JSON API specification and in every
+//    swagger version above, and the docs sitemap has no chargeback page —
+//    chargebacks are discussed only as liability-shift consequences under 3-D
+//    Secure, never as something delivered to the merchant by API. There is no
+//    disputed transaction state to observe either: the one reporting endpoint,
+//    `GET /rest/customers/{customerId}/transactions`, documents "TransactionState
+//    ... Possible values: SUCCESSFUL, FAILED, PENDING." Saferpay places the
+//    chargeback relationship with the acquirer rather than itself — merchants are
+//    told to keep documentation so they can "provide the acquirer with the
+//    necessary documentation on request". That is why `Accept` / `DefendDispute`
+//    / `SubmitEvidence` stay `not_implemented` below: there is no notification to
+//    service them with, and emitting a `Dispute*` event type here would hand the
+//    caller a dispute the rest of the stack has no way to act on.
+//
+// Correct reconciliation strategy, and note it is *not* polling. Saferpay
+// forbids polling outright — <https://docs.saferpay.com/home/integration-guide/general-information>,
+// §Polling: "Polling in general is strictly forbidden! You should always react to
+// the redirect and/or notification, that is triggered by our gateway. Not
+// following this rule, can lead to your account being blocked." The specification
+// itself repeats it and names the remedy: "DO NOT implement a polling-process, to
+// poll for the transaction-data. Respond with the necessary request, at the
+// correct time (e.g. doing the assert only, if the SuccessUrl, or NotifyUrl are
+// called). Saferpay reserves the right to otherwise deactivate, or block your
+// account!", and on the result-fetch call, "Do not poll this function! Wait until
+// the payer is redirected back to the shop or until the notification was called".
+// The supported model is event-driven off the payer's return: the `ReturnUrl`
+// redirect and, as its redundant twin, the notify-URL ping each trigger one
+// `Transaction/Authorize` (or, for an already-authorized Payment Page session,
+// one result fetch), with the two de-duplicated against each other — "It is
+// important, that you do not handle both calls as separate transactions."
+// On the UCS side that is the existing `PreAuthenticate` -> browser ->
+// `Authorize` sequence, with PSync (`Transaction/Inquire`) used as a bounded
+// one-shot repair for a session whose redirect was lost, not as a poll loop.
+// Wiring `RedirectNotifyUrls` to the UCS webhook endpoint would be actively
+// harmful while nothing consumes it: `ParseEvent` would reject the empty GET, the
+// endpoint would answer non-200, and Saferpay retries a failed notification "up
+// to five times more, for a total of six times", backing off "to a maximum of
+// 1 day".
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Saferpay<T>
 {
@@ -575,9 +785,10 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== FLOW STATUS IMPLEMENTATIONS =====
-// Everything outside Authorize / PSync / Capture / Void / Refund / RSync is stubbed:
-// mandates, tokenization (Alias / Secure Card Data), disputes and payouts are out of
-// scope for this card-only integration.
+// Everything outside Authorize / PSync / Capture / Void / Refund / RSync /
+// PreAuthenticate / SetupMandate / RepeatPayment is stubbed: alias revocation
+// (`Alias/Delete`), disputes and payouts are out of scope for this card-only
+// integration.
 macros::macro_connector_flow_status_impls!(
     connector: Saferpay,
     generic_type: T,
@@ -588,18 +799,48 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
         DefendDispute,
         MandateRevoke,
-        // Both exist to hand `AuthenticationData` to a following Authorize. Saferpay's
-        // second call *is* the authorization, so it lives on Authorize instead.
+        // Saferpay exposes no authentication-only call, so there is no second or
+        // third leg for these to name.
+        //
+        // Its 3DS journey is `Transaction/Initialize` -> browser -> `Transaction/
+        // Authorize`, and the docs are explicit that the second call is the payment:
+        // "Up until now, no transaction has been made ... The transaction itself is
+        // made, with the execution of the transaction authorize request", and "the
+        // Transaction Authorize triggers the actual transaction, though it may only
+        // happen once". Its response carries `Transaction.Id`, "obligatory for
+        // capture/cancel". That is an authorization, and `PostAuthenticateResponse`
+        // (`connector_types.rs:2071`) has no `resource_id` to report one with —
+        // `pattern_postauthenticate.md:575` puts it plainly: "the subsequent Authorize
+        // is the only flow that is allowed to transition to Authorized/Charged".
+        //
+        // The whole `Payment/v1/Transaction/*` inventory was checked for a call that
+        // returns an authentication result without moving money: Initialize, Authorize,
+        // AuthorizeDirect, AuthorizeReferenced, Capture, MultipartCapture,
+        // AssertCapture, MultipartFinalize, Refund, AssertRefund, RefundDirect, Cancel,
+        // Inquire, AlternativePayment, QueryAlternativePayment, DccInquiry. There is
+        // none — no `AssertAuthorize` has ever existed. The one `Assert`-shaped
+        // result-fetch Saferpay has, `PaymentPage/Assert`, belongs to the Payment Page
+        // interface, where the authorization has *already* happened automatically
+        // ("The Assert only calls for the result").
+        //
+        // So `PreAuthenticate` (Initialize) + `Authorize` is the honest mapping, and it
+        // is one grace names for this exact shape: "Pre + Authorize only", alongside
+        // Kount, Worldpayxml, NMI and Ilixium. Adding empty `Authenticate` /
+        // `PostAuthenticate` legs would satisfy the flow-marker triplet and model
+        // nothing.
+        //
+        // Externally-run 3DS does not need them either: the merchant's result arrives on
+        // `PaymentsAuthorizeData::authentication_data` and goes out as
+        // `Authentication.ExternalThreeDS` on `AuthorizeDirect` — the zero-leg external
+        // 3DS shape, as Revolv3 does it.
         Authenticate,
         PostAuthenticate,
         IncrementalAuthorization,
         CreateOrder,
         PaymentMethodToken,
         VoidPC,
-        RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
         SubmitEvidence,
         GetConnectorCustomer,
         VoidPostRefund
