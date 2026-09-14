@@ -9,359 +9,328 @@
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BillDeskRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method.card.card_network. HiPay requires payment_product on POST /v1/order. — Missing required field: payment_method.card.card_network. HiPay requires payment_product on POST /v1/order."
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "CashfreeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Crypto": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Dana": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "DuitNow": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "GCash": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Givex": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "GoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "KakaoPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "LazyPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "Momo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Netbanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "OpenBankingPis": {
         "status": "not_implemented",
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PaySafeCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PayURedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -372,116 +341,116 @@
         "error": "This feature is not implemented: payment_method. The provided payment method variant is not yet supported by this flow"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "PhonePeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Skrill": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Swish": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "TouchNGo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Twint": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Vipps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Webpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method"
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       }
     },
     "capture": {
@@ -631,38 +600,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "error",
+        "error": "Stuck on field: payment_method_token. HiPay rejects raw card numbers on POST /v1/order. — Missing required field: payment_method_token. HiPay rejects raw card numbers on POST /v1/order."
       }
     },
     "proxy_setup_recurring": {
@@ -747,30 +686,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_tokenized_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://stage-secure-gateway.hipay-tpp.com/rest/v1/order",
-          "method": "Post",
-          "headers": {
-            "accept": "application/json",
-            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "via": "HyperSwitch"
-          },
-          "body": ""
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product. — Missing required field: connector_feature_data.payment_product. A token-only authorize payload carries no card network, but HiPay requires payment_product."
       }
     },
     "token_setup_recurring": {

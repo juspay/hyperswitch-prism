@@ -54,5 +54,16 @@
         }
       }
     }
+  },
+  "PaymentService/Capture": {
+    "capture_partial_amount": {
+      "assert": {
+        "status": {
+          "one_of": [
+            "PARTIAL_CHARGED"
+          ]
+        }
+      }
+    }
   }
 }

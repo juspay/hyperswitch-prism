@@ -401,10 +401,10 @@ examples_python: examples/helcim/helcim.py
 ## Hipay
 connector_id: hipay
 doc: docs/connectors/hipay.md
-scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, refund, refund_get, token_authorize, void
-examples_python: examples/hipay/hipay.py
+scenarios: none
+payment_methods: none
+flows: capture, get, refund, refund_get, void
+examples_python: none
 
 ## Hyperpg
 connector_id: hyperpg
