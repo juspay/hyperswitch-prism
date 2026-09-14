@@ -12,10 +12,11 @@ use common_utils::{
     types::FloatMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, SetupMandate, Void},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -30,9 +31,11 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as xendit, RefundResponse, RefundResponse as RefundSyncResponse, XenditCaptureResponse,
-    XenditErrorResponse, XenditPaymentResponse, XenditPaymentsCaptureRequest,
-    XenditPaymentsRequest, XenditRefundRequest, XenditResponse,
+    self as xendit, RefundResponse, RefundResponse as RefundSyncResponse, XenditErrorResponse,
+    XenditPaymentObjectResponse as XenditCaptureResponse,
+    XenditPaymentObjectResponse as XenditVoidResponse, XenditPaymentResponse,
+    XenditPaymentsCaptureRequest, XenditPaymentsRequest, XenditRefundRequest, XenditResponse,
+    XenditSetupMandateRequest, XenditSetupMandateResponse,
 };
 
 use super::macros;
@@ -47,7 +50,13 @@ use error_stack::ResultExt;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
+    /// Required on every Payments API v3 endpoint; it is a single-valued enum.
+    /// <https://docs.xendit.co/apidocs/create-payment-request>
+    pub(crate) const API_VERSION: &str = "api-version";
 }
+
+/// The only value Xendit accepts for the `api-version` header on the v3 Payments API.
+pub(crate) const XENDIT_API_VERSION: &str = "2024-11-11";
 
 macros::macro_connector_payout_implementation!(
     connector: Xendit,
@@ -80,6 +89,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Xendit<T>
 {
 }
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentVoidV2 for Xendit<T>
+{
+}
+/// Removing `SetupMandate` from `macro_connector_flow_status_impls!` also removes the marker impl
+/// that macro generated, so it has to be declared explicitly here — the same correction the Void
+/// flow needed.
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Xendit<T>
+{
+}
 macros::create_amount_converter_wrapper!(connector_name: Xendit, amount_type: FloatMajorUnit);
 macros::create_all_prerequisites!(
     connector_name:  Xendit,
@@ -101,6 +121,17 @@ macros::create_all_prerequisites!(
             request_body: XenditPaymentsCaptureRequest,
             response_body: XenditCaptureResponse,
             router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: Void,
+            response_body: XenditVoidResponse,
+            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: XenditSetupMandateRequest<T>,
+            response_body: XenditSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: Refund,
@@ -125,10 +156,16 @@ macros::create_all_prerequisites!(
         where
             Self: ConnectorIntegrationV2<F, FCD, Req, Res>,
         {
-            let mut header = vec![(
-                headers::CONTENT_TYPE.to_string(),
-                self.get_content_type().to_string().into(),
-            )];
+            let mut header = vec![
+                (
+                    headers::CONTENT_TYPE.to_string(),
+                    self.get_content_type().to_string().into(),
+                ),
+                (
+                    headers::API_VERSION.to_string(),
+                    XENDIT_API_VERSION.to_string().into(),
+                ),
+            ];
             let mut api_key = self
                 .get_auth_header(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -255,7 +292,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payment_requests", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v3/payment_requests", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -289,7 +326,7 @@ macros::macro_connector_implementation!(
                 .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
 
             Ok(format!(
-                "{}/payment_requests/{connector_payment_id}",
+                "{}/v3/payment_requests/{connector_payment_id}",
                 self.connector_base_url_payments(req),
             ))
         }
@@ -319,15 +356,84 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let connector_payment_id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+            // v3 captures address the payment (`py-...`), not the payment request (`pr-...`).
+            let payment_id = xendit::resolve_payment_id(
+                req.request.connector_feature_data.as_ref(),
+                || req.request.get_connector_transaction_id(),
+            )?;
             Ok(format!(
-                "{}/payment_requests/{connector_payment_id}/captures",
+                "{}/v3/payments/{payment_id}/capture",
                 self.connector_base_url_payments(req)
             ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Xendit,
+    curl_response: XenditVoidResponse,
+    flow_name: Void,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentVoidData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Cancelling an authorization addresses the payment (`py-...`), exactly as capture
+            // does. `POST /v3/payment_requests/{pr-...}/cancel` is a different endpoint that
+            // deactivates the collection request instead of releasing the hold, and is not Void.
+            // https://docs.xendit.co/apidocs/cancel-payment
+            let payment_id = xendit::resolve_payment_id(
+                req.request.connector_feature_data.as_ref(),
+                || Ok(req.request.connector_transaction_id.clone()),
+            )?;
+            Ok(format!(
+                "{}/v3/payments/{payment_id}/cancel",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Xendit,
+    curl_request: Json(XenditSetupMandateRequest),
+    curl_response: XenditSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Zero-amount card verification is the same create-payment-request endpoint Authorize
+            // posts to; `type: VERIFY_PAYMENT_METHOD` in the body is what makes it a verification.
+            // https://docs.xendit.co/docs/card-verification
+            Ok(format!("{}/v3/payment_requests", self.connector_base_url_payments(req)))
         }
     }
 );
@@ -422,11 +528,9 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         CreateOrder,
-        Void,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
         GetConnectorCustomer,
-        SetupMandate,
         PaymentMethodToken,
         PreAuthenticate,
         Authenticate,
