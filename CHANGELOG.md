@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.14.0
+
+### Features
+
+- **connector:** Merchante connector integration ([#2268](https://github.com/juspay/connector-service/pull/2268)) ([`4ae776b`](https://github.com/juspay/connector-service/commit/4ae776bb4911e0883e6b20d646ce2c64d6482e5f))
+
+**Full Changelog:** [`2026.09.11.1...2026.09.14.0`](https://github.com/juspay/connector-service/compare/2026.09.11.1...2026.09.14.0)
+
+- - -
+
 ## 2026.09.11.1
 
 ### Features
