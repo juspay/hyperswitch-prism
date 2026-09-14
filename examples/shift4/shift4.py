@@ -14,7 +14,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"]
+SUPPORTED_FLOWS = ["authorize", "capture", "create_client_authentication_token", "customer_create", "get", "incremental_authorization", "proxy_authorize", "recurring_charge", "refund", "refund_get", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -180,40 +180,6 @@ def _build_token_authorize_request():
         ),
         capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
         return_url="https://example.com/return",
-    )
-
-def _build_token_setup_recurring_request():
-    return payment_pb2.PaymentServiceTokenSetupRecurringRequest(
-        merchant_recurring_payment_id="probe_tokenized_mandate_001",
-        amount=payment_pb2.Money(
-            minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),
-        address=payment_pb2.PaymentAddress(
-            billing_address=payment_pb2.Address(),
-        ),
-        customer_acceptance=payment_pb2.CustomerAcceptance(
-            acceptance_type=payment_pb2.AcceptanceType.Value("ONLINE"),  # Type of acceptance (e.g., online, offline).
-            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
-            online_mandate_details=payment_pb2.OnlineMandate(  # Details if the acceptance was an online mandate.
-                ip_address="127.0.0.1",  # IP address from which the mandate was accepted.
-                user_agent="Mozilla/5.0",  # User agent string of the browser used for mandate acceptance.
-            ),
-        ),
-        setup_mandate_details=payment_pb2.SetupMandateDetails(
-            mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
-                multi_use=payment_pb2.MandateAmountData(
-                    amount=0,  # Use amount_money instead (will be removed in a future release).
-                    currency=payment_pb2.Currency.Value("USD"),  # Use amount_money.currency instead (will be removed in a future release).
-                    amount_money=payment_pb2.Money(  # Amount in Money type.
-                        minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
-                        currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-                    ),
-                ),
-            ),
-        ),
-        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -420,15 +386,6 @@ async def process_token_authorize(merchant_transaction_id: str, config: sdk_conf
     payment_client = PaymentClient(config)
 
     token_response = await payment_client.token_authorize(_build_token_authorize_request())
-
-    return {"status": token_response.status}
-
-
-async def process_token_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.TokenSetupRecurring"""
-    payment_client = PaymentClient(config)
-
-    token_response = await payment_client.token_setup_recurring(_build_token_setup_recurring_request())
 
     return {"status": token_response.status}
 

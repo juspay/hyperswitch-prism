@@ -772,7 +772,7 @@
     "proxy_setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry — Missing required field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry (ANI): Shift4 verifies `card.cardholderName` against the name on the account and returns the outcome in `aniCheck.result`. Without a name there is nothing to verify and Shift4 rejects the charge."
+        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
       }
     },
     "recurring_charge": {
@@ -876,7 +876,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry — Missing required field: card.cardholderName. A zero-amount Shift4 charge is an Account Name Inquiry (ANI): Shift4 verifies `card.cardholderName` against the name on the account and returns the outcome in `aniCheck.result`. Without a name there is nothing to verify and Shift4 rejects the charge."
+        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
       }
     },
     "token_authorize": {
@@ -910,49 +910,8 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "connector_token": "pm_1AbcXyzStripeTestToken",
-          "address": {
-            "billing_address": {}
-          },
-          "customer_acceptance": {
-            "acceptance_type": "ONLINE",
-            "accepted_at": 0,
-            "online_mandate_details": {
-              "ip_address": "127.0.0.1",
-              "user_agent": "Mozilla/5.0"
-            }
-          },
-          "setup_mandate_details": {
-            "mandate_type": {
-              "multi_use": {
-                "amount": 0,
-                "currency": "USD",
-                "amount_money": {
-                  "minor_amount": 0,
-                  "currency": "USD"
-                }
-              }
-            }
-          },
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://api.shift4.com/charges",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":\"pm_1AbcXyzStripeTestToken\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
       }
     },
     "verify_redirect": {
