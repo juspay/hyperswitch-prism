@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Card": {
         "status": "supported",
@@ -132,24 +132,24 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionOrigin\":\"ECOM\",\"order\":{\"orderId\":\"probe_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\",\"cardholderName\":\"John Doe\"}}}"
         }
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Crypto": {
         "status": "not_implemented",
@@ -157,11 +157,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -169,35 +169,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Givex": {
         "status": "not_implemented",
@@ -205,87 +205,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -293,43 +293,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -337,35 +337,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -377,115 +377,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       }
     },
     "capture": {
@@ -676,14 +676,51 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"{{$card_cvc}}\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"transactionOrigin\":\"ECOM\",\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"{{$card_cvc}}\",\"cardholderName\":\"John Doe\"}}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for authipay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardPreAuthTransaction\",\"merchantTransactionId\":\"probe_proxy_mandate_001\",\"transactionAmount\":{\"total\":0.0,\"currency\":\"USD\"},\"transactionOrigin\":\"ECOM\",\"order\":{\"orderId\":\"probe_proxy_mandate_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"{{$card_cvc}}\",\"cardholderName\":\"John Doe\"}},\"storedCredentials\":{\"sequence\":\"FIRST\",\"scheduled\":false,\"initiator\":\"CARDHOLDER\",\"indicatorSubcategory\":\"CREDENTIAL_ON_FILE_FIRST\"}}"
+        }
       }
     },
     "recurring_charge": {
@@ -781,20 +818,61 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for authipay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"PaymentCardPreAuthTransaction\",\"merchantTransactionId\":\"probe_mandate_001\",\"transactionAmount\":{\"total\":0.0,\"currency\":\"USD\"},\"transactionOrigin\":\"ECOM\",\"order\":{\"orderId\":\"probe_mandate_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"737\",\"cardholderName\":\"John Doe\"}},\"storedCredentials\":{\"sequence\":\"FIRST\",\"scheduled\":false,\"initiator\":\"CARDHOLDER\",\"indicatorSubcategory\":\"CREDENTIAL_ON_FILE_FIRST\"}}"
+        }
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for authipay"
+        "error": "This feature is not implemented: Selected payment method through authipay. Authipay's REST v2 primary transaction is wired for paymentMethod.paymentCard only in this connector."
       }
     },
     "verify_redirect": {
