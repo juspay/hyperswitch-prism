@@ -235,7 +235,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Payhere](connectors/payhere.md) | ? | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Payload](connectors/payload.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | x | x | ✓ | x | x | x | x | ⚠ | x | x | ✓ | ⚠ | x |
 | [Payme](connectors/payme.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Paynearme](connectors/paynearme.md) | ✓ | ✓ | x | ⚠ | ✓ | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Paynearme](connectors/paynearme.md) | ✓ | ✓ | x | ⚠ | ✓ | ✓ | x | ⚠ | ? | ⚠ | ⚠ | ✓ | ? | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Paypal](connectors/paypal.md) | ✓ | ✓ | x | ✓ | ✓ | ✓ | ⚠ | ⚠ | ✓ | x | x | ✓ | ? | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | x | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ✓ | x |
 | [Paysafe](connectors/paysafe.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ? | ⚠ | ? | ⚠ | ✓ | x | ✓ | ⚠ | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Paytm](connectors/paytm.md) | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | ⚠ | x | x | x | x | x | x | x | ✓ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |

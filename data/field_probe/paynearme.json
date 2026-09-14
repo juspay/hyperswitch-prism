@@ -679,8 +679,8 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paynearme"
+        "status": "error",
+        "error": "Stuck on field: order_id. PayNearMe stores a card against an existing order — Missing required field: order_id. PayNearMe stores a card against an existing order"
       }
     },
     "recurring_charge": {
@@ -753,8 +753,8 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paynearme"
+        "status": "error",
+        "error": "Stuck on field: customer.id. A stored PayNearMe card belongs to the order's customer — Missing required field: customer.id. A stored PayNearMe card belongs to the order's customer"
       }
     },
     "token_authorize": {
@@ -766,7 +766,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paynearme"
+        "error": "This feature is not implemented: Only card mandates are supported by paynearme"
       }
     },
     "verify_redirect": {
