@@ -12,17 +12,19 @@
 //! `should_do_order_create()` therefore returns `true` and the Authorize flow
 //! reads the `pnm_order_identifier` back out of `connector_order_id`.
 //!
-//! Implemented scope: Card, one-time payments.
+//! Implemented scope: Card — one-time payments, and storing a card for later
+//! merchant-initiated charges.
 //!
-//! | UCS flow      | PayNearMe call |
-//! |---------------|----------------|
-//! | `CreateOrder` | `POST /create_order` |
-//! | `Authorize`   | `POST /create_payment_method` with `send_payment=true` |
-//! | `PSync`       | `POST /find_payment` |
-//! | `Void`        | `POST /cancel_payment` |
-//! | `Refund`      | `POST /refund_payment` |
-//! | `RSync`       | `POST /find_payment` (nested `refund` object) |
-//! | `Capture`     | *(none — see below)* |
+//! | UCS flow       | PayNearMe call |
+//! |----------------|----------------|
+//! | `CreateOrder`  | `POST /create_order` |
+//! | `Authorize`    | `POST /create_payment_method` with `send_payment=true` |
+//! | `SetupMandate` | `POST /create_payment_method` without `send_payment` (tokenise only) |
+//! | `PSync`        | `POST /find_payment` |
+//! | `Void`         | `POST /cancel_payment` |
+//! | `Refund`       | `POST /refund_payment` |
+//! | `RSync`        | `POST /find_payment` (nested `refund` object) |
+//! | `Capture`      | *(none — see below)* |
 //!
 //! **Capture does not exist in this API.** All 41 endpoints were checked: there
 //! is no `/capture_payment`, no `capture` parameter and no `capture_method`
@@ -43,12 +45,12 @@ use std::{fmt::Debug, sync::LazyLock};
 use common_enums::{CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, SetupMandate, Void},
     connector_types::{
         ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        SupportedPaymentMethodsExt,
+        SetupMandateRequestData, SupportedPaymentMethodsExt,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -70,7 +72,8 @@ use transformers::{
     self as paynearme, PaynearmeAuthorizeRequest, PaynearmeAuthorizeResponse,
     PaynearmeCreateOrderRequest, PaynearmeCreateOrderResponse, PaynearmeRefundRequest,
     PaynearmeRefundResponse, PaynearmeRefundSyncRequest, PaynearmeRefundSyncResponse,
-    PaynearmeSyncRequest, PaynearmeSyncResponse, PaynearmeVoidRequest, PaynearmeVoidResponse,
+    PaynearmeSetupMandateRequest, PaynearmeSetupMandateResponse, PaynearmeSyncRequest,
+    PaynearmeSyncResponse, PaynearmeVoidRequest, PaynearmeVoidResponse,
 };
 
 use super::macros;
@@ -109,6 +112,12 @@ macros::create_all_prerequisites!(
             request_body: PaynearmeAuthorizeRequest,
             response_body: PaynearmeAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: PaynearmeSetupMandateRequest,
+            response_body: PaynearmeSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -294,6 +303,43 @@ macros::macro_connector_implementation!(
     }
 );
 
+// ===== SETUP MANDATE — POST /create_payment_method (tokenise only) =====
+// The same endpoint as Authorize, without `send_payment`: the card is stored and
+// nothing is charged. The order it is stored on comes from a prior CreateOrder,
+// passed to SetupRecurring as `order_id`.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paynearme,
+    curl_request: Json(PaynearmeSetupMandateRequest),
+    curl_response: PaynearmeSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}{}",
+                self.payments_base_url(req),
+                CREATE_PAYMENT_METHOD_PATH
+            ))
+        }
+    }
+);
+
 // ===== PSYNC — POST /find_payment =====
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -433,6 +479,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Paynearme<T>
+{
+}
+
 // PayNearMe requires an order before any money can move, so this flow is real
 // rather than a stub (`should_do_order_create()` returns `true` below).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -525,7 +576,6 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
-        SetupMandate,
         SubmitEvidence,
     ],
     not_supported: [
@@ -549,7 +599,9 @@ static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethod::Card,
             PaymentMethodType::Card,
             PaymentMethodDetails {
-                // Mandates / autopay are out of scope for this integration.
+                // SetupMandate can store a card, but nothing can charge it yet:
+                // RepeatPayment is still `not_implemented`. Flip this to
+                // `Supported` together with RepeatPayment.
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods,

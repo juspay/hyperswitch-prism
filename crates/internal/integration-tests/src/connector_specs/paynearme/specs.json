@@ -3,6 +3,7 @@
   "supported_suites": [
     "PaymentService/CreateOrder",
     "PaymentService/Authorize",
+    "PaymentService/SetupRecurring",
     "PaymentService/Get",
     "PaymentService/Void",
     "PaymentService/Refund",

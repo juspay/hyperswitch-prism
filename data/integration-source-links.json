@@ -227,7 +227,14 @@
     "https://apidocs.paynearme.com/devdocs/docs/callbacks-overview",
     "https://apidocs.paynearme.com/devdocs/docs/using-authorization-callbacks",
     "https://apidocs.paynearme.com/devdocs/docs/using-confirmation-callbacks",
-    "https://apidocs.paynearme.com/devdocs/docs/understanding-reverse-callbacks"
+    "https://apidocs.paynearme.com/devdocs/docs/understanding-reverse-callbacks",
+    "https://apidocs.paynearme.com/devdocs/recipes/create-the-signature-value-for-a-call",
+    "https://apidocs.paynearme.com/devdocs/reference/post_update-payment-method",
+    "https://apidocs.paynearme.com/devdocs/reference/post_schedule-auto-pay",
+    "https://apidocs.paynearme.com/devdocs/reference/post_schedule-payment",
+    "https://apidocs.paynearme.com/devdocs/recipes/make-a-payment-with-a-new-payment-method",
+    "https://apidocs.paynearme.com/devdocs/recipes/make-a-payment-with-an-existing-payment-method",
+    "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix"
   ],
   "Paydotcom": [
     "https://apiref.pay.com/reference/introduction",
