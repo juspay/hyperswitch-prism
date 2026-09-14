@@ -228,15 +228,13 @@
     "https://dev.shift4.com/docs/api#idempotency",
     "https://dev.shift4.com/docs/api#errors",
     "https://dev.shift4.com/docs/api#charges",
-    "https://dev.shift4.com/docs/api#charge-object",
+    "https://dev.shift4.com/docs/api#refunds",
     "https://dev.shift4.com/docs/api#cards",
-    "https://dev.shift4.com/docs/api#card-object",
-    "https://dev.shift4.com/docs/api#customers",
-    "https://dev.shift4.com/docs/api#tokens",
-    "https://dev.shift4.com/docs/fraud-prevention/verification-checks",
-    "https://dev.shift4.com/docs/testing",
+    "https://dev.shift4.com/docs/api#events",
     "https://dev.shift4.com/docs/webhooks",
-    "https://dev.shift4.com/docs/payments-optimization/",
-    "https://dev.shift4.com/docs/tutorials/charging-cards/"
+    "https://dev.shift4.com/docs/testing",
+    "https://dev.shift4.com/docs/fraud-prevention/verification-checks",
+    "https://dev.shift4.com/docs/tutorials/charging-cards",
+    "https://github.com/shift4developer/shift4-java"
   ]
 }

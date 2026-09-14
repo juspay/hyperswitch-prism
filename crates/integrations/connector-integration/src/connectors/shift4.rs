@@ -3,7 +3,7 @@ pub mod transformers;
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::CurrencyUnit;
+use common_enums::{AttemptStatus, CurrencyUnit};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
@@ -19,7 +19,7 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -651,12 +651,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
-// Setup Mandate flow implementation using macro - POST /charges with
-// captured=false (auth-only) to create a card-on-file mandate. The
-// resulting charge.id is surfaced as the connector_mandate_id for
-// subsequent RepeatPayment (MIT) calls.
+// SetupMandate Flow — POST /charges with captured=false (authorization-only
+// card-on-file setup, typed `first_recurring`, assigned to a Shift4 customer).
+// The stored `card.id` is surfaced as the connector_mandate_id and the owning
+// customer as connector_customer; a later RepeatPayment (MIT) sends both.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Shift4,
     curl_request: Json(Shift4SetupMandateRequest<T>),
     curl_response: Shift4SetupMandateResponse,
@@ -672,7 +672,23 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            let mut header = self.build_headers(req)?;
+            // A setup is a real authorization on POST /charges, so it carries the
+            // same idempotency contract as Authorize: a retried request with the
+            // same `Idempotency-Key` is executed once and the cached charge is
+            // replayed. The key is the caller's own request id, stable across
+            // retries of one logical attempt, never freshly generated per call.
+            let idempotency_key = req
+                .resource_common_data
+                .merchant_request_id
+                .clone()
+                .unwrap_or_else(|| {
+                    req.resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
+            Ok(header)
         }
 
         fn get_url(
@@ -681,6 +697,25 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             Ok(format!("{base_url}/charges"))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            // The shared builder leaves `attempt_status` unset because it also
+            // serves Refund/RSync. On this flow HTTP 402 is Shift4's documented
+            // "Payment Failed": the card was declined (`error.type = card_error`,
+            // e.g. `card_declined` / issuer code `05`, verified live), so the setup
+            // is terminally failed. Every other error (400 validation, 401 auth,
+            // 429, 5xx) is left non-terminal.
+            if error.status_code == 402 {
+                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::Failure));
+            }
+            Ok(error)
         }
     }
 );
