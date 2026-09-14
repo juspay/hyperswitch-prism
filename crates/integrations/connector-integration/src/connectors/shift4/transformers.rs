@@ -677,8 +677,52 @@ impl<T: PaymentMethodDataTypes>
             }
         };
 
-        // Get customer_id from connector_customer if available (needed for token payments)
-        let customer_id = item.resource_common_data.connector_customer.clone();
+        // `customerId` is the Shift4 customer id, sourced only from
+        // `connector_customer` (never the merchant-side `customer.id`). On a plain
+        // one-off sale it stays optional, exactly as before.
+        //
+        // On a card CIT that stores the card for later merchant-initiated use
+        // (off-session + customer acceptance) it is mandatory, by the same rule
+        // SetupMandate enforces: Shift4 charges a stored card only together with
+        // the customer that owns it, so a mandate created without a customer
+        // could never be charged by RepeatPayment. Refuse it before the
+        // cardholder is charged rather than hand back an unusable mandate.
+        let customer_id = item
+            .resource_common_data
+            .connector_customer
+            .clone()
+            .filter(|id| !id.trim().is_empty());
+        let stores_card_on_file = item.request.is_customer_initiated_mandate_payment()
+            && matches!(
+                payment_method,
+                Shift4PaymentMethod::Card(_) | Shift4PaymentMethod::TokenPayment(_)
+            );
+        if stores_card_on_file && customer_id.is_none() {
+            return Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "customer.connector_customer_id",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "This Authorize stores the card for later merchant-initiated charges \
+                             (setup_future_usage=OFF_SESSION with customer acceptance). Shift4 \
+                             stores a card on file only under a Shift4 customer and rejects a \
+                             later charge of that card without the owning `customerId`, so a \
+                             mandate created without a customer could not be charged."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Create the customer on Shift4 first (CustomerService/Create, \
+                             POST /customers) and pass the returned `cust_...` id as \
+                             customer.connector_customer_id."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://dev.shift4.com/docs/api#customer-create".to_string()
+                        ),
+                    },
+                }
+            ));
+        }
 
         // When the upstream requests incremental authorization support, Shift4 requires
         // the original charge to be created as a pre-authorization: `captured=false` AND
@@ -1023,10 +1067,33 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
                 FlowStatus::Payment(status),
             ))
         } else {
+            // A CIT that stores the card (off-session + customer acceptance) is the
+            // non-zero-amount twin of SetupMandate, so it surfaces the same mandate:
+            // `connector_mandate_id` = the stored card id (`card_...`), which
+            // RepeatPayment sends as `card` together with the owning customer. The
+            // charge id (`char_...`) cannot charge the card again, so there is no
+            // fallback to it, and a card no customer owns is not a usable mandate.
+            // A plain one-off sale returns no mandate, as before.
+            let mandate_reference = item
+                .router_data
+                .request
+                .is_customer_initiated_mandate_payment()
+                .then_some(item.response.card.as_ref())
+                .flatten()
+                .filter(|card| card.customer_id.is_some() || item.response.customer_id.is_some())
+                .map(|card| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(card.id.clone()),
+                        payment_method_id: Some(card.id.clone()),
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })
+                });
+
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: get_shift4_redirection_data(&item.response),
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_transaction_id.clone(),
                 network_txn_link_id: None,
@@ -1586,35 +1653,63 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // ===== REPEAT PAYMENT (MIT) FLOW STRUCTURES =====
+//
+// Shift4 has no dedicated MIT / recurring-charge endpoint. A repeat payment is
+// an ordinary `POST /charges` (tech-spec "10a. Create a Charge on a Stored
+// Card") that references the card SetupMandate stored on a Shift4 customer:
+//
+// * `card`       — the stored card id (`card_...`), which SetupMandate surfaces
+//                  as `connector_mandate_id`;
+// * `customerId` — the customer that owns that card (`cust_...`), which
+//                  SetupMandate required and surfaces as `connector_customer`.
+//
+// Both are mandatory. Shift4 documents `customerId` as "required if the charge
+// is being created with the customer's existing card" and `card` as "must be an
+// existing card that is associated with the customer specified in
+// `customerId`"; a stored card sent without its customer is rejected with HTTP
+// 400 "Charge using customer's card requires customerId to be provided".
+// Sending `customerId` without `card` is not a safe fallback either: it charges
+// whatever the customer's *default* card is, not the card the mandate names.
 
-/// Shift4 MIT request - supports both stored card token and raw card details
+/// `POST /charges` body for a merchant-initiated charge.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Shift4RepeatPaymentRequest<T: PaymentMethodDataTypes> {
     pub amount: MinorUnit,
     pub currency: Currency,
+    /// `true` for automatic capture, `false` for an authorization-only MIT that
+    /// is settled later through `POST /charges/{id}/capture`.
     pub captured: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
-    /// Card: either a token string ("card_xxx") or raw card details object
+    /// Stored card id (`card_...`), or raw card details on the network-mandate path.
     pub card: Shift4RepeatPaymentCard<T>,
-    /// Transaction type: "merchant_initiated", "subsequent_recurring", etc.
+    /// `merchant_initiated` or `subsequent_recurring`.
     #[serde(rename = "type")]
     pub transaction_type: Shift4TransactionType,
-    /// Customer ID required when charging a stored card (not needed for raw card)
+    /// Owner of the stored card. Always set on the stored-card path; absent only
+    /// when raw card details are sent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    /// Charge-level billed-party details, shared with Authorize.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<Shift4Billing>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping: Option<Shift4Shipping>,
+    /// Merchant reference in `external.vendorReference`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external: Option<Shift4External>,
 }
 
-/// Card field for MIT: either a stored card token or raw card details
+/// Card field for MIT: either a stored card id or raw card details
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum Shift4RepeatPaymentCard<T: PaymentMethodDataTypes> {
-    /// Stored card identifier (e.g., "card_xxx")
-    Token(String),
-    /// Raw card details for approach 3 MIT
+    /// Stored card identifier (`card_...`) owned by `customerId`.
+    Token(Secret<String>),
+    /// Raw card details, used only with a network mandate reference.
     RawCard(Shift4CardData<T>),
 }
 
@@ -1627,12 +1722,29 @@ pub enum Shift4TransactionType {
     CustomerInitiated,
     /// The cardholder-present charge that establishes a card on file.
     FirstRecurring,
+    /// An unscheduled charge of a stored credential (top-up, delayed charge, retry).
     MerchantInitiated,
+    /// A scheduled charge in the series the `first_recurring` charge started.
     SubsequentRecurring,
 }
 
 /// MIT response reuses the standard payments response
 pub type Shift4RepeatPaymentResponse = Shift4PaymentsResponse;
+
+fn missing_shift4_mit_field(
+    field_name: &'static str,
+    additional_context: &str,
+    suggested_action: &str,
+) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::MissingRequiredField {
+        field_name,
+        context: IntegrationErrorContext {
+            additional_context: Some(additional_context.to_string()),
+            suggested_action: Some(suggested_action.to_string()),
+            doc_url: Some("https://dev.shift4.com/docs/api#charge-create".to_string()),
+        },
+    })
+}
 
 // ===== REPEAT PAYMENT (MIT) REQUEST TRANSFORMATION =====
 
@@ -1651,87 +1763,124 @@ impl<T: PaymentMethodDataTypes>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        // Determine card: use raw card data if available, otherwise use stored card token
-        let (card, customer_id) = if let PaymentMethodData::Card(card_data) =
-            &item.request.payment_method_data
-        {
-            // Approach 3: Raw card details for MIT (no customer needed).
-            // `cardholderName` is optional on a normal Shift4 charge, so an
-            // absent billing name is simply omitted rather than sent as `""`.
-            let billing = item
-                .resource_common_data
-                .address
-                .get_payment_method_billing();
-            (
-                Shift4RepeatPaymentCard::RawCard(Shift4CardData::new(
-                    card_data,
-                    billing.and_then(|b| b.get_optional_full_name()),
-                    billing.and_then(|b| b.address.as_ref()),
-                )),
-                None, // No customer needed for raw card
-            )
-        } else {
-            // Stored card token approach: extract from mandate_reference
-            let token = match &item.request.mandate_reference {
-                MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
-                    connector_mandate_ref
-                        .get_connector_mandate_id()
-                        .ok_or_else(|| {
-                            error_stack::report!(IntegrationError::MissingRequiredField {
-                                field_name: "connector_mandate_id (card token)",
-                                context: Default::default(),
-                            })
-                        })?
-                }
-                MandateReferenceId::NetworkMandateId(_) => {
+        let billing_details = item
+            .resource_common_data
+            .address
+            .get_payment_method_billing();
+
+        let (card, customer_id) = match &item.request.mandate_reference {
+            // The mandate SetupMandate produced. It is authoritative: a stored
+            // card is referenced by id only, so any card details on the request
+            // are not sent (the cardholder is not present on an MIT).
+            MandateReferenceId::ConnectorMandateId(connector_mandate_ref) => {
+                let card_id = connector_mandate_ref
+                    .get_connector_mandate_id()
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(|| {
+                        missing_shift4_mit_field(
+                            "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id",
+                            "A Shift4 repeat payment charges the card stored by SetupMandate, \
+                             identified by its card id (`card_...`).",
+                            "Pass the `connector_mandate_id` returned by SetupRecurring.",
+                        )
+                    })?;
+
+                // Sourced exclusively from `connector_customer` — the Shift4
+                // customer id, never the merchant-side `customer.id`. Refusing
+                // here is deliberate: without it Shift4 either rejects the charge
+                // or, if `card` were dropped instead, charges the customer's
+                // default card rather than the one the mandate names.
+                let customer_id = item
+                    .resource_common_data
+                    .connector_customer
+                    .clone()
+                    .filter(|id| !id.trim().is_empty())
+                    .ok_or_else(|| {
+                        missing_shift4_mit_field(
+                            "connector_customer_id",
+                            "Shift4 charges a stored card only together with the customer that \
+                             owns it (`customerId` is required when `card` is an existing card \
+                             id), so the stored-card charge cannot be sent without it.",
+                            "Pass the Shift4 customer id (`cust_...`) the card was stored under \
+                             — the `connector_customer_id` returned by SetupRecurring — as \
+                             connector_customer_id.",
+                        )
+                    })?;
+
+                (
+                    Shift4RepeatPaymentCard::Token(Secret::new(card_id)),
+                    Some(customer_id),
+                )
+            }
+            // Network-mandate MIT with the full card details on the request.
+            // Unchanged behaviour: the card is sent inline and no customer is
+            // involved. `cardholderName` is optional on a normal Shift4 charge.
+            MandateReferenceId::NetworkMandateId(_) => match &item.request.payment_method_data {
+                PaymentMethodData::Card(card_data) => (
+                    Shift4RepeatPaymentCard::RawCard(Shift4CardData::new(
+                        card_data,
+                        billing_details.and_then(|b| b.get_optional_full_name()),
+                        billing_details.and_then(|b| b.address.as_ref()),
+                    )),
+                    None,
+                ),
+                _ => {
                     return Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "NetworkMandateId is not supported for Shift4 MIT".to_string(),
+                        message: "NetworkMandateId without card details is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
                         context: IntegrationErrorContext {
                             suggested_action: Some(
-                                "Use ConnectorMandateId with the stored Shift4 card token for this RepeatPayment path, or add a separate raw-card MIT mapper before sending NetworkMandateId."
+                                "Use ConnectorMandateId with the stored Shift4 card id and connector_customer_id, or send the card details with the NetworkMandateId."
                                     .to_string(),
                             ),
                             doc_url: None,
                             additional_context: Some(
-                                "Shift4 RepeatPayment received a NetworkMandateId mandate reference. The current transformer only builds a token payment from connector_mandate_id; NetworkMandateId carries an NTI for raw-card MIT handling, which cannot be represented in the stored-token payload built here".to_string(),
+                                "Shift4 RepeatPayment received a NetworkMandateId mandate reference without card payment method data, so there is no card to charge".to_string(),
                             ),
                         },
                     }));
                 }
-                MandateReferenceId::NetworkTokenWithNTI(_) => {
-                    return Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
-                        connector: "Shift4",
-                        context: IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Use ConnectorMandateId with the stored Shift4 card token for this RepeatPayment path, or implement a dedicated Shift4 network-token MIT mapper before sending NetworkTokenWithNTI."
-                                    .to_string(),
-                            ),
-                            doc_url: None,
-                            additional_context: Some(
-                                "Shift4 RepeatPayment received a NetworkTokenWithNTI mandate reference. The current transformer only builds a token payment from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into a Shift4 MIT request".to_string(),
-                            ),
-                        },
-                    }));
-                }
-            };
-            (
-                Shift4RepeatPaymentCard::Token(token),
-                item.resource_common_data.connector_customer.clone(),
-            )
+            },
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
+                    connector: "Shift4",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Shift4 card id and connector_customer_id for this RepeatPayment path."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Shift4 RepeatPayment received a NetworkTokenWithNTI mandate reference. The transformer does not map network token credentials, cryptogram data, or the NTI into a Shift4 MIT request".to_string(),
+                        ),
+                    },
+                }));
+            }
         };
 
-        // Determine Shift4 transaction type based on MIT category
+        // Shift4 offers only two merchant-initiated types. A charge in a
+        // scheduled series (the setup charge was `first_recurring`) is
+        // `subsequent_recurring`; every unscheduled use of the stored credential
+        // is `merchant_initiated`.
         let transaction_type = match item.request.mit_category {
-            Some(common_enums::MitCategory::Recurring) => {
+            Some(common_enums::MitCategory::Recurring)
+            | Some(common_enums::MitCategory::Installment) => {
                 Shift4TransactionType::SubsequentRecurring
             }
-            _ => Shift4TransactionType::MerchantInitiated,
+            Some(common_enums::MitCategory::Unscheduled)
+            | Some(common_enums::MitCategory::Resubmission)
+            | None => Shift4TransactionType::MerchantInitiated,
         };
 
-        let captured = item.request.is_auto_capture();
+        // Same rule as Authorize: Shift4 rejects a captured zero-amount charge
+        // ("Zero amount charge cannot be captured"), and no funds move on one.
+        let captured =
+            item.request.minor_amount != MinorUnit::new(0) && item.request.is_auto_capture();
 
+        // NOT SUPPORTED BY SHIFT4, deliberately dropped rather than approximated
+        // (same reasoning as the Authorize builder): `billing_descriptor` and
+        // Level 2 / Level 3 data have no field on `POST /charges`.
         Ok(Self {
             amount: item.request.minor_amount,
             currency: item.request.currency,
@@ -1741,6 +1890,19 @@ impl<T: PaymentMethodDataTypes>
             card,
             transaction_type,
             customer_id,
+            billing: build_shift4_billing(billing_details, item.request.email.as_ref()),
+            shipping: build_shift4_shipping(item.resource_common_data.address.get_shipping()),
+            external: Some(Shift4External {
+                vendor_reference: Some(
+                    item.resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+                // Shift4 links a stored-card MIT to its credential through
+                // `customerId` + `card`; no scheme transaction id is carried on
+                // the connector-mandate path.
+                scheme_transaction_id: None,
+            }),
         })
     }
 }
@@ -1777,7 +1939,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// RepeatPayment Response transformation - reuses standard payments response mapping
+// RepeatPayment Response transformation — the charge object shared with
+// Authorize, mapped through the same status table and decline builder.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
@@ -1796,10 +1959,28 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
                 FlowStatus::Payment(status),
             ))
         } else {
+            // The charged card stays on file, so the same mandate is handed back
+            // for the next MIT — but only when Shift4 reports a customer owning
+            // it. A raw-card charge returns a card no customer owns, which can
+            // never be charged again and must not be offered as a mandate.
+            let mandate_reference = item
+                .response
+                .card
+                .as_ref()
+                .filter(|card| card.customer_id.is_some())
+                .map(|card| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: Some(card.id.clone()),
+                        payment_method_id: Some(card.id.clone()),
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })
+                });
+
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: get_shift4_redirection_data(&item.response),
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_transaction_id.clone(),
                 network_txn_link_id: None,
@@ -1807,7 +1988,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
-                payment_account_reference: None,
+                payment_account_reference: item.response.payment_account_reference.clone(),
             })
         };
 

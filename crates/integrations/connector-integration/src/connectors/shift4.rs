@@ -243,6 +243,50 @@ macros::create_all_prerequisites!(
             Ok(header)
         }
 
+        /// JSON + auth headers plus Shift4's `Idempotency-Key`, for every flow
+        /// that creates a charge. Shift4 executes a repeated POST /charges with
+        /// the same key once and replays the cached response, so a retry after a
+        /// client timeout cannot double-charge. The key is the caller's own
+        /// request id, stable across retries of one logical attempt, never
+        /// freshly generated per call.
+        pub fn build_charge_headers<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = self.build_headers(req)?;
+            let idempotency_key = req
+                .resource_common_data
+                .merchant_request_id
+                .clone()
+                .unwrap_or_else(|| {
+                    req.resource_common_data
+                        .connector_request_reference_id
+                        .clone()
+                });
+            header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
+            Ok(header)
+        }
+
+        /// Error response for a flow that creates a charge on a stored or setup
+        /// card. The shared `build_error_response` leaves `attempt_status` unset
+        /// because it also serves Refund/RSync. On a charge, HTTP 402 is Shift4's
+        /// documented "Payment Failed": the card was declined (`error.type =
+        /// card_error`, e.g. `card_declined` / issuer code `05`), so the attempt
+        /// is terminally failed. Every other error (400 validation, 401 auth,
+        /// 429, 5xx) is left non-terminal.
+        pub fn build_charge_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let mut error = self.build_error_response(res, event_builder, connector_config)?;
+            if error.status_code == 402 {
+                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::Failure));
+            }
+            Ok(error)
+        }
+
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
@@ -491,9 +535,11 @@ macros::macro_connector_implementation!(
     }
 );
 
-// RepeatPayment Flow (MIT - Merchant Initiated Transaction)
+// RepeatPayment Flow (MIT) — POST /charges on the card SetupMandate stored:
+// `card` = connector_mandate_id (`card_...`) plus `customerId` = the owning
+// Shift4 customer (`cust_...`). Shift4 has no dedicated MIT endpoint.
 macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector_default_implementations: [get_content_type],
     connector: Shift4,
     curl_request: Json(Shift4RepeatPaymentRequest<T>),
     curl_response: Shift4RepeatPaymentResponse,
@@ -509,7 +555,9 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
+            // An MIT moves money on a stored card with no cardholder present, so
+            // a retried request must never charge twice.
+            self.build_charge_headers(req)
         }
 
         fn get_url(
@@ -519,6 +567,16 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url_payments(req);
             // MIT/RepeatPayment uses the same /charges endpoint as Authorize
             Ok(format!("{base_url}/charges"))
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // HTTP 402 is a declined stored card: the MIT is terminally failed.
+            self.build_charge_error_response(res, event_builder, connector_config)
         }
     }
 );
@@ -672,23 +730,9 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut header = self.build_headers(req)?;
             // A setup is a real authorization on POST /charges, so it carries the
-            // same idempotency contract as Authorize: a retried request with the
-            // same `Idempotency-Key` is executed once and the cached charge is
-            // replayed. The key is the caller's own request id, stable across
-            // retries of one logical attempt, never freshly generated per call.
-            let idempotency_key = req
-                .resource_common_data
-                .merchant_request_id
-                .clone()
-                .unwrap_or_else(|| {
-                    req.resource_common_data
-                        .connector_request_reference_id
-                        .clone()
-                });
-            header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
-            Ok(header)
+            // same idempotency contract as Authorize.
+            self.build_charge_headers(req)
         }
 
         fn get_url(
@@ -705,17 +749,8 @@ macros::macro_connector_implementation!(
             event_builder: Option<&mut events::Event>,
             connector_config: &ConnectorSpecificConfig,
         ) -> CustomResult<ErrorResponse, ConnectorError> {
-            let mut error = self.build_error_response(res, event_builder, connector_config)?;
-            // The shared builder leaves `attempt_status` unset because it also
-            // serves Refund/RSync. On this flow HTTP 402 is Shift4's documented
-            // "Payment Failed": the card was declined (`error.type = card_error`,
-            // e.g. `card_declined` / issuer code `05`, verified live), so the setup
-            // is terminally failed. Every other error (400 validation, 401 auth,
-            // 429, 5xx) is left non-terminal.
-            if error.status_code == 402 {
-                error.attempt_status = Some(FlowStatus::Payment(AttemptStatus::Failure));
-            }
-            Ok(error)
+            // HTTP 402 is a declined card: the setup is terminally failed.
+            self.build_charge_error_response(res, event_builder, connector_config)
         }
     }
 );
