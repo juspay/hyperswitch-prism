@@ -1170,6 +1170,14 @@ impl TryFrom<ResponseRouterData<D24SyncResponse, Self>>
 ///   confirmed from the documentation; if it is wrong D24 answers HTTP 400
 ///   `804 MISSING_BANK_ACCOUNT`, which is cheap and unambiguous. Guessing a
 ///   bank account instead would send money to the wrong place.
+///
+///   A local bank-transfer deposit (SPEI, Pix, ...) *does* need a bank account
+///   to be refunded, and no UCS refund field carries one, so those refunds are
+///   not supported. Hyperswitch rejects them before calling UCS (its D24
+///   `local_bank_transfer` refunds are `NotSupported`). This flow does not
+///   reject them locally (`RefundsData` has no payment method type and only an
+///   optional `payment_method_data`), so any other caller gets D24's
+///   `804 MISSING_BANK_ACCOUNT`.
 #[derive(Debug, Serialize)]
 pub struct D24RefundRequest {
     /// Typed `integer` by the OpenAPI, so it is serialised unquoted.
@@ -1482,8 +1490,9 @@ impl From<D24RefundSyncStatus> for common_enums::RefundStatus {
             // ManualReview identically, so nothing is lost by being precise.
             //
             // It is also a canary. This integration sends no `bank_account`
-            // because WebPay is a credit-card method; if that assumption is
-            // wrong, this is the status that says so.
+            // because refunds are only supported for WebPay, a credit-card
+            // method; if that assumption is wrong, this is the status that says
+            // so.
             D24RefundSyncStatus::IncorrectDetails => Self::ManualReview,
             // TRAP: reads terminal, is not. DELIVERED means the refund has been
             // handed to the bank and can no longer be cancelled — that is a
