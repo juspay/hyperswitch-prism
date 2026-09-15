@@ -165,7 +165,7 @@
             "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_txn_001\"},\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"737\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_txn_001\"},\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"737\",\"cardholderName\":\"John Doe\"}}"
         }
       },
       "CashappQr": {
@@ -628,9 +628,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{}"
+          "body": "{\"amount\":1000}"
         }
       }
     },
@@ -840,14 +841,51 @@
             "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_proxy_txn_001\"},\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"type\":\"customer_initiated\",\"external\":{\"vendorReference\":\"probe_proxy_txn_001\"},\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"cardholderName\":\"John Doe\"}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"customerId\":\"cust_probe_123\",\"type\":\"first_recurring\",\"external\":{\"vendorReference\":\"probe_proxy_mandate_001\"},\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"cardholderName\":\"John Doe\"}}"
+        }
       }
     },
     "recurring_charge": {
@@ -881,10 +919,9 @@
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
             "content-type": "application/json",
-            "idempotency-key": "HS_probe00000000000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":\"probe-mandate-123\",\"type\":\"merchant_initiated\",\"customerId\":\"cust_probe_123\",\"external\":{\"vendorReference\":\"\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":\"probe-mandate-123\",\"type\":\"merchant_initiated\",\"customerId\":\"cust_probe_123\"}"
         }
       }
     },
@@ -951,8 +988,49 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"customerId\":\"cust_probe_123\",\"type\":\"first_recurring\",\"external\":{\"vendorReference\":\"probe_mandate_001\"},\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cvc\":\"737\",\"cardholderName\":\"John Doe\"}}"
+        }
       }
     },
     "token_authorize": {
@@ -986,8 +1064,53 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged. — Missing required field: customer.connector_customer_id. Shift4 stores a card on file only under a Shift4 customer, and rejects a later merchant-initiated charge of that card without the owning `customerId`. A setup without a customer would produce a mandate that cannot be charged."
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"customerId\":\"cust_probe_123\",\"type\":\"first_recurring\",\"external\":{\"vendorReference\":\"probe_tokenized_mandate_001\"},\"card\":\"pm_1AbcXyzStripeTestToken\"}"
+        }
       }
     },
     "verify_redirect": {
