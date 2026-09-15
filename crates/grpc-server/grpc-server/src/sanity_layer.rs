@@ -19,6 +19,8 @@ use std::collections::HashMap;
 #[cfg(feature = "connector-sanity-layer")]
 use tonic::metadata::MetadataMap;
 #[cfg(feature = "connector-sanity-layer")]
+use ucs_interface_common::auth::connector_and_config_from_metadata;
+#[cfg(feature = "connector-sanity-layer")]
 use ucs_interface_common::metadata::connector_variant_from_metadata;
 
 #[cfg(feature = "connector-sanity-layer")]
@@ -97,9 +99,11 @@ enum SanityConnector {
 
 #[cfg(feature = "connector-sanity-layer")]
 fn sanity_connector(metadata: &MetadataMap) -> Option<SanityConnector> {
-    let connector = connector_variant_from_metadata(metadata)
-        .ok()
-        .or_else(|| connector_variant_from_raw_config(metadata))?;
+    let connector = connector_variant_from_metadata(metadata).ok().or_else(|| {
+        connector_and_config_from_metadata(metadata)
+            .ok()
+            .map(|(connector, _config)| connector)
+    })?;
 
     match connector {
         ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid) => {
@@ -107,30 +111,6 @@ fn sanity_connector(metadata: &MetadataMap) -> Option<SanityConnector> {
         }
         _ => Some(SanityConnector::Other(connector)),
     }
-}
-
-#[cfg(feature = "connector-sanity-layer")]
-fn connector_variant_from_raw_config(metadata: &MetadataMap) -> Option<ConnectorVariant> {
-    match connector_name_from_raw_config(metadata)?.as_str() {
-        "Plaid" | "plaid" => Some(ConnectorVariant::Authenticator(
-            AuthenticatorConnectorEnum::Plaid,
-        )),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "connector-sanity-layer")]
-fn connector_name_from_raw_config(metadata: &MetadataMap) -> Option<String> {
-    let header_value = metadata
-        .get(common_utils::consts::X_CONNECTOR_CONFIG)?
-        .to_str()
-        .ok()?;
-    let json: serde_json::Value = serde_json::from_str(header_value).ok()?;
-    json.get("config")?
-        .as_object()?
-        .keys()
-        .next()
-        .map(|key| key.to_string())
 }
 
 #[cfg(feature = "connector-sanity-layer")]

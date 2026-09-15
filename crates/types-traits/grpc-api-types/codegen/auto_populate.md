@@ -131,11 +131,13 @@ families explicitly:
 ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid)
 ```
 
-This keeps the normal path aligned with the rest of UCS. A raw
-`x-connector-config` JSON key fallback still exists for the Plaid bridge case
-because the Euler-only extra fields are intentionally not part of UCS's typed
-`PlaidConfig`; that fallback is only used to identify/extract the raw Plaid
-config when typed metadata is not enough.
+This keeps the normal path aligned with the rest of UCS. If connector metadata
+alone is not enough, the runtime layer uses the existing
+`connector_and_config_from_metadata` helper to derive the connector from
+`x-connector-config` instead of maintaining its own string-to-connector mapping.
+The Plaid sanity implementation still reads raw JSON to extract the Euler-only
+extra fields, because those fields are intentionally not part of UCS's typed
+`PlaidConfig`.
 
 ## Request Discovery
 
