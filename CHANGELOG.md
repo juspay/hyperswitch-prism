@@ -19,6 +19,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.15.2
+
+### Miscellaneous Tasks
+
+- **deja:** Pin deja to d587865 and migrate the Superposition read boundary ([#2299](https://github.com/juspay/connector-service/pull/2299)) ([`9772967`](https://github.com/juspay/connector-service/commit/977296719f315c9fdff252407f8bcdee329e5c46))
+
+**Full Changelog:** [`2026.09.15.1...2026.09.15.2`](https://github.com/juspay/connector-service/compare/2026.09.15.1...2026.09.15.2)
+
+- - -
+
+## 2026.09.15.1
+
+### Features
+
+- **Connector:** Kount Refer the sessionId from metadata for DDC. ([#2266](https://github.com/juspay/connector-service/pull/2266)) ([`ef9524c`](https://github.com/juspay/connector-service/commit/ef9524ce6674d8f6ec4dd096a7e5dc043b04f25a))
+- **connector:** Add Elavon PG (Elavon Payment Gateway) — Authorize, PSync, Capture, Void, Refund, RSync ([#2206](https://github.com/juspay/connector-service/pull/2206)) ([`67239bb`](https://github.com/juspay/connector-service/commit/67239bb8a1af832510e8a4e408cc9945729d7d08))
+- **framework:** Per-flow terminal status enforcement framework ([#2228](https://github.com/juspay/connector-service/pull/2228)) ([`0161bd3`](https://github.com/juspay/connector-service/commit/0161bd398a494d7ce9a12c40b5cb05ad31920dee))
+
+### Bug Fixes
+
+- **connector:** [PAYHERE] make billing address/city/country optional ([#2297](https://github.com/juspay/connector-service/pull/2297)) ([`cf23aa4`](https://github.com/juspay/connector-service/commit/cf23aa40aef9220052516066e526ac4f5eb0627c))
+
+**Full Changelog:** [`2026.09.15.0...2026.09.15.1`](https://github.com/juspay/connector-service/compare/2026.09.15.0...2026.09.15.1)
+
+- - -
+
 ## 2026.09.15.0
 
 ### Features
