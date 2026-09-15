@@ -1,5 +1,7 @@
 pub mod transformers;
 
+mod khash;
+
 use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
