@@ -47,13 +47,20 @@ pub mod constants {
     pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
     pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
     pub const TOKENIZE_CREDIT_CARD: &str = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }";
-    pub const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }";
-    pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) {  transaction { id legacyId amount { value currencyCode } status } } }";
+    // Response selection set is kept in lock-step with `TransactionAuthChargeResponseBody`.
+    // Every field below was verified to exist under the pinned `Braintree-Version: 2019-01-01`
+    // via a sandbox introspection + live-mutation check (a selection the versioned schema does
+    // not expose is a hard GraphQL validation error that would break every Authorize).
+    // NOTE: `paymentMethod { id }` is deliberately selected ONLY on the *vault* mutations —
+    // on a non-vault charge it would be the single-use token, which must not be reported as a
+    // mandate reference.
+    pub const CHARGE_CREDIT_CARD_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt status orderId amount { value currencyCode } processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { terminal ... on ProcessorDeclinedEvent { declineType processorResponse { legacyCode message additionalInformation } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }";
+    pub const AUTHORIZE_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id legacyId createdAt status orderId amount { value currencyCode } processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { terminal ... on ProcessorDeclinedEvent { declineType processorResponse { legacyCode message additionalInformation } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }";
     pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
     pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
     pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
-    pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str="mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
-    pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str ="mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id status createdAt paymentMethod { id } } } }";
+    pub const AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION: &str = "mutation authorizeCreditCard($input: AuthorizeCreditCardInput!) { authorizeCreditCard(input: $input) { transaction { id legacyId createdAt status orderId amount { value currencyCode } processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { terminal ... on ProcessorDeclinedEvent { declineType processorResponse { legacyCode message additionalInformation } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } } paymentMethod { id } } } }";
+    pub const CHARGE_AND_VAULT_TRANSACTION_MUTATION: &str = "mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt status orderId amount { value currencyCode } processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation } processorSettlementResponse { legacyCode message } statusHistory { terminal ... on ProcessorDeclinedEvent { declineType processorResponse { legacyCode message additionalInformation } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { processorResponse { legacyCode message } networkResponse { code message } merchantAdviceCodeResponse { code message } } } paymentMethod { id } } } }";
     pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
     pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
     pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
@@ -240,6 +247,14 @@ impl TryFrom<&ConnectorSpecificConfig> for BraintreeAuthType {
 #[serde(rename_all = "camelCase")]
 pub struct PaymentInput {
     payment_method_id: Secret<String>,
+    /// Braintree's own de-duplication key: "If subsequent requests are made with the same
+    /// `apiRequestKey`, and the first request resulted in a transaction being created (in any
+    /// status), then the same transaction in its current status will be returned." It is
+    /// populated from the caller's `merchant_request_id` and is never a freshly minted uuid — a
+    /// per-call uuid would defeat the purpose and let a retry after a client timeout authorise
+    /// twice.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    api_request_key: Option<String>,
     transaction: TransactionBody,
     #[serde(skip_serializing_if = "Option::is_none")]
     options: Option<CreditCardTransactionOptions>,
@@ -249,7 +264,6 @@ pub struct PaymentInput {
 #[serde(untagged)]
 pub enum BraintreePaymentsRequest {
     Card(CardPaymentRequest),
-    CardThreeDs(BraintreeClientTokenRequest),
     Mandate(MandatePaymentRequest),
     Wallet(BraintreeWalletRequest),
 }
@@ -287,6 +301,10 @@ pub struct RegularTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    /// Descriptor / L2-L3 / address enrichment. Flattened because Braintree carries every one
+    /// of these as a direct member of `TransactionInput`, not as a nested object.
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
 #[derive(Debug, Serialize)]
@@ -298,6 +316,12 @@ pub struct VaultTransactionBody {
     #[serde(skip_serializing_if = "Option::is_none")]
     customer_details: Option<CustomerBody>,
     order_id: String,
+    /// A card authorize that also vaults the credential is the *first* transaction of a
+    /// stored-credential series, so the network needs `RECURRING_FIRST` here. Without it the
+    /// subsequent MIT (RepeatPayment, which sends `UNSCHEDULED`) has no CIT to chain to.
+    payment_initiator: PaymentInitiatorType,
+    #[serde(flatten)]
+    enrichment: TransactionEnrichment,
 }
 
 #[derive(Debug, Serialize)]
@@ -310,10 +334,14 @@ pub struct MandateTransactionBody {
     payment_initiator: PaymentInitiatorType,
 }
 
-#[derive(Debug, Serialize)]
+/// Subset of Braintree's `PaymentInitiator` enum that UCS actually emits. The full enum is
+/// `ESTIMATED | ESTIMATED_MOTO | INSTALLMENT | INSTALLMENT_FIRST | MOTO | RECURRING |
+/// RECURRING_FIRST | UNSCHEDULED`; the remaining members have no UCS source today.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PaymentInitiatorType {
     Unscheduled,
+    RecurringFirst,
 }
 
 #[derive(Debug, Serialize)]
@@ -334,6 +362,479 @@ pub enum VaultTiming {
 #[serde(rename_all = "camelCase")]
 pub struct TransactionTiming {
     when: VaultTiming,
+}
+
+// ---------------------------------------------------------------------------
+// Request-side enrichment on `TransactionInput` (descriptor, L2/L3, addresses)
+//
+// Placement note (Braintree splits these across two sibling objects):
+//   * `input.options.billingAddress`      -> billing  (chargeCreditCard / authorizeCreditCard)
+//   * `input.transaction.shipping.shippingAddress` -> shipping
+// `chargePaymentMethod` / `authorizePaymentMethod` have no `options` member at all, which is why
+// the wallet request body (`WalletPaymentInput`) carries neither options nor this enrichment.
+// ---------------------------------------------------------------------------
+
+/// `AddressInput`. Braintree exposes four alias pairs for the same concept
+/// (`streetAddress`/`addressLine1`, `extendedAddress`/`addressLine2`, `locality`/`adminArea2`,
+/// `region`/`adminArea1`) and does not define what happens when both members of a pair are sent —
+/// so exactly one name per concept is emitted, consistently the PayPal-style one.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeAddressInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address_line2: Option<Secret<String>>,
+    /// City / town / village.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    admin_area2: Option<Secret<String>>,
+    /// State / province.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    admin_area1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
+    /// `scalar CountryCode` is version-sensitive: alpha-3 below `Braintree-Version 2021-02-01`,
+    /// alpha-2 at or above it. This connector pins `2019-01-01`, so alpha-3 is the correct wire
+    /// form. If `BRAINTREE_VERSION_VALUE` is ever raised past 2021-02-01 this must switch to
+    /// `CountryAlpha2`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country_code: Option<common_enums::CountryAlpha3>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<BraintreePhoneInput>,
+}
+
+impl BraintreeAddressInput {
+    fn is_empty(&self) -> bool {
+        self.first_name.is_none()
+            && self.last_name.is_none()
+            && self.address_line1.is_none()
+            && self.address_line2.is_none()
+            && self.admin_area2.is_none()
+            && self.admin_area1.is_none()
+            && self.postal_code.is_none()
+            && self.country_code.is_none()
+            && self.phone.is_none()
+    }
+}
+
+/// `PhoneInput` — both members are non-null in the schema, so the object is all-or-nothing.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreePhoneInput {
+    country_phone_code: String,
+    phone_number: Secret<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionDescriptorInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
+    /// No UCS source today — `BillingDescriptor` carries no url. Kept so the wire shape matches
+    /// `TransactionDescriptorInput` (which does have `url`, ≤ 13 chars) and a future mapping is a
+    /// one-line change rather than a schema change.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionTaxInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_exempt: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionShippingInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_address: Option<BraintreeAddressInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ships_from_postal_code: Option<Secret<String>>,
+}
+
+/// `TransactionLineItemType`. A sale line is always `DEBIT`; `CREDIT` lines on a sale are
+/// rejected with validation code `97308`.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TransactionLineItemType {
+    Debit,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionLineItemInput {
+    name: String,
+    kind: TransactionLineItemType,
+    quantity: String,
+    unit_amount: StringMajorUnit,
+    total_amount: StringMajorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discount_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measure: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    product_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    commodity_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+}
+
+/// Everything that decorates `TransactionInput` beyond `amount` / `orderId` / `merchantAccountId`.
+/// Flattened into the transaction bodies because Braintree carries each of these as a direct
+/// member of `TransactionInput`.
+///
+/// `purchaseOrderNumber` is deliberately absent: it is a real `TransactionInput` member and is
+/// required for Level 2 qualification, but no UCS domain type carries a purchase-order number,
+/// so there is nothing to map.
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionEnrichment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    descriptor: Option<TransactionDescriptorInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tax: Option<TransactionTaxInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    discount_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surcharge_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping: Option<TransactionShippingInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_items: Option<Vec<TransactionLineItemInput>>,
+}
+
+/// Characters Braintree permits on the Level 3 string fields (`lineItems[].name`,
+/// `unitOfMeasure`, `productCode`, `commodityCode`): `a-z`, `A-Z`, `0-9`, `'`, `.`, `-` and
+/// spaces. Merchant product names routinely contain `&`, `/`, `,` and accents, so sanitise first
+/// and only then truncate — truncating first would leave a trailing illegal character in place.
+fn sanitize_l3_text(value: &str, max_len: usize) -> String {
+    let permitted = value
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '\'' | '.' | '-') {
+                c
+            } else {
+                ' '
+            }
+        })
+        .collect::<String>();
+    // Dropping a character mid-word would otherwise leave a run of spaces behind.
+    permitted
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .chars()
+        .take(max_len)
+        .collect::<String>()
+        .trim_end()
+        .to_string()
+}
+
+/// `descriptor.phone` must be 10-14 characters, of which **exactly ten are digits**, and may
+/// otherwise contain only hyphens, parentheses and periods. Braintree rejects anything else with
+/// validation code `92202` ("Phone must contain exactly 10 digits, and can only contain numbers,
+/// dashes and parentheses") — confirmed against sandbox, which is stricter than the 10-14
+/// character range the sale reference documents. A value that cannot be made to fit is omitted
+/// rather than coerced: a wrong dynamic descriptor is a merchant-visible statement defect, and a
+/// rejected one fails the whole authorize.
+fn sanitize_descriptor_phone(value: &str) -> Option<String> {
+    let cleaned = value
+        .chars()
+        .filter(|c| c.is_ascii_digit() || matches!(c, '-' | '(' | ')' | '.'))
+        .collect::<String>();
+    let digits = cleaned.chars().filter(char::is_ascii_digit).count();
+    (digits == 10 && (10..=14).contains(&cleaned.len())).then_some(cleaned)
+}
+
+/// §E.9 reconciliation, in minor units:
+/// `amount = Σ lineItems.totalAmount + tax.taxAmount + shipping.shippingAmount
+///           + shipping.shippingTaxAmount − discountAmount`
+///
+/// Braintree rejects (or silently drops to Level 1) a breakdown that does not balance, so when
+/// line items are present and the sum does not match we send no L2/L3 block at all rather than an
+/// unbalanced one. With no line items there is nothing to balance and the L2 fields stand alone.
+fn l2_l3_breakdown_reconciles(
+    amount: MinorUnit,
+    line_item_totals: &[MinorUnit],
+    tax_amount: Option<MinorUnit>,
+    shipping_amount: Option<MinorUnit>,
+    shipping_tax_amount: Option<MinorUnit>,
+    discount_amount: Option<MinorUnit>,
+) -> bool {
+    if line_item_totals.is_empty() {
+        return true;
+    }
+    let sum = line_item_totals
+        .iter()
+        .map(|total| total.get_amount_as_i64())
+        .sum::<i64>()
+        + tax_amount.map(MinorUnit::get_amount_as_i64).unwrap_or(0)
+        + shipping_amount
+            .map(MinorUnit::get_amount_as_i64)
+            .unwrap_or(0)
+        + shipping_tax_amount
+            .map(MinorUnit::get_amount_as_i64)
+            .unwrap_or(0)
+        - discount_amount
+            .map(MinorUnit::get_amount_as_i64)
+            .unwrap_or(0);
+    sum == amount.get_amount_as_i64()
+}
+
+fn build_braintree_address(
+    address: Option<&domain_types::payment_address::Address>,
+) -> Option<BraintreeAddressInput> {
+    let address = address?;
+    let details = address.address.as_ref();
+    let phone = address.phone.as_ref().and_then(|phone| {
+        // `PhoneInput` is all-or-nothing: both members are non-null in the schema.
+        match (phone.number.clone(), phone.extract_country_code().ok()) {
+            (Some(number), Some(country_phone_code)) => Some(BraintreePhoneInput {
+                country_phone_code,
+                phone_number: number,
+            }),
+            _ => None,
+        }
+    });
+    let built = BraintreeAddressInput {
+        first_name: details.and_then(|d| d.first_name.clone()),
+        last_name: details.and_then(|d| d.last_name.clone()),
+        address_line1: details.and_then(|d| d.line1.clone()),
+        address_line2: details.and_then(|d| d.line2.clone()),
+        admin_area2: details.and_then(|d| d.city.clone()),
+        admin_area1: details.and_then(|d| d.state.clone()),
+        postal_code: details.and_then(|d| d.zip.clone()),
+        country_code: details
+            .and_then(|d| d.country)
+            .map(common_enums::CountryAlpha2::from_alpha2_to_alpha3),
+        phone,
+    };
+    // Braintree distinguishes "absent" from "present and empty"; never emit `{}`.
+    (!built.is_empty()).then_some(built)
+}
+
+/// Builds the descriptor / L2-L3 / shipping block for a card Authorize.
+///
+/// Per-request fields win over the `l2_l3_data` bag (`PaymentsAuthorizeData.order_tax_amount`,
+/// `.shipping_cost`, `.surcharge_amount`, `PaymentFlowData.order_details`); `l2_l3_data` is the
+/// fallback. Every money field goes through the connector's `StringMajorUnit` converter —
+/// Braintree wants major units, and `MinorUnit::to_string()` here would be a 100x overcharge that
+/// Braintree cannot detect because `"1234"` is itself a valid `Amount`.
+fn build_transaction_enrichment<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &BraintreeRouterData<
+        RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        T,
+    >,
+) -> Result<TransactionEnrichment, Report<IntegrationError>> {
+    let request = &item.router_data.request;
+    let common = &item.router_data.resource_common_data;
+    let l2_l3 = common.l2_l3_data.as_deref();
+    let currency = request.currency;
+    let to_major = |minor: MinorUnit| -> Result<StringMajorUnit, Report<IntegrationError>> {
+        item.connector
+            .amount_converter
+            .convert(minor, currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "failed to convert an L2/L3 amount (line item, tax, shipping, discount or \
+                         surcharge) into Braintree major units"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "check that the order_details / l2_l3_data amounts and the request \
+                         currency are consistent and within range"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/overview"
+                            .to_string(),
+                    ),
+                },
+            })
+    };
+    // Braintree treats 0 as "present and zero", which neither qualifies for L2/L3 nor conveys
+    // anything; omit it instead.
+    let non_zero = |minor: Option<MinorUnit>| minor.filter(|m| m.get_amount_as_i64() != 0);
+
+    // --- dynamic descriptor (§E.6) -----------------------------------------------------------
+    let descriptor = request.billing_descriptor.as_ref().and_then(|billing| {
+        let name = billing.name.as_ref().map(|name| {
+            // Company/DBA section is limited to 15 characters, letters and numbers only; the
+            // full `<company>*<product>` form is capped at 22.
+            utils::truncate_secret_string(name, 22)
+        });
+        let phone = billing
+            .phone
+            .clone()
+            .and_then(|phone| sanitize_descriptor_phone(&phone.expose()))
+            .map(Secret::new);
+        (name.is_some() || phone.is_some()).then_some(TransactionDescriptorInput {
+            name,
+            phone,
+            url: None,
+        })
+    });
+
+    // --- amounts (§E.8) ------------------------------------------------------------------------
+    let tax_amount = non_zero(
+        request
+            .order_tax_amount
+            .or_else(|| l2_l3.and_then(|data| data.get_order_tax_amount())),
+    );
+    let tax_exempt = l2_l3
+        .and_then(|data| data.get_tax_status())
+        .map(|status| matches!(status, common_enums::TaxStatus::Exempt));
+    let discount_amount = non_zero(l2_l3.and_then(|data| data.get_discount_amount()));
+    let shipping_amount = non_zero(
+        request
+            .shipping_cost
+            .or_else(|| l2_l3.and_then(|data| data.get_shipping_cost())),
+    );
+    let shipping_tax_amount = non_zero(l2_l3.and_then(|data| data.get_shipping_amount_tax()));
+    let surcharge_amount = non_zero(request.surcharge_amount.as_ref().map(|money| money.amount));
+
+    // --- line items (§E.7) ---------------------------------------------------------------------
+    let order_details = common
+        .order_details
+        .clone()
+        .or_else(|| l2_l3.and_then(|data| data.get_order_details()))
+        .unwrap_or_default();
+    let mut line_items = Vec::with_capacity(order_details.len());
+    let mut line_item_totals = Vec::with_capacity(order_details.len());
+    // `TransactionInput.lineItems` accepts at most 249 entries.
+    for detail in order_details.iter().take(249) {
+        let total = detail.total_amount.unwrap_or_else(|| {
+            MinorUnit::new(detail.amount.get_amount_as_i64() * i64::from(detail.quantity))
+        });
+        line_item_totals.push(total);
+        line_items.push(TransactionLineItemInput {
+            name: sanitize_l3_text(&detail.product_name, 35),
+            kind: TransactionLineItemType::Debit,
+            quantity: detail.quantity.to_string(),
+            unit_amount: to_major(detail.amount)?,
+            total_amount: to_major(total)?,
+            tax_amount: non_zero(detail.total_tax_amount)
+                .map(to_major)
+                .transpose()?,
+            discount_amount: non_zero(detail.unit_discount_amount)
+                .map(to_major)
+                .transpose()?,
+            unit_of_measure: detail
+                .unit_of_measure
+                .as_deref()
+                .map(|value| sanitize_l3_text(value, 12)),
+            product_code: detail
+                .product_id
+                .as_deref()
+                .or(detail.sku.as_deref())
+                .map(|value| sanitize_l3_text(value, 12)),
+            commodity_code: detail
+                .commodity_code
+                .as_deref()
+                .map(|value| sanitize_l3_text(value, 12)),
+            description: detail
+                .description
+                .as_deref()
+                .map(|value| value.chars().take(127).collect::<String>()),
+            image_url: detail.product_img_link.clone(),
+            url: detail.product_link.clone(),
+        });
+    }
+
+    let balances = l2_l3_breakdown_reconciles(
+        request.minor_amount,
+        &line_item_totals,
+        tax_amount,
+        shipping_amount,
+        shipping_tax_amount,
+        discount_amount,
+    );
+    if !balances {
+        info!(
+            "BRAINTREE: L2/L3 breakdown does not reconcile with the transaction amount; omitting the L2/L3 block"
+        );
+    }
+
+    // --- shipping (§E.4) -----------------------------------------------------------------------
+    let shipping_address = build_braintree_address(common.get_optional_shipping());
+    let ships_from_postal_code = common
+        .get_optional_shipping()
+        .and_then(|address| address.address.as_ref())
+        .and_then(|details| details.origin_zip.clone())
+        .or_else(|| l2_l3.and_then(|data| data.get_shipping_origin_zip()));
+    let shipping = {
+        let amount = balances.then_some(shipping_amount).flatten();
+        let tax = balances.then_some(shipping_tax_amount).flatten();
+        let has_any = shipping_address.is_some()
+            || amount.is_some()
+            || tax.is_some()
+            || ships_from_postal_code.is_some();
+        has_any
+            .then(
+                || -> Result<TransactionShippingInput, Report<IntegrationError>> {
+                    Ok(TransactionShippingInput {
+                        shipping_address,
+                        shipping_amount: amount.map(to_major).transpose()?,
+                        shipping_tax_amount: tax.map(to_major).transpose()?,
+                        ships_from_postal_code,
+                    })
+                },
+            )
+            .transpose()?
+    };
+
+    let tax = balances
+        .then_some(())
+        .and_then(|()| {
+            (tax_amount.is_some() || tax_exempt.is_some()).then_some((tax_amount, tax_exempt))
+        })
+        .map(
+            |(amount, exempt)| -> Result<TransactionTaxInput, Report<IntegrationError>> {
+                Ok(TransactionTaxInput {
+                    tax_amount: amount.map(to_major).transpose()?,
+                    tax_exempt: exempt,
+                })
+            },
+        )
+        .transpose()?;
+
+    Ok(TransactionEnrichment {
+        descriptor,
+        tax,
+        discount_amount: balances
+            .then_some(discount_amount)
+            .flatten()
+            .map(to_major)
+            .transpose()?,
+        // `surchargeAmount` is not part of the reconciliation formula (it is called out
+        // separately, for the Visa Rent Discount Program), so it is not gated on it.
+        surcharge_amount: surcharge_amount.map(to_major).transpose()?,
+        shipping,
+        line_items: (balances && !line_items.is_empty()).then_some(line_items),
+    })
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -399,6 +900,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             variables: VariablePaymentInput {
                 input: PaymentInput {
                     payment_method_id: connector_mandate_id.into(),
+                    api_request_key: item
+                        .router_data
+                        .resource_common_data
+                        .get_merchant_request_id()
+                        .ok(),
                     transaction: transaction_body,
                     options: None,
                 },
@@ -472,13 +978,43 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(metadata.merchant_config_currency),
         )?;
         match item.router_data.request.payment_method_data.clone() {
-            PaymentMethodData::Card(_) => {
+            // Braintree never accepts raw PAN on a transaction mutation: `chargeCreditCard` /
+            // `authorizeCreditCard` take a `paymentMethodId: ID!`. The caller must tokenize
+            // first (PaymentMethodService/Tokenize, or any Braintree client-side nonce) and send
+            // the result as `payment_method.token`.
+            PaymentMethodData::Card(_) => Err(raw_card_not_tokenized_error()),
+            PaymentMethodData::PaymentMethodToken(_) => {
                 if item.router_data.resource_common_data.is_three_ds()
                     && item.router_data.request.authentication_data.is_none()
                 {
-                    Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
-                        metadata,
-                    )?))
+                    // Braintree-hosted 3DS: this would return a client token and a redirect, but
+                    // consuming the nonce that comes back needs a CompleteAuthorize flow, which
+                    // this connector does not implement. Fail here rather than emitting a
+                    // redirect the caller can never complete. External (MPI) 3DS is supported —
+                    // send `authentication_data` and it is passed through on
+                    // `options.threeDSecureAuthentication.passThrough`.
+                    Err(error_stack::report!(IntegrationError::FlowNotSupported {
+                        flow: "Braintree-hosted 3D Secure authorize".to_string(),
+                        connector: "Braintree".to_string(),
+                        context: domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Braintree-hosted 3DS needs a CompleteAuthorize leg to charge the \
+                                 nonce returned from the redirect, which is not implemented for \
+                                 this connector."
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Perform 3D Secure with an external MPI and send the result in \
+                                 `authentication_data` so it can be passed through on the \
+                                 authorize, or route this payment without 3DS."
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://developer.paypal.com/braintree/docs/guides/3d-secure/overview"
+                                    .to_string(),
+                            ),
+                        },
+                    }))
                 } else {
                     Ok(Self::Card(CardPaymentRequest::try_from((item, metadata))?))
                 }
@@ -630,7 +1166,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
@@ -642,6 +1177,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         }
     }
+}
+
+/// A raw `Card` reached a builder that can only send a `paymentMethodId`. This is a caller
+/// sequencing problem, not a missing field on the request, so it must not surface as
+/// `MissingRequiredField("payment_method_token")` — the caller did send a card.
+fn raw_card_not_tokenized_error() -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: "raw card data on Braintree Authorize".to_string(),
+        connector: "Braintree",
+        context: domain_types::errors::IntegrationErrorContext {
+            additional_context: Some(
+                "Braintree's chargeCreditCard / authorizeCreditCard mutations take a \
+                 `paymentMethodId`, so a card must be exchanged for a token before it can be \
+                 authorized."
+                    .to_string(),
+            ),
+            suggested_action: Some(
+                "Call PaymentMethodService/Tokenize with the card first, then send the returned \
+                 token on Authorize as `payment_method.token`."
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://graphql.braintreepayments.com/guides/making_api_calls/#tokenizing-a-payment-method"
+                    .to_string(),
+            ),
+        },
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -676,6 +1238,148 @@ pub struct TransactionAuthChargeResponseBody {
     id: String,
     status: BraintreePaymentStatus,
     payment_method: Option<PaymentMethodInfo>,
+    /// Authorization-time processor result. Replaces the deprecated `Transaction.processorResponse`
+    /// and is the only place AVS / CVV check results live — they are decided at authorization
+    /// time, never at capture.
+    #[serde(default)]
+    processor_authorization_response: Option<TransactionProcessorResponse>,
+    /// Settlement-time (4000-class) processor result. Null until settlement is attempted.
+    #[serde(default)]
+    processor_settlement_response: Option<TransactionSettlementProcessorResponse>,
+    /// Reverse-chronological, most recent event first. Decline type, Mastercard merchant advice
+    /// code, raw network response and gateway-rejection reason are reachable ONLY through these
+    /// typed events — none of them hangs off `Transaction` directly.
+    #[serde(default)]
+    status_history: Option<Vec<BraintreeStatusEvent>>,
+}
+
+/// `AvsCvvResponseCode` — one enum shared by `cvvResponse`, `avsPostalCodeResponse` and
+/// `avsStreetAddressResponse`. `Unknown` keeps an unrecognised value from failing the whole
+/// response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum AvsCvvResponseCode {
+    Bypass,
+    DoesNotMatch,
+    IssuerDoesNotParticipate,
+    Matches,
+    NotApplicable,
+    NotProvided,
+    NotVerified,
+    SystemError,
+    #[serde(other)]
+    Unknown,
+}
+
+impl AvsCvvResponseCode {
+    /// The single-letter REST/server-SDK representation, which is what downstream AVS/CVV
+    /// consumers expect. `Unknown` has no letter.
+    pub fn as_legacy_code(self) -> Option<&'static str> {
+        match self {
+            Self::Matches => Some("M"),
+            Self::DoesNotMatch => Some("N"),
+            Self::NotVerified => Some("U"),
+            Self::NotProvided => Some("I"),
+            Self::IssuerDoesNotParticipate => Some("S"),
+            Self::SystemError => Some("E"),
+            Self::NotApplicable => Some("A"),
+            Self::Bypass => Some("B"),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// `TransactionAuthorizationProcessorResponse`. Note the GraphQL names: `legacyCode` (not
+/// `processorResponseCode`), `message` (not `processorResponseText`) and no `Code` suffix on the
+/// three AVS/CVV members.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionProcessorResponse {
+    pub legacy_code: Option<String>,
+    pub message: Option<String>,
+    pub cvv_response: Option<AvsCvvResponseCode>,
+    pub avs_postal_code_response: Option<AvsCvvResponseCode>,
+    pub avs_street_address_response: Option<AvsCvvResponseCode>,
+    #[serde(default)]
+    pub authorization_id: Option<String>,
+    #[serde(default)]
+    pub additional_information: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransactionSettlementProcessorResponse {
+    pub legacy_code: Option<String>,
+    pub message: Option<String>,
+}
+
+/// `MerchantAdviceCodeResponse` / `PaymentNetworkResponse` share this shape. Both `code`s are
+/// bare nullable `String`s in the schema — Braintree constrains neither, and a network response
+/// code is only interpretable together with the card brand, so they are carried verbatim and
+/// never mapped onto a UCS enum.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeCodeMessage {
+    pub code: Option<String>,
+    pub message: Option<String>,
+}
+
+/// `ProcessorDeclineType` — the authoritative "is this decline retryable?" discriminator. It is
+/// on the status event, not on the processor-response object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ProcessorDeclineType {
+    Hard,
+    Soft,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `GatewayRejectionReason` — 14 members in the SDL, five of which appear on no prose page.
+/// A gateway rejection is not a decline: it is blocked by the merchant's own gateway settings,
+/// and if the transaction had already authorized the gateway has *already* voided it, so it must
+/// never be followed by a Void.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum GatewayRejectionReason {
+    ApplicationIncomplete,
+    Avs,
+    AvsAndCvv,
+    Cvv,
+    Duplicate,
+    ExcessiveRetry,
+    Fraud,
+    ManualTransactionsDisabled,
+    PaymentMethodBlocked,
+    RiskThreshold,
+    ThreeDSecure,
+    TokenIssuance,
+    TooManyConfirmationAttempts,
+    UnionPayEnrollmentRequired,
+    #[serde(other)]
+    Unknown,
+}
+
+/// One entry of `Transaction.statusHistory`. Only the members the inline fragments in the
+/// mutation actually select are modelled; every one of them is absent on event types that do not
+/// carry it, hence all-optional.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeStatusEvent {
+    #[serde(default)]
+    pub terminal: Option<bool>,
+    #[serde(default)]
+    pub decline_type: Option<ProcessorDeclineType>,
+    #[serde(default)]
+    pub gateway_rejection_reason: Option<GatewayRejectionReason>,
+    #[serde(default)]
+    pub processor_response: Option<TransactionProcessorResponse>,
+    #[serde(default)]
+    pub network_response: Option<BraintreeCodeMessage>,
+    #[serde(default)]
+    pub merchant_advice_code_response: Option<BraintreeCodeMessage>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -706,15 +1410,17 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             BraintreeAuthResponse::AuthResponse(auth_response) => {
                 let transaction_data = auth_response.data.authorize_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let connector_response = build_card_connector_response(&transaction_data);
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                    Err(create_transaction_failure_error_response(
+                        &transaction_data,
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             Box::new(MandateReference {
@@ -737,6 +1443,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        connector_response,
                         ..item.router_data.resource_common_data
                     },
                     response,
@@ -905,6 +1612,117 @@ fn create_failure_error_response<T: ToString>(
     }
 }
 
+/// Builds the `ErrorResponse` for a card transaction Braintree declined or rejected on a 200.
+///
+/// Braintree reports declines (`PROCESSOR_DECLINED` / `FAILED`) and gateway rejections
+/// (`GATEWAY_REJECTED`) as a *successful* GraphQL response with no `errors[]` entry, so the
+/// detail has to be dug out of `processorAuthorizationResponse` and the typed `statusHistory`
+/// events. Populating `network_advice_code` / `network_decline_code` / `network_error_message`
+/// here is what lets a smart-retry layer key off the Mastercard merchant advice code and the raw
+/// network response instead of guessing from the gateway status.
+fn create_transaction_failure_error_response(
+    transaction: &TransactionAuthChargeResponseBody,
+    http_code: u16,
+) -> domain_types::router_data::ErrorResponse {
+    let status_string = transaction.status.to_string();
+    // `statusHistory` is reverse-chronological, so the first event carrying decline detail is the
+    // one that produced the current status.
+    let event = transaction.status_history.as_ref().and_then(|events| {
+        events.iter().find(|event| {
+            event.decline_type.is_some()
+                || event.gateway_rejection_reason.is_some()
+                || event.merchant_advice_code_response.is_some()
+                || event.network_response.is_some()
+        })
+    });
+    let processor = transaction
+        .processor_authorization_response
+        .as_ref()
+        .or_else(|| event.and_then(|event| event.processor_response.as_ref()));
+    let merchant_advice = event.and_then(|event| event.merchant_advice_code_response.as_ref());
+    let network = event.and_then(|event| event.network_response.as_ref());
+
+    let code = processor
+        .and_then(|processor| processor.legacy_code.clone())
+        .or_else(|| {
+            event
+                .and_then(|event| event.gateway_rejection_reason)
+                .map(|reason| reason.to_string())
+        })
+        .unwrap_or_else(|| status_string.clone());
+    let message = processor
+        .and_then(|processor| processor.message.clone())
+        .or_else(|| {
+            event
+                .and_then(|event| event.gateway_rejection_reason)
+                .map(|reason| reason.to_string())
+        })
+        .unwrap_or_else(|| status_string.clone());
+    let mut reason_parts = vec![status_string];
+    if let Some(decline_type) = event.and_then(|event| event.decline_type) {
+        reason_parts.push(format!("decline_type={decline_type}"));
+    }
+    if let Some(reason) = event.and_then(|event| event.gateway_rejection_reason) {
+        reason_parts.push(format!("gateway_rejection_reason={reason}"));
+    }
+    if let Some(info) = processor.and_then(|processor| processor.additional_information.clone()) {
+        reason_parts.push(info);
+    }
+    if let Some(advice) = merchant_advice.and_then(|advice| advice.message.clone()) {
+        reason_parts.push(advice);
+    }
+
+    domain_types::router_data::ErrorResponse {
+        code,
+        message,
+        reason: Some(reason_parts.join("; ")),
+        // Left `None` deliberately: the caller sets `PaymentFlowData.status` from the Braintree
+        // status map on this same path, so the terminal state is already reported there.
+        attempt_status: None,
+        connector_transaction_id: Some(transaction.id.clone()),
+        status_code: http_code,
+        network_advice_code: merchant_advice.and_then(|advice| advice.code.clone()),
+        network_decline_code: network.and_then(|network| network.code.clone()),
+        network_error_message: network.and_then(|network| network.message.clone()),
+        typed_connector_response: None,
+        raw_connector_response: None,
+        raw_connector_request: None,
+        typed_connector_request: None,
+    }
+}
+
+/// Surfaces the AVS / CVV check results and the acquirer authorization code on the success path.
+/// `PaymentsResponseData::TransactionResponse` has no slot for them, so they ride on
+/// `PaymentFlowData.connector_response`, which is where every other connector puts payment checks.
+fn build_card_connector_response(
+    transaction: &TransactionAuthChargeResponseBody,
+) -> Option<domain_types::router_data::ConnectorResponseData> {
+    let processor = transaction.processor_authorization_response.as_ref()?;
+    let letter =
+        |code: Option<AvsCvvResponseCode>| code.and_then(AvsCvvResponseCode::as_legacy_code);
+    let payment_checks = Some(serde_json::json!({
+        "avs_street_address_response_code": letter(processor.avs_street_address_response),
+        "avs_postal_code_response_code": letter(processor.avs_postal_code_response),
+        "cvv_response_code": letter(processor.cvv_response),
+        "avs_street_address_response": processor.avs_street_address_response.map(|code| code.to_string()),
+        "avs_postal_code_response": processor.avs_postal_code_response.map(|code| code.to_string()),
+        "cvv_response": processor.cvv_response.map(|code| code.to_string()),
+        "processor_response_code": processor.legacy_code,
+        "processor_response_text": processor.message,
+    }));
+    Some(
+        domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data(
+            domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+                authentication_data: None,
+                payment_checks,
+                card_network: None,
+                domestic_network: None,
+                auth_code: processor.authorization_id.clone(),
+            },
+        ),
+    )
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, strum::Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BraintreePaymentStatus {
@@ -921,6 +1739,12 @@ pub enum BraintreePaymentStatus {
     SettlementDeclined,
     SettlementConfirmed,
     SubmittedForSettlement,
+    /// Braintree adds transaction statuses over time. Deserializing an unrecognised one into a
+    /// catch-all keeps a single new status from failing the whole response parse; it maps to
+    /// `AttemptStatus::Unspecified` so the caller applies its own previous-status fallback
+    /// rather than UCS inventing a Pending or a Failure it cannot substantiate.
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -951,6 +1775,7 @@ impl From<BraintreePaymentStatus> for enums::AttemptStatus {
             | BraintreePaymentStatus::SettlementDeclined => Self::Failure,
             BraintreePaymentStatus::Authorized => Self::Authorized,
             BraintreePaymentStatus::Voided => Self::Voided,
+            BraintreePaymentStatus::Unknown => Self::Unspecified,
         }
     }
 }
@@ -972,15 +1797,17 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             BraintreePaymentsResponse::PaymentsResponse(payment_response) => {
                 let transaction_data = payment_response.data.charge_credit_card.transaction;
                 let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let connector_response = build_card_connector_response(&transaction_data);
                 let response = if domain_types::utils::is_payment_failure(status) {
-                    Err(create_failure_error_response(
-                        transaction_data.status,
-                        Some(transaction_data.id),
+                    Err(create_transaction_failure_error_response(
+                        &transaction_data,
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::ConnectorTransactionId(transaction_data.id),
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            transaction_data.id.clone(),
+                        ),
                         redirection_data: None,
                         mandate_reference: transaction_data.payment_method.as_ref().map(|pm| {
                             Box::new(MandateReference {
@@ -1003,6 +1830,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
                         status,
+                        connector_response,
                         ..item.router_data.resource_common_data
                     },
                     response,
@@ -1567,7 +2395,11 @@ pub struct CreditCardData<
     expiration_year: Secret<String>,
     expiration_month: Secret<String>,
     cvv: Secret<String>,
-    cardholder_name: Secret<String>,
+    /// Taken from the card itself, never from the billing name: the two are distinct fields and
+    /// conflating them misreports the cardholder to the issuer. Omitted when absent rather than
+    /// sent as an empty string, which Braintree would store verbatim.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cardholder_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1625,11 +2457,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             expiration_year: card_data.card_exp_year,
                             expiration_month: card_data.card_exp_month,
                             cvv: card_data.card_cvc,
-                            cardholder_name: item
-                                .router_data
-                                .resource_common_data
-                                .get_optional_billing_full_name()
-                                .unwrap_or(Secret::new("".to_string())),
+                            cardholder_name: card_data.card_holder_name.clone(),
                         },
                     },
                 },
@@ -2549,30 +3377,61 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
-        // Check for external 3DS authentication data
-        let three_ds_data =
-            item.router_data
-                .request
-                .authentication_data
-                .as_ref()
-                .map(|auth_data| ThreeDSecureAuthenticationInput {
-                    pass_through: Some(convert_external_three_ds_data(auth_data)),
-                });
+        // Braintree's chargeCreditCard / authorizeCreditCard mutations take a `paymentMethodId`,
+        // never raw card data, so the only payment-method shape this builder can serve is a
+        // token obtained from PaymentMethodService/Tokenize (or any Braintree single-use nonce).
+        let payment_method_id = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(token) => token.token.clone(),
+            _ => return Err(raw_card_not_tokenized_error()),
+        };
 
-        let options = three_ds_data.map(|three_ds| CreditCardTransactionOptions {
-            three_d_secure_authentication: Some(three_ds),
-        });
-        let reference_id = Some(
-            item.router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
-        );
-        let order_id =
-            reference_id.ok_or(IntegrationError::MissingConnectorRelatedTransactionID {
-                id: "order_id".to_string(),
-                context: Default::default(),
-            })?;
+        // External (merchant-performed / MPI) 3DS pass-through. `passThrough` is only legal on
+        // `options`, which only the credit-card mutations have — and only when an ECI is present.
+        let three_ds_data = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .and_then(convert_external_three_ds_data)
+            .map(|pass_through| ThreeDSecureAuthenticationInput {
+                pass_through: Some(pass_through),
+            });
+
+        let options = CreditCardTransactionOptions {
+            three_d_secure_authentication: three_ds_data,
+            billing_address: build_braintree_address(
+                item.router_data
+                    .resource_common_data
+                    .get_optional_payment_billing()
+                    .or_else(|| item.router_data.resource_common_data.get_optional_billing()),
+            ),
+        };
+        // Braintree distinguishes "absent" from "present and empty"; never emit `options: {}`.
+        let options = (!options.is_empty()).then_some(options);
+
+        // The merchant-facing reference. `merchant_order_id` is the merchant's own order id when
+        // the caller supplied one; otherwise fall back to the request reference id, which is what
+        // this connector has always sent. PSync anchors on the Braintree transaction id (not on
+        // `orderId`), and Authorize returns that same id, so the two flows stay consistent.
+        let order_id = item
+            .router_data
+            .request
+            .merchant_order_id
+            .clone()
+            .or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .l2_l3_data
+                    .as_deref()
+                    .and_then(|data| data.get_merchant_order_reference_id())
+            })
+            .unwrap_or_else(|| {
+                item.router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone()
+            });
+        let enrichment = build_transaction_enrichment(&item)?;
         let amount = item
             .connector
             .amount_converter
@@ -2603,6 +3462,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id,
+                    payment_initiator: PaymentInitiatorType::RecurringFirst,
+                    enrichment,
                 }),
             )
         } else {
@@ -2623,6 +3484,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .ok()
                         .map(|email| CustomerBody { email }),
                     order_id,
+                    enrichment,
                 }),
             )
         };
@@ -2630,16 +3492,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
-                    payment_method_id: match &item.router_data.request.payment_method_data {
-                        PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
-                        _ => {
-                            return Err(IntegrationError::MissingRequiredField {
-                                field_name: "payment_method_token",
-                                context: Default::default(),
-                            }
-                            .into())
-                        }
-                    },
+                    payment_method_id,
+                    api_request_key: item
+                        .router_data
+                        .resource_common_data
+                        .get_merchant_request_id()
+                        .ok(),
                     transaction: transaction_body,
                     options,
                 },
@@ -3034,12 +3892,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// `CreditCardTransactionOptionsInput` — `input.options`, a sibling of `input.transaction`.
+/// Only `chargeCreditCard` / `authorizeCreditCard` accept it; `chargePaymentMethod` /
+/// `authorizePaymentMethod` (the wallet and vaulted-credential mutations) have no `options`
+/// member at all, which is why the billing address and 3DS pass-through are unreachable there.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardTransactionOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_d_secure_authentication: Option<ThreeDSecureAuthenticationInput>,
+    /// Billing address lives on `options`, NOT on `transaction` — the shipping address is the
+    /// other way round. This is the split that AVS depends on.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<BraintreeAddressInput>,
 }
+
+impl CreditCardTransactionOptions {
+    fn is_empty(&self) -> bool {
+        self.three_d_secure_authentication.is_none() && self.billing_address.is_none()
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSecureAuthenticationInput {
@@ -3047,12 +3920,49 @@ pub struct ThreeDSecureAuthenticationInput {
     pub pass_through: Option<ThreeDSecurePassThroughInput>,
 }
 
+/// `ThreeDSecureCavvAlgorithm` — an open scalar, but Braintree documents exactly two values:
+/// `2` (CVV with ATN) and `3` (Mastercard SPA). Any other algorithm code must be omitted rather
+/// than coerced, so it is modelled as an enum rather than a passthrough string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ThreeDSecureCavvAlgorithm {
+    #[serde(rename = "2")]
+    CvvWithAtn,
+    #[serde(rename = "3")]
+    MastercardSpa,
+}
+
+/// `ThreeDSecurePassThroughNetwork` — a real GraphQL enum with exactly three members, so an
+/// unlisted value is a hard coercion error, not a silently ignored one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDSecurePassThroughNetwork {
+    Eftpos,
+    Mastercard,
+    Visa,
+}
+
+/// `ThreeDSecurePassThroughInput` — results of a **merchant-performed** (external MPI) 3D Secure
+/// authentication. Nine members; `eciFlag` is the only non-null one, which is why the whole
+/// object is only built when an ECI is present.
+///
+/// Field names are the SDL names and several of them are not the obvious ones:
+/// `xId` (capital I), `version` (not `threeDSecureVersion`), `directoryServerResponse` (not
+/// `authenticationResponse`) and `directoryServerTransactionId`. A field literally named
+/// `dsTransactionId` does exist in the schema but belongs to
+/// `ThreeDSecurePriorAuthenticationDetailsInput` (the 3RI / prior-authentication tree under
+/// `performThreeDSecureLookup`) — it must not be cross-wired here.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSecurePassThroughInput {
-    pub eci_flag: Option<String>,
+    /// `ECommerceIndicator!` — non-null. A card-brand-specific two-digit string whose leading
+    /// zero is significant (`"02"` != `2`); passed through from the MPI verbatim and never
+    /// derived from the card network.
+    pub eci_flag: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cavv: Option<Secret<String>>,
+    /// 3DS **1.x** only — the SDL says it is no longer used in 3DS 2 authentications.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_d_secure_server_transaction_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3060,26 +3970,51 @@ pub struct ThreeDSecurePassThroughInput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub directory_server_response: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cavv_algorithm: Option<ThreeDSecureCavvAlgorithm>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub directory_server_transaction_id: Option<String>,
+    /// Dual-network (eftpos) pinning. No UCS source today; kept so the wire shape matches the SDL.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<ThreeDSecurePassThroughNetwork>,
 }
 
+/// Returns `None` when the authentication carries no ECI: `eciFlag` is non-null, so a
+/// pass-through object without one cannot be sent, and sending a placeholder ECI would be a
+/// claim about the authentication outcome that the MPI never made.
 fn convert_external_three_ds_data(
     auth_data: &router_request_types::AuthenticationData,
-) -> ThreeDSecurePassThroughInput {
-    ThreeDSecurePassThroughInput {
-        eci_flag: auth_data.eci.clone(),
+) -> Option<ThreeDSecurePassThroughInput> {
+    let eci_flag = auth_data.eci.clone()?;
+    let version = auth_data
+        .message_version
+        .as_ref()
+        .map(|semantic_version| semantic_version.to_string());
+    // The XID is a 3DS 1.x artefact; suppress it on 3DS 2 authentications.
+    let is_three_ds_one = auth_data
+        .message_version
+        .as_ref()
+        .is_some_and(|semantic_version| semantic_version.get_major() < 2);
+    Some(ThreeDSecurePassThroughInput {
+        eci_flag,
         cavv: auth_data.cavv.clone(),
+        x_id: is_three_ds_one
+            .then(|| auth_data.transaction_id.clone())
+            .flatten(),
         three_d_secure_server_transaction_id: auth_data.threeds_server_transaction_id.clone(),
-        version: auth_data
-            .message_version
-            .as_ref()
-            .map(|semantic_version| semantic_version.to_string()),
+        version,
         directory_server_response: auth_data
             .trans_status
             .as_ref()
             .map(map_transaction_status_to_code),
+        cavv_algorithm: match auth_data.get_cavv_algorithm() {
+            Some("2") => Some(ThreeDSecureCavvAlgorithm::CvvWithAtn),
+            Some("3") => Some(ThreeDSecureCavvAlgorithm::MastercardSpa),
+            // Braintree documents only `2` and `3`; anything else is omitted, not coerced.
+            _ => None,
+        },
         directory_server_transaction_id: auth_data.ds_trans_id.clone(),
-    }
+        network: None,
+    })
 }
 
 fn map_transaction_status_to_code(status: &common_enums::TransactionStatus) -> String {
@@ -3280,7 +4215,11 @@ impl TryFrom<ResponseRouterData<BraintreeVoidPCResponse, Self>>
                     | BraintreePaymentStatus::Settled
                     | BraintreePaymentStatus::SettlementPending
                     | BraintreePaymentStatus::SettlementConfirmed
-                    | BraintreePaymentStatus::SubmittedForSettlement => {
+                    | BraintreePaymentStatus::SubmittedForSettlement
+                    // An unrecognised status is not evidence that the reversal failed; stay
+                    // non-terminal so the caller re-syncs rather than reporting a void failure
+                    // that never happened.
+                    | BraintreePaymentStatus::Unknown => {
                         common_enums::PostCaptureVoidStatus::Pending
                     }
                 };
@@ -3357,11 +4296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             expiration_year: card_data.card_exp_year,
                             expiration_month: card_data.card_exp_month,
                             cvv: card_data.card_cvc,
-                            cardholder_name: item
-                                .router_data
-                                .resource_common_data
-                                .get_optional_billing_full_name()
-                                .unwrap_or(Secret::new("".to_string())),
+                            cardholder_name: card_data.card_holder_name.clone(),
                         },
                     },
                 },
@@ -3458,5 +4393,448 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
+#[allow(clippy::panic)]
+#[allow(clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+
+    fn minor(value: i64) -> MinorUnit {
+        MinorUnit::new(value)
+    }
+
+    // --- L3 string sanitisation (§E.9 charset rule) -----------------------------------------
+
+    #[test]
+    fn sanitizes_then_truncates_l3_text() {
+        // Sanitise first, then truncate: truncating first would leave an illegal character in
+        // place once the disallowed ones are stripped.
+        assert_eq!(
+            sanitize_l3_text("Blue & Green / Widget, 12\"", 35),
+            "Blue Green Widget 12"
+        );
+        assert_eq!(
+            sanitize_l3_text("O'Brien-Smith Co. 42", 35),
+            "O'Brien-Smith Co. 42"
+        );
+        // Accents and emoji are not in the permitted set.
+        assert_eq!(sanitize_l3_text("Café ☕ Beans", 35), "Caf Beans");
+        // 12-character cap for unitOfMeasure / productCode / commodityCode.
+        assert_eq!(sanitize_l3_text("ABCDEFGHIJKLMNOP", 12), "ABCDEFGHIJKL");
+    }
+
+    // --- dynamic descriptor phone (validation code 92202) -----------------------------------
+
+    #[test]
+    fn descriptor_phone_is_omitted_when_it_cannot_fit_the_10_to_14_char_window() {
+        assert_eq!(
+            sanitize_descriptor_phone("(312) 555-1212"),
+            Some("(312)555-1212".to_string())
+        );
+        assert_eq!(
+            sanitize_descriptor_phone("3125551212"),
+            Some("3125551212".to_string())
+        );
+        // Eleven digits once the country code survives the strip — Braintree wants exactly ten.
+        assert_eq!(sanitize_descriptor_phone("+1 (312) 555-1212"), None);
+        // Too short once non-permitted characters are stripped.
+        assert_eq!(sanitize_descriptor_phone("555-1212"), None);
+        // Too long.
+        assert_eq!(sanitize_descriptor_phone("+91 (080) 4718-1234 x99"), None);
+    }
+
+    // --- §E.9 amount reconciliation ----------------------------------------------------------
+
+    #[test]
+    fn l2_l3_breakdown_reconciles_on_a_balanced_body() {
+        // 19.98 + 1.66 + 4.99 + 0.40 - 1.00 = 26.03
+        assert!(l2_l3_breakdown_reconciles(
+            minor(2603),
+            &[minor(1998)],
+            Some(minor(166)),
+            Some(minor(499)),
+            Some(minor(40)),
+            Some(minor(100)),
+        ));
+    }
+
+    #[test]
+    fn l2_l3_breakdown_rejects_the_double_discount_trap() {
+        // The classic mistake: the same 1.00 discount subtracted at the transaction level AND
+        // baked into the line total. 18.98 + 1.66 + 4.99 + 0.40 - 1.00 = 25.03 != 26.03.
+        assert!(!l2_l3_breakdown_reconciles(
+            minor(2603),
+            &[minor(1898)],
+            Some(minor(166)),
+            Some(minor(499)),
+            Some(minor(40)),
+            Some(minor(100)),
+        ));
+    }
+
+    #[test]
+    fn l2_l3_breakdown_has_nothing_to_balance_without_line_items() {
+        // With no line items the sum is meaningless; L2 tax/shipping stand on their own.
+        assert!(l2_l3_breakdown_reconciles(
+            minor(6000),
+            &[],
+            Some(minor(166)),
+            None,
+            None,
+            None,
+        ));
+    }
+
+    // --- AVS / CVV response codes ------------------------------------------------------------
+
+    #[test]
+    fn avs_cvv_response_codes_map_to_their_rest_letters() {
+        let cases = [
+            ("MATCHES", AvsCvvResponseCode::Matches, Some("M")),
+            (
+                "DOES_NOT_MATCH",
+                AvsCvvResponseCode::DoesNotMatch,
+                Some("N"),
+            ),
+            ("NOT_VERIFIED", AvsCvvResponseCode::NotVerified, Some("U")),
+            ("NOT_PROVIDED", AvsCvvResponseCode::NotProvided, Some("I")),
+            (
+                "ISSUER_DOES_NOT_PARTICIPATE",
+                AvsCvvResponseCode::IssuerDoesNotParticipate,
+                Some("S"),
+            ),
+            ("SYSTEM_ERROR", AvsCvvResponseCode::SystemError, Some("E")),
+            (
+                "NOT_APPLICABLE",
+                AvsCvvResponseCode::NotApplicable,
+                Some("A"),
+            ),
+            ("BYPASS", AvsCvvResponseCode::Bypass, Some("B")),
+        ];
+        for (wire, expected, letter) in cases {
+            let parsed: AvsCvvResponseCode =
+                serde_json::from_value(serde_json::Value::String(wire.to_string())).unwrap();
+            assert_eq!(parsed, expected, "{wire}");
+            assert_eq!(parsed.as_legacy_code(), letter, "{wire}");
+        }
+        // An unrecognised value must not fail the whole response.
+        let parsed: AvsCvvResponseCode =
+            serde_json::from_value(serde_json::json!("SOMETHING_NEW")).unwrap();
+        assert_eq!(parsed, AvsCvvResponseCode::Unknown);
+        assert_eq!(parsed.as_legacy_code(), None);
+    }
+
+    // --- decline surface -> GSM smart-retry inputs -------------------------------------------
+
+    /// Captured verbatim from a Braintree sandbox `chargeCreditCard` for amount 2001.00
+    /// (the documented "Insufficient Funds" trigger) with billing postal code 20000 and CVV 200.
+    fn declined_transaction() -> TransactionAuthChargeResponseBody {
+        serde_json::from_value(serde_json::json!({
+            "id": "dHJhbnNhY3Rpb25fcTk5dmU3MjQ",
+            "status": "PROCESSOR_DECLINED",
+            "processorAuthorizationResponse": {
+                "legacyCode": "2001",
+                "message": "Insufficient Funds",
+                "cvvResponse": "DOES_NOT_MATCH",
+                "avsPostalCodeResponse": "DOES_NOT_MATCH",
+                "avsStreetAddressResponse": "DOES_NOT_MATCH"
+            },
+            "statusHistory": [{
+                "terminal": true,
+                "declineType": "SOFT",
+                "processorResponse": { "legacyCode": "2001", "message": "Insufficient Funds" },
+                "networkResponse": { "code": "XX", "message": "sample network response text" },
+                "merchantAdviceCodeResponse": { "code": "01", "message": null }
+            }]
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn decline_populates_the_network_advice_and_decline_codes() {
+        let error = create_transaction_failure_error_response(&declined_transaction(), 200);
+        assert_eq!(error.code, "2001");
+        assert_eq!(error.message, "Insufficient Funds");
+        // Mastercard merchant advice code -> GSM advice code.
+        assert_eq!(error.network_advice_code.as_deref(), Some("01"));
+        // Raw card-network response, carried verbatim; it is only interpretable with the brand.
+        assert_eq!(error.network_decline_code.as_deref(), Some("XX"));
+        assert_eq!(
+            error.network_error_message.as_deref(),
+            Some("sample network response text")
+        );
+        assert_eq!(
+            error.connector_transaction_id.as_deref(),
+            Some("dHJhbnNhY3Rpb25fcTk5dmU3MjQ")
+        );
+        // Flow-agnostic: the terminal state is reported through PaymentFlowData.status, not here.
+        assert!(error.attempt_status.is_none());
+        let reason = error.reason.expect("reason");
+        assert!(reason.contains("ProcessorDeclined"), "{reason}");
+        assert!(reason.contains("decline_type=SOFT"), "{reason}");
+    }
+
+    #[test]
+    fn gateway_rejection_reports_the_reason_rather_than_a_processor_code() {
+        let transaction: TransactionAuthChargeResponseBody =
+            serde_json::from_value(serde_json::json!({
+                "id": "dHJhbnNhY3Rpb25fZHVw",
+                "status": "GATEWAY_REJECTED",
+                "statusHistory": [{
+                    "terminal": true,
+                    "gatewayRejectionReason": "DUPLICATE",
+                    "networkResponse": { "code": null, "message": null },
+                    "merchantAdviceCodeResponse": null
+                }]
+            }))
+            .unwrap();
+        let error = create_transaction_failure_error_response(&transaction, 200);
+        assert_eq!(error.code, "DUPLICATE");
+        assert_eq!(error.message, "DUPLICATE");
+        let reason = error.reason.expect("reason");
+        assert!(
+            reason.contains("gateway_rejection_reason=DUPLICATE"),
+            "{reason}"
+        );
+    }
+
+    #[test]
+    fn avs_and_cvv_results_are_surfaced_on_the_success_path() {
+        let transaction: TransactionAuthChargeResponseBody =
+            serde_json::from_value(serde_json::json!({
+                "id": "dHJhbnNhY3Rpb25fNGNqNmV5dGc",
+                "status": "SUBMITTED_FOR_SETTLEMENT",
+                "processorAuthorizationResponse": {
+                    "legacyCode": "1000",
+                    "message": "Approved",
+                    "cvvResponse": "MATCHES",
+                    "avsPostalCodeResponse": "MATCHES",
+                    "avsStreetAddressResponse": "MATCHES",
+                    "authorizationId": "VHQ3GR",
+                    "additionalInformation": null
+                }
+            }))
+            .unwrap();
+        let response = build_card_connector_response(&transaction).expect("connector response");
+        let domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Card {
+            payment_checks,
+            auth_code,
+            ..
+        } = response
+            .additional_payment_method_data
+            .expect("additional payment method data")
+        else {
+            panic!("expected a Card connector response")
+        };
+        assert_eq!(auth_code.as_deref(), Some("VHQ3GR"));
+        let checks = payment_checks.expect("payment checks");
+        assert_eq!(checks["cvv_response_code"], serde_json::json!("M"));
+        assert_eq!(
+            checks["avs_postal_code_response_code"],
+            serde_json::json!("M")
+        );
+        assert_eq!(
+            checks["avs_street_address_response_code"],
+            serde_json::json!("M")
+        );
+        assert_eq!(checks["processor_response_code"], serde_json::json!("1000"));
+    }
+
+    // --- external 3DS pass-through -----------------------------------------------------------
+
+    fn authentication_data(
+        eci: Option<&str>,
+        version: Option<&str>,
+    ) -> router_request_types::AuthenticationData {
+        router_request_types::AuthenticationData {
+            trans_status: Some(common_enums::TransactionStatus::Success),
+            eci: eci.map(ToString::to_string),
+            cavv: Some(Secret::new("AAABAWFlmQAAAABjRWWZEEFgFz+=".to_string())),
+            ucaf_collection_indicator: None,
+            threeds_server_transaction_id: Some("d3adb33f-0000-4000-8000-000000000001".to_string()),
+            message_version: version.map(|v| v.parse().expect("semantic version")),
+            ds_trans_id: Some("f38e6948-5388-41a6-bca4-b49723c19437".to_string()),
+            acs_transaction_id: None,
+            transaction_id: Some("xid-value".to_string()),
+            network_params: None,
+            exemption_indicator: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
+        }
+    }
+
+    #[test]
+    fn three_ds_pass_through_is_omitted_without_an_eci() {
+        // `eciFlag` is non-null, so there is no legal pass-through object to build.
+        assert!(
+            convert_external_three_ds_data(&authentication_data(None, Some("2.2.0"))).is_none()
+        );
+    }
+
+    #[test]
+    fn three_ds_pass_through_uses_the_sdl_field_names() {
+        let pass_through =
+            convert_external_three_ds_data(&authentication_data(Some("05"), Some("2.2.0")))
+                .expect("pass through");
+        let json = serde_json::to_value(&pass_through).unwrap();
+        assert_eq!(json["eciFlag"], serde_json::json!("05"));
+        assert_eq!(json["version"], serde_json::json!("2.2.0"));
+        assert_eq!(json["directoryServerResponse"], serde_json::json!("Y"));
+        assert_eq!(
+            json["directoryServerTransactionId"],
+            serde_json::json!("f38e6948-5388-41a6-bca4-b49723c19437")
+        );
+        assert_eq!(
+            json["threeDSecureServerTransactionId"],
+            serde_json::json!("d3adb33f-0000-4000-8000-000000000001")
+        );
+        // Names the brief got wrong must not appear on the wire.
+        assert!(json.get("xid").is_none());
+        assert!(json.get("threeDSecureVersion").is_none());
+        assert!(json.get("authenticationResponse").is_none());
+        assert!(json.get("dsTransactionId").is_none());
+        // `xId` is a 3DS 1.x artefact and must be suppressed on a 3DS 2 authentication.
+        assert!(json.get("xId").is_none());
+    }
+
+    #[test]
+    fn three_ds_pass_through_carries_the_xid_on_a_3ds_one_authentication() {
+        let pass_through =
+            convert_external_three_ds_data(&authentication_data(Some("02"), Some("1.0.2")))
+                .expect("pass through");
+        let json = serde_json::to_value(&pass_through).unwrap();
+        assert_eq!(json["xId"], serde_json::json!("xid-value"));
+    }
+
+    // --- stored-credential signalling ---------------------------------------------------------
+
+    #[test]
+    fn payment_initiator_serializes_as_the_braintree_enum_tokens() {
+        assert_eq!(
+            serde_json::to_value(PaymentInitiatorType::RecurringFirst).unwrap(),
+            serde_json::json!("RECURRING_FIRST")
+        );
+        assert_eq!(
+            serde_json::to_value(PaymentInitiatorType::Unscheduled).unwrap(),
+            serde_json::json!("UNSCHEDULED")
+        );
+    }
+
+    #[test]
+    fn an_unrecognised_braintree_status_is_unspecified_not_an_invented_terminal_state() {
+        // A status Braintree adds later must not fail the whole response parse...
+        let parsed: BraintreePaymentStatus =
+            serde_json::from_value(serde_json::json!("SOME_FUTURE_STATUS")).unwrap();
+        assert!(matches!(parsed, BraintreePaymentStatus::Unknown));
+
+        // ...and must not be invented into a Pending or a Failure. UCS has no previous status
+        // to fall back on, so it reports Unspecified and lets the caller decide.
+        assert_eq!(
+            enums::AttemptStatus::from(parsed),
+            enums::AttemptStatus::Unspecified
+        );
+
+        // The known statuses must keep their existing mapping.
+        assert_eq!(
+            enums::AttemptStatus::from(BraintreePaymentStatus::ProcessorDeclined),
+            enums::AttemptStatus::Failure
+        );
+        assert_eq!(
+            enums::AttemptStatus::from(BraintreePaymentStatus::Authorized),
+            enums::AttemptStatus::Authorized
+        );
+    }
+
+    #[test]
+    fn cardholder_name_comes_from_the_card_and_is_omitted_when_absent() {
+        // Checklist item 17: never fall back to the billing name, and never send an empty
+        // string, which Braintree would store verbatim as the cardholder.
+        let serialized = serde_json::to_value(CreditCardData::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        > {
+            number: Default::default(),
+            expiration_year: Secret::new("2030".to_string()),
+            expiration_month: Secret::new("08".to_string()),
+            cvv: Secret::new("999".to_string()),
+            cardholder_name: None,
+        })
+        .unwrap();
+        assert!(
+            serialized.get("cardholderName").is_none(),
+            "cardholderName must be omitted, not empty-stringed: {serialized}"
+        );
+    }
+
+    #[test]
+    fn cavv_algorithm_serializes_as_the_documented_single_digit_codes() {
+        assert_eq!(
+            serde_json::to_value(ThreeDSecureCavvAlgorithm::CvvWithAtn).unwrap(),
+            serde_json::json!("2")
+        );
+        assert_eq!(
+            serde_json::to_value(ThreeDSecureCavvAlgorithm::MastercardSpa).unwrap(),
+            serde_json::json!("3")
+        );
+    }
+
+    #[test]
+    fn billing_address_uses_alpha3_country_codes_for_the_pinned_braintree_version() {
+        // `Braintree-Version: 2019-01-01` < 2021-02-01, so `CountryCode` is alpha-3 on the wire.
+        let address = build_braintree_address(Some(&domain_types::payment_address::Address {
+            address: Some(domain_types::payment_address::AddressDetails {
+                city: Some(Secret::new("Chicago".to_string())),
+                country: Some(common_enums::CountryAlpha2::US),
+                line1: Some(Secret::new("1 E Main St".to_string())),
+                line2: Some(Secret::new("Suite 403".to_string())),
+                line3: None,
+                zip: Some(Secret::new("60622".to_string())),
+                state: Some(Secret::new("IL".to_string())),
+                first_name: Some(Secret::new("Jane".to_string())),
+                last_name: Some(Secret::new("Doe".to_string())),
+                origin_zip: None,
+            }),
+            phone: Some(domain_types::payment_address::PhoneDetails {
+                number: Some(Secret::new("3125551212".to_string())),
+                country_code: Some("+1".to_string()),
+            }),
+            email: None,
+        }))
+        .expect("address");
+        let json = serde_json::to_value(&address).unwrap();
+        assert_eq!(json["countryCode"], serde_json::json!("USA"));
+        // Exactly one name per alias pair — the PayPal-style set.
+        assert_eq!(json["addressLine1"], serde_json::json!("1 E Main St"));
+        assert_eq!(json["adminArea2"], serde_json::json!("Chicago"));
+        assert_eq!(json["adminArea1"], serde_json::json!("IL"));
+        assert!(json.get("streetAddress").is_none());
+        assert!(json.get("locality").is_none());
+        assert!(json.get("region").is_none());
+        // `PhoneInput` is all-or-nothing and the country code is sent without the leading `+`.
+        assert_eq!(json["phone"]["countryPhoneCode"], serde_json::json!("1"));
+        assert_eq!(
+            json["phone"]["phoneNumber"],
+            serde_json::json!("3125551212")
+        );
+    }
+
+    #[test]
+    fn empty_address_is_omitted_rather_than_sent_as_an_empty_object() {
+        assert!(
+            build_braintree_address(Some(&domain_types::payment_address::Address {
+                address: None,
+                phone: None,
+                email: None,
+            }))
+            .is_none()
+        );
     }
 }
