@@ -291,17 +291,17 @@ pub struct TravelhubPaymentMethod {
 #[serde(rename_all = "camelCase")]
 pub struct TravelhubBillingAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub number: Option<String>,
+    pub number: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub street: Option<String>,
+    pub street: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
+    pub state: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postal_code: Option<String>,
+    pub postal_code: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub country: Option<String>,
+    pub country: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize)]
@@ -479,13 +479,15 @@ impl<T: PaymentMethodDataTypes>
                     .resource_common_data
                     .get_billing_address()
                     .ok()
-                    .map(|b| TravelhubBillingAddress {
+                    .map(|_| TravelhubBillingAddress {
                         number: None,
-                        street: b.line1.as_ref().map(|s| s.peek().to_string()),
-                        city: b.city.as_ref().map(|s| s.peek().to_string()),
-                        state: b.state.as_ref().map(|s| s.peek().to_string()),
-                        postal_code: b.zip.as_ref().map(|s| s.peek().to_string()),
-                        country: b.country.map(|c| c.to_string()),
+                        street: item
+                            .resource_common_data
+                            .get_optional_billing_line1(),
+                        city: item.resource_common_data.get_optional_billing_city(),
+                        state: item.resource_common_data.get_optional_billing_state(),
+                        postal_code: item.resource_common_data.get_optional_billing_zip(),
+                        country: item.resource_common_data.get_optional_billing_country(),
                     }),
             },
         })
