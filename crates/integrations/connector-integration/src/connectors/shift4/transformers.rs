@@ -1204,6 +1204,21 @@ fn get_shift4_attempt_status(response: &Shift4PaymentsResponse) -> AttemptStatus
     }
 }
 
+/// The captured amount of a Shift4 charge, reported as `amount_captured` /
+/// `minor_amount_captured` by every flow that reads a charge object (Authorize,
+/// PSync, Capture, RepeatPayment, SetupMandate).
+///
+/// Funds are captured only on a successful charge with `captured: true`, and the
+/// captured amount is then the charge `amount`: Shift4 rewrites `amount` to the
+/// captured amount on a capture (a 1000 authorization captured with 400 reads
+/// back `amount: 400, captured: true`). An uncaptured authorization, a
+/// zero-amount verification (always sent uncaptured), a released authorization,
+/// a pending charge and a decline report no captured amount.
+fn get_shift4_captured_amount(response: &Shift4PaymentsResponse) -> Option<MinorUnit> {
+    (matches!(response.status, Shift4PaymentStatus::Successful) && response.captured)
+        .then_some(response.amount)
+}
+
 /// Redirect target Shift4 hands back for APM / redirect flows, if any.
 fn get_shift4_redirection_data(response: &Shift4PaymentsResponse) -> Option<Box<RedirectForm>> {
     response
@@ -1463,10 +1478,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4PaymentsRespons
             })
         };
 
+        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                minor_amount_captured,
                 // AVS / CVV / ANI results are reported on both the success and the
                 // decline path — a declined charge is precisely when the merchant
                 // needs to know the AVS or CVV verdict.
@@ -1516,10 +1535,14 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             })
         };
 
+        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -1585,10 +1608,16 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
             status
         };
 
+        // The charge `amount` is the captured amount after a capture, so a
+        // partial capture of 400 reports 400 captured.
+        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2450,10 +2479,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4RepeatPaymentRe
             })
         };
 
+        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                minor_amount_captured,
                 connector_response,
                 ..item.router_data.resource_common_data
             },
@@ -2995,10 +3028,17 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                     .clone()
             });
 
+        // A non-zero setup is sent captured, so its settled amount is reported
+        // like any other captured charge's. A zero-amount verification is sent
+        // uncaptured and reports none, although its status is `Charged`.
+        let minor_amount_captured = get_shift4_captured_amount(&item.response);
+
         Ok(Self {
             response,
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured: minor_amount_captured.map(MinorUnit::get_amount_as_i64),
+                minor_amount_captured,
                 connector_customer,
                 connector_response,
                 ..item.router_data.resource_common_data
