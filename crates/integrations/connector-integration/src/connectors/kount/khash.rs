@@ -288,14 +288,17 @@ mod tests {
         let reference_vectors: &[(&str, &str)] = &[
             ("4111111111111111", "411111WMS5YA6FUZA1KC"), // Visa
             ("5454545454545454", "545454E58W8101GXHU4U"), // Mastercard
-            ("374410712128163", "3744101P95YO2CXFZDN0"), // American Express
+            ("374410712128163", "3744101P95YO2CXFZDN0"),  // American Express
             ("6011000000000012", "601100HFMWO1DQWO6C79"), // Discover
             ("6011180161073659", "601118XQEYTYFYQ67HBB"), // Discover (bad card)
-            ("38000000000006", "3800007KGYCD1ZE74JVH"), // Diners Club
+            ("38000000000006", "3800007KGYCD1ZE74JVH"),   // Diners Club
         ];
         for (number, expected) in reference_vectors {
             let actual = khash.hash(number, CARD_TOKEN_SUFFIX_LENGTH);
-            assert_eq!(&actual, expected, "PAN {number} does not match Kount's vector");
+            assert_eq!(
+                &actual, expected,
+                "PAN {number} does not match Kount's vector"
+            );
             println!("{number} -> {actual} (matches Kount's expected token)");
         }
     }
