@@ -5713,6 +5713,10 @@ message KountConfig {
   // script as the Kount Web SDK `clientID`. Optional here — only the DDC
   // flow requires one, and rejects the request if it's missing.
   optional string client_id = 3;
+  // Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+  // payment tokens are KHASH-hashed with this salt; when unset the connector
+  // falls back to the legacy HMAC-SHA256 token.
+  optional SecretString khash_config_key = 4;
   optional string base_url = 50;
 }
 

@@ -989,6 +989,10 @@ pub enum ConnectorSpecificConfig {
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        /// Kount-issued KHASH configuration key (Ascii85). When set, card-typed
+        /// payment tokens are KHASH-hashed; when unset the connector falls
+        /// back to the legacy HMAC-SHA256 token.
+        khash_config_key: Option<Secret<String>>,
         base_url: Option<String>,
     },
     Nsure {
@@ -2704,6 +2708,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 // it validates that when it builds the script.
                 client_id: kount.client_id.filter(|id| !id.trim().is_empty()),
                 auth_server_id: kount.auth_server_id,
+                khash_config_key: kount.khash_config_key,
                 base_url: kount.base_url,
             }),
             AuthType::Nsure(nsure) => Ok(Self::Nsure {
@@ -4047,6 +4052,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         // it without one.
                         client_id: None,
                         auth_server_id: None,
+                        khash_config_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -4295,6 +4301,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         client_id: None,
                         auth_server_id: None,
+                        khash_config_key: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
