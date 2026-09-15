@@ -5,9 +5,9 @@
 // Braintree — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx braintree.ts checkout_autocapture
 
-import { PaymentClient, MerchantAuthenticationClient, EventClient, types } from 'hyperswitch-prism';
+import { PaymentClient, MerchantAuthenticationClient, EventClient, PaymentMethodAuthenticationClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, Currency, FutureUsage, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "token_authorize", "void"];
+export const SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "token_authorize", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -90,6 +90,53 @@ function _buildParseEventRequest(): types.IEventServiceParseRequest {
             },
             "body": new Uint8Array(Buffer.from("bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D", "utf-8"))  // Body of the HTTP request.
         }
+    };
+}
+
+function _buildPostAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePostAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "connectorOrderReferenceId": "probe_order_ref_001"
+    };
+}
+
+function _buildPreAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePreAuthenticateRequest {
+    return {
+        "amount": {  // Amount Information.
+            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
+            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        },
+        "paymentMethod": {  // Payment Method.
+            "card": {  // Generic card payment.
+                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
+                "cardExpMonth": {"value": "03"},
+                "cardExpYear": {"value": "2030"},
+                "cardCvc": {"value": "737"},
+                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            }
+        },
+        "address": {  // Address Information.
+            "billingAddress": {
+            }
+        },
+        "enrolledFor_3ds": false,  // Authentication Details.
+        "returnUrl": "https://example.com/3ds-return"  // URLs for Redirection.
     };
 }
 
@@ -244,6 +291,24 @@ async function parseEvent(merchantTransactionId: string, config: types.IConnecto
     return parseResponse;
 }
 
+// Flow: PaymentMethodAuthenticationService.PostAuthenticate
+async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const postResponse = await paymentMethodAuthenticationClient.postAuthenticate(_buildPostAuthenticateRequest());
+
+    return postResponse;
+}
+
+// Flow: PaymentMethodAuthenticationService.PreAuthenticate
+async function preAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
+
+    const preResponse = await paymentMethodAuthenticationClient.preAuthenticate(_buildPreAuthenticateRequest());
+
+    return preResponse;
+}
+
 // Flow: PaymentService.ProxySetupRecurring
 async function proxySetupRecurring(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -301,7 +366,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, proxySetupRecurring, refund, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
+    capture, createClientAuthenticationToken, get, handleEvent, parseEvent, postAuthenticate, preAuthenticate, proxySetupRecurring, refund, reverse, setupRecurring, tokenAuthorize, voidPayment, _buildCaptureRequest, _buildCreateClientAuthenticationTokenRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxySetupRecurringRequest, _buildRefundRequest, _buildReverseRequest, _buildSetupRecurringRequest, _buildTokenAuthorizeRequest, _buildVoidRequest
 };
 
 // CLI runner
