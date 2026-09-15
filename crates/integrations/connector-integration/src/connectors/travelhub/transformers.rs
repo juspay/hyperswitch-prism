@@ -481,9 +481,7 @@ impl<T: PaymentMethodDataTypes>
                     .ok()
                     .map(|_| TravelhubBillingAddress {
                         number: None,
-                        street: item
-                            .resource_common_data
-                            .get_optional_billing_line1(),
+                        street: item.resource_common_data.get_optional_billing_line1(),
                         city: item.resource_common_data.get_optional_billing_city(),
                         state: item.resource_common_data.get_optional_billing_state(),
                         postal_code: item.resource_common_data.get_optional_billing_zip(),
