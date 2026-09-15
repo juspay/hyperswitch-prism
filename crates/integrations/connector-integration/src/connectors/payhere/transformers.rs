@@ -318,19 +318,15 @@ impl PayherePaymentsRequest {
         // otherwise send an empty string in the checkout form.
         let address = router_data
             .resource_common_data
-            .get_optional_billing()
-            .and_then(|a| a.address.as_ref())
-            .and_then(|ad| ad.line1.clone())
+            .get_optional_billing_line1()
             .unwrap_or_default();
         let city = router_data
             .resource_common_data
-            .get_optional_billing()
-            .and_then(|a| a.address.as_ref())
-            .and_then(|ad| ad.city.clone())
+            .get_optional_billing_city()
             .unwrap_or_default();
         let country = router_data
             .resource_common_data
-            .get_billing_country()
+            .get_optional_billing_country()
             .map(|c| c.to_string())
             .unwrap_or_default();
 
