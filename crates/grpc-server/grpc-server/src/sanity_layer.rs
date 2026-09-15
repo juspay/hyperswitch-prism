@@ -7,6 +7,8 @@
 //! 2. dispatch to that connector's own sanity step, if one is registered.
 
 #[cfg(feature = "connector-sanity-layer")]
+use domain_types::connector_types::{AuthenticatorConnectorEnum, ConnectorVariant};
+#[cfg(feature = "connector-sanity-layer")]
 use grpc_api_types::auto_populate::{
     PopulateOsBasedReturnUrl, RequestSanitizer, SanityLayer as GeneratedSanityLayer,
 };
@@ -16,6 +18,8 @@ use grpc_api_types::payments::OsBasedReturnUrl;
 use std::collections::HashMap;
 #[cfg(feature = "connector-sanity-layer")]
 use tonic::metadata::MetadataMap;
+#[cfg(feature = "connector-sanity-layer")]
+use ucs_interface_common::metadata::connector_variant_from_metadata;
 
 #[cfg(feature = "connector-sanity-layer")]
 #[derive(Clone, Copy, Debug, Default)]
@@ -43,7 +47,11 @@ impl RequestSanitizer for ConnectorSanitizer {
         match sanity_connector(metadata) {
             Some(SanityConnector::Plaid) => PlaidSanity.apply(metadata, req),
             Some(SanityConnector::Other(connector)) => {
-                tracing::debug!(connector = %connector, "no connector sanity registered");
+                tracing::debug!(
+                    connector = %connector.get_connector_name(),
+                    connector_variant = ?connector,
+                    "no connector sanity registered"
+                );
             }
             None => {}
         }
@@ -84,37 +92,31 @@ impl ConnectorSanity for PlaidSanity {
 #[cfg(feature = "connector-sanity-layer")]
 enum SanityConnector {
     Plaid,
-    Other(String),
+    Other(ConnectorVariant),
 }
 
 #[cfg(feature = "connector-sanity-layer")]
 fn sanity_connector(metadata: &MetadataMap) -> Option<SanityConnector> {
-    let connector = connector_name_from_metadata(metadata)
-        .or_else(|| connector_name_from_raw_config(metadata))?
-        .to_ascii_lowercase();
+    let connector = connector_variant_from_metadata(metadata)
+        .ok()
+        .or_else(|| connector_variant_from_raw_config(metadata))?;
 
-    match connector.as_str() {
-        "plaid" => Some(SanityConnector::Plaid),
+    match connector {
+        ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid) => {
+            Some(SanityConnector::Plaid)
+        }
         _ => Some(SanityConnector::Other(connector)),
     }
 }
 
 #[cfg(feature = "connector-sanity-layer")]
-fn connector_name_from_metadata(metadata: &MetadataMap) -> Option<String> {
-    [
-        common_utils::consts::X_CONNECTOR_NAME,
-        common_utils::consts::X_AUTHENTICATOR_CONNECTOR_NAME,
-        common_utils::consts::X_PAYOUT_CONNECTOR_NAME,
-        common_utils::consts::X_FRM_CONNECTOR_NAME,
-        common_utils::consts::X_SURCHARGE_CONNECTOR_NAME,
-    ]
-    .into_iter()
-    .find_map(|key| {
-        metadata
-            .get(key)
-            .and_then(|value| value.to_str().ok())
-            .map(str::to_string)
-    })
+fn connector_variant_from_raw_config(metadata: &MetadataMap) -> Option<ConnectorVariant> {
+    match connector_name_from_raw_config(metadata)?.as_str() {
+        "Plaid" | "plaid" => Some(ConnectorVariant::Authenticator(
+            AuthenticatorConnectorEnum::Plaid,
+        )),
+        _ => None,
+    }
 }
 
 #[cfg(feature = "connector-sanity-layer")]

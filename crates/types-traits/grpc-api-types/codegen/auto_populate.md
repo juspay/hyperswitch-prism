@@ -115,6 +115,28 @@ This keeps responsibility split cleanly:
 - sanity layer provides the configured URL map
 - downstream logic can choose from the map using the request OS
 
+## Connector Sanity Dispatch
+
+The runtime sanity layer does not dispatch by manually scanning connector
+headers as strings. It reuses UCS's typed connector metadata parser:
+
+```rust
+ucs_interface_common::metadata::connector_variant_from_metadata
+```
+
+That produces `ConnectorVariant`, so the dispatcher can match connector
+families explicitly:
+
+```rust
+ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid)
+```
+
+This keeps the normal path aligned with the rest of UCS. A raw
+`x-connector-config` JSON key fallback still exists for the Plaid bridge case
+because the Euler-only extra fields are intentionally not part of UCS's typed
+`PlaidConfig`; that fallback is only used to identify/extract the raw Plaid
+config when typed metadata is not enough.
+
 ## Request Discovery
 
 `request_message_names` walks:
