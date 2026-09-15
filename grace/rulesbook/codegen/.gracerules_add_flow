@@ -190,9 +190,9 @@ Some industry features are carried by several markers that cannot be implemented
 independently. Those are named as a **flow group**, and the group name is a valid
 `{FLOW}` input wherever a marker name is accepted.
 
-| Flow group | Markers implemented together                              |
-|------------|-----------------------------------------------------------|
-| `ThreeDS`  | `PreAuthenticate`, `Authenticate`, `PostAuthenticate`     |
+| Flow group | Also accepted as             | Markers implemented together                          |
+|------------|------------------------------|-------------------------------------------------------|
+| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
 
 **A flow group is ONE agent invocation, ONE commit, ONE ledger row. Do NOT
 decompose it into one invocation per marker.** The markers in a group share

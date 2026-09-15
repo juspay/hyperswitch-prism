@@ -27,14 +27,18 @@ markers — **or** the name of a **flow group** from the table below.
 `MIT` is **not** a flow name and no marker of that name exists: a merchant-initiated transaction is
 the `RepeatPayment` flow. Pass the marker name, not the industry term.
 
+Industry terms that name a **group**, however, are accepted verbatim — a caller asking for `3DS`
+gets the `ThreeDS` group. Match the alias case-insensitively; do not reject a request because the
+caller wrote the industry term rather than the group's canonical name.
+
 ### Flow groups
 
 Some industry features are carried by several markers that cannot be implemented independently.
 Those are named as a group, and the group name is a valid `{FLOW}`:
 
-| Flow group | Markers implemented together |
-|---|---|
-| `ThreeDS` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
+| Flow group | Also accepted as | Markers implemented together |
+|---|---|---|
+| `ThreeDS` | `3DS`, `ThreeDs`, `three_ds` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
 
 **A flow group is ONE Connector Agent invocation, ONE commit, ONE ledger row. Do NOT decompose it
 into one invocation per marker.** The markers in a group share request and response types, share
