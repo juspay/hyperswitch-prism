@@ -1063,6 +1063,10 @@ enum PaymentMethodType {
   QRIS = 134;
   SEPA_GUARANTEED_DEBIT = 135;
   NETELLER = 136;
+  // TAMARA_REDIRECT (not bare TAMARA): the value name TAMARA is already taken by
+  // the Connector enum in this same proto package; see the
+  // PAYMENT_METHOD_TYPE_KLARNA note above.
+  TAMARA_REDIRECT = 138;
 }
 
 // Product type enumeration

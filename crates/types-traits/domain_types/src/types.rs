@@ -2862,6 +2862,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
             grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(PaymentMethodType::Atome),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => {
+                Ok(PaymentMethodType::Tamara)
+            }
             grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             grpc_api_types::payments::PaymentMethodType::Ach => Ok(PaymentMethodType::Ach),
             grpc_api_types::payments::PaymentMethodType::OnlineBankingFpx => {
@@ -9178,6 +9181,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::AfterpayClearpay => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Alma => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethodType::TamaraRedirect => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
