@@ -720,10 +720,20 @@ pub struct GlobalpaymentsRealexPaymentsRequest {
 }
 
 /// `<amount currency="EUR">1001</amount>` — text content plus a currency attribute.
+///
+/// `currency` is the [`common_enums::Currency`] enum: it serialises `UPPERCASE`, which is
+/// byte-identical to the `to_string()` that feeds the SHA-1 digest, so the wire form and the hash
+/// input cannot drift apart.
+///
+/// `value` is deliberately a pre-rendered `String` rather than a [`MinorUnit`]. It is built by
+/// [`format_amount`], which is not a plain integer rendering: it applies the documented JPY x100
+/// rule and refuses zero/negative amounts. Letting serde render a `MinorUnit` here would silently
+/// drop both — a JPY payment would go out at a hundredth of its intended value — and would also
+/// break the rule that every digest input is byte-identical to what ends up on the wire.
 #[derive(Debug, Serialize)]
 pub struct GlobalpaymentsRealexAmount {
     #[serde(rename = "@currency")]
-    pub currency: String,
+    pub currency: common_enums::Currency,
     #[serde(rename = "$text")]
     pub value: String,
 }
@@ -888,7 +898,7 @@ where
             channel: CHANNEL_ECOM.to_string(),
             orderid: order_id,
             amount: GlobalpaymentsRealexAmount {
-                currency,
+                currency: request.currency,
                 value: amount,
             },
             card: card_element,
@@ -2159,7 +2169,7 @@ where
             account: Some(auth.account),
             orderid: order_id,
             amount: GlobalpaymentsRealexAmount {
-                currency,
+                currency: request.currency,
                 value: amount,
             },
             pasref,
@@ -4866,6 +4876,33 @@ mod tests {
             verify_response_hash(&document(None), SHARED_SECRET),
             HashVerification::Skipped
         );
+    }
+
+    #[test]
+    fn amount_element_currency_matches_the_digest_input_byte_for_byte() {
+        use common_enums::Currency;
+
+        // The `<amount>` element carries the Currency enum while the SHA-1 digest is fed
+        // `currency.to_string()`. Those are two different code paths (serde's `rename_all` vs
+        // strum's `serialize_all`) and the connector is only correct while they agree, so pin it:
+        // if either attribute is ever changed, this fails instead of the gateway rejecting every
+        // request with a hash mismatch.
+        for currency in [Currency::EUR, Currency::USD, Currency::GBP, Currency::JPY] {
+            let element = GlobalpaymentsRealexAmount {
+                currency,
+                value: format_amount(MinorUnit::new(1001), currency).expect("amount"),
+            };
+            let xml = quick_xml::se::to_string_with_root("amount", &element).expect("serialise");
+            assert_eq!(
+                xml,
+                format!(
+                    "<amount currency=\"{}\">{}</amount>",
+                    currency,
+                    format_amount(MinorUnit::new(1001), currency).expect("amount")
+                ),
+                "serde and Display disagree for {currency}"
+            );
+        }
     }
 
     #[test]
