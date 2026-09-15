@@ -123,7 +123,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L156) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L113) · [Rust](../../examples/paydotcom/paydotcom.rs#L199)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L212) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L115) · [Rust](../../examples/paydotcom/paydotcom.rs#L270)
 
 ### Card Payment (Authorize + Capture)
 
@@ -137,25 +137,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L175) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L129) · [Rust](../../examples/paydotcom/paydotcom.rs#L215)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L231) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L131) · [Rust](../../examples/paydotcom/paydotcom.rs#L286)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L200) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L151) · [Rust](../../examples/paydotcom/paydotcom.rs#L238)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L256) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L153) · [Rust](../../examples/paydotcom/paydotcom.rs#L309)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L225) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L173) · [Rust](../../examples/paydotcom/paydotcom.rs#L261)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L281) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L175) · [Rust](../../examples/paydotcom/paydotcom.rs#L332)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L247) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L192) · [Rust](../../examples/paydotcom/paydotcom.rs#L280)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py#L303) · [JavaScript](../../examples/paydotcom/paydotcom.js) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L194) · [Rust](../../examples/paydotcom/paydotcom.rs#L351)
 
 ## API Reference
 
@@ -166,8 +166,10 @@ Retrieve current payment status from the connector.
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentMethodAuthenticationService.PreAuthenticate](#paymentmethodauthenticationservicepreauthenticate) | Authentication | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -188,10 +190,10 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Card | ✓ |
 | Bancontact | ⚠ |
 | Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
+| Apple Pay Dec | ✓ |
 | Apple Pay SDK | ⚠ |
 | Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay Dec | ✓ |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
@@ -303,7 +305,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L281) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L210) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L341) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L212) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 #### PaymentService.Capture
 
@@ -314,7 +316,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L290) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L222) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L350) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L224) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 #### PaymentService.Get
 
@@ -325,7 +327,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L299) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L232) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L359) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L234) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -336,7 +338,18 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L317) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L281) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L377) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L283) · [Rust](../../examples/paydotcom/paydotcom.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L386) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L312) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 #### PaymentService.Refund
 
@@ -347,7 +360,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L326) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L310) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L395) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L344) · [Rust](../../examples/paydotcom/paydotcom.rs)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L413) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L366) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 #### PaymentService.Void
 
@@ -358,7 +382,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L332) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L405) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 ### Refunds
 
@@ -371,7 +395,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L335) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L320) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L404) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L354) · [Rust](../../examples/paydotcom/paydotcom.rs)
 
 ### Authentication
 
@@ -384,4 +408,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L308) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L240) · [Rust](../../examples/paydotcom/paydotcom.rs)
+**Examples:** [Python](../../examples/paydotcom/paydotcom.py) · [TypeScript](../../examples/paydotcom/paydotcom.ts#L368) · [Kotlin](../../examples/paydotcom/paydotcom.kt#L242) · [Rust](../../examples/paydotcom/paydotcom.rs)

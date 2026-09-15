@@ -531,6 +531,17 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         base_url: Option<String>,
     },
+    Etisalat {
+        user_name: Secret<String>,
+        password: Secret<String>,
+        customer: Secret<String>,
+        base_url: Option<String>,
+    },
+    Merchante {
+        profile_id: Secret<String>,
+        profile_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Nmi {
         api_key: Secret<String>,
         public_key: Option<Secret<String>>,
@@ -1028,6 +1039,15 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// Elavon Payment Gateway (EPG) — JSON REST gateway, HTTP Basic auth.
+    /// Distinct from `Elavon` (Elavon Converge, an XML API).
+    /// `api_key` = merchant alias (Basic-auth username)
+    /// `key1`    = secret API key `sk_…` (Basic-auth password)
+    ElavonPg {
+        api_key: Secret<String>,
+        key1: Secret<String>,
+        base_url: Option<String>,
+    },
     Worldpayraft {
         license: Secret<String>,
         merchant_id: Secret<String>,
@@ -1077,6 +1097,52 @@ pub enum ConnectorSpecificConfig {
         api_secret: Secret<String>,
         base_url: Option<String>,
     },
+    /// PayHere (payhere.lk) Merchant API.
+    /// `app_id`         = App ID (OAuth client_id for `/merchant/v1/oauth/token` Basic auth)
+    /// `app_secret`     = App Secret (OAuth client_secret)
+    /// `merchant_id`    = Merchant ID (checkout form `merchant_id`, hash input)
+    /// `merchant_secret` = Merchant Secret (checkout + webhook hash secret). Never transmitted.
+    Payhere {
+        app_id: Secret<String>,
+        merchant_id: Secret<String>,
+        app_secret: Secret<String>,
+        merchant_secret: Secret<String>,
+        base_url: Option<String>,
+    },
+    /// Global Payments — Heartland (Portico PosGateway).
+    /// `api_key` = Portico SecretAPIKey; it travels in the SOAP body at
+    /// `Ver1.0/Header/SecretAPIKey`, never in an HTTP header.
+    GlobalpaymentsHeartland {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+}
+
+/// Config-patch key for a `ConnectorSpecificConfig` variant.
+///
+/// The key must equal the connector's field name on `Connectors`, because the generated
+/// `ConnectorsPatch` carries `#[serde(deny_unknown_fields)]` — a mismatch is a hard
+/// `InvalidDataFormat { field_name: "config_override" }`, not a silent drop, so a merchant
+/// supplying `base_url` in `x-connector-config` has the whole request rejected.
+///
+/// Lowercasing the variant name is right for the ~105 single-word connectors. The variants
+/// below are the ones whose field name is not simply the lowercased variant.
+///
+/// Deliberately NOT listed, and deliberately not snake_cased: `RazorpayV2` -> `razorpayv2` and
+/// `BankOfAmerica` -> `bankofamerica`. Those really are the field names, so the default is
+/// correct and a blanket snake_case conversion would break two connectors that work today.
+fn connector_patch_key(variant: &str) -> String {
+    match variant {
+        "AbsaSanlam" => "absa_sanlam",
+        "GotymeSanlam" => "gotyme_sanlam",
+        "TsysTransit" => "tsys_transit",
+        "PinelabsOnline" => "pinelabs_online",
+        "TwocTwopPaco" => "twoc_twop_paco",
+        "GlobalpaymentsHeartland" => "globalpayments_heartland",
+        "ElavonPg" => "elavon_pg",
+        other => return other.to_ascii_lowercase(),
+    }
+    .to_string()
 }
 
 impl ConnectorSpecificConfig {
@@ -1261,6 +1327,15 @@ impl ConnectorSpecificConfig {
                 client_secret,
                 merchant_id,
                 client_id
+            },
+            Etisalat {
+                user_name,
+                password,
+                customer
+            },
+            Merchante {
+                profile_id,
+                profile_key
             },
             Noon {
                 api_key,
@@ -1466,6 +1541,15 @@ impl ConnectorSpecificConfig {
                 api_secret
             },
             Paynearme { api_key, key1 },
+            ElavonPg { api_key, key1 },
+            GlobalpaymentsHeartland { api_key },
+            Payhere {
+                app_id,
+                merchant_id,
+                app_secret,
+                merchant_secret,
+                base_url
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             Paydotcom { api_key },
@@ -1595,7 +1679,7 @@ impl ConnectorSpecificConfig {
                 ($($variant:ident { $($field:ident),* $(,)? }),* $(,)?) => {
                     match self {
                         Self::NoKey => "nokey".to_string(),
-                        $(Self::$variant { .. } => stringify!($variant).to_ascii_lowercase(),)*
+                        $(Self::$variant { .. } => connector_patch_key(stringify!($variant)),)*
                     }
                 };
             }
@@ -1768,6 +1852,15 @@ impl ConnectorSpecificConfig {
                     client_secret,
                     merchant_id,
                     client_id
+                },
+                Etisalat {
+                    user_name,
+                    password,
+                    customer
+                },
+                Merchante {
+                    profile_id,
+                    profile_key
                 },
                 Noon {
                     api_key,
@@ -1979,6 +2072,15 @@ impl ConnectorSpecificConfig {
                     api_secret
                 },
                 Paynearme { api_key, key1 },
+                ElavonPg { api_key, key1 },
+                GlobalpaymentsHeartland { api_key },
+                Payhere {
+                    app_id,
+                    merchant_id,
+                    app_secret,
+                    merchant_secret,
+                    base_url
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 Paydotcom { api_key },
@@ -2219,6 +2321,17 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: moneris.merchant_id.ok_or_else(err)?,
                 client_id: moneris.client_id.ok_or_else(err)?,
                 base_url: moneris.base_url,
+            }),
+            AuthType::Etisalat(etisalat) => Ok(Self::Etisalat {
+                user_name: etisalat.user_name.ok_or_else(err)?,
+                password: etisalat.password.ok_or_else(err)?,
+                customer: etisalat.customer.ok_or_else(err)?,
+                base_url: etisalat.base_url,
+            }),
+            AuthType::Merchante(merchante) => Ok(Self::Merchante {
+                profile_id: merchante.profile_id.ok_or_else(err)?,
+                profile_key: merchante.profile_key.ok_or_else(err)?,
+                base_url: merchante.base_url,
             }),
             AuthType::Nexinets(nexinets) => Ok(Self::Nexinets {
                 merchant_id: nexinets.merchant_id.ok_or_else(err)?,
@@ -2635,6 +2748,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: ilixium.api_secret.ok_or_else(err)?,
                 base_url: ilixium.base_url,
             }),
+            AuthType::GlobalpaymentsHeartland(config) => Ok(Self::GlobalpaymentsHeartland {
+                api_key: config.api_key.ok_or_else(err)?,
+                base_url: config.base_url,
+            }),
             AuthType::Worldpayraft(worldpayraft) => Ok(Self::Worldpayraft {
                 license: worldpayraft.license.ok_or_else(err)?,
                 merchant_id: worldpayraft.merchant_id.ok_or_else(err)?,
@@ -2676,6 +2793,18 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 key1: d24.key1.ok_or_else(err)?,
                 api_secret: d24.api_secret.ok_or_else(err)?,
                 base_url: d24.base_url,
+            }),
+            AuthType::ElavonPg(elavon_pg) => Ok(Self::ElavonPg {
+                api_key: elavon_pg.api_key.ok_or_else(err)?,
+                key1: elavon_pg.key1.ok_or_else(err)?,
+                base_url: elavon_pg.base_url,
+            }),
+            AuthType::Payhere(payhere) => Ok(Self::Payhere {
+                app_id: payhere.app_id.ok_or_else(err)?,
+                merchant_id: payhere.merchant_id.ok_or_else(err)?,
+                app_secret: payhere.app_secret.ok_or_else(err)?,
+                merchant_secret: payhere.merchant_secret.ok_or_else(err)?,
+                base_url: payhere.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3431,6 +3560,27 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Etisalat => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Etisalat {
+                        user_name: api_key.clone(),
+                        password: key1.clone(),
+                        customer: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Merchante => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Merchante {
+                        profile_key: api_key.clone(),
+                        profile_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Noon => match auth {
                     ConnectorAuthType::SignatureKey {
                         api_key,
@@ -3937,6 +4087,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::ElavonPg => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {
+                        api_key: api_key.clone(),
+                        key1: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::GlobalpaymentsHeartland => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GlobalpaymentsHeartland {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Boost => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Boost {
                         client_id: api_key.clone(),
@@ -4014,6 +4179,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         api_key: api_key.clone(),
                         key1: key1.clone(),
                         api_secret: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Payhere => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Payhere {
+                        app_id: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        app_secret: api_secret.clone(),
+                        merchant_secret: key2.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -530,6 +530,7 @@ impl Payments {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .map_err(|e| {
             tracing::error!("Failed to resolve connector overrides: {:?}", e);
             e.to_grpc_error()
@@ -599,6 +600,7 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
+        let call_connector_action = connector_integration.get_call_connector_action();
         let response = Box::pin(
             external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -607,7 +609,7 @@ impl Payments {
                 None,
                 event_params,
                 token_data,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             ),
@@ -674,6 +676,7 @@ impl Payments {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create common request data
@@ -1075,6 +1078,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create common request data
@@ -1281,6 +1285,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -1567,6 +1572,7 @@ impl PaymentService for Payments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     let temp_payment_flow_data = PaymentFlowData::foreign_try_from((
@@ -2546,6 +2552,7 @@ impl PaymentMethod {
             &connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         // Create payment flow data
@@ -2676,6 +2683,7 @@ impl PaymentMethod {
             &metadata_payload.connector_config,
             metadata_payload.environment.as_deref(),
         )
+        .await
         .to_grpc_error()?;
 
         let payment_flow_data =
@@ -3173,6 +3181,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create merchant authentication flow data
@@ -3289,6 +3298,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create minimal merchant auth flow data for access token generation
@@ -3419,6 +3429,7 @@ impl RecurringPaymentService for RecurringPayments {
                         &metadata_payload.connector_config,
                         metadata_payload.environment.as_deref(),
                     )
+                    .await
                     .to_grpc_error()?;
 
                     // Create payment flow data

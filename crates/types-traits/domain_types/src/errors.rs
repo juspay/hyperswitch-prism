@@ -466,6 +466,17 @@ impl ConnectorError {
         }
     }
 
+    pub fn response_handling_failed_http_status_unknown_with_context(
+        additional_context: Option<String>,
+    ) -> Self {
+        Self::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context,
+            },
+        }
+    }
+
     /// [`Self::response_handling_failed`] plus optional appended context for proto.
     pub fn response_handling_failed_with_context(
         http_status: u16,
