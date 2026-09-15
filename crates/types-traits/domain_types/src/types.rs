@@ -7,9 +7,9 @@ use crate::{
     },
     connector_types::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PayoutConnectorEnum, PMEligibility, EligibilityErrorInfo,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, EligibilityErrorInfo,
+        FrmConnectorEnum, GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PayoutConnectorEnum,
         RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
@@ -6769,7 +6769,9 @@ impl ForeignFrom<PMEligibility> for grpc_api_types::payments::PaymentMethodEligi
             eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
                 result.eligibility,
             )),
-            error_info: result.error_info.map(grpc_api_types::payments::ErrorInfo::foreign_from),
+            error_info: result
+                .error_info
+                .map(grpc_api_types::payments::ErrorInfo::foreign_from),
             payment_method_details: result
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),

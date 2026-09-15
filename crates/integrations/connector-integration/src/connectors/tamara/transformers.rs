@@ -12,10 +12,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, PMEligibility, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        EventType, PMEligibility, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},

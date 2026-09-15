@@ -7,10 +7,10 @@ use domain_types::{
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PMEligibility, PaymentFlowData,
         PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
-        PaymentsResponseData, PMEligibility, RawConnectorStatus, RechargeRequestData,
-        RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentsResponseData, RawConnectorStatus, RechargeRequestData, RechargeResponseData,
+        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
