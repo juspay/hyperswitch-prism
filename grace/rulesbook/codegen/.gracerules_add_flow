@@ -184,29 +184,6 @@ Some flows have dependencies that must be implemented first:
 | PayoutCreateRecipient | - |
 | PayoutEnrollDisburseAccount | PayoutCreateRecipient |
 
-## FLOW-GROUP MAP (Authoritative)
-
-Some industry features are carried by several markers that cannot be implemented
-independently. Those are named as a **flow group**, and the group name is a valid
-`{FLOW}` input wherever a marker name is accepted.
-
-| Flow group | Also accepted as             | Markers implemented together                          |
-|------------|------------------------------|-------------------------------------------------------|
-| `ThreeDS`  | `3DS`, `ThreeDs`, `three_ds` | `PreAuthenticate`, `Authenticate`, `PostAuthenticate` |
-
-**A flow group is ONE agent invocation, ONE commit, ONE ledger row. Do NOT
-decompose it into one invocation per marker.** The markers in a group share
-request and response types, share connector state across legs (the
-`connector_feature_data` round-trip), and are governed by a single
-`next_authentication_step` override that decides which leg runs next. Splitting
-them forces each leg to guess at contracts a later leg will change, and pushes
-all the cross-leg wiring into whichever leg happens to run last — where it
-arrives too late for the legs that needed it.
-
-When `{FLOW}` names a group, look up **every** marker in the group in the map
-below and read all of their pattern files before writing code, then implement
-all of the markers in one pass.
-
 ## FLOW-MARKER → PATTERN MAP (Authoritative)
 
 Every flow marker in `crates/types-traits/domain_types/src/connector_flow.rs`
