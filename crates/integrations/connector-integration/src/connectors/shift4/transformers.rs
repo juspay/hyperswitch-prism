@@ -2745,9 +2745,13 @@ impl TryFrom<ResponseRouterData<Shift4ClientAuthResponse, Self>>
 // a later RepeatPayment (MIT) has to send both.
 //
 // Customer-Initiated Transaction (CIT): the cardholder is present and consents
-// to storing the credential. The caller's amount is sent as-is: `0` for a
-// verification, which is always uncaptured, or a real amount, which is captured
-// according to the request's capture method.
+// to storing the credential. The caller's amount is sent as-is. A `0` amount is
+// a verification: it is always sent with `captured: false`, and its successful
+// charge is reported `Charged`. Any other amount is always sent with
+// `captured: true`, because a SetupRecurring request carries no capture method
+// (the gRPC request has none, so the domain `capture_method` is always unset).
+// When Shift4 reports the charge as captured, the response reports the captured
+// amount (`get_shift4_captured_amount`).
 //
 // There is deliberately no embedded `customer` object: Shift4 rejects one with
 // HTTP 400 "Unable to parse request - unrecognized field: customer" (verified
