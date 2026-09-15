@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.15.3
+
+### Features
+
+- **connector:** Populate auth_code from connector response for checkout ([#2300](https://github.com/juspay/connector-service/pull/2300)) ([`ed73b8d`](https://github.com/juspay/connector-service/commit/ed73b8d50c026f17929fe13a472b8146c9517820))
+
+**Full Changelog:** [`2026.09.15.2...2026.09.15.3`](https://github.com/juspay/connector-service/compare/2026.09.15.2...2026.09.15.3)
+
+- - -
+
 ## 2026.09.15.2
 
 ### Miscellaneous Tasks
