@@ -37,12 +37,12 @@
         "error": "This feature is not implemented: Only card payments are supported by paynearme"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paynearme"
+        "status": "not_supported",
+        "error": "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its hosted UIs, not through the API) is not supported by paynearme"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paynearme"
+        "status": "not_supported",
+        "error": "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no wallet or network-token fields) is not supported by paynearme"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
