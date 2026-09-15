@@ -894,8 +894,31 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through braintree is not supported by Braintree"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt status orderId amount { value currencyCode } processorAuthorizationResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId additionalInformation retrievalReferenceNumber } statusHistory { status terminal ... on AuthorizedEvent { processorResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse authorizationId retrievalReferenceNumber } networkResponse { code message } } ... on ProcessorDeclinedEvent { declineType processorResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse additionalInformation retrievalReferenceNumber } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on GatewayRejectedEvent { gatewayRejectionReason processorResponse { legacyCode message cvvResponse avsPostalCodeResponse avsStreetAddressResponse } networkResponse { code message } merchantAdviceCodeResponse { code message } } ... on FailedEvent { processorResponse { legacyCode message additionalInformation } networkResponse { code message } merchantAdviceCodeResponse { code message } } } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"pm_1AbcXyzStripeTestToken\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_tokenized_txn_001\"}}}}"
+        }
       }
     },
     "token_setup_recurring": {

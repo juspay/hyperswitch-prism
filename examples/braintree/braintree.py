@@ -12,7 +12,7 @@ from payments import MerchantAuthenticationClient
 from payments import EventClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -154,6 +154,21 @@ def _build_setup_recurring_request():
         ),
     )
 
+def _build_token_authorize_request():
+    return payment_pb2.PaymentServiceTokenAuthorizeRequest(
+        merchant_transaction_id="probe_tokenized_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        return_url="https://example.com/return",
+    )
+
 def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
@@ -229,6 +244,15 @@ async def process_setup_recurring(merchant_transaction_id: str, config: sdk_conf
     setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
 
     return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
+
+
+async def process_token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
+
+    return {"status": token_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
