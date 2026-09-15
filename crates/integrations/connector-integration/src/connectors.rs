@@ -294,6 +294,9 @@ pub use self::affirm::Affirm;
 pub mod moneris;
 pub use self::moneris::Moneris;
 
+pub mod etisalat;
+pub use self::etisalat::Etisalat;
+
 pub mod kount;
 pub use self::kount::Kount;
 
@@ -335,3 +338,6 @@ pub use self::payhere::Payhere;
 
 pub mod globalpayments_heartland;
 pub use self::globalpayments_heartland::GlobalpaymentsHeartland;
+
+pub mod merchante;
+pub use self::merchante::Merchante;

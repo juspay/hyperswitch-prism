@@ -270,6 +270,14 @@ payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/elavon/elavon.py
 
+## Etisalat
+connector_id: etisalat
+doc: docs/connectors/etisalat.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment
+payment_methods: Card
+flows: authorize, capture, proxy_authorize, recurring_charge, refund, void
+examples_python: examples/etisalat/etisalat.py
+
 ## Finix
 connector_id: finix
 doc: docs/connectors/finix.md
@@ -518,6 +526,14 @@ payment_methods: none
 flows: get, handle_event, parse_event, refund, refund_get, verify_redirect, void
 examples_python: none
 
+## Merchante
+connector_id: merchante
+doc: docs/connectors/merchante.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+examples_python: examples/merchante/merchante.py
+
 ## MiFinity
 connector_id: mifinity
 doc: docs/connectors/mifinity.md
@@ -626,8 +642,8 @@ examples_python: examples/payconex/payconex.py
 connector_id: paydotcom
 doc: docs/connectors/paydotcom.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/paydotcom/paydotcom.py
 
 ## Payhere

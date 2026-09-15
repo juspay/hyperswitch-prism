@@ -106,6 +106,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Billwerk => Box::new(connectors::Billwerk::new()),
             ConnectorEnum::Payme => Box::new(connectors::Payme::new()),
             ConnectorEnum::Moneris => Box::new(connectors::Moneris::new()),
+            ConnectorEnum::Etisalat => Box::new(connectors::Etisalat::new()),
             ConnectorEnum::Nuvei => Box::new(connectors::Nuvei::new()),
             ConnectorEnum::Airwallex => Box::new(connectors::Airwallex::new()),
             ConnectorEnum::Bambora => Box::new(connectors::Bambora::new()),
@@ -161,6 +162,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
                 Box::new(connectors::GlobalpaymentsRealex::<T>::new())
             }
             ConnectorEnum::Payhere => Box::new(connectors::Payhere::<T>::new()),
+            ConnectorEnum::Merchante => Box::new(connectors::Merchante::<T>::new()),
         }
     }
 }

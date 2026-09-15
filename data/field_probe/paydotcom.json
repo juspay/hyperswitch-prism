@@ -10,91 +10,135 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: apple_pay encrypted blob. Pay.com integration only supports the pre-decrypted DPAN path (network_token). Decrypt the PKPaymentToken on your server and provide application_primary_account_number + cryptogram."
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"probe_txn_001\",\"source_data\":{\"type\":\"network_token\",\"network_token\":{\"token\":\"4111111111111111\",\"token_type\":\"applepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"three_ds\":{\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\"}}}}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Card": {
         "status": "supported",
@@ -134,19 +178,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Crypto": {
         "status": "not_implemented",
@@ -154,11 +198,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "DuitNow": {
         "status": "not_implemented",
@@ -166,35 +210,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Givex": {
         "status": "not_implemented",
@@ -202,87 +246,129 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: google_pay encrypted blob. Pay.com integration only supports the pre-decrypted DPAN path (network_token). Decrypt the signedMessage on your server and provide application_primary_account_number + cryptogram."
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"usd\",\"reference\":\"probe_txn_001\",\"source_data\":{\"type\":\"network_token\",\"network_token\":{\"token\":\"4111111111111111\",\"token_type\":\"googlepay\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"three_ds\":{\"eci\":\"05\",\"cryptogram\":\"AAAAAA==\"}}}}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "MobilePayRedirect": {
         "status": "not_implemented",
@@ -290,43 +376,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "OpenBankingPis": {
         "status": "not_implemented",
@@ -334,35 +420,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Paysera": {
         "status": "not_implemented",
@@ -374,115 +460,115 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       },
       "Webpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com wallet integration supports only the pre-decrypted DPAN path for Apple Pay and Google Pay (source_data.type = \"network_token\"); other wallet variants are out of scope."
       }
     },
     "capture": {
@@ -711,14 +797,48 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_proxy_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"setup_future_usage\":\"off_session\"}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for paydotcom"
+        "status": "error",
+        "error": "Stuck on field: customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id — Missing required field: customer_id. Pay.com RepeatPayment requires at least one payment source identifier: a connector mandate id (underlying_network_id), a Pay.com pm_card_… id in mandate_metadata, or a customer_reference_id. All three are absent."
       }
     },
     "recurring_revoke": {
@@ -785,20 +905,58 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.pay.com/v1/charges",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "idempotency-key": "HS_probe00000000000000000",
+            "via": "HyperSwitch",
+            "x-paycom-api-key": "probe_key"
+          },
+          "body": "{\"amount\":0,\"currency\":\"usd\",\"reference\":\"probe_mandate_001\",\"payment_method_options\":{\"card\":{\"request_threed_secure\":\"none\"}},\"source_data\":{\"type\":\"card\",\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"setup_future_usage\":\"off_session\"}}"
+        }
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported by paydotcom. Pay.com is integrated for cards only in this scope; wallets, bank debits and BNPL are out of scope"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for paydotcom"
+        "error": "This feature is not implemented: Selected payment method through paydotcom. Pay.com SetupMandate is integrated for cards and Apple Pay / Google Pay wallets; other payment methods are out of scope"
       }
     },
     "verify_redirect": {
