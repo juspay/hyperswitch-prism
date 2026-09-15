@@ -1157,3 +1157,274 @@ does quote the sandbox merchant id; that file is gitignored (`grace/.gitignore:3
 - **`strum::Display` vs serde spelling** on the pre-existing `BraintreePaymentStatus` — unchanged
   from §7.6, still deliberately untouched, still a papercut for whoever reads
   `connector_feature_data` on the Authorize path.
+
+---
+
+## 9. Network Transaction ID (NTID) for merchant-initiated transactions
+
+**Scope**: the `RepeatPayment` flow, `Card` payment method — specifically whether a Braintree MIT
+can carry the stored scheme network transaction id from the original CIT. Also touches the card
+`Authorize` response path, because that is where the NTID is born. §6/§7/§8 (the 3DS trio) are
+untouched by this run.
+
+**Compared against** `/home/infamous/hyperswitch1/.../braintree.rs` and `.../braintree/transformers.rs`
+(`main` @ `a2978004a4`), same as §1-§5.
+
+### 9.1 The brief's premise was wrong twice over — and the answer to "which half exists" is *neither*
+
+The run brief stated that `networkTransactionId` "already appears in braintree/transformers.rs
+(~10 occurrences)" and asked which half of the NTID path was already wired — read (capturing the
+NTID off the CIT) or write (sending it back on the MIT).
+
+**Neither was wired. All ten occurrences were false positives.** Every one of them is a
+`PaymentMethodData::CardDetailsForNetworkTransactionId(_)` or
+`PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)` match arm inside a
+"payment method not supported" catch-all. Those are UCS domain-type enum variants whose *names*
+contain the substring; not one of them has anything to do with Braintree's GraphQL
+`networkTransactionId`. The grep that produced the brief's count matched identifiers, not fields.
+
+| Half | State before this run | Evidence |
+|---|---|---|
+| **READ** — capture the NTID off the CIT | **Absent.** No mutation in `mod constants` selected the field, so it was never even requested from Braintree. `network_txn_id` was hardcoded `None` at **11** `PaymentsResponseData::TransactionResponse` construction sites. | `transformers.rs:1505, 1542, 1602, 1896, 1940, 2001, 2771, 3222, 3348, 4230, 4536` |
+| **WRITE** — send the NTID on the MIT | **Absent.** No `externalVault` anywhere in the file. `MandateTransactionBody` carried `amount`, `merchantAccountId`, `channel`, `orderId`, `paymentInitiator` and nothing else. `MandateReferenceId::NetworkMandateId` was unreachable: the builder accepted only `PaymentMethodData::MandatePayment` and read `connector_mandate_id()`, which returns `None` for that variant, so such a request died on `MissingRequiredField`. | `transformers.rs:385-392` (body), `:3946-3970` (builder), `connector_types.rs:3908-3916` (accessor) |
+
+So this was not a half-built feature to finish. It was absent in both directions.
+
+### 9.2 Three field names in circulation were wrong — two of them fatally
+
+The brief, and this run's own Links Agent, both supplied field names that **do not exist**. Live
+introspection against the sandbox at `Braintree-Version: 2019-01-01` (785 types) settled each one
+before a line of code was written. Had any been implemented as supplied, the result would have
+been a 100% failure rate, not a subtle bug.
+
+| Claimed | Verdict | What it actually is |
+|---|---|---|
+| `previousNetworkTransactionId` | **Does not exist.** Variable coercion rejects it: *"contains a field name 'previousNetworkTransactionId' that is not defined for input object type 'TransactionExternalVaultOptionsInput'"* | **`verifyingNetworkTransactionId`** |
+| `TransactionInput.externalVault` | **Not on `TransactionInput`.** Its 23 fields do not include it; a referrer sweep over all 785 types found exactly one attachment point. | **`input.options.externalVault`**, on `CreditCardTransactionOptionsInput` — a **sibling** of `input.transaction`, not a member of it |
+| `transactionSource` | **Does not exist at any version**, and there is no `enum TransactionSource` in the schema. It is the legacy REST/server-SDK name. | **`transaction.paymentInitiator`** (enum `PaymentInitiator`, 8 members) — which the repo already sent correctly |
+
+The third is worth stating positively: **the repo was already right about `paymentInitiator`**, and
+this run changed nothing about it. §NT.2.1 of the tech spec carries the verbatim 23-field
+`TransactionInput` and the reproduction script.
+
+The read path's traversal was equally unobvious. `Transaction` has 43 fields and
+`networkTransactionId` is **not** one of them — selecting it there is a document-level
+`FieldUndefined` validation error, which rejects the whole document *before execution* and would
+therefore have broken **every** Authorize, not just MIT ones. The sole carrier in the entire schema
+is `CreditCardTransactionDetails.networkTransactionId` (non-deprecated at the pin), reached through
+the union `Transaction.paymentMethodSnapshot`, which makes the inline fragment mandatory:
+
+```graphql
+paymentMethodSnapshot { ... on CreditCardTransactionDetails { networkTransactionId } }
+```
+
+The union also contains `CreditCardDetails`, which carries no such field — a plausible-looking
+`... on CreditCardDetails` would validate cleanly and silently return nothing forever.
+
+### 9.3 RULE NT-1 — the regime split, and why the two halves are not symmetric
+
+The decisive finding is a single sentence in the live schema's own description of
+`TransactionExternalVaultOptionsInput`:
+
+> "Input for transactions created with credit cards vaulted in an external vault, not the Braintree
+> Vault. **Do not use for transactions created from Braintree multi-use payment methods**, or from
+> single-use payment methods which will not be stored in an external vault."
+
+Braintree's RepeatPayment in this repo charges a Braintree multi-use payment method — the vaulted
+`paymentMethod.id` minted by `vaultPaymentMethodAfterTransacting` on the CIT and replayed as
+`connector_mandate_id`. **That is precisely the case the schema names.** A naive "read it on
+Authorize, write it back on RepeatPayment" implementation would therefore have been wrong on the
+only path the connector actually exercises.
+
+> **RULE NT-1.** `options.externalVault` is emitted **if and only if** the credential is vaulted
+> **outside** Braintree.
+>
+> - **Regime A — Braintree-vaulted.** `externalVault` MUST be omitted; Braintree replays the
+>   stored-credential chain itself and the entire MIT signal is `paymentInitiator: UNSCHEDULED`,
+>   already sent. **The write half is a no-op here.**
+> - **Regime B — externally vaulted (UCS/HS is the vault of record).** `externalVault =
+>   { status: VAULTED, verifyingNetworkTransactionId: <CIT NTID> }` alongside
+>   `paymentInitiator: UNSCHEDULED`.
+
+**And no test can catch a violation.** The sandbox accepts `externalVault` on a Braintree-vaulted
+token, accepts it with no NTID, and accepts `verifyingNetworkTransactionId: "NOT-A-REAL-NTID"` —
+all three return `SUBMITTED_FOR_SETTLEMENT`. There is no API-observable difference between a
+correctly chained NTID and one silently ignored; the difference shows up only in scheme-level
+interchange qualification and issuer decline rates. The only constraints the gateway *does* enforce
+are `WILL_VAULT` + NTID (hard error) and `externalVault` without `status` (hard error).
+
+Correctness here had to be achieved **by construction**, which is why the regime is a type:
+`BraintreeMitVaultRegime::BraintreeVaulted` returns `None` from `external_vault()` for every
+possible input (`transformers.rs:948-958`), and `MandatePaymentRequest::try_from` takes that enum
+rather than a bare token string, so Regime A cannot emit `externalVault` even by accident.
+
+### 9.4 What shipped
+
+One file, `braintree/transformers.rs`, +645/−21, 43 → **55** tests.
+
+- **Read.** The snapshot fragment added to exactly the four card mutations
+  (`CHARGE_CREDIT_CARD_MUTATION`, `AUTHORIZE_CREDIT_CARD_MUTATION`,
+  `CHARGE_AND_VAULT_TRANSACTION_MUTATION`, `AUTHORIZE_AND_VAULT_CREDIT_CARD_MUTATION`) — verified
+  present in all four and absent from all eight wallet mutations, whose snapshot resolves to a
+  non-card union member and would always yield `None`. `network_txn_id` now populated at the card
+  Authorize (both mutations) and RepeatPayment sites; **not gated on success status**, because the
+  NTID is assigned at authorization time and is live-observed present even on `PROCESSOR_DECLINED`.
+  `network_txn_link_id` deliberately left `None` — that is the Mastercard TLID slot and Braintree
+  exposes no equivalent.
+- **CIT→MIT hand-off.** `MandateReferenceId` is an enum, so a Braintree MIT — which needs the vault
+  token *and* the NTID simultaneously — cannot get both from it. The NTID rides in
+  `ConnectorMandateReferenceId.mandate_metadata` as `BraintreeMandateMetadata`.
+- **Write.** `external_vault` on `CreditCardTransactionOptions` **and on its `is_empty()`** — the
+  latter is the silent-drop trap: without it the whole `options` object is discarded and the MIT
+  quietly loses its NTID with no error. Modelled as `#[serde(tag = "status")]` with `WillVault` a
+  unit variant, so the gateway-rejected pairing is unrepresentable and `status` is always emitted.
+
+### 9.5 A stale inherited caveat, corrected and disproved
+
+The tech spec's plumbing section inherited a caveat from Paysafe
+(`paysafe/transformers.rs:98-106`): *"the gRPC recurring path cannot carry `mandate_metadata`"* —
+which is why Paysafe JSON-encodes both values into `connector_mandate_id` instead. Taken at face
+value it would have made the entire hand-off dead on the primary path.
+
+**It is stale.** `payment.proto:1412-1417` gives `ConnectorMandateReferenceId` an
+`optional SecretString mandate_metadata = 4`; the producer (`domain_types/src/types.rs:6867-6884`)
+writes it and the consumer (`:6886-6910`) reads it back on the `ConnectorMandateId` branch; and
+`RepeatPaymentData::foreign_try_from` routes through exactly that conversion. Proved live rather
+than argued: a CIT Authorize returned
+
+```json
+"mandateReference": { "connectorMandateId": {
+    "connectorMandateId": "cGF5bWVudG1ldGhvZF9jY18wdzI4d3RkNg",
+    "mandateMetadata": { "value": "{\"network_transaction_id\":\"020260915131905\"}" } } }
+```
+
+and feeding that pair straight back into `RecurringPaymentService/Charge` succeeded. So
+`mandate_metadata` is used directly and Paysafe's workaround was **not** copied. The defensive
+degradation is kept regardless — absent, null, foreign-shaped or unparsable metadata all yield "no
+NTID" and never error, because in Regime A that degradation is a no-op and an error there would
+break the existing working path.
+
+### 9.6 Live evidence
+
+Sandbox, `Braintree-Version: 2019-01-01`, four real transactions:
+
+| # | What | Result |
+|---|---|---|
+| 1 | Card Authorize | `networkTransactionId: 020260915131828` — **a field this connector had never once requested before** |
+| 2 | Vault CIT | NTID `020260915131905` returned *and* carried out over gRPC in `mandateMetadata` |
+| 3 | **Regime A** MIT (vault token + metadata NTID present) | `CHARGED`. Outbound body, from the server log: `{"paymentMethodId":"…","transaction":{"amount":"12.00","merchantAccountId":"…","channel":"HyperSwitchBT_Ecom","orderId":"grace_ntid_mit_001","paymentInitiator":"UNSCHEDULED"}}` — **no `options` key at all.** The NTID was available and deliberately not sent. Byte-for-byte the pre-change body. |
+| 4 | **Regime B** MIT (`NetworkMandateId` + single-use token) | `CHARGED`. `"options":{"externalVault":{"status":"VAULTED","verifyingNetworkTransactionId":"***"}}` as a **sibling** of `transaction`. This request returned `NotSupported` before the change. |
+
+Row 3 is the one that matters: it is the empirical proof of RULE NT-1 under the exact condition
+that would tempt a wrong implementation — the NTID present and ignored.
+
+### 9.7 Parity: hyperswitch does **not** carry an NTID on Braintree MIT, in any form
+
+The brief framed this as a gap where UCS trailed hyperswitch. It is the opposite, and the earlier
+run's §2 finding repeats here. Checked empirically at `a2978004a4`:
+
+| Probe | hyperswitch result |
+|---|---|
+| `grep -rl 'externalVault\|previousNetworkTransactionId'` across **all** of `hyperswitch_connectors/src/connectors/` | **zero files** — not Braintree, not any of the ~120 other connectors |
+| `paymentMethodSnapshot` in `braintree/transformers.rs` | **0 occurrences** — the NTID is never requested |
+| `network_txn_id` in `braintree/transformers.rs` | `None` at **all 11** sites (`:791, 818, 852, 1015, 1042, 1086, 1161, 1235, 2134, 2342, 2473`) |
+| `mandate_metadata` in `braintree/transformers.rs` | `None` at **all 5** `MandateReference` sites (`:786, 1010, 1081, 1156, 1230`) |
+| `PaymentInitiatorType` | `{ Unscheduled, RecurringFirst }` — the same two variants UCS had |
+| `MandateTransactionBody` | structurally identical to UCS's pre-change body |
+| `RepeatPayment` flow | **does not exist**; HS routes MIT through `Authorize` + `MandatePayment` |
+
+**Stated plainly: this is net-new capability in UCS, not a parity catch-up.** There was no
+hyperswitch implementation to diff against, so nothing in §9 is a port. The one thing the two sides
+did share — `paymentInitiator` on the MIT — was already correct on both.
+
+### 9.8 Appendix — reviewer-checklist audit (`grace/braintree_review_checklist.md`)
+
+| Item | Applicable? | How it was satisfied |
+|---|---|---|
+| 1 — Currency is `common_enums::Currency` | **Yes** | No currency field was added. The existing `validate_currency(request.currency, Some(metadata.merchant_config_currency))` in the RepeatPayment builder is untouched and still takes `enums::Currency` on both sides. Nothing was stringified. |
+| 2 — amounts use an amount type | **Yes** | No amount field was added. `MandateTransactionBody.amount` remains `StringMajorUnit` via the connector's `amount_converter`, unchanged — pinned byte-for-byte by `regime_a_request_body_is_unchanged_by_ntid_support` (`"amount":"12.00"`). The NTID is not an amount and is never numeric. |
+| **3 — PII / credentials are `Secret<…>`** | **Yes** | `verifying_network_transaction_id` is `Option<Secret<String>>` and `single_use_token` is `Secret<String>`. Live-proven: the Regime B outbound log line printed `"verifyingNetworkTransactionId":"*** alloc::string::String ***"`. `BraintreeMandateMetadata.network_transaction_id` is deliberately plain `String` — it is serialized into `mandate_metadata`, which is itself a `SecretSerdeValue`, so the wrapping happens one level up; double-wrapping would have put a masked literal inside the JSON. §NT.10 records that the response-side slot (`network_txn_id: Option<String>`) is unwrapped by the shared type's own definition, so full secrecy is not achievable regardless. |
+| **4 — fixed-value strings become enums** | **Yes** | `ExternalVaultStatus` is modelled as the two-member enum the schema declares (`VAULTED`, `WILL_VAULT`) via `#[serde(tag = "status")]`, never a free-form `String` — asserted by `external_vault_status_is_always_present_and_never_a_free_string`. Because `status` is `ExternalVaultStatus!` (NON-NULL) it is never `Option` and never skipped. |
+| **5 — no hardcoded `Failure` in `build_error_response`** | **Yes** | The shared `ConnectorCommon::build_error_response` was not touched, and no new error arm writes a status. The NTID read path adds no error arm at all — an absent snapshot yields `None`, never an error. |
+| **6 — unknown status → `Unspecified`** | **Yes** | Status mapping was not modified; `BraintreePaymentStatus`'s `#[serde(other)] Unknown → AttemptStatus::Unspecified` arm is intact and still covered by `an_unrecognised_braintree_status_is_unspecified_not_an_invented_terminal_state`. The snapshot is a sibling of `status` in the selection set and cannot perturb it. |
+| 7 — terminal connector state → terminal UCS state | **Yes (unchanged)** | No status transition was added or altered. |
+| **8 — do not map a state the pipeline cannot advance** | **Yes** | Regime B was previously unreachable (`NotSupported`); it now completes to a real terminal status, which *removes* a dead end rather than creating one. Regime A's states are unchanged. |
+| 9 — partial capture reports `PartialCharged` | No | No capture logic touched. **But see the deviation in §9.9** — the Capture response body carries no snapshot, so `network_txn_id` stays `None` there. |
+| **10 — a 200 carrying a failure body becomes an `ErrorResponse`** | **Yes** | Untouched and deliberately not weakened: the NTID is read from the same `TransactionAuthChargeResponseBody` that already routes through `is_payment_failure` → `create_failure_error_response`. Because the accessor is **not** status-gated, a declined transaction still produces an `ErrorResponse` *and* the NTID is still captured — `network_transaction_id_is_not_gated_on_a_success_status` pins exactly this, and it matters because Braintree assigns the NTID at authorization time, decline included. |
+| 11 — refund error paths set `attempt_status` | No | No refund path touched; the refund `network_txn_id` sites remain `None`. |
+| **12 — Authorize and PSync return the same resource id** | **Yes** | `resource_id` was not touched on any flow. The NTID goes to `network_txn_id`, a distinct slot, and the vault token continues to go to `mandate_reference.connector_mandate_id`. Live rows 1-4 all show `connectorTransactionId` unchanged in shape, and PSync still anchors on the Braintree transaction id. |
+| **13 — idempotency key from `get_merchant_request_id()`** | **Yes** | `PaymentInput.api_request_key` still comes from `resource_common_data.get_merchant_request_id()` in the MIT builder; no UUID is minted anywhere in the new code. Critically, Braintree's own contract is that a repeated `apiRequestKey` **must carry identical input** — so silently adding `options.externalVault` to Regime A would have broken idempotent retries as well as scheme semantics. RULE NT-1 protects this too. |
+| **14 — prefer the per-request field over the connector-config copy** | **Yes — and explicitly preserved** | PR2187 cites this very file as the reference implementation, so it must not regress. The RepeatPayment builder still reads `request.merchant_account_id` / `request.merchant_configured_currency` first and falls back to `BraintreeAuthType` only when absent; that block is byte-identical. The new NTID lookup follows the same discipline: the per-request `MandateReferenceId::NetworkMandateId` is consulted **first**, with `mandate_metadata` only as the secondary carrier. |
+| **15 / 16 — reuse existing helpers; generic logic in `utils.rs`** | **Yes** | Reused: `is_auto_capture()` for the mutation choice, `validate_currency`, `get_merchant_request_id()`, `get_mandate_metadata()`, the existing `CreditCardTransactionOptions` + its `is_empty()` discipline, `GenericBraintreeRequest` / `VariablePaymentInput` / `PaymentInput`, and `TransactionAuthChargeResponseBody` (extended, not cloned — the same struct now serves card Authorize and RepeatPayment, so the two cannot drift). Nothing was hand-rolled that already existed. Nothing belonged in `utils.rs`: every new type names a Braintree GraphQL input or output (`TransactionExternalVaultOptions`, `ExternalVaultStatus`, `CreditCardTransactionSnapshot`, `BraintreeMandateMetadata`) or encodes a Braintree-specific rule (`BraintreeMitVaultRegime`). |
+| 17 — no `billing_full_name` fallback for cardholder name | No | No name or address field is sent on either regime's MIT. |
+| **18 — populated `IntegrationErrorContext`** | **Yes** | No `::default()` in new code. The point is largely moot by design, though, and that is deliberate: the NTID paths are built to **degrade, not error** (§9.5), so there are few new error constructions to populate. The one genuinely new failure mode — Regime B reached without a token — reuses the existing `raw_card_not_tokenized_error()`, which already carries `additional_context`, `suggested_action` and `doc_url`. |
+| **19 — comment non-obvious logic** | **Yes** | Comments on: RULE NT-1 and both regimes at the enum (`:911-931`), `external_vault()` annotated as "RULE NT-1, the whole of it" (`:947`), why `verifyingNetworkTransactionId` and not `previousNetworkTransactionId` (`:4256-4257`), why `status` is never `Option`, why `WillVault` is a unit variant, why the NTID in `mandate_metadata` is plain `String`, the two-carrier lookup order, and why the read is not status-gated. |
+| **20 — novel local logic needs a `#[cfg(test)]` test** | **Yes — 12 new tests, 43 → 55, all green** | This item is doubly binding here because §9.3 proves **no live test can catch a regime error**. The by-construction invariants are therefore pinned in-repo: `regime_a_can_never_emit_external_vault`, `regime_a_request_body_is_unchanged_by_ntid_support` (byte-for-byte JSON), `regime_b_emits_external_vault_under_options_not_transaction`, `regime_b_without_an_ntid_degrades_instead_of_failing`, `external_vault_status_is_always_present_and_never_a_free_string`, `options_is_empty_accounts_for_external_vault` (the silent-drop trap), `network_transaction_id_is_read_through_the_snapshot_union`, `an_unmatched_snapshot_union_member_yields_none_rather_than_failing`, `network_transaction_id_is_not_gated_on_a_success_status`, `card_mutations_select_the_snapshot_and_never_the_undefined_transaction_field` (asserts one occurrence per card mutation — i.e. only inside the fragment, never bare on `Transaction` — and zero on all eight wallet mutations), `mandate_metadata_round_trips_the_network_transaction_id`, `a_missing_or_unusable_mandate_metadata_degrades_to_no_ntid`. The sandbox run is evidence, not coverage. |
+| **21 — never guess a production hostname** | **Yes** | No config file touched. Both regimes POST to the same `/graphql` endpoint every other Braintree flow already uses, through the existing `connector_base_url_payments`. |
+| **22 — no unrelated regenerated files** | **Yes** | `git status --porcelain` shows exactly **one** changed tracked file, `braintree/transformers.rs`, plus this report. `data/integration-source-links.json` was regenerated mid-run and reverted — see §9.9. `cargo +nightly fmt` clean, `cargo clippy --package connector-integration --all-targets` warning-free, `typos --config ./.typos.toml` clean. |
+
+#### Credential hygiene
+
+Re-verified over the whole **tracked** tree after the change, per the operator's standing
+requirement. `braintree.public_key`, `braintree.private_key` and `braintree.metadata.merchant_id`:
+**zero tracked hits, and zero occurrences in the diff.** Every new test literal is an obviously-fake
+placeholder (`111111111111111`, `cGF5bWVudG1ldGhvZF9mYWtlXzAwMDA`,
+`tokencc_fake_0000_0000_0000_000`, `fake_merchant_account`). The one pre-existing echo §8.7 recorded
+is unchanged and was not re-introduced by this run: `merchant_account_id` is the literal string
+`juspay`, the organisation name, appearing in 146 tracked files including `.github/CODEOWNERS`.
+This run's prior failure mode — codegen hardcoding sandbox values into fixtures — did not recur.
+
+### 9.9 Residual risks and deviations recorded by this audit
+
+- **A wrong NTID is undetectable through the API, permanently.** This is the single most important
+  thing a reviewer should carry away. §9.3's three probes show the gateway accepting a malformed
+  NTID, a missing NTID and a forbidden regime with identical `SUBMITTED_FOR_SETTLEMENT` responses.
+  No green suite — here or in CI or in production smoke tests — can distinguish correct chaining
+  from silent discard. Only interchange qualification and issuer decline rates will. **Any future
+  change to the regime split needs scheme-level sign-off, not a passing test run.**
+- **Regime B is reachable but has never been driven by a real caller.** It is exercised only by this
+  run's hand-built grpcurl (§9.6 row 4). It requires the caller to have run
+  `PaymentMethodService/Tokenize` first and to present `MandateReferenceId::NetworkMandateId` —
+  a combination no orchestrator currently emits. Whether UCS should *be* the vault of record for
+  Braintree is a product decision this run deliberately did not take; the tech spec's §NT.10 records
+  it as the central open question, and the recommendation there was to ship the read path and gate
+  the write path behind that decision. **The write path is shipped but inert until a caller opts in**,
+  which is the reversible position.
+- **Deviation — the Capture site still reports `network_txn_id: None`.** The codegen brief asked for
+  the card Authorize / Capture / RepeatPayment sites. Capture deserializes
+  `CaptureResponseTransactionBody` (`{id, status}`) off `CAPTURE_TRANSACTION_MUTATION`, which is not
+  one of the four card transaction mutations and exposes no `paymentMethodSnapshot`. Populating it
+  was impossible without widening the mutation list; that was flagged rather than done silently.
+  Low impact — the NTID is assigned at authorization, so Authorize already captures it — but it is a
+  deliberate omission, not an oversight.
+- **Deviation — Regime B accepts `mandate_metadata` as a secondary NTID carrier.** Strictly, Regime B
+  is keyed on `NetworkMandateId`, which carries its own NTID. But `mandate_metadata` exists only on
+  the `ConnectorMandateId` branch, so without this fallback the §9.4 read-back would have had no
+  consumer at all on any path. The lookup order is `NetworkMandateId` first (the per-request,
+  PSP-agnostic slot — checklist #14), `mandate_metadata` second. Regime A is unaffected either way
+  and structurally still cannot emit `externalVault`.
+- **`data/integration-source-links.json` was reverted, losing this run's Links Agent refresh.** A
+  build regenerated the file mid-run and the codegen agent reverted it to keep the diff to one file
+  (checklist #22). The net effect is that Phase 1's refresh from 14 to 15 verified links is **not**
+  in this commit — a divergence from §8.7, where the equivalent refresh was legitimately included.
+  Nothing depends on it: every URL it would have added is already quoted in the tech spec's §NT.
+  Recorded so a reviewer does not read its absence as the Links Agent having failed.
+- **The four empty arrays in `x-connector-config` are load-bearing.** `BraintreeConfig`'s `repeated`
+  fields (`apple_pay_supported_networks`, `apple_pay_merchant_capabilities`,
+  `gpay_allowed_auth_methods`, `gpay_allowed_card_networks`) have no `#[serde(default)]`, so omitting
+  them fails header parsing with *"Failed to parse X-Connector-Config JSON into
+  ConnectorSpecificConfig"* — an error that names neither the field nor the reason. Unrelated to
+  NTID, but it cost time in this run and will cost it again; worth a `#[serde(default)]` in a
+  separate PR.
+- **`network_txn_link_id` remains `None` everywhere, deliberately.** That is the Mastercard TLID /
+  `transactionLinkId` slot. Braintree exposes no equivalent at the pin, and populating it with the
+  NTID would conflate two distinct scheme identifiers.
+- **Four fields on the newly-selected snapshot are free but unconsumed.**
+  `acquirerReferenceNumber` (the usual chargeback-reconciliation key),
+  `processedWithCardOnFileNetworkToken`, `accountType` and `accountBalance` now sit one selection
+  away at no extra cost. No UCS slot was identified for any of them; noted so the next reader does
+  not re-discover the fragment from scratch.
+- **The `Braintree-Version: 2019-01-01` pin is untouched**, and §9 adds a second independent reason
+  to keep it: everything specified here is already present at that version, so there is no NTID
+  argument for raising it. §7.1's `CountryCode` alpha-3 → alpha-2 hazard at 2021-02-01 stands
+  unchanged.
