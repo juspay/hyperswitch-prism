@@ -918,7 +918,8 @@ enum Connector {
   PAYHERE = 148;
   ETISALAT = 149;
   MERCHANTE = 150;
-  GLOBALPAYMENTS_REALEX = 151;
+  ELAVON_PG = 151;
+  GLOBALPAYMENTS_REALEX = 152;
 }
 
 // Payment method types
@@ -4011,6 +4012,12 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
+
+  // Send the connector order identifier here if an order was created before
+  // pre-authentication. Elavon PG's hosted-payment-page 3DS needs the Order
+  // resource URL returned by PaymentService/CreateOrder to open a payment
+  // session.
+  optional string connector_order_id = 16;
 }
 
 // Response message for pre-authentication step
@@ -5794,6 +5801,16 @@ message IlixiumConfig {
   optional string base_url = 50;
 }
 
+// Elavon Payment Gateway (EPG) - JSON REST gateway.
+// NOTE: distinct from the ELAVON connector (Elavon Converge, an XML API).
+message ElavonPgConfig {
+  // Merchant alias - HTTP Basic auth username
+  SecretString api_key = 1;
+  // Secret API key (sk_...) - HTTP Basic auth password
+  SecretString key1 = 2;
+  optional string base_url = 50;
+}
+
 message GlobalpaymentsHeartlandConfig {
   // Portico SecretAPIKey (skapi_cert_... / skapi_prod_...).
   // Sent in the SOAP body at Ver1.0/Header/SecretAPIKey, never as an HTTP header.
@@ -6258,8 +6275,10 @@ message ConnectorSpecificConfig {
     EtisalatConfig etisalat = 160;
     // MERCHANTE = 150
     MerchanteConfig merchante = 161;
-    // GLOBALPAYMENTS_REALEX = 151
-    GlobalpaymentsRealexConfig globalpayments_realex = 162;
+    // ELAVON_PG = 151
+    ElavonPgConfig elavon_pg = 162;
+    // GLOBALPAYMENTS_REALEX = 152
+    GlobalpaymentsRealexConfig globalpayments_realex = 163;
   }
 }
 

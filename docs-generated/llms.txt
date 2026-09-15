@@ -270,6 +270,22 @@ payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, recurring_charge, refund, refund_get
 examples_python: examples/elavon/elavon.py
 
+## Elavon Pg
+connector_id: elavon_pg
+doc: docs/connectors/elavon_pg.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+examples_python: examples/elavon_pg/elavon_pg.py
+
+## Elavonpg
+connector_id: elavonpg
+doc: docs/connectors/elavonpg.md
+scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
+payment_methods: Card
+flows: authorize, capture, create_order, get, pre_authenticate, proxy_authorize, refund, refund_get, void
+examples_python: examples/elavonpg/elavonpg.py
+
 ## Etisalat
 connector_id: etisalat
 doc: docs/connectors/etisalat.md
