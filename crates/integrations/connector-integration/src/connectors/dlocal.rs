@@ -181,7 +181,7 @@ domain_types::impl_flow_status_mapping! {
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
     {
-        Authorized => Authorized,
+        Authorized => Charged,
         Verified   => Charged,
         Pending    => Pending,
         Active     => Pending,
