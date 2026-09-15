@@ -673,21 +673,73 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Glomopay<T>,
+    flow:      Authorize,
+    source:    transformers::GlomopayPaymentStatus,
+    success:   Success        => Charged,
+    failure:   Failed         => Failure,
+    {
+        InProgress    => AuthenticationPending,
+        ActionRequired => Pending,
+        Pending       => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Glomopay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Glomopay<T>,
+    flow:      PSync,
+    source:    transformers::GlomopayPaymentStatus,
+    success:   Success        => Charged,
+    failure:   Failed         => Failure,
+    {
+        InProgress    => AuthenticationPending,
+        ActionRequired => Pending,
+        Pending       => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Glomopay<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Glomopay<T>,
+    flow:      Refund,
+    source:    transformers::GlomopayRefundStatus,
+    success:   Success        => Success,
+    failure:   Failed         => Failure,
+    {
+        Pending       => Pending,
+        ActionRequired => Pending,
+        UnderReview   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Glomopay<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Glomopay<T>,
+    flow:      RSync,
+    source:    transformers::GlomopayRefundStatus,
+    success:   Success        => Success,
+    failure:   Failed         => Failure,
+    {
+        Pending       => Pending,
+        ActionRequired => Pending,
+        UnderReview   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Glomopay<T>
 {

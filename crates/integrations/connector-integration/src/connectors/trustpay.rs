@@ -74,17 +74,69 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      Authorize,
+    source:    transformers::TrustpayBankRedirectPaymentStatus,
+    success:   Paid              => Charged,
+    failure:   Rejected          => AuthorizationFailed,
+    {
+        Authorized       => Authorized,
+        Authorizing      => Authorizing,
+        Pending          => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Trustpay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      PSync,
+    source:    transformers::TrustpayBankRedirectPaymentStatus,
+    success:   Paid              => Charged,
+    failure:   Rejected          => AuthorizationFailed,
+    {
+        Authorized       => Authorized,
+        Authorizing      => Authorizing,
+        Pending          => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Trustpay<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      RSync,
+    source:    transformers::TrustpayBankRedirectPaymentStatus,
+    success:   Paid              => Success,
+    failure:   Rejected          => Failure,
+    {
+        Authorized       => Pending,
+        Authorizing      => Pending,
+        Pending          => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Trustpay<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      Refund,
+    source:    transformers::TrustpayBankRedirectPaymentStatus,
+    success:   Paid              => Success,
+    failure:   Rejected          => Failure,
+    {
+        Authorized       => Pending,
+        Authorizing      => Pending,
+        Pending          => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Trustpay<T>
@@ -107,9 +159,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Trustpay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      SetupMandate,
+    source:    transformers::TrustpayCardPaymentStatus,
+    success:   Charged              => Charged,
+    failure:   Failed               => Failure,
+    {
+        AuthenticationPending => AuthenticationPending,
+        Pending               => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Trustpay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Trustpay<T>,
+    flow:      RepeatPayment,
+    source:    transformers::TrustpayCardPaymentStatus,
+    success:   Charged              => Charged,
+    failure:   Failed               => Failure,
+    {
+        AuthenticationPending => AuthenticationPending,
+        Pending               => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Trustpay<T>

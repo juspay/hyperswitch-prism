@@ -130,6 +130,22 @@ macros::create_all_prerequisites!(
     }
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      Authorize,
+    source:    placetopay::PlacetopayTransactionStatus,
+    success:   Ok               => Charged,
+    failure:   Failed           => Failure,
+    {
+        Approved         => Charged,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Placetopay<T>
 {
@@ -141,11 +157,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      PSync,
+    source:    placetopay::PlacetopayTransactionStatus,
+    success:   Ok               => Charged,
+    failure:   Failed           => Failure,
+    {
+        Approved         => Charged,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Placetopay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      Void,
+    source:    placetopay::PlacetopayTransactionStatus,
+    success:   Ok               => Voided,
+    failure:   Failed           => Failure,
+    {
+        Approved         => Voided,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Placetopay<T>
 {
@@ -171,21 +219,87 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      Refund,
+    source:    placetopay::PlacetopayRefundStatus,
+    success:   Ok               => Success,
+    failure:   Failed           => Failure,
+    {
+        Approved         => Success,
+        Refunded         => Success,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Placetopay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      Capture,
+    source:    placetopay::PlacetopayTransactionStatus,
+    success:   Ok               => Charged,
+    failure:   Failed           => CaptureFailed,
+    {
+        Approved         => Charged,
+        Rejected         => CaptureFailed,
+        Error            => CaptureFailed,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Placetopay<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      RSync,
+    source:    placetopay::PlacetopayRefundStatus,
+    success:   Ok               => Success,
+    failure:   Failed           => Failure,
+    {
+        Approved         => Success,
+        Refunded         => Success,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Placetopay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Placetopay<T>,
+    flow:      VoidPC,
+    source:    placetopay::PlacetopayTransactionStatus,
+    success:   Ok               => VoidedPostCapture,
+    failure:   Failed           => Failure,
+    {
+        Approved         => VoidedPostCapture,
+        Rejected         => Failure,
+        Error            => Failure,
+        Pending          => Pending,
+        PendingValidation => Pending,
+        PendingProcess   => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidPostCaptureV2 for Placetopay<T>
 {

@@ -61,25 +61,109 @@ macros::macro_connector_payout_implementation!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      Authorize,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Authorized => Authorized,
+    failure:   Rejected   => Failure,
+    {
+        Paid     => Charged,
+        Verified => Charged,
+        Pending  => Pending,
+        Active   => Pending,
+        Cancelled => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Dlocal<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      PSync,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Paid       => Charged,
+    failure:   Rejected   => Failure,
+    {
+        Authorized => Authorized,
+        Verified   => Charged,
+        Pending    => Pending,
+        Active     => Pending,
+        Cancelled  => Voided,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Dlocal<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      Void,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Cancelled  => Voided,
+    failure:   Rejected   => Failure,
+    {
+        Authorized => VoidInitiated,
+        Paid       => VoidFailed,
+        Verified   => VoidFailed,
+        Pending    => Pending,
+        Active     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Dlocal<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      RSync,
+    source:    transformers::RefundStatus,
+    success:   Success    => Success,
+    failure:   Rejected   => Failure,
+    {
+        Pending   => Pending,
+        Cancelled => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Dlocal<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      Refund,
+    source:    transformers::RefundStatus,
+    success:   Success    => Success,
+    failure:   Rejected   => Failure,
+    {
+        Pending   => Pending,
+        Cancelled => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Dlocal<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      Capture,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Paid       => Charged,
+    failure:   Rejected   => CaptureFailed,
+    {
+        Authorized => Pending,
+        Verified   => Charged,
+        Pending    => Pending,
+        Active     => Pending,
+        Cancelled  => CaptureFailed,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Dlocal<T>
@@ -89,9 +173,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Dlocal<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      SetupMandate,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Paid       => Charged,
+    failure:   Rejected   => Failure,
+    {
+        Authorized => Charged,
+        Verified   => Charged,
+        Pending    => Pending,
+        Active     => Pending,
+        Cancelled  => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Dlocal<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Dlocal<T>,
+    flow:      RepeatPayment,
+    source:    transformers::DlocalPaymentStatus,
+    success:   Paid       => Charged,
+    failure:   Rejected   => Failure,
+    {
+        Authorized => Authorized,
+        Verified   => Charged,
+        Pending    => Pending,
+        Active     => Pending,
+        Cancelled  => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Dlocal<T>

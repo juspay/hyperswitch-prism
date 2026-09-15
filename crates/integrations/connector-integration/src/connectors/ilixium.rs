@@ -587,11 +587,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Ilixium<T>,
+    flow:      Capture,
+    source:    transformers::IlixiumStatusCode,
+    success:   Success      => Charged,
+    failure:   Declined     => CaptureFailed,
+    {
+        Pending             => CaptureInitiated,
+        Cancelled           => CaptureFailed,
+        Rejected            => CaptureFailed,
+        Error               => CaptureFailed,
+        Resubmission        => CaptureInitiated,
+        Unknown             => CaptureInitiated,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Ilixium<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Ilixium<T>,
+    flow:      Void,
+    source:    transformers::IlixiumStatusCode,
+    success:   Success      => Voided,
+    failure:   Declined     => VoidFailed,
+    {
+        Cancelled           => Voided,
+        Pending             => VoidInitiated,
+        Rejected            => VoidFailed,
+        Error               => VoidFailed,
+        Resubmission        => VoidInitiated,
+        Unknown             => VoidInitiated,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Ilixium<T>
 {
@@ -602,11 +634,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Ilixium<T>,
+    flow:      Refund,
+    source:    transformers::IlixiumStatusCode,
+    success:   Success      => Success,
+    failure:   Declined     => Failure,
+    {
+        Pending             => Pending,
+        Cancelled           => Failure,
+        Rejected            => Failure,
+        Error               => Failure,
+        Resubmission        => Pending,
+        Unknown             => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Ilixium<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Ilixium<T>,
+    flow:      RSync,
+    source:    transformers::IlixiumStatusCode,
+    success:   Success      => Success,
+    failure:   Declined     => Failure,
+    {
+        Pending             => Pending,
+        Cancelled           => Failure,
+        Rejected            => Failure,
+        Error               => Failure,
+        Resubmission        => Pending,
+        Unknown             => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Ilixium<T>
 {

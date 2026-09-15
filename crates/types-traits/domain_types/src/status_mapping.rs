@@ -409,3 +409,125 @@ macro_rules! assert_terminal_mapping {
         }
     };
 }
+
+/// Enforce correct terminal status mapping for a connector refund flow.
+///
+/// Parallel to `impl_flow_status_mapping!` for payment flows.
+/// Works with `RefundFlowStatusRules` flows (`Refund`, `RSync`).
+///
+/// ## Syntax
+///
+/// ```rust,ignore
+/// impl_refund_flow_status_mapping! {
+///     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+///     connector: Adyen<T>,
+///     flow:      connector_flow::Refund,
+///     source:    adyen::AdyenRefundStatus,
+///     success:   Succeeded  => Success,
+///     failure:   Failed     => Failure,
+///     {
+///         Received  => Pending,
+///     }
+/// }
+/// ```
+#[macro_export]
+macro_rules! impl_refund_flow_status_mapping {
+    // ── with explicit generics ────────────────────────────────────────────
+    (
+        generics:  [ $($generic:tt)* ],
+        connector: $connector:ty,
+        flow:      $flow:ty,
+        source:    $source:ty,
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        {
+            $( $variant:ident => $target:ident ),* $(,)?
+        }
+    ) => {
+        $crate::impl_refund_flow_status_mapping!(
+            @emit
+            [$($generic)*],
+            $connector, $flow, $source,
+            $success_variant, $success_target,
+            $failure_variant, $failure_target,
+            [$( $variant => $target ),*]
+        );
+    };
+
+    // ── without generics ─────────────────────────────────────────────────
+    (
+        connector: $connector:ty,
+        flow:      $flow:ty,
+        source:    $source:ty,
+
+        success: $success_variant:ident => $success_target:ident,
+        failure: $failure_variant:ident => $failure_target:ident,
+
+        {
+            $( $variant:ident => $target:ident ),* $(,)?
+        }
+    ) => {
+        $crate::impl_refund_flow_status_mapping!(
+            @emit
+            [],
+            $connector, $flow, $source,
+            $success_variant, $success_target,
+            $failure_variant, $failure_target,
+            [$( $variant => $target ),*]
+        );
+    };
+
+    // ── internal emitter ─────────────────────────────────────────────────
+    (
+        @emit
+        [$($generic:tt)*],
+        $connector:ty, $flow:ty, $source:ty,
+        $success_variant:ident, $success_target:ident,
+        $failure_variant:ident, $failure_target:ident,
+        [$( $variant:ident => $target:ident ),*]
+    ) => {
+        const _: () = assert!(
+            <$flow as $crate::flow_status::RefundFlowStatusRules>::TERMINAL_SUCCESS as u32
+                == common_enums::RefundStatus::$success_target as u32,
+            concat!(
+                "impl_refund_flow_status_mapping: success target `RefundStatus::",
+                stringify!($success_target),
+                "` does not match the flow's TERMINAL_SUCCESS"
+            )
+        );
+
+        const _: () = assert!(
+            <$flow as $crate::flow_status::RefundFlowStatusRules>::TERMINAL_FAILURE as u32
+                == common_enums::RefundStatus::$failure_target as u32,
+            concat!(
+                "impl_refund_flow_status_mapping: failure target `RefundStatus::",
+                stringify!($failure_target),
+                "` does not match the flow's TERMINAL_FAILURE"
+            )
+        );
+
+        impl<$($generic)*> $crate::flow_status::ConnectorRefundTerminalMapping<$flow> for $connector {
+            type ConnectorStatus = $source;
+
+            fn success_connector_status() -> $source {
+                <$source>::$success_variant
+            }
+
+            fn failure_connector_status() -> $source {
+                <$source>::$failure_variant
+            }
+
+            fn map_refund_status(status: $source) -> common_enums::RefundStatus {
+                match status {
+                    <$source>::$success_variant => common_enums::RefundStatus::$success_target,
+                    <$source>::$failure_variant => common_enums::RefundStatus::$failure_target,
+                    $(
+                        <$source>::$variant => common_enums::RefundStatus::$target,
+                    )*
+                }
+            }
+        }
+    };
+}

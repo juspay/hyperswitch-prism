@@ -431,34 +431,51 @@ fn is_payment_successful(payment_status: &str) -> bool {
     }
 }
 
-fn get_pending_status_based_on_redirect_url(redirect_url: Option<Url>) -> enums::AttemptStatus {
-    match redirect_url {
-        Some(_url) => enums::AttemptStatus::AuthenticationPending,
-        None => enums::AttemptStatus::Pending,
+/// Typed intermediate status for TrustPay card payment responses.
+/// Used as the macro source for SetupMandate and RepeatPayment flows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TrustpayCardPaymentStatus {
+    Charged,
+    Failed,
+    AuthenticationPending,
+    Pending,
+}
+
+impl From<TrustpayCardPaymentStatus> for enums::AttemptStatus {
+    fn from(status: TrustpayCardPaymentStatus) -> Self {
+        match status {
+            TrustpayCardPaymentStatus::Charged => Self::Charged,
+            TrustpayCardPaymentStatus::Failed => Self::Failure,
+            TrustpayCardPaymentStatus::AuthenticationPending => Self::AuthenticationPending,
+            TrustpayCardPaymentStatus::Pending => Self::Pending,
+        }
     }
 }
 
 fn get_transaction_status(
     payment_status: Option<String>,
     redirect_url: Option<Url>,
-) -> CustomResult<(enums::AttemptStatus, Option<String>), ConnectorError> {
+) -> CustomResult<(TrustpayCardPaymentStatus, Option<String>), ConnectorError> {
     // We don't get payment_status only in case, when the user doesn't complete the authentication step.
     // If we receive status, then return the proper status based on the connector response
     if let Some(payment_status) = payment_status {
         let (is_failed, failure_message) = is_payment_failed(&payment_status);
         if is_failed {
             Ok((
-                enums::AttemptStatus::Failure,
+                TrustpayCardPaymentStatus::Failed,
                 Some(failure_message.to_string()),
             ))
         } else if is_payment_successful(&payment_status) {
-            Ok((enums::AttemptStatus::Charged, None))
+            Ok((TrustpayCardPaymentStatus::Charged, None))
         } else {
-            let pending_status = get_pending_status_based_on_redirect_url(redirect_url);
-            Ok((pending_status, None))
+            let typed_status = match redirect_url {
+                Some(_) => TrustpayCardPaymentStatus::AuthenticationPending,
+                None => TrustpayCardPaymentStatus::Pending,
+            };
+            Ok((typed_status, None))
         }
     } else {
-        Ok((enums::AttemptStatus::AuthenticationPending, None))
+        Ok((TrustpayCardPaymentStatus::AuthenticationPending, None))
     }
 }
 
@@ -578,10 +595,11 @@ fn handle_cards_response(
     ),
     ConnectorError,
 > {
-    let (status, message) = get_transaction_status(
+    let (typed_status, message) = get_transaction_status(
         response.payment_status.to_owned(),
         response.redirect_url.to_owned(),
     )?;
+    let status = enums::AttemptStatus::from(typed_status);
 
     let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response.redirect_url.map(|url| RedirectForm::Form {
@@ -2813,10 +2831,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = &item.response;
 
         // Get transaction status from payment status
-        let (status, message) = get_transaction_status(
+        let (typed_status, message) = get_transaction_status(
             response.payment_status.clone(),
             response.redirect_url.clone(),
         )?;
+        let status = enums::AttemptStatus::from(typed_status);
 
         // Build redirection data if redirect URL is present
         let form_fields = response.redirect_params.clone().unwrap_or_default();
@@ -2997,10 +3016,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        let (status, message) = get_transaction_status(
+        let (typed_status, message) = get_transaction_status(
             response.payment_status.clone(),
             response.redirect_url.clone(),
         )?;
+        let status = enums::AttemptStatus::from(typed_status);
 
         let error = if message.is_some() {
             Some(ErrorResponse {

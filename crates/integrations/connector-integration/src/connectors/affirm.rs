@@ -66,31 +66,121 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      Authorize,
+    source:    transformers::AffirmTransactionStatus,
+    success:   Captured          => Charged,
+    failure:   Declined          => Failure,
+    {
+        Authorized        => Authorized,
+        PartiallyCaptured => PartialCharged,
+        Voided            => Voided,
+        Refunded          => Unresolved,
+        PartiallyRefunded => Unresolved,
+        Disputed          => Unresolved,
+        DisputeRefunded   => Unresolved,
+        Unknown           => Unknown,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Affirm<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      PSync,
+    source:    transformers::AffirmTransactionStatus,
+    success:   Captured          => Charged,
+    failure:   Declined          => Failure,
+    {
+        Authorized        => Authorized,
+        PartiallyCaptured => PartialCharged,
+        Voided            => Voided,
+        Refunded          => Unresolved,
+        PartiallyRefunded => Unresolved,
+        Disputed          => Unresolved,
+        DisputeRefunded   => Unresolved,
+        Unknown           => Unknown,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Affirm<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      Capture,
+    source:    transformers::AffirmTransactionStatus,
+    success:   Captured          => Charged,
+    failure:   Declined          => CaptureFailed,
+    {
+        Authorized        => Pending,
+        PartiallyCaptured => PartialCharged,
+        Voided            => CaptureFailed,
+        Refunded          => CaptureFailed,
+        PartiallyRefunded => CaptureFailed,
+        Disputed          => Pending,
+        DisputeRefunded   => CaptureFailed,
+        Unknown           => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Affirm<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      Void,
+    source:    transformers::AffirmTransactionStatus,
+    success:   Voided            => Voided,
+    failure:   Declined          => Failure,
+    {
+        Authorized        => VoidInitiated,
+        Captured          => VoidFailed,
+        PartiallyCaptured => VoidFailed,
+        Refunded          => VoidFailed,
+        PartiallyRefunded => VoidFailed,
+        Disputed          => Pending,
+        DisputeRefunded   => VoidFailed,
+        Unknown           => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Affirm<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      Refund,
+    source:    transformers::AffirmRefundStatus,
+    success:   Refunded => Success,
+    failure:   Failed   => Failure,
+    { Pending => Pending, }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Affirm<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Affirm<T>,
+    flow:      RSync,
+    source:    transformers::AffirmRefundStatus,
+    success:   Refunded => Success,
+    failure:   Failed   => Failure,
+    { Pending => Pending, }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Affirm<T>
 {

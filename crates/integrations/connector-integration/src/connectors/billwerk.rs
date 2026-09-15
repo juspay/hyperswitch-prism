@@ -72,41 +72,147 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      Authorize,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Authorized,
+        Cancelled  => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Billwerk<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      PSync,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Authorized,
+        Cancelled  => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Billwerk<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      Void,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Cancelled  => Voided,
+    failure:   Failed     => VoidFailed,
+    {
+        Created    => VoidInitiated,
+        Pending    => VoidInitiated,
+        Authorized => VoidInitiated,
+        Settled    => VoidFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Billwerk<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      Capture,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Settled    => Charged,
+    failure:   Failed     => CaptureFailed,
+    {
+        Created    => CaptureInitiated,
+        Pending    => CaptureInitiated,
+        Authorized => CaptureInitiated,
+        Cancelled  => CaptureFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Billwerk<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      Refund,
+    source:    billwerk::RefundState,
+    success:   Refunded   => Success,
+    failure:   Failed     => Failure,
+    {
+        Processing => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Billwerk<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      RSync,
+    source:    billwerk::RefundState,
+    success:   Refunded   => Success,
+    failure:   Failed     => Failure,
+    {
+        Processing => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Billwerk<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      SetupMandate,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Pending,
+        Cancelled  => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Billwerk<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Billwerk<T>,
+    flow:      RepeatPayment,
+    source:    billwerk::BillwerkPaymentState,
+    success:   Settled    => Charged,
+    failure:   Failed     => Failure,
+    {
+        Created    => Pending,
+        Pending    => Pending,
+        Authorized => Authorized,
+        Cancelled  => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Billwerk<T>
 {
