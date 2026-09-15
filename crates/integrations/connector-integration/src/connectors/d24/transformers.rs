@@ -338,24 +338,54 @@ pub struct D24ErrorBody {
     pub details: Option<D24ErrorDetails>,
     #[serde(rename = "type")]
     pub error_type: Option<String>,
+    /// KYC rejections (`303 USER_REJECTED_KYC_CHECK`) carry the fraud reason
+    /// here, e.g. `"Underage user detected"` (tech spec §"Error Response Body
+    /// Format"). It is the only field that says *why* the payer was rejected.
+    #[serde(rename = "reason")]
+    pub kyc_reason: Option<String>,
+    /// The KYC fraud reason code (e.g. `105`). Documented as a number but
+    /// kept untyped, like `code`.
+    pub reason_code: Option<serde_json::Value>,
+}
+
+fn json_scalar_to_string(value: &serde_json::Value) -> String {
+    match value {
+        serde_json::Value::String(value) => value.clone(),
+        other => other.to_string(),
+    }
 }
 
 impl D24ErrorBody {
     pub fn code_string(&self) -> Option<String> {
-        self.code.as_ref().map(|code| match code {
-            serde_json::Value::String(code) => code.clone(),
-            other => other.to_string(),
-        })
+        self.code.as_ref().map(json_scalar_to_string)
     }
 
     pub fn message_string(&self) -> Option<String> {
         self.description.clone().or_else(|| self.message.clone())
     }
 
+    /// The KYC fraud reason, suffixed with its reason code when present.
+    fn kyc_reason_string(&self) -> Option<String> {
+        let reason = self
+            .kyc_reason
+            .as_deref()
+            .filter(|reason| !reason.is_empty())?;
+        Some(match self.reason_code.as_ref() {
+            Some(reason_code) => {
+                format!(
+                    "{reason} (reason_code {})",
+                    json_scalar_to_string(reason_code)
+                )
+            }
+            None => reason.to_string(),
+        })
+    }
+
     pub fn reason(&self) -> Option<String> {
         self.details
             .as_ref()
             .and_then(|details| details.joined())
+            .or_else(|| self.kyc_reason_string())
             .or_else(|| self.error_type.clone())
             .or_else(|| self.message_string())
     }
