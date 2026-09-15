@@ -15,7 +15,10 @@
 //! Authorize acts on it; the plain `PaymentService/Authorize` and
 //! `PaymentService/SetupRecurring` handlers make exactly one connector call, so a
 //! caller of those runs `CreateOrder` itself and passes the id as
-//! `connector_order_id` (Authorize) or `order_id` (SetupRecurring).
+//! `connector_order_id` (Authorize) or `order_id` (SetupRecurring). CreateOrder
+//! carries the payment's `customer` and `setup_future_usage`: an order for a
+//! payment that stores the card (`OffSession`) is created standing and owned by
+//! `customer.id`, because PayNearMe cannot change either after creation.
 //!
 //! A merchant-initiated charge needs no new order: `/make_payment` pays the
 //! standing order the card was stored on, and both identifiers travel in

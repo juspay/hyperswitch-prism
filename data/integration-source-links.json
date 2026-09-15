@@ -243,7 +243,11 @@
     "https://apidocs.paynearme.com/devdocs/reference/post_create-push-order",
     "https://apidocs.paynearme.com/devdocs/docs/requirements-for-disbursements",
     "https://apidocs.paynearme.com/devdocs/docs/disbursing-from-the-api",
-    "https://apidocs.paynearme.com/devdocs/reference/post_find-disbursements"
+    "https://apidocs.paynearme.com/devdocs/reference/post_find-disbursements",
+    "https://apidocs.paynearme.com/devdocs/reference/post_change-order",
+    "https://apidocs.paynearme.com/devdocs/docs/understanding-the-order-validation-callback",
+    "https://apidocs.paynearme.com/devdocs/docs/using-the-order-change-callback",
+    "https://apidocs.paynearme.com/devdocs/docs/making-payments"
   ],
   "Paydotcom": [
     "https://apiref.pay.com/reference/introduction",

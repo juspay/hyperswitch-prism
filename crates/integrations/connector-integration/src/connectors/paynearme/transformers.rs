@@ -9,8 +9,8 @@
 //!
 //! Scope of this module: Card — one-time payments, storing a card for later
 //! merchant-initiated use, and charging the stored card.
-//! * `CreateOrder` -> `POST /create_order` (a standing order on opt-in, see
-//!   [`PaynearmeCreateOrderFeatureData`])
+//! * `CreateOrder` -> `POST /create_order` (a standing order for
+//!   `setup_future_usage = OffSession`, see [`PaynearmeOrderSettings`])
 //! * `Authorize`   -> `POST /create_payment_method` with `send_payment=true`
 //!   (tokenises the card and charges it in one round trip; with
 //!   `setup_future_usage = OffSession` the stored card is also returned as the
@@ -56,7 +56,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::connectors::paynearme::{PaynearmeAmountConvertor, PaynearmeRouterData};
@@ -318,62 +318,79 @@ fn stored_credential_customer_identifier(
 // CREATE ORDER — `POST /create_order`
 // =============================================================================
 
-/// Opt-in settings for `/create_order`, read from `connector_feature_data`:
-/// `{"order_is_standing": true, "site_customer_identifier": "<customer id>"}`.
-///
-/// Why this exists: CreateOrder has no other way to learn that the order will hold
-/// a stored card. `PaymentCreateOrderData` carries no setup-future-usage signal,
-/// and `PaymentServiceCreateOrderRequest` carries no customer id
-/// (`PaymentFlowData.customer_id` is always `None` on this flow). Yet an order for
-/// a SetupMandate needs two things a one-time order does not:
-/// * `order_is_standing="true"` ("If the order can be repeatedly paid for"), so
-///   RepeatPayment can `/make_payment` against it more than once, with
-///   `order_type="any"` because those charges need not equal the order amount;
-/// * a stable `site_customer_identifier`, because PayNearMe links a stored card to
-///   the order's customer, and the per-order fallback a one-time order uses would
-///   mint a fresh PayNearMe customer for every mandate.
-///
-/// When absent, the order is the same one-time `exact` order as before.
-/// SetupMandate and an off-session Authorize check both properties on the
-/// `/create_payment_method` response and fail otherwise.
-///
-/// Hyperswitch sends `connector_feature_data: None` on CreateOrder and the request
-/// has no customer field, so a Hyperswitch-driven standing order needs a change on
-/// that side; see the PR description.
-#[derive(Debug, Default, Deserialize)]
-pub struct PaynearmeCreateOrderFeatureData {
-    #[serde(default)]
-    pub order_is_standing: bool,
-    #[serde(default)]
-    pub site_customer_identifier: Option<String>,
+/// The three `/create_order` fields that decide whether an order can be paid
+/// again and whose it is. PayNearMe fixes them when the order is created:
+/// `/create_payment_method` and `/make_payment` have no field to change them
+/// (<https://apidocs.paynearme.com/devdocs/reference/post_create-order>).
+#[derive(Debug)]
+pub struct PaynearmeOrderSettings {
+    order_type: &'static str,
+    order_is_standing: &'static str,
+    site_customer_identifier: Secret<String>,
 }
 
-impl TryFrom<&PaymentFlowData> for PaynearmeCreateOrderFeatureData {
-    type Error = error_stack::Report<IntegrationError>;
-
-    fn try_from(common: &PaymentFlowData) -> Result<Self, Self::Error> {
-        match &common.connector_feature_data {
-            None => Ok(Self::default()),
-            // These settings decide what goes on the wire, so a value that does
-            // not parse is an error rather than a silent one-time order.
-            Some(feature_data) => {
-                serde_json::from_value(feature_data.clone().expose()).map_err(|error| {
-                    error_stack::report!(IntegrationError::InvalidDataFormat {
-                        field_name: "connector_feature_data",
+impl PaynearmeOrderSettings {
+    /// Chooses the order from the payment it is created for.
+    ///
+    /// * `setup_future_usage = OffSession`: the payment stores the card for
+    ///   merchant-initiated charges (an off-session Authorize, or a SetupMandate),
+    ///   and each of those charges pays this same order again. So the order is
+    ///   standing ("If the order can be repeatedly paid for, enter `true`"), with
+    ///   `order_type="any"` because those charges need not equal the order amount.
+    ///   The stored card is linked to the order's customer, and the Authorize /
+    ///   SetupMandate response is checked against `customer.id`, so `customer.id`
+    ///   is required. A per-order fallback would mint a fresh PayNearMe customer
+    ///   and orphan the card.
+    /// * `OnSession` or unset: a one-time `exact` order that is paid once.
+    ///   `site_customer_identifier` is required and is a client-created unique
+    ///   string, so without a `customer.id` it falls back to the attempt reference.
+    ///
+    /// An empty `customer.id` counts as absent: it cannot identify a customer.
+    fn new(
+        setup_future_usage: Option<FutureUsage>,
+        customer_id: Option<&str>,
+        connector_request_reference_id: &str,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let customer_id = customer_id.filter(|customer_id| !customer_id.is_empty());
+        match setup_future_usage {
+            Some(FutureUsage::OffSession) => {
+                let site_customer_identifier = customer_id.ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "customer.id",
                         context: IntegrationErrorContext {
                             suggested_action: Some(
-                                "Send a JSON object such as {\"order_is_standing\": true, \
-                                 \"site_customer_identifier\": \"cus_123\"}"
+                                "Send customer.id on CreateOrder when setup_future_usage is \
+                                 OFF_SESSION, with the same value later sent as customer.id on \
+                                 the Authorize or SetupRecurring that stores the card"
                                     .to_string(),
                             ),
-                            doc_url: None,
-                            additional_context: Some(format!(
-                                "PayNearMe CreateOrder settings did not parse: {error}"
-                            )),
+                            doc_url: Some(
+                                "https://apidocs.paynearme.com/devdocs/reference/post_create-order"
+                                    .to_string(),
+                            ),
+                            additional_context: Some(
+                                "setup_future_usage=OFF_SESSION creates a standing PayNearMe \
+                                 order, and its site_customer_identifier owns the stored card"
+                                    .to_string(),
+                            ),
                         },
                     })
+                })?;
+                Ok(Self {
+                    order_type: ORDER_TYPE_ANY,
+                    order_is_standing: ORDER_IS_STANDING_TRUE,
+                    site_customer_identifier: Secret::new(site_customer_identifier.to_string()),
                 })
             }
+            Some(FutureUsage::OnSession) | None => Ok(Self {
+                order_type: ORDER_TYPE_EXACT,
+                order_is_standing: ORDER_IS_STANDING_FALSE,
+                site_customer_identifier: Secret::new(
+                    customer_id
+                        .unwrap_or(connector_request_reference_id)
+                        .to_string(),
+                ),
+            }),
         }
     }
 }
@@ -389,7 +406,8 @@ pub struct PaynearmeCreateOrderRequest {
     pub signature: Secret<String>,
     pub order_amount: StringMajorUnit,
     pub order_currency: Currency,
-    pub site_customer_identifier: String,
+    /// The order's customer, see [`PaynearmeOrderSettings`].
+    pub site_customer_identifier: Secret<String>,
     pub order_type: String,
     pub order_is_standing: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -397,6 +415,35 @@ pub struct PaynearmeCreateOrderRequest {
     /// Returns only `pnm_order_identifier` / `pnm_customer_identifier`, which is
     /// all this flow consumes, and keeps the cash/slip payload out of the response.
     pub return_minimal_info: String,
+}
+
+impl PaynearmeCreateOrderRequest {
+    /// Builds the body and signs exactly what will be serialised. `timestamp` is a
+    /// parameter so the unit tests can pin the signature of a fixed body.
+    fn signed(
+        auth: PaynearmeAuthType,
+        timestamp: String,
+        order_amount: StringMajorUnit,
+        order_currency: Currency,
+        settings: PaynearmeOrderSettings,
+        site_order_identifier: String,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let mut request = Self {
+            site_identifier: auth.site_identifier,
+            timestamp,
+            version: PAYNEARME_API_VERSION.to_string(),
+            signature: Secret::new(String::new()),
+            order_amount,
+            order_currency,
+            site_customer_identifier: settings.site_customer_identifier,
+            order_type: settings.order_type.to_string(),
+            order_is_standing: settings.order_is_standing.to_string(),
+            site_order_identifier: Some(site_order_identifier),
+            return_minimal_info: RETURN_MINIMAL_INFO_TRUE.to_string(),
+        };
+        request.signature = paynearme_signature(&auth.api_secret_key, &request)?;
+        Ok(request)
+    }
 }
 
 type CreateOrderRouterData =
@@ -416,76 +463,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_amount =
             PaynearmeAmountConvertor::convert(router_data.request.amount, Currency::USD)?;
 
-        let PaynearmeCreateOrderFeatureData {
-            order_is_standing: standing,
-            site_customer_identifier: feature_customer_identifier,
-        } = PaynearmeCreateOrderFeatureData::try_from(common)?;
+        // `customer.id` is the same `PaymentFlowData.customer_id` the off-session
+        // Authorize and SetupMandate compare the order's customer against.
+        let settings = PaynearmeOrderSettings::new(
+            router_data.request.setup_future_usage,
+            common
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.get_string_repr()),
+            &common.connector_request_reference_id,
+        )?;
 
-        // A customer id the caller actually supplied: `connector_feature_data`
-        // first (CreateOrder requests carry no `customer.id`), then the flow's own
-        // customer id should one ever be threaded through.
-        let supplied_customer_identifier = feature_customer_identifier
-            .filter(|identifier| !identifier.is_empty())
-            .or_else(|| {
-                common
-                    .customer_id
-                    .as_ref()
-                    .map(|customer_id| customer_id.get_string_repr().to_string())
-            });
-
-        let (order_type, order_is_standing, site_customer_identifier) = if standing {
-            // A standing order holds a stored card for one customer; see
-            // `PaynearmeCreateOrderFeatureData`. No per-order fallback here.
-            let site_customer_identifier = supplied_customer_identifier.ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "connector_feature_data.site_customer_identifier",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some(
-                            "Send the stable customer id (the same value later sent as \
-                             customer.id on SetupRecurring) as \
-                             connector_feature_data.site_customer_identifier"
-                                .to_string(),
-                        ),
-                        doc_url: None,
-                        additional_context: Some(
-                            "A standing PayNearMe order holds stored cards for one customer"
-                                .to_string(),
-                        ),
-                    },
-                })
-            })?;
-            (
-                ORDER_TYPE_ANY,
-                ORDER_IS_STANDING_TRUE,
-                site_customer_identifier,
-            )
-        } else {
-            // `site_customer_identifier` is required and is a client-created unique
-            // string; a one-time order falls back to the attempt reference when no
-            // customer is attached.
-            (
-                ORDER_TYPE_EXACT,
-                ORDER_IS_STANDING_FALSE,
-                supplied_customer_identifier
-                    .unwrap_or_else(|| common.connector_request_reference_id.clone()),
-            )
-        };
-
-        let mut request = Self {
-            site_identifier: auth.site_identifier,
-            timestamp: current_timestamp(),
-            version: PAYNEARME_API_VERSION.to_string(),
-            signature: Secret::new(String::new()),
+        Self::signed(
+            auth,
+            current_timestamp(),
             order_amount,
             order_currency,
-            site_customer_identifier,
-            order_type: order_type.to_string(),
-            order_is_standing: order_is_standing.to_string(),
-            site_order_identifier: Some(common.connector_request_reference_id.clone()),
-            return_minimal_info: RETURN_MINIMAL_INFO_TRUE.to_string(),
-        };
-        request.signature = paynearme_signature(&auth.api_secret_key, &request)?;
-        Ok(request)
+            settings,
+            common.connector_request_reference_id.clone(),
+        )
     }
 }
 
@@ -850,8 +846,9 @@ pub struct PaynearmeSetupMandateRequest {
     pub timestamp: String,
     pub version: String,
     pub signature: Secret<String>,
-    /// The standing order a prior CreateOrder created (opted in through
-    /// [`PaynearmeCreateOrderFeatureData`]), passed to SetupRecurring as `order_id`.
+    /// The standing order a prior CreateOrder created (with
+    /// `setup_future_usage = OffSession` and the same `customer.id`, see
+    /// [`PaynearmeOrderSettings`]), passed to SetupRecurring as `order_id`.
     pub pnm_order_identifier: String,
     #[serde(flatten)]
     pub card: PaynearmeCardPaymentMethod,
@@ -914,9 +911,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "order_id",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Call PaymentService/CreateOrder with connector_feature_data \
-                         {\"order_is_standing\": true, \"site_customer_identifier\": \
-                         \"<customer.id>\"} and pass its connector_order_id as order_id"
+                        "Call PaymentService/CreateOrder with setup_future_usage \
+                         OFF_SESSION and this customer.id, and pass its connector_order_id \
+                         as order_id"
                             .to_string(),
                     ),
                     doc_url: None,
@@ -2351,8 +2348,7 @@ fn stored_card_mandate_id<T: PaymentMethodDataTypes>(
         return Err(format!(
             "PayNearMe order {pnm_order_identifier} is not a standing order, so the stored \
              card could not be charged against it again; create the order with \
-             connector_feature_data {{\"order_is_standing\": true, \
-             \"site_customer_identifier\": \"<customer.id>\"}}"
+             setup_future_usage OFF_SESSION and this customer.id"
         ));
     }
 
@@ -3658,5 +3654,123 @@ mod tests {
                 assert!(!rendered.contains(token_data));
             }
         }
+    }
+
+    fn major_amount(amount: &str) -> StringMajorUnit {
+        StringMajorUnit::deserialize(serde_json::Value::String(amount.to_string())).expect("amount")
+    }
+
+    fn auth(api_secret_key: &str, site_identifier: &str) -> PaynearmeAuthType {
+        PaynearmeAuthType {
+            api_secret_key: Secret::new(api_secret_key.to_string()),
+            site_identifier: Secret::new(site_identifier.to_string()),
+        }
+    }
+
+    /// `setup_future_usage = OffSession` with a `customer.id` creates the standing
+    /// order that SetupMandate and an off-session Authorize require: `any`,
+    /// `order_is_standing="true"`, and the customer id itself as
+    /// `site_customer_identifier`. The expected digest was computed outside this
+    /// codebase (Python `hmac` + `hashlib`) with the secret from worked example #1.
+    #[test]
+    fn creates_a_standing_order_for_off_session() {
+        let settings = PaynearmeOrderSettings::new(
+            Some(FutureUsage::OffSession),
+            Some("cus_pnm_0001"),
+            "pay_pnm_0001_1",
+        )
+        .expect("standing order settings");
+        let request = PaynearmeCreateOrderRequest::signed(
+            auth("ab7b539ea1317cca67c63c552", "S2411573363"),
+            "1702333839".to_string(),
+            major_amount("0.00"),
+            Currency::USD,
+            settings,
+            "pay_pnm_0001_1".to_string(),
+        )
+        .expect("request");
+
+        let body = serde_json::to_value(&request).expect("body");
+        assert_eq!(
+            paynearme_string_to_sign(&body).expect("string_to_sign"),
+            concat!(
+                "order_amount0.00order_currencyUSD",
+                "order_is_standingtrueorder_typeany",
+                "return_minimal_infotrue",
+                "site_customer_identifiercus_pnm_0001",
+                "site_identifierS2411573363",
+                "site_order_identifierpay_pnm_0001_1",
+                "timestamp1702333839version3.0",
+            )
+        );
+        assert_eq!(
+            request.signature.peek(),
+            "88479ad8cb089f79660f260dcaacc2f015ee726d696e0d13a9cb422b540b8089"
+        );
+    }
+
+    /// A standing order without a customer would orphan the stored card, so it is
+    /// refused before any request is built. An empty `customer.id` is refused the
+    /// same way.
+    #[test]
+    fn refuses_a_standing_order_without_customer_id() {
+        for customer_id in [None, Some("")] {
+            let report = PaynearmeOrderSettings::new(
+                Some(FutureUsage::OffSession),
+                customer_id,
+                "pay_pnm_0001_1",
+            )
+            .expect_err("standing order without customer.id refused");
+            assert!(matches!(
+                report.current_context(),
+                IntegrationError::MissingRequiredField { field_name: "customer.id", context }
+                    if context.additional_context.is_some()
+                        && context.suggested_action.is_some()
+            ));
+        }
+    }
+
+    /// A one-time order is unchanged by this unit: the body below is byte for byte
+    /// what the previous code sent to the mock in unit 4 (request
+    /// `S1a_create_order_one_time`), and the mock's independent HMAC check accepted
+    /// its signature. `OnSession` creates the same one-time order as unset, and a
+    /// supplied `customer.id` replaces only the attempt-reference fallback.
+    #[test]
+    fn one_time_order_body_is_unchanged() {
+        for setup_future_usage in [None, Some(FutureUsage::OnSession)] {
+            let settings = PaynearmeOrderSettings::new(setup_future_usage, None, "pay_u4_gp_001_1")
+                .expect("one-time order settings");
+            let request = PaynearmeCreateOrderRequest::signed(
+                auth("dummy_api_secret_key", "S0000000001"),
+                "1789435026".to_string(),
+                major_amount("10.00"),
+                Currency::USD,
+                settings,
+                "pay_u4_gp_001_1".to_string(),
+            )
+            .expect("request");
+            assert_eq!(
+                serde_json::to_string(&request).expect("body"),
+                concat!(
+                    r#"{"site_identifier":"S0000000001","timestamp":"1789435026","#,
+                    r#""version":"3.0","#,
+                    r#""signature":"01cd63b67b9e0774d20129e4a9bc112a2a7e58cb6c1cdc01db98be734aed0d0d","#,
+                    r#""order_amount":"10.00","order_currency":"USD","#,
+                    r#""site_customer_identifier":"pay_u4_gp_001_1","order_type":"exact","#,
+                    r#""order_is_standing":"false","site_order_identifier":"pay_u4_gp_001_1","#,
+                    r#""return_minimal_info":"true"}"#,
+                )
+            );
+        }
+
+        let with_customer =
+            PaynearmeOrderSettings::new(None, Some("cus_pnm_0001"), "pay_u4_gp_001_1")
+                .expect("one-time order settings");
+        assert_eq!(with_customer.order_type, ORDER_TYPE_EXACT);
+        assert_eq!(with_customer.order_is_standing, ORDER_IS_STANDING_FALSE);
+        assert_eq!(
+            with_customer.site_customer_identifier.peek(),
+            "cus_pnm_0001"
+        );
     }
 }
