@@ -2574,11 +2574,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     merchant_config_currency,
                 }
             };
-        let currency = extract_metadata_field(
+        if let Some(currency) = rsync_currency(
+            item.router_data.request.refund_money,
             &item.router_data.request.refund_connector_metadata,
-            "currency",
-        )?;
-        validate_currency(currency, Some(metadata.merchant_config_currency))?;
+        ) {
+            validate_currency(currency, Some(metadata.merchant_config_currency))?;
+        }
         let refund_id = item.router_data.request.connector_refund_id;
         Ok(Self {
             query: constants::REFUND_QUERY.to_string(),
@@ -3852,6 +3853,27 @@ fn get_braintree_redirect_form<
         },
         acs_url: complete_authorize_url,
     })
+}
+
+/// Resolves the currency RSync validates against, in precedence order.
+///
+/// RSync searches by refund id and sends neither an amount nor a currency to Braintree,
+/// so this guard can only ever reject a request that would otherwise have succeeded.
+/// It reads the first-class `refund_money` the caller supplies
+/// (`RefundServiceGetRequest.refund_amount`) first, falls back to the optional metadata
+/// blob for callers that still put `currency` there, and returns `None` when neither is
+/// present so the caller skips the guard rather than failing the sync.
+///
+/// Requiring the metadata copy made RSync unreachable for any caller that did not
+/// hand-populate it — Hyperswitch does not — so a settled refund could never be read
+/// back. An unvalidated sync is strictly better than an unsyncable one.
+fn rsync_currency(
+    refund_money: Option<common_utils::types::Money>,
+    refund_connector_metadata: &Option<pii::SecretSerdeValue>,
+) -> Option<enums::Currency> {
+    refund_money
+        .map(|money| money.currency)
+        .or_else(|| extract_metadata_field(refund_connector_metadata, "currency").ok())
 }
 
 fn validate_currency(
@@ -7150,6 +7172,52 @@ mod tests {
         common_utils::types::StringMajorUnitForConnector
             .convert(minor(value), common_enums::Currency::USD)
             .expect("major unit conversion")
+    }
+
+    // --- RSync currency precedence ---------------------------------------------------
+
+    fn metadata_with(json: serde_json::Value) -> Option<pii::SecretSerdeValue> {
+        Some(hyperswitch_masking::Secret::new(json))
+    }
+
+    /// The first-class `refund_amount` a caller sends must win. Hyperswitch populates it
+    /// and does not populate the metadata copy.
+    #[test]
+    fn rsync_currency_prefers_refund_money_over_metadata() {
+        let money = common_utils::types::Money {
+            amount: minor(6000),
+            currency: enums::Currency::USD,
+        };
+        let got = rsync_currency(
+            Some(money),
+            &metadata_with(serde_json::json!({ "currency": "EUR" })),
+        );
+        assert_eq!(got, Some(enums::Currency::USD));
+    }
+
+    /// Callers that still send `currency` only in the metadata blob keep working.
+    #[test]
+    fn rsync_currency_falls_back_to_metadata() {
+        let got = rsync_currency(
+            None,
+            &metadata_with(serde_json::json!({ "currency": "EUR" })),
+        );
+        assert_eq!(got, Some(enums::Currency::EUR));
+    }
+
+    /// Neither source present must yield `None` so the guard is SKIPPED, not failed.
+    /// Returning an error here is what made RSync unreachable from Hyperswitch: the
+    /// refund search needs no currency at all, so a missing one cannot make it wrong.
+    #[test]
+    fn rsync_currency_absent_skips_the_guard_rather_than_failing() {
+        assert_eq!(rsync_currency(None, &None), None);
+        assert_eq!(
+            rsync_currency(
+                None,
+                &metadata_with(serde_json::json!({ "merchant_account_id": "x" }))
+            ),
+            None
+        );
     }
 
     // --- L3 string sanitisation (§E.9 charset rule) -----------------------------------------
