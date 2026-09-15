@@ -295,6 +295,18 @@
     "https://developer.paypal.com/braintree/docs/guides/3d-secure/testing/",
     "https://developer.paypal.com/braintree/docs/guides/webhooks/overview",
     "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/authorization-responses",
-    "https://developer.paypal.com/braintree/docs/reference/general/validation-errors/all"
+    "https://developer.paypal.com/braintree/docs/reference/general/validation-errors/all",
+    "https://developer.paypal.com/braintree/graphql/guides/payment_methods/",
+    "https://developer.paypal.com/braintree/graphql/guides/testing/",
+    "https://developer.paypal.com/braintree/in-person/legacy/guides/graphql-error-handling/",
+    "https://developer.paypal.com/braintree/in-person/legacy/guides/making-a-transaction/level-2-and-level-3-data-processing/",
+    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale",
+    "https://developer.paypal.com/braintree/docs/reference/general/processor-responses/avs-cvv-responses",
+    "https://developer.paypal.com/braintree/docs/reference/general/merchant-responses/merchant-advice-codes",
+    "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/overview",
+    "https://developer.paypal.com/braintree/docs/reference/general/level-2-and-3-processing/required-fields",
+    "https://developer.paypal.com/braintree/docs/reference/general/testing",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/overview",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/parse"
   ]
 }
