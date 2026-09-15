@@ -8,19 +8,33 @@
 //! the body, so [`ConnectorCommon::get_auth_header`] emits no headers.
 //!
 //! PayNearMe models money movement in three layers — order, payment method
-//! (token), payment — so an order must exist before anything can be charged.
-//! `should_do_order_create()` therefore returns `true` and the Authorize flow
-//! reads the `pnm_order_identifier` back out of `connector_order_id`.
+//! (token), payment — so an order must exist before anything can be charged
+//! ("With PayNearMe, an order is required any time money moves",
+//! <https://apidocs.paynearme.com/devdocs/reference/post_create-order>).
+//! `should_do_order_create()` therefore returns `true`. Only the composite
+//! Authorize acts on it; the plain `PaymentService/Authorize` and
+//! `PaymentService/SetupRecurring` handlers make exactly one connector call, so a
+//! caller of those runs `CreateOrder` itself and passes the id as
+//! `connector_order_id` (Authorize) or `order_id` (SetupRecurring).
 //!
-//! Implemented scope: Card — one-time payments, and storing a card for later
-//! merchant-initiated charges.
+//! A merchant-initiated charge needs no new order: `/make_payment` pays the
+//! standing order the card was stored on, and both identifiers travel in
+//! `connector_mandate_id` (see `PaynearmeMandateReference`). Standing orders "can
+//! be repeatedly paid for"; non-standing orders "can only be paid once"
+//! (<https://apidocs.paynearme.com/devdocs/docs/learning-the-basics>).
 //!
-//! | UCS flow       | PayNearMe call |
-//! |----------------|----------------|
-//! | `CreateOrder`  | `POST /create_order` |
-//! | `Authorize`    | `POST /create_payment_method` with `send_payment=true` |
-//! | `SetupMandate` | `POST /create_payment_method` without `send_payment` (tokenise only) |
-//! | `PSync`        | `POST /find_payment` |
+//! Implemented scope: Card — one-time payments; storing a card for later
+//! merchant-initiated charges, either tokenise-only (SetupMandate) or tokenise and
+//! charge in one call (an Authorize with `setup_future_usage = OffSession`); and
+//! charging the stored card (RepeatPayment).
+//!
+//! | UCS flow        | PayNearMe call |
+//! |-----------------|----------------|
+//! | `CreateOrder`   | `POST /create_order` |
+//! | `Authorize`     | `POST /create_payment_method` with `send_payment=true` (off-session: the stored card is also returned as the mandate reference) |
+//! | `SetupMandate`  | `POST /create_payment_method` without `send_payment` (tokenise only) |
+//! | `RepeatPayment` | `POST /make_payment` with the stored `payment_method_identifier`, against the standing order |
+//! | `PSync`         | `POST /find_payment` |
 //! | `Void`         | `POST /cancel_payment` |
 //! | `Refund`       | `POST /refund_payment` |
 //! | `RSync`        | `POST /find_payment` (nested `refund` object) |
@@ -45,12 +59,14 @@ use std::{fmt::Debug, sync::LazyLock};
 use common_enums::{CaptureMethod, CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, SetupMandate, Void},
+    connector_flow::{
+        Authorize, CreateOrder, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
         ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        SetupMandateRequestData, SupportedPaymentMethodsExt,
+        RepeatPaymentData, SetupMandateRequestData, SupportedPaymentMethodsExt,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -72,8 +88,9 @@ use transformers::{
     self as paynearme, PaynearmeAuthorizeRequest, PaynearmeAuthorizeResponse,
     PaynearmeCreateOrderRequest, PaynearmeCreateOrderResponse, PaynearmeRefundRequest,
     PaynearmeRefundResponse, PaynearmeRefundSyncRequest, PaynearmeRefundSyncResponse,
-    PaynearmeSetupMandateRequest, PaynearmeSetupMandateResponse, PaynearmeSyncRequest,
-    PaynearmeSyncResponse, PaynearmeVoidRequest, PaynearmeVoidResponse,
+    PaynearmeRepeatPaymentRequest, PaynearmeRepeatPaymentResponse, PaynearmeSetupMandateRequest,
+    PaynearmeSetupMandateResponse, PaynearmeSyncRequest, PaynearmeSyncResponse,
+    PaynearmeVoidRequest, PaynearmeVoidResponse,
 };
 
 use super::macros;
@@ -91,6 +108,7 @@ const CREATE_PAYMENT_METHOD_PATH: &str = "/create_payment_method";
 const FIND_PAYMENT_PATH: &str = "/find_payment";
 const CANCEL_PAYMENT_PATH: &str = "/cancel_payment";
 const REFUND_PAYMENT_PATH: &str = "/refund_payment";
+const MAKE_PAYMENT_PATH: &str = "/make_payment";
 
 // Amounts are sent as decimal strings in base units ("500", "504.99"); the HMAC
 // signature is computed over the string values, so nothing may be numeric.
@@ -118,6 +136,12 @@ macros::create_all_prerequisites!(
             request_body: PaynearmeSetupMandateRequest,
             response_body: PaynearmeSetupMandateResponse,
             router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: PaynearmeRepeatPaymentRequest,
+            response_body: PaynearmeRepeatPaymentResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -306,7 +330,8 @@ macros::macro_connector_implementation!(
 // ===== SETUP MANDATE — POST /create_payment_method (tokenise only) =====
 // The same endpoint as Authorize, without `send_payment`: the card is stored and
 // nothing is charged. The order it is stored on comes from a prior CreateOrder,
-// passed to SetupRecurring as `order_id`.
+// passed to SetupRecurring as `order_id`; the SetupRecurring handler does not chain
+// CreateOrder itself.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Paynearme,
@@ -336,6 +361,39 @@ macros::macro_connector_implementation!(
                 self.payments_base_url(req),
                 CREATE_PAYMENT_METHOD_PATH
             ))
+        }
+    }
+);
+
+// ===== REPEAT PAYMENT — POST /make_payment =====
+// Charges a stored card (`payment_method_identifier`) against the standing order
+// it was stored on. Both identifiers come from `connector_mandate_id`; the
+// RecurringPaymentService/Charge request carries no connector order id.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paynearme,
+    curl_request: Json(PaynearmeRepeatPaymentRequest),
+    curl_response: PaynearmeRepeatPaymentResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}{}", self.payments_base_url(req), MAKE_PAYMENT_PATH))
         }
     }
 );
@@ -484,8 +542,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-// PayNearMe requires an order before any money can move, so this flow is real
-// rather than a stub (`should_do_order_create()` returns `true` below).
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Paynearme<T>
+{
+}
+
+// PayNearMe requires an order before a card can be stored or charged, so this flow
+// is real rather than a stub (`should_do_order_create()` returns `true` below).
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentOrderCreate for Paynearme<T>
 {
@@ -517,7 +580,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_do_order_create(&self) -> bool {
         // "With PayNearMe, an order is required any time money moves." The
         // Authorize flow reads the resulting `pnm_order_identifier` back out of
-        // `connector_order_id`.
+        // `connector_order_id`. Only the composite Authorize consults this; the
+        // plain Authorize / SetupRecurring handlers expect the caller to have run
+        // CreateOrder. RepeatPayment needs no order create: it pays the standing
+        // order named in `connector_mandate_id`.
         true
     }
 }
@@ -573,7 +639,6 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         PostAuthenticate,
         PreAuthenticate,
-        RepeatPayment,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         SubmitEvidence,
@@ -599,10 +664,11 @@ static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethod::Card,
             PaymentMethodType::Card,
             PaymentMethodDetails {
-                // SetupMandate can store a card, but nothing can charge it yet:
-                // RepeatPayment is still `not_implemented`. Flip this to
-                // `Supported` together with RepeatPayment.
-                mandates: FeatureStatus::NotSupported,
+                // A card is stored by SetupMandate or an off-session Authorize and
+                // charged by RepeatPayment (`/make_payment`), keyed on
+                // `connector_mandate_id`. Network-transaction-id MITs are not
+                // supported: PayNearMe returns no scheme transaction id.
+                mandates: FeatureStatus::Supported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods,
                 specific_features: None,

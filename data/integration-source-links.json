@@ -234,7 +234,10 @@
     "https://apidocs.paynearme.com/devdocs/reference/post_schedule-payment",
     "https://apidocs.paynearme.com/devdocs/recipes/make-a-payment-with-a-new-payment-method",
     "https://apidocs.paynearme.com/devdocs/recipes/make-a-payment-with-an-existing-payment-method",
-    "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix"
+    "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix",
+    "https://apidocs.paynearme.com/devdocs/docs/learning-the-basics",
+    "https://apidocs.paynearme.com/devdocs/docs/understanding-the-platform",
+    "https://apidocs.paynearme.com/devdocs/reference/payments"
   ],
   "Paydotcom": [
     "https://apiref.pay.com/reference/introduction",
