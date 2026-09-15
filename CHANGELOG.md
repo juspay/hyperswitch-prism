@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.15.2
+
+### Miscellaneous Tasks
+
+- **deja:** Pin deja to d587865 and migrate the Superposition read boundary ([#2299](https://github.com/juspay/connector-service/pull/2299)) ([`9772967`](https://github.com/juspay/connector-service/commit/977296719f315c9fdff252407f8bcdee329e5c46))
+
+**Full Changelog:** [`2026.09.15.1...2026.09.15.2`](https://github.com/juspay/connector-service/compare/2026.09.15.1...2026.09.15.2)
+
+- - -
+
 ## 2026.09.15.1
 
 ### Features
