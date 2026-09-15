@@ -28,13 +28,14 @@
 //!
 //! Implemented scope: Card — one-time payments; storing a card for later
 //! merchant-initiated charges, either tokenise-only (SetupMandate) or tokenise and
-//! charge in one call (an Authorize with `setup_future_usage = OffSession`); and
-//! charging the stored card (RepeatPayment).
+//! charge in one call (a customer-initiated mandate payment on Authorize:
+//! `setup_future_usage = OffSession` with `customer_acceptance` or
+//! `setup_mandate_details`); and charging the stored card (RepeatPayment).
 //!
 //! | UCS flow        | PayNearMe call |
 //! |-----------------|----------------|
 //! | `CreateOrder`   | `POST /create_order` |
-//! | `Authorize`     | `POST /create_payment_method` with `send_payment=true` (off-session: the stored card is also returned as the mandate reference) |
+//! | `Authorize`     | `POST /create_payment_method` with `send_payment=true` (customer-initiated mandate payment: the stored card is also returned as the mandate reference) |
 //! | `SetupMandate`  | `POST /create_payment_method` without `send_payment` (tokenise only) |
 //! | `RepeatPayment` | `POST /make_payment` with the stored `payment_method_identifier`, against the standing order |
 //! | `PSync`         | `POST /find_payment` |
@@ -55,6 +56,7 @@
 //! `ThreeDs` authorize is rejected with `NotSupported` rather than silently
 //! downgraded to a non-3DS charge.
 
+pub mod test;
 pub mod transformers;
 
 use std::{fmt::Debug, sync::LazyLock};
@@ -260,8 +262,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         // No `attempt_status` is forced here: this handler runs for every flow
         // (`get_error_response_v2` is in `connector_default_implementations` on
-        // all six) and sees only transport-level failures, which say nothing
-        // about the payment. See `PaynearmeErrorResponse::to_error_response`.
+        // every flow below) and sees only transport-level failures, which say
+        // nothing about the payment. See `PaynearmeErrorResponse::to_error_response`.
         Ok(response.to_error_response(res.status_code))
     }
 }
@@ -667,7 +669,7 @@ static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             PaymentMethod::Card,
             PaymentMethodType::Card,
             PaymentMethodDetails {
-                // A card is stored by SetupMandate or an off-session Authorize and
+                // A card is stored by SetupMandate or a customer-initiated Authorize and
                 // charged by RepeatPayment (`/make_payment`), keyed on
                 // `connector_mandate_id`. Network-transaction-id MITs are not
                 // supported: PayNearMe returns no scheme transaction id.
