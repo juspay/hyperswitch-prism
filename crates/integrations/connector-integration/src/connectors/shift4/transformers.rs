@@ -1540,6 +1540,16 @@ impl TryFrom<ResponseRouterData<Shift4PaymentsResponse, Self>>
         let status = get_shift4_attempt_status(&item.response);
         let connector_response = build_shift4_connector_response(&item.response);
 
+        // A successful capture reports `Charged`, also after a partial capture.
+        // `PartialCharged` cannot be derived here: Shift4 rewrites the charge
+        // `amount` to the captured amount and returns no authorized amount (a
+        // 1000 authorization captured with 400 reads back `amount: 400`,
+        // `amountRefunded: 0`), and the capture request carries no authorized
+        // amount either (`PaymentsCaptureData` has none, and the gRPC capture
+        // leaves `minor_amount_authorized` / `minor_amount_capturable` unset). A
+        // caller that knows the authorized amount can compare it with
+        // `amount_to_capture` itself.
+        //
         // A capture that Shift4 reports as `failed` is terminal for the capture
         // leg specifically, so the flow status is `CaptureFailed`, not the
         // Authorize-level `Failure`.
@@ -2717,8 +2727,7 @@ impl TryFrom<ResponseRouterData<Shift4ClientAuthResponse, Self>>
 pub struct Shift4SetupMandateRequest<T: PaymentMethodDataTypes> {
     pub amount: MinorUnit,
     pub currency: Currency,
-    /// `false` for a zero-amount verification; otherwise the request's capture
-    /// method decides.
+    /// `false` for a zero-amount verification, `true` for any other amount.
     pub captured: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -2853,12 +2862,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // A zero-amount setup is a verification. Shift4 refuses to capture a zero
         // amount ("Zero amount charge cannot be captured"), so it is always sent
         // uncaptured. A non-zero setup is a real payment that also stores the
-        // credential, so it follows the request's capture method: captured for
-        // automatic capture, an open authorization for manual capture. Shift4
-        // accepts `captured: true` on a `first_recurring` charge and still stores
-        // the card or payment method under the customer (sandbox, card and Apple
-        // Pay, followed by a successful MIT on the stored credential).
-        let captured = amount != MinorUnit::new(0) && item.request.is_auto_capture();
+        // credential, and it is always captured: the SetupRecurring contract has no
+        // capture method (the gRPC request carries none, so it is always unset),
+        // and reporting a setup as completed while Shift4 holds an uncaptured
+        // authorization would mean the money never settles. Shift4 accepts
+        // `captured: true` on a `first_recurring` charge and still stores the card
+        // or payment method under the customer (sandbox, card and Apple Pay,
+        // followed by a successful MIT on the stored credential).
+        let captured = amount != MinorUnit::new(0);
 
         // NOT SUPPORTED BY SHIFT4, deliberately dropped rather than approximated
         // (same reasoning as the Authorize builder):
@@ -2909,9 +2920,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
         // A zero-amount setup is a verification that holds no funds and can never
         // be captured, so its successful uncaptured charge is the completed setup:
         // `Authorized` is reported as `Charged`, for a card and a wallet alike. A
-        // non-zero setup keeps the status Shift4 reports: `Charged` when it was
-        // captured, `Authorized` for an open authorization (manual capture) that
-        // can still be captured or voided.
+        // non-zero setup is sent captured, so it keeps the status Shift4 reports
+        // for that charge (`Charged` on success).
         if status == AttemptStatus::Authorized
             && item.router_data.request.minor_amount == Some(MinorUnit::new(0))
         {

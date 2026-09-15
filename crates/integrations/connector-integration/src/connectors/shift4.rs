@@ -721,7 +721,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 // SetupMandate Flow — POST /charges typed `first_recurring` and assigned to a
 // Shift4 customer, which stores the card or the Apple Pay / Google Pay payment
 // method on file. A zero-amount setup is uncaptured (a verification); a
-// non-zero one follows the request's capture method. The stored `card.id`
+// non-zero one is always captured, because the SetupRecurring contract carries
+// no capture method. The stored `card.id`
 // (`card_...`) or `paymentMethod.id` (`pm_...`) is surfaced as the
 // connector_mandate_id and the owning customer as connector_customer; a later
 // RepeatPayment (MIT) sends both.
