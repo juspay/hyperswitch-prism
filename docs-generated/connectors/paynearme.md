@@ -179,8 +179,8 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Apple Pay | x |
 | Apple Pay Dec | x |
 | Apple Pay SDK | ⚠ |
-| Google Pay | ⚠ |
-| Google Pay Dec | ⚠ |
+| Google Pay | x |
+| Google Pay Dec | x |
 | Google Pay SDK | ⚠ |
 | PayPal SDK | ⚠ |
 | Amazon Pay | ⚠ |
