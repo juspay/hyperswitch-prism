@@ -762,7 +762,7 @@ examples_python: none
 connector_id: shift4
 doc: docs/connectors/shift4.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card, Eps, Ideal
+payment_methods: ApplePay, Card, Eps, GooglePay, Ideal
 flows: authorize, capture, create_client_authentication_token, customer_create, get, incremental_authorization, proxy_authorize, recurring_charge, refund, refund_get, token_authorize, void
 examples_python: examples/shift4/shift4.py
 
