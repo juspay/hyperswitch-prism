@@ -9,8 +9,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PreAuthenticate,
-        RSync, RepeatPayment, SetupMandate, Void, VoidPC,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken,
+        PreAuthenticate, RSync, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -20,7 +20,7 @@ use domain_types::{
         GpayMerchantInfo, GpayShippingAddressParameters, GpayTokenParameters,
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentRequestMetadata, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
         PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
         PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
@@ -55,6 +55,21 @@ pub mod constants {
     // (client token + nonce + BIN + return URL) without a new domain type or proto message.
     // Verified accepted by the Braintree sandbox under `Braintree-Version: 2019-01-01`.
     pub const PRE_AUTHENTICATE_MUTATION: &str = "mutation braintreeThreeDsPreAuthenticate($card: TokenizeCreditCardInput!, $clientToken: CreateClientTokenInput!) { tokenizeCreditCard(input: $card) { paymentMethod { id } } createClientToken(input: $clientToken) { clientToken } }";
+    // Braintree-hosted 3DS, leg 2 (Authenticate): the server-side 3DS lookup.
+    //
+    // The selection set below was introspected AND exercised end-to-end against the Braintree
+    // sandbox under `Braintree-Version: 2019-01-01` (four outcomes: CHALLENGE_REQUIRED,
+    // AUTHENTICATE_SUCCESSFUL, AUTHENTICATE_FRICTIONLESS_FAILED,
+    // AUTHENTICATE_UNABLE_TO_AUTHENTICATE).
+    //
+    // `threeDSecure` MUST be traversed through `.authentication`. At the pinned version the
+    // served schema already types `CreditCardDetails.threeDSecure` as `ThreeDSecureDetails`
+    // (the 2020-10-07 retype), whose flat scalars are all @deprecated; selecting them directly
+    // is a hard GraphQL validation error. `Braintree-Version` gates the interpretation of
+    // values, not the shape of the schema.
+    //
+    // `details` is a union (`PaymentMethodDetails`), so the inline fragment is mandatory.
+    pub const AUTHENTICATE_MUTATION: &str = "mutation braintreeThreeDSecureLookup($input: PerformThreeDSecureLookupInput!) { performThreeDSecureLookup(input: $input) { threeDSecureLookupData { acsUrl authenticationId version pareq md termUrl transactionId } paymentMethod { id details { ... on CreditCardDetails { bin last4 brandCode threeDSecure { authentication { cavv eciFlag liabilityShifted liabilityShiftPossible cardEnrolled authenticationStatus version directoryServerTransactionId xId threeDSecureServerTransactionId acsTransactionId paresStatus transactionStatus transactionStatusReason } } } } } } }";
     // Response selection set is kept in lock-step with `TransactionAuthChargeResponseBody`.
     // Every field below was verified to exist under the pinned `Braintree-Version: 2019-01-01`
     // via a sandbox introspection + live-mutation check (a selection the versioned schema does
@@ -92,6 +107,8 @@ pub type BraintreePSyncRequest = GenericBraintreeRequest<PSyncInput>;
 pub type BraintreeRSyncRequest = GenericBraintreeRequest<RSyncInput>;
 pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<WalletPaymentInput>>;
 pub type BraintreePreAuthenticateRequest<T> = GenericBraintreeRequest<PreAuthenticateVariables<T>>;
+pub type BraintreeAuthenticateRequest =
+    GenericBraintreeRequest<GenericVariableInput<PerformThreeDSecureLookupInput>>;
 
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
@@ -4729,6 +4746,1014 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// -------------------------------------------------------------------------------------------
+// Braintree-hosted 3D Secure, leg 2: `Authenticate` (the server-side 3DS lookup).
+//
+// One call, one HTTP request: `mutation performThreeDSecureLookup`. It consumes the single-use
+// nonce that leg 1 (`PreAuthenticate` / `PaymentMethodToken`) minted, runs the enrolment lookup,
+// and answers either a challenge (ACS URL + CReq, surfaced as a `RedirectForm::Form`) or a
+// settled frictionless outcome (CAVV + ECI, surfaced as `AuthenticationData`).
+//
+// The whole selection set and the four response shapes below were exercised live against the
+// Braintree sandbox under `Braintree-Version: 2019-01-01`; see `constants::AUTHENTICATE_MUTATION`.
+// -------------------------------------------------------------------------------------------
+
+/// `PerformThreeDSecureLookupInput`, as served at the pinned `Braintree-Version`.
+///
+/// The served input has 13 members. The three not modelled here are deliberate omissions with no
+/// UCS ingress: `dataOnlyRequested` and `cardAdd` are merchant policy, and
+/// `merchantInitiatedRequest` is the 3RI / prior-authentication tree, which stays out of scope.
+/// `clientMutationId` is not sent (it is an echo, never an idempotency key) and
+/// `clientInformation` is not sent because UCS's `SdkInformation` describes a 3DS SDK rather than
+/// the Braintree JS SDK, so the mapping would be a type confusion.
+///
+/// Every optional member is `skip_serializing_if = "Option::is_none"`: Braintree distinguishes
+/// "absent" from "present and null", and an explicit `null` is not the same as an omission.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerformThreeDSecureLookupInput {
+    /// `ID!` — the single-use nonce from the `PaymentMethodToken` / `PreAuthenticate` leg.
+    payment_method_id: Secret<String>,
+    /// `Amount!` — a major-unit decimal string ("10.00"), via the connector's `amount_converter`.
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    /// Device-data ingress 1 of 2, and the preferred one: CardinalCommerce's join key for the
+    /// device data the browser already collected via `threeDSecure.prepareLookup`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    df_reference_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_information: Option<ThreeDSecureLookupTransactionInformationInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cardholder_information: Option<ThreeDSecureLookupCardholderInformationInput>,
+}
+
+/// `ThreeDSecureLookupTransactionInformationInput` — 4 of its 46 members are mapped; the other 42
+/// (shipping, installments, recurring, order description, …) have no `PaymentsAuthenticateData`
+/// ingress.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupTransactionInformationInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_channel: Option<ThreeDSecureDeviceChannel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<pii::Email>,
+    /// NOTE: `ipAddress` is a sibling of `browserInformation`, one level up — the schema rejects
+    /// it nested inside `browserInformation`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ip_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    browser_information: Option<ThreeDSecureLookupBrowserInformationInput>,
+}
+
+impl ThreeDSecureLookupTransactionInformationInput {
+    fn is_empty(&self) -> bool {
+        self.device_channel.is_none()
+            && self.email.is_none()
+            && self.ip_address.is_none()
+            && self.browser_information.is_none()
+    }
+}
+
+/// `ThreeDSecureLookupBrowserInformationInput` — all nine members map 1:1 from
+/// `BrowserInformation`. Device-data ingress 2 of 2.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupBrowserInformationInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    java_enabled: Option<bool>,
+    /// Braintree spells this with ONE capital (`javascriptEnabled`), unlike the UCS
+    /// `java_script_enabled`. A camelCase rename of the UCS name would be rejected.
+    #[serde(rename = "javascriptEnabled", skip_serializing_if = "Option::is_none")]
+    java_script_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    accept_header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color_depth: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_width: Option<u32>,
+    /// `Int`, minutes of UTC offset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time_zone: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_agent: Option<String>,
+}
+
+impl ThreeDSecureLookupBrowserInformationInput {
+    fn is_empty(&self) -> bool {
+        self.java_enabled.is_none()
+            && self.java_script_enabled.is_none()
+            && self.accept_header.is_none()
+            && self.language.is_none()
+            && self.color_depth.is_none()
+            && self.screen_height.is_none()
+            && self.screen_width.is_none()
+            && self.time_zone.is_none()
+            && self.user_agent.is_none()
+    }
+}
+
+/// `ThreeDSecureLookupCardholderInformationInput` — it has exactly one member.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupCardholderInformationInput {
+    billing_address: ThreeDSecureLookupBillingAddressInput,
+}
+
+/// `ThreeDSecureLookupBillingAddressInput`. `line3` is not sent (no UCS ingress).
+///
+/// NOTE: `countryCode` here is a plain `String`, **not** the versioned `CountryCode` scalar the
+/// Authorize address input uses — so the alpha-3/alpha-2 boundary at `Braintree-Version
+/// 2021-02-01` does not apply on this leg. Send the country as UCS holds it; do NOT reuse the
+/// Authorize `from_alpha2_to_alpha3` conversion.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupBillingAddressInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surname: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    region: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country_code: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<Secret<String>>,
+}
+
+impl ThreeDSecureLookupBillingAddressInput {
+    fn is_empty(&self) -> bool {
+        self.given_name.is_none()
+            && self.surname.is_none()
+            && self.line1.is_none()
+            && self.line2.is_none()
+            && self.locality.is_none()
+            && self.region.is_none()
+            && self.postal_code.is_none()
+            && self.country_code.is_none()
+            && self.phone_number.is_none()
+    }
+}
+
+/// `ThreeDSecureDeviceChannel`. `THREE_R_I` exists on the wire but is never sent — 3RI is out of
+/// scope on this connector.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDSecureDeviceChannel {
+    Browser,
+    Sdk,
+}
+
+impl From<connector_types::DeviceChannel> for ThreeDSecureDeviceChannel {
+    fn from(channel: connector_types::DeviceChannel) -> Self {
+        match channel {
+            connector_types::DeviceChannel::Browser => Self::Browser,
+            connector_types::DeviceChannel::App => Self::Sdk,
+        }
+    }
+}
+
+fn authenticate_payment_method_error(detail: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: "given payment method on Braintree Authenticate".to_string(),
+        connector: "Braintree",
+        context: domain_types::errors::IntegrationErrorContext {
+            additional_context: Some(detail.to_string()),
+            suggested_action: Some(
+                "Run the PaymentMethodToken / PreAuthenticate leg first and send the resulting \
+                 single-use nonce in `payment_method.token` on Authenticate."
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://graphql.braintreepayments.com/reference/#Mutation--performThreeDSecureLookup"
+                    .to_string(),
+            ),
+        },
+    })
+}
+
+/// Pull `dfReferenceId` out of `redirect_response.payload`.
+///
+/// The gRPC conversion builds `payload` as a flat `{string: string}` JSON object from the
+/// redirection response's string map, so both the Braintree spelling (`dfReferenceId`) and a
+/// snake_case alias are accepted — callers echo back whatever key their browser integration used.
+fn extract_df_reference_id(
+    redirect_response: Option<&connector_types::ContinueRedirectionResponse>,
+) -> Option<Secret<String>> {
+    let payload = redirect_response?.payload.as_ref()?.clone().expose();
+    ["dfReferenceId", "df_reference_id"]
+        .iter()
+        .find_map(|key| payload.get(*key).and_then(|value| value.as_str()))
+        .map(|value| Secret::new(value.to_string()))
+}
+
+fn build_lookup_browser_information(
+    browser_info: Option<&router_request_types::BrowserInformation>,
+) -> Option<ThreeDSecureLookupBrowserInformationInput> {
+    let browser_info = browser_info?;
+    let built = ThreeDSecureLookupBrowserInformationInput {
+        java_enabled: browser_info.java_enabled,
+        java_script_enabled: browser_info.java_script_enabled,
+        accept_header: browser_info.accept_header.clone(),
+        language: browser_info.language.clone(),
+        color_depth: browser_info.color_depth,
+        screen_height: browser_info.screen_height,
+        screen_width: browser_info.screen_width,
+        time_zone: browser_info.time_zone,
+        user_agent: browser_info.user_agent.clone(),
+    };
+    // Braintree distinguishes "absent" from "present and empty"; never emit `{}`.
+    (!built.is_empty()).then_some(built)
+}
+
+fn build_lookup_billing_address(
+    address: Option<&domain_types::payment_address::Address>,
+) -> Option<ThreeDSecureLookupCardholderInformationInput> {
+    let address = address?;
+    let details = address.address.as_ref();
+    let built = ThreeDSecureLookupBillingAddressInput {
+        // No `billing_full_name` fallback: `givenName` / `surname` are mapped explicitly and each
+        // is omitted when absent, rather than splitting a full name on whitespace.
+        given_name: details.and_then(|d| d.first_name.clone()),
+        surname: details.and_then(|d| d.last_name.clone()),
+        line1: details.and_then(|d| d.line1.clone()),
+        line2: details.and_then(|d| d.line2.clone()),
+        locality: details.and_then(|d| d.city.clone()),
+        region: details.and_then(|d| d.state.clone()),
+        postal_code: details.and_then(|d| d.zip.clone()),
+        country_code: details.and_then(|d| d.country),
+        phone_number: address.get_phone_with_country_code().ok(),
+    };
+    (!built.is_empty()).then_some(ThreeDSecureLookupCardholderInformationInput {
+        billing_address: built,
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeAuthenticateRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        // Per-request metadata wins over the connector-config copy. Reused verbatim from the
+        // PreAuthenticate leg — the helper is deliberately flow-agnostic.
+        let merchant_account_id =
+            resolve_merchant_account_id(&request.metadata, &item.router_data.connector_config)?;
+
+        // An externally (MPI) performed authentication and a Braintree-hosted lookup are mutually
+        // exclusive topologies. `authentication_data` means the caller already holds a CAVV and
+        // wants the `threeDSecurePassThru` path on Authorize; running a second, contradictory
+        // authentication here would silently discard theirs.
+        if request.authentication_data.is_some() {
+            return Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "externally authenticated 3DS data on Braintree Authenticate".to_string(),
+                connector: "Braintree",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "`authentication_data` carries a merchant-performed (MPI) authentication. \
+                         Braintree-hosted 3DS and external 3DS pass-through are mutually exclusive."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the external CAVV/ECI on Authorize (it is applied as \
+                         `threeDSecurePassThru`) instead of calling Authenticate."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--ThreeDSecurePassThroughInput"
+                            .to_string(),
+                    ),
+                },
+            }));
+        }
+
+        let payment_method_data = request.payment_method_data.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Authenticate has nothing to look up without a tokenized instrument."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send the single-use nonce in `payment_method.token` on the Authenticate \
+                         request."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })
+        })?;
+
+        let payment_method_id = match payment_method_data {
+            PaymentMethodData::PaymentMethodToken(token) => token.token.clone(),
+            // Raw card is rejected on purpose: `performThreeDSecureLookup` takes a tokenized
+            // instrument, and re-tokenizing here would mint a second nonce and make the leg
+            // non-idempotent (the lookup consumes whichever nonce it is given).
+            _ => {
+                return Err(authenticate_payment_method_error(
+                    "Braintree's 3D Secure lookup takes an already-tokenized payment method; \
+                     tokenizing inside this leg would mint a second nonce.",
+                ))
+            }
+        };
+
+        let currency = request.currency.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "The Braintree `Amount` scalar is a major-unit decimal string, so the \
+                         minor amount cannot be converted without a currency."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send `amount.currency` on the Authenticate request.".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })
+        })?;
+
+        // Major units through the connector's own converter. `MinorUnit::to_string()` here would
+        // be a silent 100x overstatement that Braintree cannot detect, because "1000" is itself a
+        // valid `Amount`.
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.amount, currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "failed to convert the Authenticate amount into Braintree major units"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "check that the request amount and currency are consistent and in range"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })?;
+
+        // Device data has TWO accepted ingresses and `dfReferenceId` is NOT mandatory — every
+        // live sandbox lookup omitted it and succeeded on `browserInformation` alone. Send both
+        // when both are available: `dfReferenceId` is the authoritative join key and
+        // `browserInformation` is corroborating detail.
+        let df_reference_id = extract_df_reference_id(request.redirect_response.as_ref());
+        let browser_information = build_lookup_browser_information(request.browser_info.as_ref());
+
+        if df_reference_id.is_none() && browser_information.is_none() {
+            return Err(error_stack::report!(
+                IntegrationError::MissingRequiredField {
+                    field_name: "browser_info",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "A 3D Secure lookup with no device data at all authenticates far more \
+                             weakly and makes the liability-shift outcome misleading."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Send either `redirection_response.payload.dfReferenceId` (the \
+                             output of the browser's `threeDSecure.prepareLookup`, preferred) or \
+                             `browser_info`."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developer.paypal.com/braintree/docs/guides/3d-secure/server-side"
+                                .to_string(),
+                        ),
+                    },
+                }
+            ));
+        }
+
+        let transaction_information = ThreeDSecureLookupTransactionInformationInput {
+            // When the caller does not state a channel, only assert BROWSER if browser data
+            // actually evidences one; otherwise omit rather than claim a channel.
+            device_channel: request
+                .device_channel
+                .map(ThreeDSecureDeviceChannel::from)
+                .or_else(|| {
+                    browser_information
+                        .is_some()
+                        .then_some(ThreeDSecureDeviceChannel::Browser)
+                }),
+            email: request.email.clone(),
+            ip_address: request
+                .browser_info
+                .as_ref()
+                .and_then(|info| info.ip_address)
+                .map(|ip| Secret::new(ip.to_string())),
+            browser_information,
+        };
+        let transaction_information =
+            (!transaction_information.is_empty()).then_some(transaction_information);
+
+        let cardholder_information = build_lookup_billing_address(
+            item.router_data
+                .resource_common_data
+                .get_optional_payment_billing()
+                .or_else(|| item.router_data.resource_common_data.get_optional_billing()),
+        );
+
+        Ok(Self {
+            query: constants::AUTHENTICATE_MUTATION.to_string(),
+            variables: GenericVariableInput {
+                input: PerformThreeDSecureLookupInput {
+                    payment_method_id,
+                    amount,
+                    merchant_account_id,
+                    df_reference_id,
+                    transaction_information,
+                    cardholder_information,
+                },
+            },
+        })
+    }
+}
+
+// ---- response ------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupData {
+    /// Non-null ONLY on a challenge. See `AuthenticateOutcome`.
+    acs_url: Option<String>,
+    authentication_id: Option<String>,
+    version: Option<String>,
+    /// Named `pareq` for 3DS1 legacy reasons; under 3DS2 it carries a base64 CReq. Passed
+    /// through opaquely — never decoded, re-encoded or re-derived.
+    pareq: Option<String>,
+    /// Always exactly `authenticationId` in every observed response. Echoed, never synthesised:
+    /// if Braintree ever diverges the two, an echo is still correct and a synthesis is not.
+    md: Option<String>,
+    /// SENSITIVE: the URL embeds an `authorization_fingerprint` JWT, so the whole string is a
+    /// credential. It has to travel in `RedirectForm::Form::form_fields`, a plain
+    /// `HashMap<String, String>` with no masking — keep it out of `tracing` output.
+    term_url: Option<Secret<String>>,
+    transaction_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureAuthenticationDetails {
+    /// The 3DS cryptogram. `Secret` on arrival and for its whole life.
+    cavv: Option<Secret<String>>,
+    /// Two-character ECI, network-scoped (Visa 05/06/07, Mastercard 02/01/00). Kept a `String`
+    /// precisely so nothing reinterprets or normalises it across networks.
+    eci_flag: Option<String>,
+    /// READ this; never infer it from the status. `DATA_ONLY_SUCCESSFUL` is a success with no
+    /// liability shift, and the two failure statuses differ only in `liabilityShiftPossible`.
+    liability_shifted: Option<bool>,
+    liability_shift_possible: Option<bool>,
+    card_enrolled: Option<ThreeDSecureCardEnrolled>,
+    authentication_status: Option<ThreeDSecureAuthenticationStatus>,
+    version: Option<String>,
+    directory_server_transaction_id: Option<String>,
+    x_id: Option<String>,
+    three_d_secure_server_transaction_id: Option<String>,
+    acs_transaction_id: Option<String>,
+    pares_status: Option<ThreeDSecureAuthenticationStatusIndicator>,
+    transaction_status: Option<ThreeDSecureAuthenticationStatusIndicator>,
+    transaction_status_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureDetails {
+    authentication: Option<ThreeDSecureAuthenticationDetails>,
+}
+
+/// The `... on CreditCardDetails` fragment. A non-`CreditCardDetails` union member yields `{}`
+/// rather than an error, so every member is optional and an absent `threeDSecure` has to be
+/// detected explicitly.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LookupPaymentMethodDetails {
+    bin: Option<String>,
+    last4: Option<String>,
+    brand_code: Option<String>,
+    three_d_secure: Option<ThreeDSecureDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LookupPaymentMethod {
+    /// The NEW single-use nonce. See the FINDING 3 comment on the response transformer.
+    id: Secret<String>,
+    details: Option<LookupPaymentMethodDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerformThreeDSecureLookupPayload {
+    /// Returned NON-NULL on every outcome, frictionless success included — which is exactly why
+    /// it must never be used as the challenge discriminator.
+    three_d_secure_lookup_data: Option<ThreeDSecureLookupData>,
+    payment_method: Option<LookupPaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerformThreeDSecureLookupData {
+    perform_three_d_secure_lookup: Option<PerformThreeDSecureLookupPayload>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeThreeDSecureLookupSuccess {
+    data: PerformThreeDSecureLookupData,
+}
+
+/// Braintree answers HTTP 200 for everything, so success and failure are separated by body shape.
+///
+/// `ErrorResponse` MUST be listed first, and MUST require `errors`. Both real Braintree error
+/// bodies carry a `data` key (`{"data":{"performThreeDSecureLookup":null}}`), so an untagged enum
+/// that tries the success variant first — or that discriminates on the presence of `data` —
+/// misclassifies a hard error as a success with a null payload. Schema-validation errors carry no
+/// `data` key at all, which is why the error variant must not require one.
+///
+/// `GenericBraintreeResponse<T>` is deliberately NOT reused here: it lists `SuccessResponse`
+/// first, which is safe for the flows that use it and wrong for this one.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeAuthenticateResponse {
+    ErrorResponse(Box<ErrorResponse>),
+    AuthenticateResponse(Box<BraintreeThreeDSecureLookupSuccess>),
+}
+
+/// `ThreeDSecureCardEnrolled`. Informational only — it reaches the caller untranslated in
+/// `connector_feature_data` and no status is ever derived from it.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// `Display` must match the serde spelling: these values reach the caller verbatim in
+// `connector_feature_data` as "the raw Braintree string", and a PascalCase Rust variant
+// name there would be a value Braintree never emitted.
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDSecureCardEnrolled {
+    Bypass,
+    Error,
+    No,
+    Unavailable,
+    Yes,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `ThreeDSecureAuthenticationStatusIndicator` — the 3DS `transStatus` letter codes, spelled out.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// `Display` must match the serde spelling: these values reach the caller verbatim in
+// `connector_feature_data` as "the raw Braintree string", and a PascalCase Rust variant
+// name there would be a value Braintree never emitted.
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDSecureAuthenticationStatusIndicator {
+    SuccessfulAuthentication,
+    FailedAuthentication,
+    UnableToCompleteAuthentication,
+    SuccessfulAttemptsTransaction,
+    AuthenticationRejected,
+    ChallengeRequiredForAuthentication,
+    ChallengeRequiredDecoupledAuthentication,
+    InformationalChallengePreferenceAcknowledged,
+    /// Maps to `None`, never to `TransactionStatus::Failure`. `TransactionStatus` derives
+    /// `Default = Failure`, so anything that reaches for a default on this path silently reports
+    /// a failed authentication.
+    #[serde(other)]
+    Unknown,
+}
+
+impl ThreeDSecureAuthenticationStatusIndicator {
+    /// Exact 8-to-8 mapping onto `common_enums::TransactionStatus`, so no information is lost.
+    fn to_trans_status(self) -> Option<common_enums::TransactionStatus> {
+        match self {
+            Self::SuccessfulAuthentication => Some(common_enums::TransactionStatus::Success),
+            Self::FailedAuthentication => Some(common_enums::TransactionStatus::Failure),
+            Self::UnableToCompleteAuthentication => {
+                Some(common_enums::TransactionStatus::VerificationNotPerformed)
+            }
+            Self::SuccessfulAttemptsTransaction => {
+                Some(common_enums::TransactionStatus::NotVerified)
+            }
+            Self::AuthenticationRejected => Some(common_enums::TransactionStatus::Rejected),
+            Self::ChallengeRequiredForAuthentication => {
+                Some(common_enums::TransactionStatus::ChallengeRequired)
+            }
+            Self::ChallengeRequiredDecoupledAuthentication => {
+                Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            }
+            Self::InformationalChallengePreferenceAcknowledged => {
+                Some(common_enums::TransactionStatus::InformationOnly)
+            }
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// `ThreeDSecureAuthenticationStatus`.
+///
+/// The served schema at the pinned `Braintree-Version` exposes 25 values. The four arms marked
+/// REMOVED below were `@deprecated` in the master SDL and are no longer served at all; their arms
+/// are kept because this enum is deserialize-only on this flow (none of these values is ever
+/// *sent*), so an arm for a value the server never emits is simply dead — and if Braintree ever
+/// restores one, the parse still works. They are **unreachable today**.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// `Display` must match the serde spelling: these values reach the caller verbatim in
+// `connector_feature_data` as "the raw Braintree string", and a PascalCase Rust variant
+// name there would be a value Braintree never emitted.
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum ThreeDSecureAuthenticationStatus {
+    AuthenticateSuccessful,
+    AuthenticateAttemptSuccessful,
+    AuthenticateFrictionlessFailed,
+    AuthenticateFailed,
+    AuthenticateFailedAcsError,
+    AuthenticateRejected,
+    AuthenticateError,
+    AuthenticateUnableToAuthenticate,
+    ChallengeRequired,
+    DataOnlySuccessful,
+    ExemptionLowValueSuccessful,
+    ExemptionTraSuccessful,
+    LookupNotEnrolled,
+    LookupBypassed,
+    SkippedDueToRule,
+    SkippedDueToAdaptiveAuthentication,
+    AuthenticationUnavailable,
+    LookupError,
+    LookupCardError,
+    LookupServerError,
+    LookupFailedAcsError,
+    MpiServerError,
+    UnsupportedCard,
+    UnsupportedAccountType,
+    #[serde(rename = "UNSUPPORTED_THREE_D_SECURE_VERSION")]
+    UnsupportedThreeDSecureVersion,
+    // --- REMOVED from the served schema; arms kept, unreachable today -----------------------
+    AuthenticateSignatureVerificationFailed,
+    AuthenticateSuccessfulIssuerNotParticipating,
+    AuthenticationBypassed,
+    LookupEnrolled,
+    /// Braintree adds 3DS authentication statuses over time (4 arrived in 2022-09-30, 4 more in
+    /// 2023-05-23). Deserializing an unrecognised one into a catch-all keeps a single new status
+    /// from failing the whole response parse; it maps to `AttemptStatus::Unspecified` so the
+    /// caller applies its own previous-status fallback rather than UCS inventing a Pending or a
+    /// Failure it cannot substantiate.
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<ThreeDSecureAuthenticationStatus> for enums::AttemptStatus {
+    fn from(status: ThreeDSecureAuthenticationStatus) -> Self {
+        match status {
+            // Advanceable: authentication is settled and Braintree's Authorize can spend the
+            // returned nonce. Liability shift is reported separately and must be READ, not
+            // inferred from any of these — `DATA_ONLY_SUCCESSFUL` shifts nothing.
+            ThreeDSecureAuthenticationStatus::AuthenticateSuccessful
+            | ThreeDSecureAuthenticationStatus::AuthenticateAttemptSuccessful
+            | ThreeDSecureAuthenticationStatus::DataOnlySuccessful
+            | ThreeDSecureAuthenticationStatus::ExemptionLowValueSuccessful
+            | ThreeDSecureAuthenticationStatus::ExemptionTraSuccessful
+            | ThreeDSecureAuthenticationStatus::LookupNotEnrolled
+            | ThreeDSecureAuthenticationStatus::LookupBypassed
+            | ThreeDSecureAuthenticationStatus::SkippedDueToRule
+            | ThreeDSecureAuthenticationStatus::SkippedDueToAdaptiveAuthentication
+            | ThreeDSecureAuthenticationStatus::AuthenticateSuccessfulIssuerNotParticipating
+            | ThreeDSecureAuthenticationStatus::AuthenticationBypassed => {
+                Self::AuthenticationSuccessful
+            }
+            // Non-terminal, and the ONLY value that means "render the ACS challenge". It must
+            // stay non-terminal or the challenge can never complete.
+            ThreeDSecureAuthenticationStatus::ChallengeRequired
+            | ThreeDSecureAuthenticationStatus::LookupEnrolled => Self::AuthenticationPending,
+            // Terminal for this attempt. `AttemptStatus::is_terminal_status()` reports
+            // `AuthenticationFailed` terminal, so nothing here polls forever.
+            ThreeDSecureAuthenticationStatus::AuthenticateFrictionlessFailed
+            | ThreeDSecureAuthenticationStatus::AuthenticateFailed
+            | ThreeDSecureAuthenticationStatus::AuthenticateFailedAcsError
+            | ThreeDSecureAuthenticationStatus::AuthenticateRejected
+            | ThreeDSecureAuthenticationStatus::AuthenticateError
+            | ThreeDSecureAuthenticationStatus::AuthenticateUnableToAuthenticate
+            | ThreeDSecureAuthenticationStatus::AuthenticationUnavailable
+            | ThreeDSecureAuthenticationStatus::LookupError
+            | ThreeDSecureAuthenticationStatus::LookupCardError
+            | ThreeDSecureAuthenticationStatus::LookupServerError
+            | ThreeDSecureAuthenticationStatus::LookupFailedAcsError
+            | ThreeDSecureAuthenticationStatus::MpiServerError
+            | ThreeDSecureAuthenticationStatus::UnsupportedCard
+            | ThreeDSecureAuthenticationStatus::UnsupportedAccountType
+            | ThreeDSecureAuthenticationStatus::UnsupportedThreeDSecureVersion
+            | ThreeDSecureAuthenticationStatus::AuthenticateSignatureVerificationFailed => {
+                Self::AuthenticationFailed
+            }
+            ThreeDSecureAuthenticationStatus::Unknown => Self::Unspecified,
+        }
+    }
+}
+
+/// Which of the two branches the lookup landed on.
+///
+/// FINDING 2, and the single most likely way to get this flow wrong: `threeDSecureLookupData` is
+/// returned NON-NULL on every outcome — frictionless success and outright failure included. On
+/// those outcomes `acsUrl` and `pareq` are null while `authenticationId`, `md`, `termUrl`,
+/// `transactionId` and `version` are still populated. Discriminating on
+/// `three_d_secure_lookup_data.is_some()` would therefore emit a redirect on EVERY outcome and
+/// strand a frictionless payment in a challenge that does not exist.
+///
+/// The discriminator is belt-and-braces: `authenticationStatus == CHALLENGE_REQUIRED` is the
+/// semantic signal, `acsUrl.is_some()` the structural one, and a `RedirectForm` cannot be built
+/// without a non-null `acsUrl` anyway. A `CHALLENGE_REQUIRED` carrying a null `acsUrl` was never
+/// observed; if it ever happens it is an `UnexpectedResponseError`, never a silent frictionless
+/// success.
+fn is_braintree_challenge(
+    authentication_status: Option<ThreeDSecureAuthenticationStatus>,
+    acs_url: Option<&String>,
+) -> bool {
+    matches!(
+        authentication_status,
+        Some(ThreeDSecureAuthenticationStatus::ChallengeRequired)
+    ) && acs_url.is_some()
+}
+
+/// Build the ACS step-up form for a `CHALLENGE_REQUIRED` outcome.
+///
+/// `RedirectForm::Form` is used rather than a new variant: the `Authenticate` response mapper
+/// (`domain_types::types`) accepts exactly seven `RedirectForm` variants and turns everything else
+/// — `RedirectForm::Braintree`, which leg 1 uses, included — into an `UnexpectedResponseError`.
+/// `Form` carries this payload exactly, so the blast radius outside the connector is zero: no
+/// change to `types.rs`, `router_response_types.rs` or `proto/`.
+///
+/// `PaReq` / `MD` / `TermUrl` are Braintree's published field names for a server-side-lookup
+/// step-up form. `pareq` is named for 3DS1 legacy reasons but carries a base64 3DS2 CReq under
+/// 3DS2; it is passed through opaquely — never decoded, re-encoded or re-derived.
+///
+/// SENSITIVE: `termUrl` embeds a signed `authorization_fingerprint` JWT, so the whole URL is a
+/// credential. `form_fields` is an unmasked `HashMap<String, String>`, so this value WILL appear
+/// in any raw request/response log. That is a known, accepted limitation of the variant — do not
+/// log it deliberately, and do not widen it.
+fn build_challenge_redirect_form(
+    lookup: Option<&ThreeDSecureLookupData>,
+    http_code: u16,
+) -> Result<RedirectForm, Report<ConnectorError>> {
+    let missing = |field: &'static str| {
+        utils::unexpected_response_fail(
+            http_code,
+            format!("Braintree reported CHALLENGE_REQUIRED with a null {field}"),
+        )
+    };
+    let lookup = lookup.ok_or_else(|| missing("threeDSecureLookupData"))?;
+    Ok(RedirectForm::Form {
+        endpoint: lookup.acs_url.clone().ok_or_else(|| missing("acsUrl"))?,
+        method: common_utils::Method::Post,
+        form_fields: std::collections::HashMap::from([
+            (
+                "PaReq".to_string(),
+                lookup.pareq.clone().ok_or_else(|| missing("pareq"))?,
+            ),
+            // Echoed, not synthesised from `authenticationId`, even though the two have always
+            // been equal in every observed response.
+            (
+                "MD".to_string(),
+                lookup.md.clone().ok_or_else(|| missing("md"))?,
+            ),
+            (
+                "TermUrl".to_string(),
+                lookup
+                    .term_url
+                    .clone()
+                    .ok_or_else(|| missing("termUrl"))?
+                    .expose(),
+            ),
+        ]),
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreeAuthenticateResponse, Self>>
+    for RouterDataV2<
+        Authenticate,
+        PaymentFlowData,
+        PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreeAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeAuthenticateResponse::ErrorResponse(error_response) => Ok(Self {
+                // No status write on the error path: the shared Braintree error builder is
+                // flow-agnostic (Refund, RSync and Capture route through it too), so an
+                // `AttemptStatus` written here would be read as a terminal refund failure on a
+                // refund transport error.
+                response: build_error_response::<PaymentsResponseData>(
+                    error_response.errors.as_ref(),
+                    item.http_code,
+                )
+                .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreeAuthenticateResponse::AuthenticateResponse(success) => {
+                let payload = success.data.perform_three_d_secure_lookup.ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree returned a null performThreeDSecureLookup payload with no \
+                             errors",
+                    )
+                })?;
+
+                let payment_method = payload.payment_method.ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree returned a 3D Secure lookup with no paymentMethod",
+                    )
+                })?;
+
+                // The `... on CreditCardDetails` fragment yields `{}` on a non-credit-card union
+                // member rather than failing, so an absent authentication block has to be
+                // detected explicitly instead of being inferred from a parse failure.
+                let authentication = payment_method
+                    .details
+                    .as_ref()
+                    .and_then(|details| details.three_d_secure.as_ref())
+                    .and_then(|three_ds| three_ds.authentication.as_ref())
+                    .ok_or_else(|| {
+                        utils::unexpected_response_fail(
+                            item.http_code,
+                            "Braintree returned a 3D Secure lookup with no CreditCardDetails \
+                             authentication block — the instrument is not a credit card",
+                        )
+                    })?;
+
+                let lookup = payload.three_d_secure_lookup_data;
+                let acs_url = lookup.as_ref().and_then(|data| data.acs_url.as_ref());
+                let is_challenge =
+                    is_braintree_challenge(authentication.authentication_status, acs_url);
+
+                let redirection_data = is_challenge
+                    .then(|| build_challenge_redirect_form(lookup.as_ref(), item.http_code))
+                    .transpose()?
+                    .map(Box::new);
+
+                let authentication_id = lookup
+                    .as_ref()
+                    .and_then(|data| data.authentication_id.clone());
+                let lookup_transaction_id =
+                    lookup.as_ref().and_then(|data| data.transaction_id.clone());
+
+                let authentication_data = router_request_types::AuthenticationData {
+                    // From `transactionStatus`, not `paresStatus`: the latter was null on the
+                    // challenge capture and merely duplicates the former on the successes.
+                    // Never defaulted — `TransactionStatus` derives `Default = Failure`.
+                    trans_status: authentication
+                        .transaction_status
+                        .and_then(ThreeDSecureAuthenticationStatusIndicator::to_trans_status),
+                    eci: authentication.eci_flag.clone(),
+                    // `None` on a challenge is correct and expected, not an error.
+                    cavv: authentication.cavv.clone(),
+                    // Braintree exposes no Mastercard UCAF member; do not derive one from the ECI.
+                    ucaf_collection_indicator: None,
+                    threeds_server_transaction_id: authentication
+                        .three_d_secure_server_transaction_id
+                        .clone(),
+                    // Braintree returns a full three-part semver ("2.1.0"). A parse failure
+                    // degrades to `None` — it must never abort the whole response.
+                    message_version: authentication
+                        .version
+                        .clone()
+                        .or_else(|| lookup.as_ref().and_then(|data| data.version.clone()))
+                        .and_then(|version| {
+                            <common_utils::types::SemanticVersion as std::str::FromStr>::from_str(
+                                &version,
+                            )
+                            .ok()
+                        }),
+                    // NEVER cross-wire this into `ThreeDSecurePassThroughInput.dsTransactionId` —
+                    // that is the external-MPI path and the two topologies must not meet.
+                    ds_trans_id: authentication.directory_server_transaction_id.clone(),
+                    acs_transaction_id: authentication.acs_transaction_id.clone(),
+                    // The LOOKUP's transaction id, from the lookup-data block — distinct from
+                    // `xId`, the legacy Cardinal XID, which goes to `connector_feature_data`.
+                    transaction_id: lookup_transaction_id.clone(),
+                    // Cartes Bancaires specific; Braintree returns none of the three members.
+                    network_params: None,
+                    // Braintree signals an applied exemption through `authenticationStatus`
+                    // (`EXEMPTION_*_SUCCESSFUL`), not as a separate field. Deriving the enum from
+                    // the status would be a compliance *claim* UCS is not entitled to make.
+                    exemption_indicator: None,
+                    // No timestamp on the payload; `now()` would be a fabrication.
+                    created_at: None,
+                    // CRes/RReq fields from a COMPLETED challenge. They belong to
+                    // PostAuthenticate; populating them here would claim a challenge outcome that
+                    // has not happened.
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
+                    // Decoupled authentication already reaches the caller through `trans_status`
+                    // (`ChallengeRequiredDecoupledAuthentication`); a second, weaker encoding
+                    // would be redundant.
+                    authentication_type: None,
+                };
+
+                // FINDING 3, live-confirmed on all four captured outcomes: the lookup ALWAYS
+                // consumes the input nonce and returns a DIFFERENT `paymentMethod.id`
+                // (`tokencc_bh_…` in, a bare UUID out). Replaying the old nonce returns "Nonce is
+                // already consumed". The subsequent charge must spend the NEW one, so it leaves
+                // this flow by the most prominent channel — `resource_id` — and is mirrored into
+                // `connector_feature_data` so an orchestrator that treats `resource_id` strictly
+                // as a transaction id still does not lose it.
+                let new_payment_method_id = payment_method.id.expose();
+
+                let connector_feature_data = serde_json::json!({
+                    "braintree_three_ds": {
+                        "payment_method_id": new_payment_method_id,
+                        "authentication_id": authentication_id,
+                        "lookup_transaction_id": lookup_transaction_id,
+                        "liability_shifted": authentication.liability_shifted,
+                        "liability_shift_possible": authentication.liability_shift_possible,
+                        "card_enrolled": authentication.card_enrolled.map(|value| value.to_string()),
+                        "authentication_status": authentication
+                            .authentication_status
+                            .map(|value| value.to_string()),
+                        "pares_status": authentication.pares_status.map(|value| value.to_string()),
+                        "transaction_status_reason": authentication.transaction_status_reason,
+                        "x_id": authentication.x_id,
+                        "bin": payment_method.details.as_ref().and_then(|d| d.bin.clone()),
+                        "last4": payment_method.details.as_ref().and_then(|d| d.last4.clone()),
+                        "brand_code": payment_method
+                            .details
+                            .as_ref()
+                            .and_then(|d| d.brand_code.clone()),
+                    }
+                });
+
+                let status = authentication
+                    .authentication_status
+                    .map(enums::AttemptStatus::from)
+                    .unwrap_or(enums::AttemptStatus::Unspecified);
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        // The same value as `connector_response_reference_id`, so a later flow can
+                        // find it without unpacking `connector_feature_data`.
+                        reference_id: authentication_id.clone(),
+                        ..item.router_data.resource_common_data.clone()
+                    },
+                    response: Ok(PaymentsResponseData::AuthenticateResponse {
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            new_payment_method_id,
+                        )),
+                        redirection_data,
+                        authentication_data: Some(authentication_data),
+                        connector_feature_data: Some(connector_feature_data),
+                        // Braintree's own reference for this authentication — what a support
+                        // ticket or a PostAuthenticate read quotes. Never synthesised.
+                        connector_response_reference_id: authentication_id,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
@@ -4739,6 +5764,15 @@ mod tests {
 
     fn minor(value: i64) -> MinorUnit {
         MinorUnit::new(value)
+    }
+
+    /// The connector's own `amount_converter` (`braintree.rs`: `amount_converter: StringMajorUnit`)
+    /// resolves to this converter, so a test that goes through it is testing the real path.
+    fn major_unit(value: i64) -> StringMajorUnit {
+        use common_utils::types::AmountConvertor;
+        common_utils::types::StringMajorUnitForConnector
+            .convert(minor(value), common_enums::Currency::USD)
+            .expect("major unit conversion")
     }
 
     // --- L3 string sanitisation (§E.9 charset rule) -----------------------------------------
@@ -5327,5 +6361,587 @@ mod tests {
         // `threeDSecure.prepareLookup` takes the first six PAN digits as `bin`.
         assert_eq!(bin, "411111");
         assert_eq!(acs_url, "https://merchant.example/ddc-return");
+    }
+
+    // --- Braintree-hosted 3DS leg 2: Authenticate ---------------------------------------------
+
+    /// The verbatim `CHALLENGE_REQUIRED` body captured from the Braintree sandbox
+    /// (card 4000000000001091). Truncated only in `pareq` / `termUrl`, whose lengths carry no
+    /// meaning for these assertions.
+    fn challenge_lookup_body() -> serde_json::Value {
+        serde_json::json!({
+            "data": { "performThreeDSecureLookup": {
+                "threeDSecureLookupData": {
+                    "acsUrl": "https://0merchantacsstag.cardinalcommerce.com/MerchantACSWeb/creq.jsp",
+                    "authenticationId": "drdw3449dksxx822vb",
+                    "version": "2.1.0",
+                    "pareq": "eyJtZXNzYWdlVHlwZSI6IkNSZXEi",
+                    "md": "drdw3449dksxx822vb",
+                    "termUrl": "https://api.sandbox.braintreegateway.com:443/merchants/merchant_id_placeholder/client_api/v1/payment_methods/fda15ca3-c67c-16d8-76d7-e10f21e92bd2/three_d_secure/authenticate?authorization_fingerprint=eyJraWQiOiJ4In0",
+                    "transactionId": "8vjQoEtZEyYp7dJ0sLz0"
+                },
+                "paymentMethod": {
+                    "id": "fda15ca3-c67c-16d8-76d7-e10f21e92bd2",
+                    "details": {
+                        "bin": "400000", "last4": "1091", "brandCode": "VISA",
+                        "threeDSecure": { "authentication": {
+                            "cavv": null, "eciFlag": "07",
+                            "liabilityShifted": false, "liabilityShiftPossible": true,
+                            "cardEnrolled": "YES",
+                            "authenticationStatus": "CHALLENGE_REQUIRED",
+                            "version": "2.1.0",
+                            "directoryServerTransactionId": "3edee05f-ef2f-4ca5-9290-be569854e841",
+                            "xId": null,
+                            "threeDSecureServerTransactionId": "88de0d3f-da3d-4832-a6e5-21184d58560f",
+                            "acsTransactionId": "4374ca16-9cb6-43ac-bfef-3d48ceb9d638",
+                            "paresStatus": null,
+                            "transactionStatus": "CHALLENGE_REQUIRED_FOR_AUTHENTICATION",
+                            "transactionStatusReason": null
+                        } }
+                    }
+                }
+            } },
+            "extensions": { "requestId": "5a3d0790-dac6-4a1e-a109-9de5a932721a" }
+        })
+    }
+
+    /// The verbatim frictionless `AUTHENTICATE_SUCCESSFUL` body (card 4000000000001000).
+    fn frictionless_lookup_body() -> serde_json::Value {
+        serde_json::json!({
+            "data": { "performThreeDSecureLookup": {
+                // NOTE: still NON-NULL, with `acsUrl`/`pareq` null but everything else populated.
+                "threeDSecureLookupData": {
+                    "acsUrl": null,
+                    "authenticationId": "dvywxm7kyhhpcxyyqr",
+                    "version": "2.1.0",
+                    "pareq": null,
+                    "md": "dvywxm7kyhhpcxyyqr",
+                    "termUrl": "https://api.sandbox.braintreegateway.com:443/merchants/merchant_id_placeholder/three_d_secure/authenticate?authorization_fingerprint=eyJraWQiOiJ4In0",
+                    "transactionId": "bXNZLVb6Nt2FKgd9cQM0"
+                },
+                "paymentMethod": {
+                    "id": "0d3a6993-68a4-11f0-43b2-d3b91990e1bd",
+                    "details": {
+                        "bin": "400000", "last4": "1000", "brandCode": "VISA",
+                        "threeDSecure": { "authentication": {
+                            "cavv": "AJkBBkhgQQAAAE4gSEJydQAAAAA=", "eciFlag": "05",
+                            "liabilityShifted": true, "liabilityShiftPossible": true,
+                            "cardEnrolled": "YES",
+                            "authenticationStatus": "AUTHENTICATE_SUCCESSFUL",
+                            "version": "2.1.0",
+                            "directoryServerTransactionId": "3edee05f-ef2f-4ca5-9290-be569854e841",
+                            "xId": null,
+                            "threeDSecureServerTransactionId": "88de0d3f-da3d-4832-a6e5-21184d58560f",
+                            "acsTransactionId": "4374ca16-9cb6-43ac-bfef-3d48ceb9d638",
+                            "paresStatus": "SUCCESSFUL_AUTHENTICATION",
+                            "transactionStatus": "SUCCESSFUL_AUTHENTICATION",
+                            "transactionStatusReason": null
+                        } }
+                    }
+                }
+            } },
+            "extensions": { "requestId": "5a3d0790-dac6-4a1e-a109-9de5a932721a" }
+        })
+    }
+
+    fn parse_lookup_success(body: serde_json::Value) -> PerformThreeDSecureLookupPayload {
+        let response: BraintreeAuthenticateResponse = serde_json::from_value(body).unwrap();
+        let BraintreeAuthenticateResponse::AuthenticateResponse(success) = response else {
+            panic!("a clean success body must not match the error arm")
+        };
+        success
+            .data
+            .perform_three_d_secure_lookup
+            .expect("performThreeDSecureLookup payload")
+    }
+
+    fn authentication_of(
+        payload: &PerformThreeDSecureLookupPayload,
+    ) -> &ThreeDSecureAuthenticationDetails {
+        payload
+            .payment_method
+            .as_ref()
+            .and_then(|pm| pm.details.as_ref())
+            .and_then(|details| details.three_d_secure.as_ref())
+            .and_then(|three_ds| three_ds.authentication.as_ref())
+            .expect("CreditCardDetails authentication block")
+    }
+
+    #[test]
+    fn authenticate_document_and_variables_key_agree() {
+        // The variable name declared in the document must be the key of the `variables` object,
+        // or Braintree rejects the document before it executes.
+        let request = BraintreeAuthenticateRequest {
+            query: constants::AUTHENTICATE_MUTATION.to_string(),
+            variables: GenericVariableInput {
+                input: PerformThreeDSecureLookupInput {
+                    payment_method_id: Secret::new("tokencc_bh_test_nonce".to_string()),
+                    amount: major_unit(1000),
+                    merchant_account_id: Secret::new("juspay".to_string()),
+                    df_reference_id: None,
+                    transaction_information: None,
+                    cardholder_information: None,
+                },
+            },
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        let query = json["query"].as_str().expect("query");
+        assert!(
+            query.contains("$input: PerformThreeDSecureLookupInput!"),
+            "{query}"
+        );
+        assert!(
+            query.contains("performThreeDSecureLookup(input: $input)"),
+            "{query}"
+        );
+        assert!(json["variables"]["input"].is_object());
+        // `threeDSecure` MUST be traversed through `.authentication`: at the pinned
+        // `Braintree-Version` the served schema already types `CreditCardDetails.threeDSecure` as
+        // `ThreeDSecureDetails`, whose flat scalars are @deprecated and are a hard GraphQL
+        // validation error to select.
+        assert!(query.contains("threeDSecure { authentication {"), "{query}");
+        // `details` is a union, so the inline fragment is mandatory.
+        assert!(query.contains("... on CreditCardDetails"), "{query}");
+        assert_eq!(
+            json["variables"]["input"]["paymentMethodId"],
+            serde_json::json!("tokencc_bh_test_nonce")
+        );
+        // Braintree distinguishes "absent" from "present and null" — omitted optionals must not
+        // serialise as explicit nulls.
+        assert!(json["variables"]["input"].get("dfReferenceId").is_none());
+        assert!(json["variables"]["input"]
+            .get("transactionInformation")
+            .is_none());
+    }
+
+    #[test]
+    fn authenticate_amount_is_major_units_through_the_connector_converter() {
+        // `MinorUnit::to_string()` here would be a silent 100x overstatement Braintree cannot
+        // detect, because "1000" is itself a valid `Amount`.
+        let amount = major_unit(1000);
+        assert_eq!(amount.get_amount_as_string(), "10.00");
+        let request = BraintreeAuthenticateRequest {
+            query: constants::AUTHENTICATE_MUTATION.to_string(),
+            variables: GenericVariableInput {
+                input: PerformThreeDSecureLookupInput {
+                    payment_method_id: Secret::new("tokencc_bh_test_nonce".to_string()),
+                    amount,
+                    merchant_account_id: Secret::new("juspay".to_string()),
+                    df_reference_id: None,
+                    transaction_information: None,
+                    cardholder_information: None,
+                },
+            },
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(
+            json["variables"]["input"]["amount"],
+            serde_json::json!("10.00")
+        );
+    }
+
+    #[test]
+    fn authenticate_browser_information_uses_the_braintree_spellings() {
+        // `javascriptEnabled` has ONE capital, unlike the UCS `java_script_enabled`; and
+        // `ipAddress` is a SIBLING of `browserInformation`, not a member of it.
+        let browser = router_request_types::BrowserInformation {
+            java_enabled: Some(false),
+            java_script_enabled: Some(true),
+            accept_header: Some("text/html".to_string()),
+            language: Some("en-US".to_string()),
+            color_depth: Some(24),
+            screen_height: Some(1080),
+            screen_width: Some(1920),
+            time_zone: Some(0),
+            user_agent: Some("Mozilla/5.0".to_string()),
+            ip_address: Some(std::net::IpAddr::from([127, 0, 0, 1])),
+            ..Default::default()
+        };
+        let transaction_information = ThreeDSecureLookupTransactionInformationInput {
+            device_channel: Some(ThreeDSecureDeviceChannel::Browser),
+            email: None,
+            ip_address: browser.ip_address.map(|ip| Secret::new(ip.to_string())),
+            browser_information: build_lookup_browser_information(Some(&browser)),
+        };
+        let json = serde_json::to_value(&transaction_information).unwrap();
+        assert_eq!(json["deviceChannel"], serde_json::json!("BROWSER"));
+        assert_eq!(json["ipAddress"], serde_json::json!("127.0.0.1"));
+        assert!(json["browserInformation"].get("ipAddress").is_none());
+        assert_eq!(
+            json["browserInformation"]["javascriptEnabled"],
+            serde_json::json!(true)
+        );
+        assert!(json["browserInformation"]
+            .get("javaScriptEnabled")
+            .is_none());
+        assert_eq!(json["browserInformation"]["timeZone"], serde_json::json!(0));
+    }
+
+    #[test]
+    fn authenticate_billing_country_is_not_converted_to_alpha3() {
+        // `ThreeDSecureLookupBillingAddressInput.countryCode` is a plain `String`, not the
+        // versioned `CountryCode` scalar the Authorize address input uses, so the alpha-3/alpha-2
+        // boundary at `Braintree-Version 2021-02-01` does not apply on this leg.
+        let cardholder =
+            build_lookup_billing_address(Some(&domain_types::payment_address::Address {
+                address: Some(domain_types::payment_address::AddressDetails {
+                    first_name: Some(Secret::new("John".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    line1: Some(Secret::new("123 Main St".to_string())),
+                    city: Some(Secret::new("San Francisco".to_string())),
+                    state: Some(Secret::new("CA".to_string())),
+                    zip: Some(Secret::new("94105".to_string())),
+                    country: Some(common_enums::CountryAlpha2::US),
+                    ..Default::default()
+                }),
+                phone: None,
+                email: None,
+            }))
+            .expect("cardholder information");
+        let json = serde_json::to_value(&cardholder).unwrap();
+        assert_eq!(
+            json["billingAddress"]["countryCode"],
+            serde_json::json!("US")
+        );
+        assert_eq!(
+            json["billingAddress"]["givenName"],
+            serde_json::json!("John")
+        );
+        assert_eq!(json["billingAddress"]["surname"], serde_json::json!("Doe"));
+        // An empty billing address must be omitted entirely, never emitted as `{}`.
+        assert!(build_lookup_billing_address(Some(
+            &domain_types::payment_address::Address::default()
+        ))
+        .is_none());
+    }
+
+    #[test]
+    fn authenticate_df_reference_id_is_read_under_either_spelling() {
+        let from_camel =
+            extract_df_reference_id(Some(&connector_types::ContinueRedirectionResponse {
+                params: None,
+                payload: Some(Secret::new(
+                    serde_json::json!({ "dfReferenceId": "0_abc123" }),
+                )),
+            }));
+        assert_eq!(
+            from_camel.map(|value| value.peek().to_string()),
+            Some("0_abc123".to_string())
+        );
+        let from_snake =
+            extract_df_reference_id(Some(&connector_types::ContinueRedirectionResponse {
+                params: None,
+                payload: Some(Secret::new(
+                    serde_json::json!({ "df_reference_id": "0_abc123" }),
+                )),
+            }));
+        assert_eq!(
+            from_snake.map(|value| value.peek().to_string()),
+            Some("0_abc123".to_string())
+        );
+        assert!(extract_df_reference_id(None).is_none());
+    }
+
+    #[test]
+    fn authenticate_discriminator_survives_the_always_present_lookup_data_trap() {
+        // FINDING 2. `threeDSecureLookupData` comes back NON-NULL on EVERY outcome, frictionless
+        // success included — so `three_d_secure_lookup_data.is_some()` would emit a redirect on
+        // every single response and strand a frictionless payment in a challenge that does not
+        // exist. This test exists to keep anyone from "simplifying" the discriminator back to it.
+        let challenge = parse_lookup_success(challenge_lookup_body());
+        let frictionless = parse_lookup_success(frictionless_lookup_body());
+        assert!(challenge.three_d_secure_lookup_data.is_some());
+        assert!(
+            frictionless.three_d_secure_lookup_data.is_some(),
+            "the trap: lookup data is present on a frictionless success too"
+        );
+
+        let challenge_auth = authentication_of(&challenge);
+        let frictionless_auth = authentication_of(&frictionless);
+        assert!(is_braintree_challenge(
+            challenge_auth.authentication_status,
+            challenge
+                .three_d_secure_lookup_data
+                .as_ref()
+                .and_then(|data| data.acs_url.as_ref())
+        ));
+        assert!(!is_braintree_challenge(
+            frictionless_auth.authentication_status,
+            frictionless
+                .three_d_secure_lookup_data
+                .as_ref()
+                .and_then(|data| data.acs_url.as_ref())
+        ));
+        // Both halves of the discriminator are load-bearing: CHALLENGE_REQUIRED with a null
+        // acsUrl is not a challenge (it is an UnexpectedResponseError at the call site), and a
+        // present acsUrl on a non-challenge status is not one either.
+        assert!(!is_braintree_challenge(
+            Some(ThreeDSecureAuthenticationStatus::ChallengeRequired),
+            None
+        ));
+        assert!(!is_braintree_challenge(
+            Some(ThreeDSecureAuthenticationStatus::AuthenticateSuccessful),
+            Some(&"https://acs.example/creq".to_string())
+        ));
+    }
+
+    #[test]
+    fn authenticate_challenge_form_carries_the_acs_step_up_triple() {
+        let challenge = parse_lookup_success(challenge_lookup_body());
+        let form =
+            build_challenge_redirect_form(challenge.three_d_secure_lookup_data.as_ref(), 200)
+                .expect("challenge redirect form");
+        let RedirectForm::Form {
+            endpoint,
+            method,
+            form_fields,
+        } = form
+        else {
+            panic!(
+                "the challenge must use RedirectForm::Form — the Authenticate response mapper \
+                    rejects RedirectForm::Braintree, which leg 1 uses"
+            )
+        };
+        assert_eq!(
+            endpoint,
+            "https://0merchantacsstag.cardinalcommerce.com/MerchantACSWeb/creq.jsp"
+        );
+        assert_eq!(method, common_utils::Method::Post);
+        assert_eq!(
+            form_fields.get("PaReq").map(String::as_str),
+            Some("eyJtZXNzYWdlVHlwZSI6IkNSZXEi")
+        );
+        // `md` is echoed, never synthesised — even though it has always equalled
+        // `authenticationId`.
+        assert_eq!(
+            form_fields.get("MD").map(String::as_str),
+            Some("drdw3449dksxx822vb")
+        );
+        assert!(form_fields
+            .get("TermUrl")
+            .is_some_and(|url| url.contains("authorization_fingerprint=")));
+        assert_eq!(form_fields.len(), 3);
+
+        // A frictionless outcome has no acsUrl/pareq, so asking for a form must fail loudly
+        // rather than produce a half-built redirect.
+        let frictionless = parse_lookup_success(frictionless_lookup_body());
+        assert!(build_challenge_redirect_form(
+            frictionless.three_d_secure_lookup_data.as_ref(),
+            200
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn authenticate_status_table_splits_terminal_from_non_terminal() {
+        use enums::AttemptStatus;
+        // Non-terminal: a challenge must be able to complete (checklist #8).
+        let challenge: AttemptStatus = ThreeDSecureAuthenticationStatus::ChallengeRequired.into();
+        assert_eq!(challenge, AttemptStatus::AuthenticationPending);
+        assert!(!challenge.is_terminal_status());
+
+        // Terminal Braintree state -> terminal UCS state (checklist #7).
+        for terminal in [
+            ThreeDSecureAuthenticationStatus::AuthenticateFrictionlessFailed,
+            ThreeDSecureAuthenticationStatus::AuthenticateFailed,
+            ThreeDSecureAuthenticationStatus::AuthenticateFailedAcsError,
+            ThreeDSecureAuthenticationStatus::AuthenticateRejected,
+            ThreeDSecureAuthenticationStatus::AuthenticateError,
+            ThreeDSecureAuthenticationStatus::AuthenticateUnableToAuthenticate,
+            ThreeDSecureAuthenticationStatus::AuthenticationUnavailable,
+            ThreeDSecureAuthenticationStatus::LookupError,
+            ThreeDSecureAuthenticationStatus::LookupCardError,
+            ThreeDSecureAuthenticationStatus::LookupServerError,
+            ThreeDSecureAuthenticationStatus::LookupFailedAcsError,
+            ThreeDSecureAuthenticationStatus::MpiServerError,
+            ThreeDSecureAuthenticationStatus::UnsupportedCard,
+            ThreeDSecureAuthenticationStatus::UnsupportedAccountType,
+            ThreeDSecureAuthenticationStatus::UnsupportedThreeDSecureVersion,
+        ] {
+            let mapped: AttemptStatus = terminal.into();
+            assert_eq!(mapped, AttemptStatus::AuthenticationFailed, "{terminal}");
+            assert!(mapped.is_terminal_status(), "{terminal}");
+        }
+
+        // Advanceable: Braintree's Authorize is implemented, so the pipeline can move these on.
+        // `DATA_ONLY_SUCCESSFUL` is a success even though it shifts NO liability — which is why
+        // `liabilityShifted` is read, never inferred from the status.
+        for advanceable in [
+            ThreeDSecureAuthenticationStatus::AuthenticateSuccessful,
+            ThreeDSecureAuthenticationStatus::AuthenticateAttemptSuccessful,
+            ThreeDSecureAuthenticationStatus::DataOnlySuccessful,
+            ThreeDSecureAuthenticationStatus::ExemptionLowValueSuccessful,
+            ThreeDSecureAuthenticationStatus::ExemptionTraSuccessful,
+            ThreeDSecureAuthenticationStatus::LookupNotEnrolled,
+            ThreeDSecureAuthenticationStatus::LookupBypassed,
+            ThreeDSecureAuthenticationStatus::SkippedDueToRule,
+            ThreeDSecureAuthenticationStatus::SkippedDueToAdaptiveAuthentication,
+        ] {
+            assert_eq!(
+                AttemptStatus::from(advanceable),
+                AttemptStatus::AuthenticationSuccessful,
+                "{advanceable}"
+            );
+        }
+    }
+
+    #[test]
+    fn authenticate_unknown_status_maps_to_unspecified_not_pending_or_failure() {
+        // Braintree added four statuses in 2022-09-30 and four more in 2023-05-23. A new one must
+        // not fail the whole response parse, and it must not be invented into a Pending or a
+        // Failure UCS cannot substantiate (checklist #6).
+        let mut body = challenge_lookup_body();
+        body["data"]["performThreeDSecureLookup"]["paymentMethod"]["details"]["threeDSecure"]
+            ["authentication"]["authenticationStatus"] =
+            serde_json::json!("SOME_STATUS_BRAINTREE_HAS_NOT_INVENTED_YET");
+        let payload = parse_lookup_success(body);
+        let status = authentication_of(&payload)
+            .authentication_status
+            .expect("status parses into the catch-all rather than failing");
+        assert!(matches!(status, ThreeDSecureAuthenticationStatus::Unknown));
+        assert_eq!(
+            enums::AttemptStatus::from(status),
+            enums::AttemptStatus::Unspecified
+        );
+        // An unrecognised status is not a challenge either, even with an acsUrl present.
+        assert!(!is_braintree_challenge(
+            Some(status),
+            Some(&"https://acs.example/creq".to_string())
+        ));
+    }
+
+    #[test]
+    fn authenticate_trans_status_maps_eight_to_eight_and_never_defaults() {
+        use common_enums::TransactionStatus;
+        use ThreeDSecureAuthenticationStatusIndicator as Indicator;
+        for (indicator, expected) in [
+            (
+                Indicator::SuccessfulAuthentication,
+                TransactionStatus::Success,
+            ),
+            (Indicator::FailedAuthentication, TransactionStatus::Failure),
+            (
+                Indicator::UnableToCompleteAuthentication,
+                TransactionStatus::VerificationNotPerformed,
+            ),
+            (
+                Indicator::SuccessfulAttemptsTransaction,
+                TransactionStatus::NotVerified,
+            ),
+            (
+                Indicator::AuthenticationRejected,
+                TransactionStatus::Rejected,
+            ),
+            (
+                Indicator::ChallengeRequiredForAuthentication,
+                TransactionStatus::ChallengeRequired,
+            ),
+            (
+                Indicator::ChallengeRequiredDecoupledAuthentication,
+                TransactionStatus::ChallengeRequiredDecoupledAuthentication,
+            ),
+            (
+                Indicator::InformationalChallengePreferenceAcknowledged,
+                TransactionStatus::InformationOnly,
+            ),
+        ] {
+            assert_eq!(indicator.to_trans_status(), Some(expected), "{indicator}");
+        }
+        // `TransactionStatus` derives `Default = Failure`, so an unrecognised indicator MUST come
+        // back as `None` — anything that reaches for a default here silently reports a failed
+        // authentication.
+        assert!(Indicator::Unknown.to_trans_status().is_none());
+        assert_eq!(TransactionStatus::default(), TransactionStatus::Failure);
+    }
+
+    #[test]
+    fn authenticate_reads_the_new_nonce_and_the_liability_booleans() {
+        // FINDING 3: the lookup ALWAYS consumes the input nonce and returns a different
+        // `paymentMethod.id` — a bare UUID, not a `tokencc_`-prefixed nonce. The subsequent
+        // charge must spend the new one.
+        let frictionless = parse_lookup_success(frictionless_lookup_body());
+        let payment_method = frictionless.payment_method.as_ref().expect("paymentMethod");
+        assert_eq!(
+            payment_method.id.peek(),
+            "0d3a6993-68a4-11f0-43b2-d3b91990e1bd"
+        );
+        assert!(!payment_method.id.peek().starts_with("tokencc_"));
+
+        let authentication = authentication_of(&frictionless);
+        // Liability shift is READ, never inferred from the status.
+        assert_eq!(authentication.liability_shifted, Some(true));
+        assert_eq!(authentication.liability_shift_possible, Some(true));
+        assert_eq!(authentication.eci_flag.as_deref(), Some("05"));
+        assert_eq!(
+            authentication
+                .cavv
+                .as_ref()
+                .map(|cavv| cavv.peek().as_str()),
+            Some("AJkBBkhgQQAAAE4gSEJydQAAAAA=")
+        );
+        // Braintree returns a full three-part semver, so `SemanticVersion` parses it directly.
+        assert!(authentication
+            .version
+            .as_deref()
+            .and_then(|version| {
+                <common_utils::types::SemanticVersion as std::str::FromStr>::from_str(version).ok()
+            })
+            .is_some());
+
+        // A challenge legitimately carries no CAVV and no settled trans_status; that is not an
+        // error.
+        let challenge_auth_payload = parse_lookup_success(challenge_lookup_body());
+        let challenge_auth = authentication_of(&challenge_auth_payload);
+        assert!(challenge_auth.cavv.is_none());
+        assert!(challenge_auth.pares_status.is_none());
+        assert_eq!(
+            challenge_auth
+                .transaction_status
+                .and_then(ThreeDSecureAuthenticationStatusIndicator::to_trans_status),
+            Some(common_enums::TransactionStatus::ChallengeRequired)
+        );
+    }
+
+    #[test]
+    fn authenticate_errors_win_over_a_populated_data_object() {
+        // Both REAL Braintree error bodies carry a `data` key alongside `errors[]`, so an
+        // untagged enum that tried the success variant first — or discriminated on the presence
+        // of `data` — would read a hard error as a success with a null payload. `ErrorResponse`
+        // is listed FIRST and requires `errors`, which is what makes this work.
+        let response: BraintreeAuthenticateResponse = serde_json::from_value(serde_json::json!({
+            "errors": [{
+                "message": "Nonce is already consumed",
+                "path": ["performThreeDSecureLookup"],
+                "extensions": { "errorClass": "VALIDATION", "errorType": "user_error" }
+            }],
+            "data": { "performThreeDSecureLookup": null },
+            "extensions": { "requestId": "d1bb4b89-0000-0000-0000-000000000000" }
+        }))
+        .unwrap();
+        let BraintreeAuthenticateResponse::ErrorResponse(error_response) = response else {
+            panic!("a body carrying errors[] must not be read as a success")
+        };
+        let built =
+            build_error_response::<PaymentsResponseData>(error_response.errors.as_ref(), 200)
+                .expect_err("a populated errors[] must become an ErrorResponse");
+        // No `legacyCode` on this body, so the shared fallback applies rather than an empty code.
+        assert_eq!(built.code, NO_ERROR_CODE);
+        assert_eq!(built.message, "Nonce is already consumed");
+        assert_eq!(built.status_code, 200);
+        // The error builder is shared with Refund/RSync/Capture, so it must never assert a
+        // terminal attempt status (checklist #5).
+        assert!(built.attempt_status.is_none());
+
+        // A schema-validation error carries NO `data` key at all, which is why the error variant
+        // must not require one.
+        let no_data: BraintreeAuthenticateResponse = serde_json::from_value(serde_json::json!({
+            "errors": [{ "message": "The variables input contains a field name 'challengeRequested' that is not defined for input object type 'PerformThreeDSecureLookupInput' " }],
+            "extensions": { "requestId": "00000000-0000-0000-0000-000000000000" }
+        }))
+        .unwrap();
+        assert!(matches!(
+            no_data,
+            BraintreeAuthenticateResponse::ErrorResponse(_)
+        ));
     }
 }

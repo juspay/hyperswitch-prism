@@ -2409,6 +2409,14 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub domain_data: Option<DomainData>,
     pub sdk_information: Option<SdkInformation>,
     pub device_channel: Option<DeviceChannel>,
+    /// Merchant-supplied connector metadata, mirroring `PaymentsPreAuthenticateData::metadata`.
+    ///
+    /// The gRPC request has always carried this
+    /// (`PaymentMethodAuthenticationServiceAuthenticateRequest.metadata`, field 7) but it was
+    /// previously read only to extract `sdk_information` / `device_channel` and otherwise
+    /// dropped, so a connector whose Authenticate leg needs a merchant-scoped identifier
+    /// (Braintree's `merchantAccountId`) could not reach it.
+    pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {

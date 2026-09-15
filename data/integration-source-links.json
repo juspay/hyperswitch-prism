@@ -277,6 +277,18 @@
     "https://developer.paypal.com/braintree/articles/control-panel/transactions/descriptors",
     "https://developer.paypal.com/braintree/docs/reference/general/statuses",
     "https://developer.paypal.com/braintree/docs/reference/general/webhooks/overview",
-    "https://developer.paypal.com/braintree/docs/reference/general/testing"
+    "https://developer.paypal.com/braintree/docs/reference/general/testing",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/overview",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/onboarding",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/step-by-step-integration/javascript/v3",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/step-by-step-integration/javascript/v2",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/advanced-options",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/authentication-insight",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/3ri",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/testing",
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/testing/ruby/",
+    "https://developer.paypal.com/braintree/docs/reference/general/testing/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/request/transaction/sale/ruby",
+    "https://raw.githubusercontent.com/braintree/graphql-api/master/CHANGELOG.md"
   ]
 }

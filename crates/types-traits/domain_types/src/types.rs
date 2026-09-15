@@ -18877,6 +18877,13 @@ impl<
                 .as_ref()
                 .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
                 .and_then(|m| m.device_channel),
+            // `.clone()` because `value.metadata` is borrowed twice above, for `sdk_information`
+            // and `device_channel`. Mirrors the `PaymentsPreAuthenticateData` arm verbatim.
+            metadata: value
+                .metadata
+                .clone()
+                .map(|m| SecretSerdeValue::foreign_try_from((m, "metadata")))
+                .transpose()?,
         })
     }
 }
