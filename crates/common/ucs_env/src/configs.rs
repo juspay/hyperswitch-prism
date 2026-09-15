@@ -14,6 +14,7 @@ use common_utils::{
         RuntimeMetadataPatch,
     },
     metadata::{HeaderMaskingConfig, HeaderMaskingConfigPatch},
+    superposition_config::{SuperpositionClientConfig, SuperpositionSource},
     SuperpositionConfig,
 };
 use domain_types::{
@@ -59,8 +60,16 @@ pub struct Config {
     /// build. Absent optional values are simply omitted and never fail startup.
     #[serde(default)]
     pub runtime_metadata: RuntimeMetadata,
-    /// Superposition configuration for connector URL resolution
-    /// This is loaded at startup from config/superposition.toml
+    /// Where Superposition policy comes from: the baked file (default) or a remote
+    /// workspace. Loadable from the `[superposition]` table and `CS__SUPERPOSITION__*`
+    /// env vars, but excluded from the per-request `x-config-override` surface via
+    /// `#[patch(ignore)]`: a request header must never be able to repoint the policy
+    /// source or hand the process a different token.
+    #[serde(default)]
+    #[patch(ignore)]
+    pub superposition: SuperpositionClientConfig,
+    /// The initialised Superposition provider (connector URL resolution, the déjà
+    /// sampler). Built at startup from `superposition` + `config/superposition.toml`.
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
@@ -424,6 +433,23 @@ impl Config {
         let config = {
             let mut config = config;
             config.post_patch_processing();
+
+            // Superposition is never a reason to refuse boot. A remote source whose
+            // settings cannot describe a workspace (no endpoint/token/org/workspace) is
+            // reported — the logger is not up yet, so to stderr — and the source is set
+            // back to the file: the process serves policy from the baked
+            // config/superposition.toml, the same fail-open posture as a déjà record
+            // misconfiguration. Payments are never blocked by a policy source.
+            if config.superposition.source == SuperpositionSource::Remote {
+                #[allow(clippy::print_stderr)]
+                if let Err(error) = config.superposition.validate() {
+                    eprintln!(
+                        "superposition configuration error: {error}; source set to file, \
+                         policy comes from the baked config/superposition.toml"
+                    );
+                    config.superposition.source = SuperpositionSource::File;
+                }
+            }
             config
         };
 
