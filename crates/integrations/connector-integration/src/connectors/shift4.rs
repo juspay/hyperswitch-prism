@@ -18,7 +18,7 @@ use domain_types::{
         SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -732,7 +732,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // A setup is a real authorization on POST /charges, so it carries the
             // same idempotency contract as Authorize.
-            self.build_charge_headers(req)
+            let mut header = self.build_charge_headers(req)?;
+            // A wallet setup omits an empty key instead of sending one that every
+            // setup without a merchant reference would share.
+            if matches!(req.request.payment_method_data, PaymentMethodData::Wallet(_)) {
+                header.retain(|(name, value)| {
+                    name != headers::IDEMPOTENCY_KEY || !value.clone().into_inner().trim().is_empty()
+                });
+            }
+            Ok(header)
         }
 
         fn get_url(
