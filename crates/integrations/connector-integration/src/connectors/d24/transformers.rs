@@ -179,10 +179,13 @@ impl D24PaymentMethod {
             return match country {
                 CountryAlpha2::MX => Ok(Self::Spei),
                 CountryAlpha2::BR => Ok(Self::Pix),
+                // `NotSupported` renders as "{message} is not supported by {connector}",
+                // so every message in this file is a noun phrase with any guidance in
+                // parentheses — never a sentence that already says "not supported".
                 _ => Err(error_stack::report!(IntegrationError::NotSupported {
                     message: format!(
-                        "LocalBankTransfer in billing country {country}; Directa24 bank \
-                         transfer is available in Mexico (MX) and Brazil (BR) only"
+                        "LocalBankTransfer in billing country {country} (Directa24 bank \
+                         transfer is offered in MX and BR only)"
                     ),
                     connector: "d24",
                     context: IntegrationErrorContext::default(),
@@ -203,13 +206,20 @@ impl D24PaymentMethod {
             (CountryAlpha2::BR, "ME") => Ok(Self::MercadoPago),
             _ => Err(error_stack::report!(IntegrationError::NotSupported {
                 message: format!(
-                    "LocalBankTransfer bank_code {code:?} in billing country {country}; \
-                     supported Directa24 bank-transfer codes are MX: SE, COD, BM, STS, AF, BQL \
-                     and BR: IX, I, NU, ME (BANK_DEPOSIT methods and methods that require \
-                     reported_info, such as BB or B, are not supported)"
+                    "LocalBankTransfer bank_code {code:?} in billing country {country} \
+                     (accepted codes: MX SE, COD, BM, STS, AF, BQL; BR IX, I, NU, ME)"
                 ),
                 connector: "d24",
-                context: IntegrationErrorContext::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send one of the accepted Directa24 bank-transfer codes for the \
+                         billing country, or omit bank_code to use SPEI (MX) or Pix (BR). \
+                         BANK_DEPOSIT methods and methods that require reported_info (such \
+                         as BB or B) cannot be requested through LocalBankTransfer."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })),
         }
     }
@@ -698,8 +708,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if country != method_country {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: format!(
-                    "{name} ({code}) in billing country {country}; {name} is available in \
-                     {method_country} only",
+                    "{name} ({code}) in billing country {country} ({name} is offered in \
+                     {method_country} only)",
                     name = payment_method.name(),
                     code = payment_method.code(),
                 ),
@@ -714,7 +724,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         if request.currency != local_currency && request.currency != Currency::USD {
             return Err(error_stack::report!(IntegrationError::NotSupported {
                 message: format!(
-                    "currency {} for {} ({}); only {local_currency} and USD are accepted",
+                    "currency {} for {} ({}) (accepted: {local_currency}, USD)",
                     request.currency,
                     payment_method.name(),
                     payment_method.code(),
