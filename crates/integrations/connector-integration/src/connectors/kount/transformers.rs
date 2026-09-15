@@ -2384,7 +2384,7 @@ impl KountAuthResult {
             | AttemptStatus::RouterDeclined
             | AttemptStatus::AuthenticationFailed
             | AttemptStatus::VoidFailed => Self::Declined,
-            _ => Self::Unknown,
+            _ => Self::Error,
         }
     }
 }
