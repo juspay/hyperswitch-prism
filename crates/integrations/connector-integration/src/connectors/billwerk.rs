@@ -190,7 +190,7 @@ domain_types::impl_flow_status_mapping! {
     {
         Created    => Pending,
         Pending    => Pending,
-        Authorized => Pending,
+        Authorized => Authorized,
         Cancelled  => Failure,
     }
 }
