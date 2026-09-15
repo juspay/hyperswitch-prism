@@ -838,6 +838,9 @@ impl Connectors {
             ConnectorEnum::Payhere => {
                 patched.payhere.apply(params_patch);
             }
+            ConnectorEnum::Kount => {
+                patched.kount.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {
@@ -19095,7 +19098,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors: connectors.into(),

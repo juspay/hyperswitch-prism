@@ -981,6 +981,11 @@ pub enum ConnectorSpecificConfig {
     },
     Kount {
         api_key: Secret<String>,
+        /// Kount-assigned merchant CID, used as the DDC Web SDK `clientID`.
+        /// Only the Device Data Collection flow needs it; other Kount flows
+        /// work without one. Presence is validated where DDC builds the
+        /// script, not here.
+        client_id: Option<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
@@ -2692,6 +2697,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             }),
             AuthType::Kount(kount) => Ok(Self::Kount {
                 api_key: kount.api_key.ok_or_else(err)?,
+                // A blank CID renders `clientID: ""` — a DDC script that loads and
+                // silently collects nothing. Treat empty/whitespace as missing, the
+                // same way the Paysafe account ids do in `get_account_id` above.
+                // Absence itself is fine here: only the DDC flow needs a CID, and
+                // it validates that when it builds the script.
+                client_id: kount.client_id.filter(|id| !id.trim().is_empty()),
                 auth_server_id: kount.auth_server_id,
                 base_url: kount.base_url,
             }),
@@ -4031,6 +4042,10 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 ConnectorEnum::Kount => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
+                        // The legacy header carries no `client_id`; DDC (the only
+                        // flow that needs one) will reject a request that reaches
+                        // it without one.
+                        client_id: None,
                         auth_server_id: None,
                         base_url: None,
                     }),
@@ -4278,6 +4293,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 connector_types::FrmConnectorEnum::Kount => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
+                        client_id: None,
                         auth_server_id: None,
                         base_url: None,
                     }),

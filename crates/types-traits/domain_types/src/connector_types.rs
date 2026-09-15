@@ -4967,6 +4967,16 @@ impl CustomerInfo {
             .clone()
             .ok_or_else(missing_field_err("customer.date_of_birth"))
     }
+
+    /// Phone number in E.123 international format (`+<country><number>`).
+    /// `None` when the customer has no phone number.
+    pub fn get_e123_phone_number(&self) -> Option<Secret<String>> {
+        let phone = self.customer_phone_number.as_ref()?;
+        payment_address::e123_phone_number(
+            self.customer_phone_country_code.as_deref(),
+            phone.peek(),
+        )
+    }
 }
 
 impl L2L3Data {
