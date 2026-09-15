@@ -19,6 +19,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.14.1
+
+### Bug Fixes
+
+- **metrics:** Remove the boot-time OTel superposition source gauge ([#2292](https://github.com/juspay/connector-service/pull/2292)) ([`0277e3e`](https://github.com/juspay/connector-service/commit/0277e3ee2a8187d91a88c4bf0e2c1e176042c479))
+
+**Full Changelog:** [`2026.09.14.0...2026.09.14.1`](https://github.com/juspay/connector-service/compare/2026.09.14.0...2026.09.14.1)
+
+- - -
+
+## 2026.09.14.0
+
+### Features
+
+- **connector:** Merchante connector integration ([#2268](https://github.com/juspay/connector-service/pull/2268)) ([`4ae776b`](https://github.com/juspay/connector-service/commit/4ae776bb4911e0883e6b20d646ce2c64d6482e5f))
+
+**Full Changelog:** [`2026.09.11.1...2026.09.14.0`](https://github.com/juspay/connector-service/compare/2026.09.11.1...2026.09.14.0)
+
+- - -
+
+## 2026.09.11.1
+
+### Features
+
+- **connector:**
+  - Etisalat connector integration ([#2265](https://github.com/juspay/connector-service/pull/2265)) ([`e0e5f4b`](https://github.com/juspay/connector-service/commit/e0e5f4b1d063f7a1f5717c5f89d7b13002d12cf0))
+  - Add ApplePay/GooglePay pre decryption, SetupMandate, and RepeatPayment flows for paydotcom ([#2269](https://github.com/juspay/connector-service/pull/2269)) ([`ca1ca2e`](https://github.com/juspay/connector-service/commit/ca1ca2ef65b15c723877061295647b2a68cb8ed7))
+- **superposition:** Remote workspace with file fallback, déjà read boundary, sampler targeting key ([#2276](https://github.com/juspay/connector-service/pull/2276)) ([`b72509d`](https://github.com/juspay/connector-service/commit/b72509d77e3d9f56febe6938308228c214cdbe59))
+
+**Full Changelog:** [`2026.09.11.0...2026.09.11.1`](https://github.com/juspay/connector-service/compare/2026.09.11.0...2026.09.11.1)
+
+- - -
+
 ## 2026.09.11.0
 
 ### Bug Fixes
