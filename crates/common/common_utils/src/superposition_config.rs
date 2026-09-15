@@ -472,9 +472,11 @@ mod deja_boundary {
                         ),
                     }
                 }
-                deja::__private::ReconstructInput::Hit(_) => deja::__private::Reconstructed::Failed(
-                    "superposition codec: recorded payload is not an object".to_string(),
-                ),
+                deja::__private::ReconstructInput::Hit(_) => {
+                    deja::__private::Reconstructed::Failed(
+                        "superposition codec: recorded payload is not an object".to_string(),
+                    )
+                }
                 deja::__private::ReconstructInput::Miss(_) => {
                     deja::__private::Reconstructed::Synthesized(Err(
                         SuperpositionConfigError::ResolutionError(format!(
