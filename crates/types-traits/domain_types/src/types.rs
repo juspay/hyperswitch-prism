@@ -6777,12 +6777,6 @@ impl ForeignFrom<PMEligibility> for grpc_api_types::payments::PaymentMethodEligi
     }
 }
 
-fn eligibility_result_to_proto(
-    result: PMEligibility,
-) -> grpc_api_types::payments::PaymentMethodEligibilityResult {
-    grpc_api_types::payments::PaymentMethodEligibilityResult::foreign_from(result)
-}
-
 #[allow(deprecated)] // mirrors results[0] into the deprecated top-level response fields
 pub fn generate_payment_method_eligibility_response(
     router_data_v2: RouterDataV2<
@@ -6819,7 +6813,7 @@ pub fn generate_payment_method_eligibility_response(
             let results: Vec<grpc_api_types::payments::PaymentMethodEligibilityResult> = response
                 .results
                 .into_iter()
-                .map(eligibility_result_to_proto)
+                .map(grpc_api_types::payments::PaymentMethodEligibilityResult::foreign_from)
                 .collect();
             // Mirror results[0] into the deprecated top-level fields.
             let (legacy_eligibility, legacy_error_info, legacy_payment_method_details) =
