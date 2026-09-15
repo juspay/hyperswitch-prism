@@ -369,10 +369,13 @@ impl SuperpositionConfig {
 /// call-site id — so a read matches by where in the request it happened plus its args
 /// image, exactly like the db/redis/superposition boundaries in hyperswitch.
 ///
-/// A genuine tape MISS (a novel config read) returns a recoverable
-/// `Err(ResolutionError)` through `dispatch_async_or_miss` instead of the egress
-/// fail-stop, so `resolve_connector_urls` degrades to static config and the replayed
-/// request progresses. Reads only — there are no writes to wrap.
+/// A genuine tape MISS (a novel config read) is SYNTHESIZED as a recoverable
+/// `Err(ResolutionError)` from the reconstruct closure's miss arm
+/// (`Reconstructed::Synthesized`) instead of the egress fail-stop, so
+/// `resolve_connector_urls` degrades to static config and the replayed request
+/// progresses. The synthesized value is a pure function of the query, which is what
+/// keeps two replays of one candidate in agreement. Reads only — there are no writes
+/// to wrap.
 #[cfg(feature = "deja")]
 mod deja_boundary {
     use std::future::Future;
@@ -444,12 +447,17 @@ mod deja_boundary {
         sorted.sort();
         let args = json!({ "operation": operation, "dimensions": sorted });
 
-        deja::__private::dispatch_async_or_miss(
+        // One closure answers both arms of the Substitute lookup: a recorded hit
+        // is decoded; a miss (a config read the recording never made) is
+        // SYNTHESIZED as a typed error — a pure function of the query, so every
+        // replay of this candidate degrades identically, and the caller's static
+        // fallback takes over instead of the fail-stop an undeclared miss means.
+        deja::__private::dispatch_async(
             observation,
             move || args,
             run,
-            |recorded: Value| match recorded {
-                Value::Object(mut object) => {
+            |input: deja::__private::ReconstructInput<'_>| match input {
+                deja::__private::ReconstructInput::Hit(Value::Object(mut object)) => {
                     if let Some(Value::Object(map)) = object.remove("Ok") {
                         return deja::__private::Reconstructed::Value(Ok(map));
                     }
@@ -464,19 +472,21 @@ mod deja_boundary {
                         ),
                     }
                 }
-                _ => deja::__private::Reconstructed::Failed(
+                deja::__private::ReconstructInput::Hit(_) => deja::__private::Reconstructed::Failed(
                     "superposition codec: recorded payload is not an object".to_string(),
                 ),
+                deja::__private::ReconstructInput::Miss(_) => {
+                    deja::__private::Reconstructed::Synthesized(Err(
+                        SuperpositionConfigError::ResolutionError(format!(
+                            "deja replay: no recorded Superposition value for `{operation}` \
+                             (novel config read); caller falls back to static config"
+                        )),
+                    ))
+                }
             },
             |result: &Resolved| match result {
                 Ok(map) => (json!({ "Ok": map }), false),
                 Err(error) => (json!({ "Err": error }), true),
-            },
-            || {
-                Err(SuperpositionConfigError::ResolutionError(format!(
-                    "deja replay: no recorded Superposition value for `{operation}` (novel \
-                     config read); caller falls back to static config"
-                )))
             },
         )
         .await

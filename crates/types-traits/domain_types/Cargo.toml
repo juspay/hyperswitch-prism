@@ -44,7 +44,7 @@ http = "0.2.12"
 actix-web = { version = "4.11.0", optional = true }
 tracing = { workspace = true }
 tonic = { workspace = true }
-deja = { git = "https://github.com/juspay/deja", rev = "389ad83f3c5bd9cd4b123c8afc8630177bdd4151", optional = true, default-features = false }
+deja = { git = "https://github.com/juspay/deja", rev = "d587865d876a8e57a7c9a4d52f2293eb6fd8b97e", optional = true, default-features = false }
 
 
 [features]
