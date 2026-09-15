@@ -267,5 +267,32 @@
         "payment_method_type": "GOOGLE_PAY"
       }
     }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"merchant_account_id\":\"juspay\"}"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"merchant_account_id\":\"juspay\"}"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"merchant_account_id\":\"juspay\"}"
+        }
+      }
+    }
   }
 }

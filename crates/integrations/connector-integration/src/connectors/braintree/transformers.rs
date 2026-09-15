@@ -39,7 +39,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;
@@ -130,6 +130,103 @@ pub mod constants {
     pub const CHARGE_AND_VAULT_APPLE_PAY_MUTATION: &str = "mutation ChargeApplepay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } paymentMethod { id } } } }";
     pub const AUTHORIZE_AND_VAULT_APPLE_PAY_MUTATION: &str = "mutation authorizeApplepay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status paymentMethod { id } } } }";
     pub const CHARGE_PAYPAL_MUTATION: &str = "mutation ChargePaypal($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
+    /// Braintree-hosted 3DS, leg 1 (`PreAuthenticate`) — a SINGLE HTTP request carrying TWO root
+    /// mutation fields.
+    ///
+    /// `tokenizeCreditCard` and `createClientToken` take disjoint inputs, so neither needs the
+    /// other's output and GraphQL executes root mutation fields serially in document order. That
+    /// lets one call produce both halves the 3DS chain needs: the single-use `paymentMethod.id`
+    /// that leg 2's `performThreeDSecureLookup` spends as its mandatory `paymentMethodId`, and the
+    /// client token a caller passes to `braintree.threeDSecure.create` when it wants to collect
+    /// device data in the browser.
+    ///
+    /// Splicing the two into one document is what makes the trio reachable from
+    /// `CompositePaymentService/Authorize` at all: that loop does NOT run the `PaymentMethodToken`
+    /// flow (`process_composite_authorize` in `composite-service/src/payments.rs` has no
+    /// tokenization step), so every authentication leg receives the raw card. Without a nonce
+    /// minted here, leg 2 has nothing to look up.
+    ///
+    /// Multi-root acceptance was verified live against the Braintree sandbox at
+    /// `Braintree-Version: 2019-01-01` before this constant was written — §P.6.1 of the technical
+    /// specification listed it as "legal per the GraphQL spec, undocumented by Braintree" and
+    /// required a sandbox gate; the gate passed and returned both fields in one payload.
+    pub const PRE_AUTHENTICATE_MUTATION: &str = "mutation braintreeThreeDSecureSetup($card: TokenizeCreditCardInput!, $clientToken: CreateClientTokenInput!) { tokenizeCreditCard(input: $card) { paymentMethod { id } } createClientToken(input: $clientToken) { clientToken } }";
+
+    /// Selection set shared by leg 2 (`performThreeDSecureLookup`) and leg 3 (`node(id:)`).
+    ///
+    /// `CreditCardDetails.threeDSecure` MUST be traversed through `.authentication`. At the pinned
+    /// version the served schema already types it as `ThreeDSecureDetails` (the 2020-10-07 retype),
+    /// whose flat scalars are every one `@deprecated`; selecting them directly is a hard GraphQL
+    /// validation error. `Braintree-Version` gates the interpretation of values, not the shape of
+    /// the schema.
+    ///
+    /// `details` is the `PaymentMethodDetails` UNION, so the inline fragment is mandatory — and it
+    /// yields `{}` rather than an error for a non-card member, which is why the response structs
+    /// make every level optional and detect an absent `authentication` block explicitly.
+    macro_rules! three_d_secure_payment_method_fields {
+        () => {
+            "id details { ... on CreditCardDetails { bin last4 brandCode threeDSecure { \
+             authentication { cavv eciFlag liabilityShifted liabilityShiftPossible cardEnrolled \
+             authenticationStatus version directoryServerTransactionId xId \
+             threeDSecureServerTransactionId acsTransactionId paresStatus transactionStatus \
+             transactionStatusReason } } } }"
+        };
+    }
+
+    /// Braintree-hosted 3DS, leg 2 (`Authenticate`): the server-side 3DS lookup.
+    ///
+    /// `ThreeDSecureLookupData` has exactly seven members and carries NONE of
+    /// `authenticationStatus` / `cavv` / `eciFlag` / `liabilityShifted` — those live on
+    /// `ThreeDSecureAuthentication`, reached through
+    /// `paymentMethod.details -> CreditCardDetails.threeDSecure.authentication`. That split is why
+    /// both blocks are selected and why `threeDSecureLookupData.is_some()` is NOT a usable
+    /// challenge discriminator (see `BraintreeThreeDSecureLookupPayload::is_challenge`).
+    ///
+    /// `clientMutationId` is deliberately not selected — the request does not send one.
+    pub const AUTHENTICATE_MUTATION: &str = concat!(
+        "mutation braintreeThreeDSecureLookup($input: PerformThreeDSecureLookupInput!) { \
+         performThreeDSecureLookup(input: $input) { threeDSecureLookupData { acsUrl \
+         authenticationId version pareq md termUrl transactionId } paymentMethod { ",
+        three_d_secure_payment_method_fields!(),
+        " } } }"
+    );
+
+    /// Braintree-hosted 3DS, leg 3 (`PostAuthenticate`): read the settled authentication back off
+    /// the payment method leg 2 returned.
+    ///
+    /// This is a QUERY, not a mutation, and that is not a shortcut. The root `Mutation` type has
+    /// 112 fields and exactly one matches /3d|3ds|threeDSecure|challenge|authenticat/i —
+    /// `performThreeDSecureLookup`, which is leg 2. There is no post-challenge completion mutation
+    /// and the root `Query` type has no 3DS field either. The ACS posts its PaRes to Braintree's
+    /// own `termUrl`, Braintree records the outcome ON the payment method, and `PaymentMethod`
+    /// implements `Node` — so `node(id:)` is the only retrieval path that exists.
+    ///
+    /// Pass the id VERBATIM: base64 and Relay-style `"PaymentMethod:<id>"` global ids both return
+    /// `NOT_FOUND`.
+    ///
+    /// Do NOT add `createdAt`: on a single-use payment method it returns a partial error
+    /// (`NOT_IMPLEMENTED`, "Fetching `createdAt` on a single-use payment method is not supported
+    /// from this operation.") alongside a perfectly good `data`, which — with the error variant
+    /// first in the untagged response enum — would drag a successful readback into the error arm.
+    /// Do NOT add `authenticationInsight`: it requires an `input` argument and selecting it bare is
+    /// a hard validation error.
+    pub const POST_AUTHENTICATE_QUERY: &str = concat!(
+        "query braintreeThreeDSecureResult($id: ID!) { node(id: $id) { ... on PaymentMethod { ",
+        three_d_secure_payment_method_fields!(),
+        " } } }"
+    );
+
+    /// The `connector_feature_data` key that marks a Braintree-HOSTED 3DS authentication.
+    ///
+    /// Written by legs 1, 2 and 3; read by the Authorize builder to decide two things at once:
+    /// which `paymentMethodId` to charge, and that the authentication already lives ON the payment
+    /// method at Braintree and must therefore NOT be re-declared as external-MPI pass-through.
+    pub const BRAINTREE_THREE_DS_FEATURE_KEY: &str = "braintree_three_ds";
+
+    /// Key inside the [`BRAINTREE_THREE_DS_FEATURE_KEY`] object holding the nonce that the next
+    /// leg — ultimately Authorize — must spend.
+    pub const BRAINTREE_THREE_DS_PAYMENT_METHOD_ID_KEY: &str = "payment_method_id";
+
     pub const AUTHORIZE_PAYPAL_MUTATION: &str = "mutation authorizePaypal($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
 }
 
@@ -962,11 +1059,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.currency,
             Some(metadata.merchant_config_currency),
         )?;
+        // Set by every leg of the Braintree-HOSTED 3D Secure trio and by nothing else. Its
+        // presence means the authentication already ran, lives ON the payment method at Braintree,
+        // and is applied automatically at charge time — so this Authorize must charge the verified
+        // nonce and declare nothing, rather than opening a fresh client-token journey or
+        // re-declaring the result as an external-MPI pass-through.
+        let is_braintree_hosted_three_ds = braintree_hosted_three_ds_nonce(
+            item.router_data.request.connector_feature_data.as_ref(),
+        )
+        .is_some();
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(_) => {
                 if item.router_data.resource_common_data.is_three_ds()
                     && item.router_data.request.authentication_data.is_none()
+                    && !is_braintree_hosted_three_ds
                 {
+                    // A raw-card `PaymentService/Authorize` that asked for 3D Secure but never ran
+                    // the authentication trio. Braintree-hosted 3DS cannot happen inside a single
+                    // Authorize call, so this hands the caller the client-SDK bootstrap rather
+                    // than charging an unauthenticated card. Routing the payment through
+                    // `CompositePaymentService/Authorize` runs the trio instead and lands in the
+                    // branch below with the verified nonce already in `connector_feature_data`.
                     Ok(Self::CardThreeDs(BraintreeClientTokenRequest::try_from(
                         metadata,
                     )?))
@@ -3259,12 +3373,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             BraintreeMeta,
         ),
     ) -> Result<Self, Self::Error> {
-        // Check for external 3DS authentication data
-        let three_ds_data = item
-            .router_data
-            .request
-            .authentication_data
-            .as_ref()
+        // The Braintree-HOSTED 3D Secure trio plants this nonce in `connector_feature_data`, and
+        // the composite dispatcher forwards it here. It is simultaneously:
+        //   * the payment method this charge must spend — the lookup consumed the original nonce
+        //     and returned a new one, and a replay of the old one is rejected outright; and
+        //   * the discriminator that says the authentication was performed BY Braintree.
+        let braintree_hosted_three_ds_payment_method = braintree_hosted_three_ds_nonce(
+            item.router_data.request.connector_feature_data.as_ref(),
+        );
+
+        // External-MPI 3D Secure: the caller performed the authentication with its own MPI and
+        // declares the result here as `options.threeDSecureAuthentication.passThrough`.
+        //
+        // The `is_none()` guard is what keeps the two topologies apart. The composite dispatcher
+        // copies PostAuthenticate's `authentication_data` onto this request, so without it a
+        // BRAINTREE-performed authentication would be re-declared as an externally performed one —
+        // at best redundant, at worst a compliance misstatement. It is also unnecessary: a
+        // 3DS-verified nonce charged with no pass-through comes back liability-shifted, because
+        // Braintree attaches the authentication itself.
+        let three_ds_data = braintree_hosted_three_ds_payment_method
+            .is_none()
+            .then_some(item.router_data.request.authentication_data.as_ref())
+            .flatten()
             .map(|auth_data| {
                 Ok::<_, Report<IntegrationError>>(ThreeDSecureAuthenticationInput {
                     pass_through: Some(convert_external_three_ds_data(auth_data)?),
@@ -3356,8 +3486,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             query,
             variables: VariablePaymentInput {
                 input: PaymentInput {
-                    payment_method_id: match &item.router_data.request.payment_method_data {
-                        PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+                    // The 3DS-verified nonce wins when the hosted trio ran: on that path
+                    // `payment_method_data` still holds the ORIGINAL instrument, whose nonce the
+                    // lookup consumed.
+                    payment_method_id: match (
+                        braintree_hosted_three_ds_payment_method,
+                        &item.router_data.request.payment_method_data,
+                    ) {
+                        (Some(verified_nonce), _) => verified_nonce,
+                        (None, PaymentMethodData::PaymentMethodToken(t)) => t.token.clone(),
                         _ => {
                             return Err(IntegrationError::MissingRequiredField {
                                 field_name: "payment_method_token",
@@ -4217,6 +4354,1576 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         status_code: item.http_code,
                         splits: None,
                         payment_account_reference: None,
+                    }),
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// =============================================================================================
+// Braintree-hosted 3D Secure — the PreAuthenticate / Authenticate / PostAuthenticate trio.
+//
+// Mutually exclusive with the EXTERNAL / merchant-performed (MPI) 3DS pass-through that the
+// Authorize builder already implements through `options.threeDSecureAuthentication.passThrough`.
+// The discriminator is stated once, here, and enforced in three places:
+//
+//   * `authentication_data` present on the original Authorize request  => external MPI; the
+//     caller performed 3DS itself and Authorize declares the result with `passThrough`.
+//   * `authentication_data` absent + `is_three_ds()`                   => Braintree-hosted; this
+//     trio performs the authentication and Braintree attaches the result to the payment method
+//     itself, so Authorize declares NOTHING.
+//
+// The two must never both populate the request: re-declaring a Braintree-performed
+// authentication through `passThrough` would assert an *externally* performed authentication
+// that never happened. `braintree_hosted_three_ds_nonce` is the guard that keeps them apart.
+// =============================================================================================
+
+/// Braintree GraphQL `ThreeDSecureAuthenticationStatus`.
+///
+/// All 29 values served by the live sandbox schema at `Braintree-Version: 2019-01-01` are
+/// modelled, including the four the SDL marks `@deprecated` — deprecated is not removed, live
+/// introspection returns them, and they are reachable rather than dead arms.
+///
+/// `Unknown` exists because Braintree has added statuses repeatedly (four on 2022-09-30, four
+/// more on 2023-05-23). Deserializing an unrecognised one into a catch-all keeps a single new
+/// status from failing the whole response parse.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeThreeDSecureAuthenticationStatus {
+    AuthenticateSuccessful,
+    AuthenticateAttemptSuccessful,
+    AuthenticateSuccessfulIssuerNotParticipating,
+    AuthenticateFrictionlessFailed,
+    AuthenticateFailed,
+    AuthenticateFailedAcsError,
+    AuthenticateRejected,
+    AuthenticateError,
+    AuthenticateUnableToAuthenticate,
+    AuthenticateSignatureVerificationFailed,
+    AuthenticationBypassed,
+    AuthenticationUnavailable,
+    ChallengeRequired,
+    DataOnlySuccessful,
+    ExemptionLowValueSuccessful,
+    ExemptionTraSuccessful,
+    LookupBypassed,
+    LookupCardError,
+    LookupEnrolled,
+    LookupError,
+    LookupFailedAcsError,
+    LookupNotEnrolled,
+    LookupServerError,
+    MpiServerError,
+    SkippedDueToAdaptiveAuthentication,
+    SkippedDueToRule,
+    UnsupportedAccountType,
+    UnsupportedCard,
+    UnsupportedThreeDSecureVersion,
+    #[serde(other)]
+    Unknown,
+}
+
+impl BraintreeThreeDSecureAuthenticationStatus {
+    /// Maps Braintree's authentication verdict onto `AttemptStatus`.
+    ///
+    /// The enum is partitioned into four classes and the partition is the whole point:
+    ///
+    /// 1. **Authenticated / no authentication needed** -> `AuthenticationSuccessful`. Includes the
+    ///    bypass, exemption and not-enrolled families: in each the authentication step is complete
+    ///    and the charge may proceed. `DATA_ONLY_SUCCESSFUL` is here too, but it carries NO
+    ///    liability shift — read `liabilityShifted` off the payload, never infer it from a status.
+    /// 2. **Issuer said no** -> `AuthenticationFailed`, terminal. Only an explicit issuer verdict
+    ///    qualifies.
+    /// 3. **Ambiguous / transport / directory-server failure** -> `Unspecified`, NON-terminal.
+    ///    A lookup that timed out, an ACS that 500ed or an MPI that was unreachable says nothing
+    ///    about the cardholder. Mapping these to `AuthenticationFailed` would report a terminal
+    ///    authentication decline for what is an infrastructure blip, and mapping them to a success
+    ///    would be worse. `Unspecified` leaves the caller's own previous status standing.
+    /// 4. **The instrument cannot be 3D-Secured at all** -> `AuthenticationFailed`, terminal.
+    ///    `UNSUPPORTED_*` is deterministic and re-running it changes nothing, so unlike class 3 it
+    ///    is not ambiguous — but it is also not an issuer decline, hence the separate comment.
+    fn to_attempt_status(self) -> enums::AttemptStatus {
+        match self {
+            // 1 — authenticated, or authentication legitimately not required.
+            Self::AuthenticateSuccessful
+            | Self::AuthenticateAttemptSuccessful
+            | Self::AuthenticateSuccessfulIssuerNotParticipating
+            | Self::AuthenticationBypassed
+            | Self::DataOnlySuccessful
+            | Self::ExemptionLowValueSuccessful
+            | Self::ExemptionTraSuccessful
+            | Self::LookupBypassed
+            | Self::LookupNotEnrolled
+            | Self::SkippedDueToAdaptiveAuthentication
+            | Self::SkippedDueToRule => enums::AttemptStatus::AuthenticationSuccessful,
+
+            // 2 — explicit issuer decline. Terminal.
+            Self::AuthenticateFailed
+            | Self::AuthenticateFrictionlessFailed
+            | Self::AuthenticateRejected
+            | Self::AuthenticateSignatureVerificationFailed => {
+                enums::AttemptStatus::AuthenticationFailed
+            }
+
+            // 3 — challenge outstanding. Non-terminal by construction: a terminal status here
+            // would make the challenge impossible to complete.
+            Self::ChallengeRequired | Self::LookupEnrolled => {
+                enums::AttemptStatus::AuthenticationPending
+            }
+
+            // 4 — ambiguous / transport. Deliberately NOT terminal and deliberately not a success.
+            Self::AuthenticateError
+            | Self::AuthenticateFailedAcsError
+            | Self::AuthenticateUnableToAuthenticate
+            | Self::AuthenticationUnavailable
+            | Self::LookupCardError
+            | Self::LookupError
+            | Self::LookupFailedAcsError
+            | Self::LookupServerError
+            | Self::MpiServerError => enums::AttemptStatus::Unspecified,
+
+            // 5 — 3DS is not available for this instrument at all. Deterministic, not an
+            // infrastructure blip, so it does not belong in class 4.
+            Self::UnsupportedAccountType
+            | Self::UnsupportedCard
+            | Self::UnsupportedThreeDSecureVersion => enums::AttemptStatus::AuthenticationFailed,
+
+            // A status Braintree added after this code was written. Never guess.
+            Self::Unknown => enums::AttemptStatus::Unspecified,
+        }
+    }
+}
+
+/// Braintree GraphQL `ThreeDSecureAuthenticationStatusIndicator` — the EMV 3DS `transStatus` /
+/// `paresStatus` letter, spelled out. An exact 8-to-8 mapping onto `common_enums::TransactionStatus`.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeThreeDSecureStatusIndicator {
+    SuccessfulAuthentication,
+    FailedAuthentication,
+    UnableToCompleteAuthentication,
+    SuccessfulAttemptsTransaction,
+    AuthenticationRejected,
+    ChallengeRequiredForAuthentication,
+    ChallengeRequiredDecoupledAuthentication,
+    InformationalChallengePreferenceAcknowledged,
+    #[serde(other)]
+    Unknown,
+}
+
+impl BraintreeThreeDSecureStatusIndicator {
+    /// `Unknown` maps to `None`, never to `TransactionStatus::default()` — that default is
+    /// `Failure`, so an `unwrap_or_default()` anywhere on this path would silently report a failed
+    /// authentication for a value Braintree merely added after this code was written.
+    fn to_transaction_status(self) -> Option<common_enums::TransactionStatus> {
+        match self {
+            Self::SuccessfulAuthentication => Some(common_enums::TransactionStatus::Success),
+            Self::FailedAuthentication => Some(common_enums::TransactionStatus::Failure),
+            Self::UnableToCompleteAuthentication => {
+                Some(common_enums::TransactionStatus::VerificationNotPerformed)
+            }
+            Self::SuccessfulAttemptsTransaction => {
+                Some(common_enums::TransactionStatus::NotVerified)
+            }
+            Self::AuthenticationRejected => Some(common_enums::TransactionStatus::Rejected),
+            Self::ChallengeRequiredForAuthentication => {
+                Some(common_enums::TransactionStatus::ChallengeRequired)
+            }
+            Self::ChallengeRequiredDecoupledAuthentication => {
+                Some(common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication)
+            }
+            Self::InformationalChallengePreferenceAcknowledged => {
+                Some(common_enums::TransactionStatus::InformationOnly)
+            }
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// Braintree GraphQL `ThreeDSecureCardEnrolled`. Informational only — it is surfaced verbatim in
+/// `connector_feature_data` and no UCS status is ever derived from it.
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, strum::Display, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeThreeDSecureCardEnrolled {
+    Bypass,
+    Error,
+    No,
+    Unavailable,
+    Yes,
+    #[serde(other)]
+    Unknown,
+}
+
+/// Braintree GraphQL `ThreeDSecureDeviceChannel`. Serialized only.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum BraintreeThreeDSecureDeviceChannel {
+    Browser,
+    Sdk,
+}
+
+/// Braintree GraphQL `ThreeDSecureAuthentication` — all 14 members, the authoritative home of
+/// every 3DS result field.
+///
+/// Note what is NOT here: `ThreeDSecureLookupData` carries none of `authenticationStatus`, `cavv`,
+/// `eciFlag` or `liabilityShifted`, which is why the lookup mutation has to select both blocks.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeThreeDSecureAuthentication {
+    /// The cardholder authentication cryptogram — liability-shift proof, and secret for its whole
+    /// life.
+    pub cavv: Option<Secret<String>>,
+    pub directory_server_transaction_id: Option<String>,
+    /// `ECommerceIndicator`, an unconstrained network-scoped two-character scalar (Visa 05/06/07,
+    /// Mastercard 02/01/00). Passed through unmapped precisely so it is not reinterpreted.
+    pub eci_flag: Option<String>,
+    pub liability_shifted: Option<bool>,
+    pub liability_shift_possible: Option<bool>,
+    pub card_enrolled: Option<BraintreeThreeDSecureCardEnrolled>,
+    pub authentication_status: Option<BraintreeThreeDSecureAuthenticationStatus>,
+    pub version: Option<String>,
+    /// The legacy CardinalCommerce XID. Capital `I` — `xid` does not exist in the schema.
+    pub x_id: Option<String>,
+    pub three_d_secure_server_transaction_id: Option<String>,
+    pub acs_transaction_id: Option<String>,
+    /// 3DS 1.0 `paresStatus`. Recorded but not mapped: it was null on the challenge capture and
+    /// duplicates `transactionStatus` on the successes.
+    pub pares_status: Option<BraintreeThreeDSecureStatusIndicator>,
+    /// 3DS 2.x `transStatus` — the field `AuthenticationData.trans_status` is built from.
+    pub transaction_status: Option<BraintreeThreeDSecureStatusIndicator>,
+    pub transaction_status_reason: Option<String>,
+}
+
+/// Braintree GraphQL `ThreeDSecureDetails`. Its flat scalars are all `@deprecated`, so only
+/// `.authentication` is ever selected.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeThreeDSecureDetails {
+    pub authentication: Option<BraintreeThreeDSecureAuthentication>,
+}
+
+/// The `... on CreditCardDetails` inline fragment of the `PaymentMethodDetails` union.
+///
+/// Every member is optional because the fragment yields `{}` — not an error — when the payment
+/// method is not a credit card. An absent `three_d_secure` is therefore detected explicitly rather
+/// than inferred from a deserialization failure.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeCreditCardDetails {
+    pub bin: Option<String>,
+    pub last4: Option<String>,
+    pub brand_code: Option<String>,
+    pub three_d_secure: Option<BraintreeThreeDSecureDetails>,
+}
+
+/// The `paymentMethod` node shared by leg 2's mutation payload and leg 3's `node(id:)` query.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeThreeDSecurePaymentMethod {
+    /// A spendable payment credential, hence `Secret`.
+    pub id: Secret<String>,
+    pub details: Option<BraintreeCreditCardDetails>,
+}
+
+impl BraintreeThreeDSecurePaymentMethod {
+    fn authentication(&self) -> Option<&BraintreeThreeDSecureAuthentication> {
+        self.details
+            .as_ref()
+            .and_then(|details| details.three_d_secure.as_ref())
+            .and_then(|three_ds| three_ds.authentication.as_ref())
+    }
+
+    fn card_details(&self) -> Option<&BraintreeCreditCardDetails> {
+        self.details.as_ref()
+    }
+}
+
+/// Braintree GraphQL `ThreeDSecureLookupData` — exactly seven members, every one nullable.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeThreeDSecureLookupData {
+    pub acs_url: Option<String>,
+    pub authentication_id: Option<String>,
+    pub version: Option<String>,
+    /// Named `pareq` for 3DS 1 legacy reasons but base64-decodes to a 3DS 2 `CReq`. Passed through
+    /// opaquely: never decoded, re-encoded or re-derived.
+    pub pareq: Option<Secret<String>>,
+    /// Always exactly equal to `authentication_id` in every observed response. Echoed rather than
+    /// synthesised from it, so the form stays correct if Braintree ever diverges them.
+    pub md: Option<String>,
+    /// A Braintree-hosted callback that embeds a signed `authorization_fingerprint` JWT, so the
+    /// whole URL is a credential.
+    pub term_url: Option<Secret<String>>,
+    pub transaction_id: Option<String>,
+}
+
+// ---------------------------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------------------------
+
+/// Metadata bag shape used only to look for a per-request `merchant_account_id`.
+///
+/// Deliberately narrower than [`BraintreeMeta`], which also requires `merchant_config_currency`:
+/// the authentication legs move no money, so demanding a currency from them would reject a
+/// perfectly valid metadata bag.
+#[derive(Debug, Deserialize)]
+struct BraintreeMerchantAccountMeta {
+    merchant_account_id: Option<Secret<String>>,
+}
+
+/// Resolves `merchantAccountId` for a flow whose request carries only the generic `metadata` bag
+/// rather than a dedicated `merchant_account_id` member.
+///
+/// Order is per-request first, connector config second — the same precedence the Authorize builder
+/// applies. Fails closed: a Braintree merchant account is not something to guess or default.
+///
+/// `PostAuthenticate` passes `None`: `node(id: ID!)` takes exactly one argument and carries no
+/// merchant scope at all — the Basic-auth credential pair IS the merchant scope — so that leg never
+/// calls this helper.
+fn resolve_merchant_account_id(
+    metadata: Option<&pii::SecretSerdeValue>,
+    connector_config: &ConnectorSpecificConfig,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    let from_metadata = metadata.and_then(|meta| {
+        serde_json::from_value::<BraintreeMerchantAccountMeta>(meta.clone().expose())
+            .ok()
+            .and_then(|parsed| parsed.merchant_account_id)
+    });
+
+    match from_metadata {
+        Some(merchant_account_id) => Ok(merchant_account_id),
+        None => BraintreeAuthType::try_from(connector_config)?
+            .merchant_account_id
+            .ok_or_else(|| {
+                IntegrationError::InvalidConnectorConfig {
+                    config: "merchant_account_id",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Set `merchant_account_id` in the Braintree connector configuration, \
+                             or send it in the request `metadata` bag. Braintree scopes every 3D \
+                             Secure lookup to a merchant account and will not infer one."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://graphql.braintreepayments.com/reference/#Input--PerformThreeDSecureLookupInput"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "Braintree-hosted 3DS leg requested but no merchant_account_id is \
+                             resolvable from the request metadata or the connector config"
+                                .to_string(),
+                        ),
+                    },
+                }
+                .into()
+            }),
+    }
+}
+
+/// Reads the Braintree-hosted 3DS nonce out of a `connector_feature_data` blob.
+///
+/// `Some(_)` is the single discriminator that says "the trio ran": it is written by every leg of
+/// the trio and by nothing else. The Authorize builder uses it both to pick the payment method it
+/// charges and to suppress the external-MPI pass-through.
+fn braintree_hosted_three_ds_nonce(
+    feature_data: Option<&pii::SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    feature_data
+        .and_then(|value| {
+            value
+                .peek()
+                .get(constants::BRAINTREE_THREE_DS_FEATURE_KEY)
+                .and_then(|blob| blob.get(constants::BRAINTREE_THREE_DS_PAYMENT_METHOD_ID_KEY))
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        })
+        .map(Secret::new)
+}
+
+/// Builds the `braintree_three_ds` blob that carries every Braintree-specific 3DS signal with no
+/// `AuthenticationData` slot from one leg to the next, and finally into Authorize.
+///
+/// `liability_shifted` / `liability_shift_possible` are emitted verbatim because they must be READ,
+/// never inferred from the status: `DATA_ONLY_SUCCESSFUL` is a success with no liability shift,
+/// and two different failures differ only in whether a retry could ever shift liability.
+fn build_braintree_three_ds_feature_data(
+    payment_method_id: &Secret<String>,
+    client_token: Option<&Secret<String>>,
+    authentication: Option<&BraintreeThreeDSecureAuthentication>,
+    card: Option<&BraintreeCreditCardDetails>,
+    lookup: Option<&BraintreeThreeDSecureLookupData>,
+) -> pii::SecretSerdeValue {
+    let mut blob = serde_json::Map::new();
+    blob.insert(
+        constants::BRAINTREE_THREE_DS_PAYMENT_METHOD_ID_KEY.to_string(),
+        serde_json::Value::String(payment_method_id.peek().clone()),
+    );
+    if let Some(token) = client_token {
+        // The client token is a credential; the whole blob is carried as a `Secret` and reaches
+        // the caller as a masked string, which is why it is safe to place here and nowhere else.
+        blob.insert(
+            "client_token".to_string(),
+            serde_json::Value::String(token.peek().clone()),
+        );
+    }
+    if let Some(lookup) = lookup {
+        if let Some(authentication_id) = lookup.authentication_id.as_ref() {
+            blob.insert(
+                "authentication_id".to_string(),
+                serde_json::Value::String(authentication_id.clone()),
+            );
+        }
+        if let Some(transaction_id) = lookup.transaction_id.as_ref() {
+            blob.insert(
+                "lookup_transaction_id".to_string(),
+                serde_json::Value::String(transaction_id.clone()),
+            );
+        }
+    }
+    if let Some(authentication) = authentication {
+        if let Some(liability_shifted) = authentication.liability_shifted {
+            blob.insert(
+                "liability_shifted".to_string(),
+                serde_json::Value::Bool(liability_shifted),
+            );
+        }
+        if let Some(liability_shift_possible) = authentication.liability_shift_possible {
+            blob.insert(
+                "liability_shift_possible".to_string(),
+                serde_json::Value::Bool(liability_shift_possible),
+            );
+        }
+        if let Some(card_enrolled) = authentication.card_enrolled {
+            blob.insert(
+                "card_enrolled".to_string(),
+                serde_json::Value::String(card_enrolled.to_string()),
+            );
+        }
+        if let Some(authentication_status) = authentication.authentication_status {
+            blob.insert(
+                "authentication_status".to_string(),
+                serde_json::Value::String(authentication_status.to_string()),
+            );
+        }
+        if let Some(pares_status) = authentication.pares_status {
+            blob.insert(
+                "pares_status".to_string(),
+                serde_json::Value::String(pares_status.to_string()),
+            );
+        }
+        if let Some(reason) = authentication.transaction_status_reason.as_ref() {
+            blob.insert(
+                "transaction_status_reason".to_string(),
+                serde_json::Value::String(reason.clone()),
+            );
+        }
+        if let Some(x_id) = authentication.x_id.as_ref() {
+            blob.insert("x_id".to_string(), serde_json::Value::String(x_id.clone()));
+        }
+    }
+    if let Some(card) = card {
+        if let Some(bin) = card.bin.as_ref() {
+            blob.insert("bin".to_string(), serde_json::Value::String(bin.clone()));
+        }
+        if let Some(last4) = card.last4.as_ref() {
+            blob.insert(
+                "last4".to_string(),
+                serde_json::Value::String(last4.clone()),
+            );
+        }
+        if let Some(brand_code) = card.brand_code.as_ref() {
+            blob.insert(
+                "brand_code".to_string(),
+                serde_json::Value::String(brand_code.clone()),
+            );
+        }
+    }
+
+    Secret::new(serde_json::json!({
+        constants::BRAINTREE_THREE_DS_FEATURE_KEY: serde_json::Value::Object(blob),
+    }))
+}
+
+/// Maps Braintree's `ThreeDSecureAuthentication` onto the canonical UCS `AuthenticationData`.
+///
+/// Shared by legs 2 and 3 rather than cloned, so the two cannot drift: they deserialize the same
+/// Braintree type from the same selection set. Every one of the 17 fields is written explicitly —
+/// `AuthenticationData` derives no `Default`.
+fn build_braintree_authentication_data(
+    authentication: &BraintreeThreeDSecureAuthentication,
+    lookup: Option<&BraintreeThreeDSecureLookupData>,
+) -> router_request_types::AuthenticationData {
+    router_request_types::AuthenticationData {
+        // `transactionStatus` (3DS 2) rather than `paresStatus` (3DS 1): the latter was null on
+        // every challenge capture and merely duplicated the former on the successes.
+        trans_status: authentication
+            .transaction_status
+            .and_then(BraintreeThreeDSecureStatusIndicator::to_transaction_status),
+        eci: authentication.eci_flag.clone(),
+        cavv: authentication.cavv.clone(),
+        // Braintree exposes no Mastercard UCAF member; deriving one from `eciFlag` would be a
+        // fabricated claim.
+        ucaf_collection_indicator: None,
+        threeds_server_transaction_id: authentication.three_d_secure_server_transaction_id.clone(),
+        // A parse failure degrades to `None`. Braintree returns a full three-part semver
+        // ("2.1.0" / "2.2.0"), but a two-part value must not abort the whole response.
+        message_version: authentication
+            .version
+            .as_ref()
+            .or_else(|| lookup.and_then(|lookup| lookup.version.as_ref()))
+            .and_then(|version| version.parse::<common_utils::types::SemanticVersion>().ok()),
+        ds_trans_id: authentication.directory_server_transaction_id.clone(),
+        acs_transaction_id: authentication.acs_transaction_id.clone(),
+        // The LOOKUP's transaction id, from the lookup-data block — distinct from `xId`, the
+        // legacy Cardinal XID, which has no slot here and travels in `connector_feature_data`.
+        transaction_id: lookup.and_then(|lookup| lookup.transaction_id.clone()),
+        // Cartes Bancaires specific; Braintree returns none of its three members.
+        network_params: None,
+        // Braintree signals an applied SCA exemption through `authenticationStatus`
+        // (`EXEMPTION_*_SUCCESSFUL`), not as a separate field. Deriving the enum from the status
+        // would be UCS making a compliance claim it is not entitled to make.
+        exemption_indicator: None,
+        // No timestamp on the payload, and `now()` is not a substitute.
+        created_at: None,
+        // CRes / RReq challenge fields. Braintree exposes none of them on
+        // `ThreeDSecureAuthentication` — `transactionStatusReason` is a Braintree-scoped reason
+        // string, not a 3DS `challengeCode`, and goes to `connector_feature_data` instead.
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        // Decoupled authentication already reaches the caller through `trans_status`; a second,
+        // weaker encoding would be redundant.
+        authentication_type: None,
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Leg 1 — PreAuthenticate
+// ---------------------------------------------------------------------------------------------
+
+/// Variables for [`constants::PRE_AUTHENTICATE_MUTATION`]. The two members are the two root
+/// mutation fields' inputs; they share no data, which is what makes the single document legal.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreePreAuthenticateVariables<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    card: InputData<T>,
+    client_token: InputClientTokenData,
+}
+
+/// Two shapes, because `PreAuthenticate` can be reached with either a raw card or a payment method
+/// the caller already tokenized.
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum BraintreePreAuthenticateRequest<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    /// Raw card: mint the nonce leg 2 needs AND the client token, in one round trip.
+    TokenizeAndBootstrap(GenericBraintreeRequest<BraintreePreAuthenticateVariables<T>>),
+    /// Already tokenized: the caller holds the nonce, so only the client token is missing.
+    BootstrapOnly(BraintreeClientTokenRequest),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreePreAuthenticateData {
+    /// Absent on the `BootstrapOnly` shape — the document did not select it.
+    tokenize_credit_card: Option<TokenizeCreditCardData>,
+    create_client_token: ClientToken,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreePreAuthenticateSuccess {
+    data: BraintreePreAuthenticateData,
+}
+
+/// `ErrorResponse` MUST be listed first and MUST require `errors`.
+///
+/// Braintree answers HTTP 200 for everything, and its error bodies carry BOTH a populated
+/// `errors[]` and a `"data"` key (`{"data":{"createClientToken":null}}`), so an untagged enum that
+/// tried the success variant first — or that discriminated on the presence of `data` — would
+/// misclassify a hard error as a success with a null payload. Schema-validation errors carry no
+/// `data` key at all, which is why the error variant must not require one.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreePreAuthenticateResponse {
+    ErrorResponse(Box<ErrorResponse>),
+    Success(Box<BraintreePreAuthenticateSuccess>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PreAuthenticate,
+                PaymentFlowData,
+                connector_types::PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreePreAuthenticateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PreAuthenticate,
+                PaymentFlowData,
+                connector_types::PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_account_id = resolve_merchant_account_id(
+            item.router_data.request.metadata.as_ref(),
+            &item.router_data.connector_config,
+        )?;
+        let client_token = InputClientTokenData {
+            client_token: ClientTokenInput {
+                merchant_account_id,
+            },
+        };
+
+        match item.router_data.request.payment_method_data.as_ref() {
+            Some(PaymentMethodData::Card(card_data)) => {
+                Ok(Self::TokenizeAndBootstrap(GenericBraintreeRequest {
+                    query: constants::PRE_AUTHENTICATE_MUTATION.to_string(),
+                    variables: BraintreePreAuthenticateVariables {
+                        card: InputData {
+                            credit_card: CreditCardData {
+                                number: card_data.card_number.clone(),
+                                expiration_year: card_data.card_exp_year.clone(),
+                                expiration_month: card_data.card_exp_month.clone(),
+                                cvv: card_data.card_cvc.clone(),
+                                cardholder_name: item
+                                    .router_data
+                                    .resource_common_data
+                                    .get_optional_billing_full_name()
+                                    .unwrap_or_else(|| Secret::new(String::new())),
+                            },
+                        },
+                        client_token,
+                    },
+                }))
+            }
+            // The caller already exchanged the card for a Braintree single-use nonce, so the only
+            // thing still missing is the client token.
+            Some(PaymentMethodData::PaymentMethodToken(_)) => {
+                Ok(Self::BootstrapOnly(BraintreeClientTokenRequest {
+                    query: constants::CLIENT_TOKEN_MUTATION.to_string(),
+                    variables: VariableClientTokenInput {
+                        input: client_token,
+                    },
+                }))
+            }
+            Some(_) => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("braintree"),
+                connector: "Braintree",
+                context: Default::default(),
+            })),
+            // Fail closed: there is nothing to authenticate, and an empty client token would hand
+            // the caller a bootstrap it can never complete.
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "payment_method_data",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send the card (or a Braintree payment-method token) on the \
+                         PreAuthenticate request. Braintree's 3D Secure lookup is keyed on a \
+                         single-use payment method, which this leg mints from the card."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Mutation--tokenizeCreditCard"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "Braintree-hosted 3DS PreAuthenticate invoked with no payment method"
+                            .to_string(),
+                    ),
+                },
+            }
+            .into()),
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreePreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::PreAuthenticate,
+        PaymentFlowData,
+        connector_types::PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BraintreePreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            // No status is written on the error path. `get_error_response` leaves
+            // `attempt_status: None` so the flow's own status stands, and this builder is shared
+            // with Refund, Capture and RSync — hardcoding a failure here would report a terminal
+            // refund failure for a transport error.
+            BraintreePreAuthenticateResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreePreAuthenticateResponse::Success(success) => {
+                let client_token = success.data.create_client_token.client_token.clone();
+                if client_token.peek().is_empty() {
+                    // `clientToken` is nullable in the SDL. Handing the caller an empty bootstrap
+                    // is worse than failing, because it fails later and somewhere else.
+                    return Err(utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree returned an empty clientToken on createClientToken; the 3D \
+                         Secure device-data bootstrap cannot be built from it",
+                    )
+                    .into());
+                }
+
+                // Either the nonce this leg just minted, or the one the caller already held.
+                let payment_method_id =
+                    match success.data.tokenize_credit_card.as_ref() {
+                        Some(tokenized) => tokenized.payment_method.id.clone(),
+                        None => match item.router_data.request.payment_method_data.as_ref() {
+                            Some(PaymentMethodData::PaymentMethodToken(token_data)) => {
+                                token_data.token.clone()
+                            }
+                            _ => return Err(utils::unexpected_response_fail(
+                                item.http_code,
+                                "Braintree returned no tokenizeCreditCard payload and the request \
+                                 carried no payment-method token, so the 3D Secure lookup has no \
+                                 paymentMethodId to spend",
+                            )
+                            .into()),
+                        },
+                    };
+
+                let connector_feature_data = build_braintree_three_ds_feature_data(
+                    &payment_method_id,
+                    Some(&client_token),
+                    None,
+                    None,
+                    None,
+                );
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        // Exactly what this leg produced: the credential a browser needs to
+                        // collect device data. Non-terminal, so the composite loop advances to
+                        // `Authenticate`.
+                        status: enums::AttemptStatus::DeviceDataCollectionPending,
+                        connector_feature_data: Some(connector_feature_data),
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            payment_method_id.peek().clone(),
+                        )),
+                        // Nothing has been authenticated yet; populating this would be a
+                        // fabricated claim about an authentication outcome.
+                        authentication_data: None,
+                        // Braintree's server-side lookup needs no browser round trip of its own:
+                        // `dfReferenceId` is optional and `transactionInformation.browserInformation`
+                        // satisfies the lookup on its own, so this leg hands back the bootstrap
+                        // credential in `connector_feature_data` and lets the composite loop run
+                        // `Authenticate` immediately. A caller that wants client-side device data
+                        // uses the client token and returns the `dfReferenceId` on the next call.
+                        redirection_data: None,
+                        // `createClientToken` returns no merchant-visible reference, and
+                        // `clientMutationId` is not selected. Do not synthesise one.
+                        connector_response_reference_id: None,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Leg 2 — Authenticate (`performThreeDSecureLookup`)
+// ---------------------------------------------------------------------------------------------
+
+pub type BraintreeAuthenticateRequest =
+    GenericBraintreeRequest<GenericVariableInput<PerformThreeDSecureLookupInput>>;
+
+/// Braintree GraphQL `PerformThreeDSecureLookupInput`.
+///
+/// The three members the schema also defines and this connector deliberately does not send:
+/// `dataOnlyRequested` and `cardAdd` are merchant policy with no UCS request member to carry them,
+/// and `merchantInitiatedRequest` is the 3RI / prior-authentication tree, which is out of scope.
+/// `requestAuthenticationChallenge` and `requestedExemptionType` are likewise omitted: forcing a
+/// challenge defeats frictionless flow, and claiming an SCA exemption the merchant has not
+/// asserted is a compliance statement UCS is not entitled to make.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PerformThreeDSecureLookupInput {
+    /// `ID!` — the single-use nonce from leg 1.
+    payment_method_id: Secret<String>,
+    /// `Amount!` — a major-unit decimal string. Produced by the connector's own
+    /// `amount_converter`, never by `MinorUnit::to_string()`: "1234" is itself a valid `Amount`,
+    /// so that mistake is a silent 100x overstatement Braintree cannot detect.
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    /// Braintree distinguishes "absent" from "present and null", so every optional member is
+    /// skipped rather than serialized as null.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    df_reference_id: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction_information: Option<ThreeDSecureLookupTransactionInformationInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cardholder_information: Option<ThreeDSecureLookupCardholderInformationInput>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupTransactionInformationInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_channel: Option<BraintreeThreeDSecureDeviceChannel>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<pii::Email>,
+    /// A sibling of `browserInformation`, one level up — the schema rejects it nested inside.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ip_address: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    browser_information: Option<ThreeDSecureLookupBrowserInformationInput>,
+}
+
+/// Braintree GraphQL `ThreeDSecureLookupBrowserInformationInput` — all nine members map 1:1 from
+/// `BrowserInformation`. Note `javascriptEnabled`: one capital, unlike the UCS `java_script_enabled`.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupBrowserInformationInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    java_enabled: Option<bool>,
+    #[serde(rename = "javascriptEnabled", skip_serializing_if = "Option::is_none")]
+    java_script_enabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    accept_header: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color_depth: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_height: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    screen_width: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time_zone: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    user_agent: Option<String>,
+}
+
+/// `ThreeDSecureLookupCardholderInformationInput` has exactly one member.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupCardholderInformationInput {
+    billing_address: ThreeDSecureLookupBillingAddressInput,
+}
+
+/// Braintree GraphQL `ThreeDSecureLookupBillingAddressInput`.
+///
+/// `countryCode` here is a plain `String`, NOT the versioned `CountryCode` scalar the Authorize
+/// billing address uses, so the alpha-3/alpha-2 boundary at `Braintree-Version 2021-02-01` does
+/// not apply on this leg. Send the country code exactly as UCS holds it and do not reuse the
+/// Authorize alpha-3 conversion.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSecureLookupBillingAddressInput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    surname: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    region: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    postal_code: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone_number: Option<Secret<String>>,
+}
+
+impl ThreeDSecureLookupBillingAddressInput {
+    fn is_empty(&self) -> bool {
+        self.given_name.is_none()
+            && self.surname.is_none()
+            && self.line1.is_none()
+            && self.line2.is_none()
+            && self.locality.is_none()
+            && self.region.is_none()
+            && self.postal_code.is_none()
+            && self.country_code.is_none()
+            && self.phone_number.is_none()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeThreeDSecureLookupPayload {
+    three_d_secure_lookup_data: Option<BraintreeThreeDSecureLookupData>,
+    payment_method: Option<BraintreeThreeDSecurePaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeAuthenticateData {
+    perform_three_d_secure_lookup: Option<BraintreeThreeDSecureLookupPayload>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeThreeDSecureLookupSuccess {
+    data: BraintreeAuthenticateData,
+}
+
+/// `ErrorResponse` first, for the reason spelled out on [`BraintreePreAuthenticateResponse`].
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreeAuthenticateResponse {
+    ErrorResponse(Box<ErrorResponse>),
+    Success(Box<BraintreeThreeDSecureLookupSuccess>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::Authenticate,
+                PaymentFlowData,
+                connector_types::PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreeAuthenticateRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::Authenticate,
+                PaymentFlowData,
+                connector_types::PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+
+        // An incoming `authentication_data` means the caller already performed 3D Secure with its
+        // own MPI and wants the Authorize pass-through, not a second, contradictory Braintree
+        // authentication. Reject rather than silently authenticating twice.
+        if request.authentication_data.is_some() {
+            return Err(IntegrationError::NotSupported {
+                message: "Braintree-hosted 3D Secure authentication with externally supplied \
+                          authentication_data"
+                    .to_string(),
+                connector: "Braintree",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Braintree-hosted and external-MPI 3D Secure are mutually exclusive. Send \
+                         an externally performed authentication on PaymentService/Authorize, where \
+                         it is declared through options.threeDSecureAuthentication.passThrough; do \
+                         not route it through the authentication legs."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--ThreeDSecurePassThroughInput"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "authentication_data present on a Braintree-hosted Authenticate leg"
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
+        // The nonce: from leg 1's `connector_feature_data` first (the composite path, where the
+        // caller never sees a token), then from an explicitly tokenized payment method (the
+        // granular `PaymentMethodAuthenticationService/Authenticate` path).
+        //
+        // A raw `Card` is NOT accepted: re-tokenizing here would mint a second nonce and make the
+        // leg non-idempotent, and the lookup consumes whichever nonce it is given.
+        let payment_method_id = braintree_hosted_three_ds_nonce(
+            item.router_data
+                .resource_common_data
+                .connector_feature_data
+                .as_ref(),
+        )
+        .or_else(|| match request.payment_method_data.as_ref() {
+            Some(PaymentMethodData::PaymentMethodToken(token_data)) => {
+                Some(token_data.token.clone())
+            }
+            _ => None,
+        })
+        .ok_or_else(|| IntegrationError::MissingRequiredField {
+            field_name: "payment_method_data",
+            context: domain_types::errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Run the PreAuthenticate leg first and pass its connector_feature_data back \
+                     on this request, or send an already-tokenized Braintree payment method. \
+                     performThreeDSecureLookup requires a single-use paymentMethodId and will not \
+                     accept a raw card."
+                        .to_string(),
+                ),
+                doc_url: Some(
+                    "https://graphql.braintreepayments.com/reference/#Input--PerformThreeDSecureLookupInput"
+                        .to_string(),
+                ),
+                additional_context: Some(
+                    "no Braintree payment-method nonce resolvable for the 3D Secure lookup"
+                        .to_string(),
+                ),
+            },
+        })?;
+
+        let currency = request
+            .currency
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "currency",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send the payment currency. Braintree's Amount scalar is a major-unit \
+                         decimal string, so the minor-unit amount cannot be converted without it."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "currency absent on a Braintree 3D Secure lookup".to_string(),
+                    ),
+                },
+            })?;
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(request.amount, currency)
+            .change_context(IntegrationError::AmountConversionFailed {
+                context: Default::default(),
+            })?;
+
+        let merchant_account_id = resolve_merchant_account_id(
+            request.metadata.as_ref(),
+            &item.router_data.connector_config,
+        )?;
+
+        // Device data, ingress 1 of 2 and the preferred one: the CardinalCommerce reference that
+        // joins this lookup to device data already collected in the cardholder's browser by
+        // `threeDSecure.prepareLookup`, which leg 1's client token bootstrapped.
+        let df_reference_id = request
+            .redirect_response
+            .as_ref()
+            .and_then(|redirect| redirect.payload.as_ref())
+            .and_then(|payload| {
+                let payload = payload.clone().expose();
+                payload
+                    .get("dfReferenceId")
+                    .or_else(|| payload.get("df_reference_id"))
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::to_owned)
+            })
+            .map(Secret::new);
+
+        // Device data, ingress 2 of 2. Not a lesser option: the lookup is schema-valid and
+        // succeeds on browser information alone.
+        let browser_information = request.browser_info.as_ref().map(|browser| {
+            ThreeDSecureLookupBrowserInformationInput {
+                java_enabled: browser.java_enabled,
+                java_script_enabled: browser.java_script_enabled,
+                accept_header: browser.accept_header.clone(),
+                language: browser.language.clone(),
+                color_depth: browser.color_depth,
+                screen_height: browser.screen_height,
+                screen_width: browser.screen_width,
+                time_zone: browser.time_zone,
+                user_agent: browser.user_agent.clone(),
+            }
+        });
+
+        if df_reference_id.is_none() && browser_information.is_none() {
+            // Braintree would run a lookup with no device data at all, but the authentication
+            // would be materially weaker and the liability-shift outcome misleading. Fail closed.
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "browser_info",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send browser_info, or return the dfReferenceId produced by \
+                         threeDSecure.prepareLookup in redirect_response.payload. Braintree's 3D \
+                         Secure lookup accepts either, but a lookup with neither is materially \
+                         weaker authentication."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--ThreeDSecureLookupBrowserInformationInput"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "neither dfReferenceId nor browser_info supplied to the Braintree 3D \
+                         Secure lookup"
+                            .to_string(),
+                    ),
+                },
+            }
+            .into());
+        }
+
+        let device_channel = match request.device_channel {
+            Some(connector_types::DeviceChannel::App) => {
+                Some(BraintreeThreeDSecureDeviceChannel::Sdk)
+            }
+            Some(connector_types::DeviceChannel::Browser) => {
+                Some(BraintreeThreeDSecureDeviceChannel::Browser)
+            }
+            // Do not assert a channel the request does not evidence.
+            None => browser_information
+                .as_ref()
+                .map(|_| BraintreeThreeDSecureDeviceChannel::Browser),
+        };
+
+        let ip_address = request
+            .browser_info
+            .as_ref()
+            .and_then(|browser| browser.ip_address)
+            .map(|ip| Secret::new(ip.to_string()));
+
+        let transaction_information = (device_channel.is_some()
+            || request.email.is_some()
+            || ip_address.is_some()
+            || browser_information.is_some())
+        .then_some(ThreeDSecureLookupTransactionInformationInput {
+            device_channel,
+            email: request.email.clone(),
+            ip_address,
+            browser_information,
+        });
+
+        let billing = item.router_data.resource_common_data.get_optional_billing();
+        let billing_address_details = billing.and_then(|billing| billing.address.as_ref());
+        let billing_address = ThreeDSecureLookupBillingAddressInput {
+            given_name: billing_address_details.and_then(|a| a.first_name.clone()),
+            surname: billing_address_details.and_then(|a| a.last_name.clone()),
+            line1: billing_address_details.and_then(|a| a.line1.clone()),
+            line2: billing_address_details.and_then(|a| a.line2.clone()),
+            locality: billing_address_details.and_then(|a| a.city.clone()),
+            region: billing_address_details.and_then(|a| a.state.clone()),
+            postal_code: billing_address_details.and_then(|a| a.zip.clone()),
+            country_code: billing_address_details
+                .and_then(|a| a.country)
+                .map(|country| country.to_string()),
+            phone_number: billing
+                .and_then(|billing| billing.phone.as_ref())
+                .and_then(|phone| phone.number.clone()),
+        };
+        // Braintree distinguishes "absent" from "present and empty"; never emit `{}`.
+        let cardholder_information = (!billing_address.is_empty())
+            .then_some(ThreeDSecureLookupCardholderInformationInput { billing_address });
+
+        Ok(Self {
+            query: constants::AUTHENTICATE_MUTATION.to_string(),
+            variables: GenericVariableInput {
+                input: PerformThreeDSecureLookupInput {
+                    payment_method_id,
+                    amount,
+                    merchant_account_id,
+                    df_reference_id,
+                    transaction_information,
+                    cardholder_information,
+                },
+            },
+        })
+    }
+}
+
+impl BraintreeThreeDSecureLookupPayload {
+    /// The challenge-vs-frictionless discriminator, and the single easiest way to get this flow
+    /// wrong.
+    ///
+    /// `threeDSecureLookupData` comes back NON-NULL on every outcome, frictionless success and
+    /// outright failure included; on those, `acsUrl` and `pareq` are null while `authenticationId`,
+    /// `md`, `termUrl`, `transactionId` and `version` are still populated. So
+    /// `three_d_secure_lookup_data.is_some()` would emit a redirect on every single outcome and
+    /// strand the payment in a challenge that does not exist.
+    ///
+    /// Both halves are required: `CHALLENGE_REQUIRED` is the semantic signal, a non-null `acsUrl`
+    /// the structural one — and a redirect form cannot be built without the latter anyway.
+    fn is_challenge(&self) -> bool {
+        let status_says_challenge = self
+            .payment_method
+            .as_ref()
+            .and_then(BraintreeThreeDSecurePaymentMethod::authentication)
+            .and_then(|authentication| authentication.authentication_status)
+            == Some(BraintreeThreeDSecureAuthenticationStatus::ChallengeRequired);
+
+        let acs_url_present = self
+            .three_d_secure_lookup_data
+            .as_ref()
+            .and_then(|lookup| lookup.acs_url.as_ref())
+            .is_some();
+
+        status_says_challenge && acs_url_present
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreeAuthenticateResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::Authenticate,
+        PaymentFlowData,
+        connector_types::PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BraintreeAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreeAuthenticateResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreeAuthenticateResponse::Success(success) => {
+                let payload = success.data.perform_three_d_secure_lookup.ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree returned a 200 with no performThreeDSecureLookup payload",
+                    )
+                })?;
+
+                let payment_method = payload.payment_method.as_ref().ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree's 3D Secure lookup returned no paymentMethod, so there is no \
+                         nonce for the subsequent authorization to spend",
+                    )
+                })?;
+
+                // The `... on CreditCardDetails` fragment yields `{}` rather than an error for a
+                // non-card payment method, so an absent authentication block is detected here
+                // explicitly and never inferred from a parse failure.
+                let authentication = payment_method.authentication().ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree's 3D Secure lookup returned a payment method with no \
+                         threeDSecure.authentication block; this is not a frictionless success",
+                    )
+                })?;
+
+                let is_challenge = payload.is_challenge();
+                let lookup = payload.three_d_secure_lookup_data.as_ref();
+
+                let status = authentication
+                    .authentication_status
+                    .map(BraintreeThreeDSecureAuthenticationStatus::to_attempt_status)
+                    // Braintree returned the block but no status. Not a success, not a failure.
+                    .unwrap_or(enums::AttemptStatus::Unspecified);
+
+                let redirection_data = if is_challenge {
+                    let lookup = lookup.ok_or_else(|| {
+                        utils::unexpected_response_fail(
+                            item.http_code,
+                            "Braintree signalled CHALLENGE_REQUIRED with no threeDSecureLookupData",
+                        )
+                    })?;
+                    let acs_url = lookup.acs_url.clone().ok_or_else(|| {
+                        utils::unexpected_response_fail(
+                            item.http_code,
+                            "Braintree signalled CHALLENGE_REQUIRED with a null acsUrl; the \
+                             challenge cannot be rendered and this is not a frictionless success",
+                        )
+                    })?;
+
+                    let mut form_fields = std::collections::HashMap::new();
+                    // `PaReq` / `MD` / `TermUrl` are Braintree's published field names for a
+                    // server-side lookup and are what the ACS endpoint expects. `RedirectForm::Form`
+                    // types `form_fields` as a plain map, so `pareq` and `term_url` — the latter a
+                    // signed credential — are unwrapped only here, at the type boundary that
+                    // demands it.
+                    if let Some(pareq) = lookup.pareq.as_ref() {
+                        form_fields.insert("PaReq".to_string(), pareq.peek().clone());
+                    }
+                    if let Some(md) = lookup.md.as_ref() {
+                        form_fields.insert("MD".to_string(), md.clone());
+                    }
+                    if let Some(term_url) = lookup.term_url.as_ref() {
+                        form_fields.insert("TermUrl".to_string(), term_url.peek().clone());
+                    }
+
+                    Some(Box::new(RedirectForm::Form {
+                        endpoint: acs_url,
+                        method: common_utils::request::Method::Post,
+                        form_fields,
+                    }))
+                } else {
+                    None
+                };
+
+                // The lookup ALWAYS consumes the input nonce and returns a different payment
+                // method id; a replay of the old one answers "Nonce is already consumed". The
+                // subsequent authorization must spend the new one, so it leaves by both the
+                // prominent channel (`resource_id`) and the one the composite dispatcher forwards
+                // into Authorize (`connector_feature_data`).
+                let new_payment_method_id = payment_method.id.clone();
+                let feature_data = build_braintree_three_ds_feature_data(
+                    &new_payment_method_id,
+                    None,
+                    Some(authentication),
+                    payment_method.card_details(),
+                    lookup,
+                );
+
+                let authentication_id = lookup.and_then(|lookup| lookup.authentication_id.clone());
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        reference_id: authentication_id.clone(),
+                        connector_feature_data: Some(feature_data.clone()),
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::AuthenticateResponse {
+                        resource_id: Some(ResponseId::ConnectorTransactionId(
+                            new_payment_method_id.peek().clone(),
+                        )),
+                        redirection_data,
+                        // Populated on both paths: even on a challenge the payload legitimately
+                        // carries the 3DS server / ACS / DS transaction ids and the ECI, which the
+                        // caller needs to correlate the challenge. Only `cavv` and a settled
+                        // `trans_status` are challenge-path absent, and both are optional.
+                        authentication_data: Some(build_braintree_authentication_data(
+                            authentication,
+                            lookup,
+                        )),
+                        connector_feature_data: Some(feature_data.expose()),
+                        connector_response_reference_id: authentication_id,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Leg 3 — PostAuthenticate (`node(id:)` readback)
+// ---------------------------------------------------------------------------------------------
+
+/// GraphQL `$id: ID!`. Every other Braintree flow sends `{ "input": ... }`; this one does not,
+/// because `node(id:)` takes a bare id argument — so `GenericVariableInput<T>` must NOT be reused.
+#[derive(Debug, Clone, Serialize)]
+pub struct BraintreePostAuthenticateVariables {
+    /// Secret because a bare Braintree payment-method id is all `chargeCreditCard` needs.
+    id: Secret<String>,
+}
+
+pub type BraintreePostAuthenticateRequest =
+    GenericBraintreeRequest<BraintreePostAuthenticateVariables>;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeNodeData {
+    node: Option<BraintreeThreeDSecurePaymentMethod>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct BraintreeThreeDSecureResultSuccess {
+    data: BraintreeNodeData,
+}
+
+/// `ErrorResponse` first. The `NOT_FOUND` body carries BOTH a populated `errors[]` and
+/// `{"data":{"node":null}}`, so a success-first enum would read a hard error as a success with a
+/// null node.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreePostAuthenticateResponse {
+    ErrorResponse(Box<ErrorResponse>),
+    Success(Box<BraintreeThreeDSecureResultSuccess>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PostAuthenticate,
+                PaymentFlowData,
+                connector_types::PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreePostAuthenticateRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                domain_types::connector_flow::PostAuthenticate,
+                PaymentFlowData,
+                connector_types::PaymentsPostAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // `connector_order_reference_id` is leg 2's `resource_id`, threaded here by the composite
+        // dispatcher. `payment_method_data` is deliberately NOT a fallback: on the composite path
+        // it still holds the ORIGINAL instrument, whose nonce the lookup already consumed, and
+        // `node(id:)` would answer NOT_FOUND for it.
+        //
+        // `redirect_response` is deliberately not read either. The ACS posts its PaRes to
+        // Braintree's own termUrl, Braintree records the outcome on the payment method and then
+        // redirects the browser to a Braintree-owned page, so the browser comes back to the
+        // merchant carrying nothing this leg needs. Calling `get_redirect_response_payload()` here
+        // would raise MissingRequiredField on every real Braintree post-challenge request.
+        let id = item
+            .router_data
+            .request
+            .connector_order_reference_id
+            .clone()
+            .or_else(|| item.router_data.resource_common_data.reference_id.clone())
+            .map(Secret::new)
+            .ok_or_else(|| IntegrationError::MissingRequiredField {
+                field_name: "connector_order_reference_id",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Pass the connector_transaction_id returned by the Authenticate leg as \
+                         connector_order_reference_id. Braintree records the 3D Secure outcome on \
+                         the payment method that leg returned, and node(id:) is the only way to \
+                         read it back."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Query--node".to_string(),
+                    ),
+                    additional_context: Some(
+                        "PostAuthenticate invoked without the payment-method id produced by the \
+                         Braintree 3D Secure lookup"
+                            .to_string(),
+                    ),
+                },
+            })?;
+
+        Ok(Self {
+            query: constants::POST_AUTHENTICATE_QUERY.to_string(),
+            variables: BraintreePostAuthenticateVariables { id },
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreePostAuthenticateResponse, Self>>
+    for RouterDataV2<
+        domain_types::connector_flow::PostAuthenticate,
+        PaymentFlowData,
+        connector_types::PaymentsPostAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<BraintreePostAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreePostAuthenticateResponse::ErrorResponse(error_response) => Ok(Self {
+                response: build_error_response(&error_response.errors, item.http_code)
+                    .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreePostAuthenticateResponse::Success(success) => {
+                let payment_method = success.data.node.ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree's node(id:) readback resolved to no PaymentMethod",
+                    )
+                })?;
+
+                // An absent block means the trio was skipped or the wrong id was threaded. It is
+                // NOT a frictionless success and must never be reported as one.
+                let authentication = payment_method.authentication().ok_or_else(|| {
+                    utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree's node(id:) readback returned a payment method with no \
+                         threeDSecure.authentication block; no 3D Secure lookup was ever run \
+                         against it",
+                    )
+                })?;
+
+                let status = authentication
+                    .authentication_status
+                    .map(BraintreeThreeDSecureAuthenticationStatus::to_attempt_status)
+                    .unwrap_or(enums::AttemptStatus::Unspecified);
+
+                if status == enums::AttemptStatus::AuthenticationSuccessful
+                    && authentication.cavv.is_none()
+                {
+                    // Not an error: DATA_ONLY_SUCCESSFUL and the exemption statuses legitimately
+                    // carry no cryptogram. Worth surfacing, because for AUTHENTICATE_SUCCESSFUL it
+                    // is anomalous.
+                    tracing::warn!(
+                        target: "braintree_three_ds",
+                        authentication_status = ?authentication.authentication_status,
+                        "Braintree reported a successful 3D Secure authentication with no CAVV"
+                    );
+                }
+
+                let payment_method_id = payment_method.id.clone();
+                // `PostAuthenticateResponse` has no `resource_id`, so `connector_feature_data` on
+                // the flow data is the only channel the 3DS-verified nonce can leave by — and the
+                // composite dispatcher forwards it into the Authorize request, where the Authorize
+                // builder reads it back as both the payment method to charge and the marker that
+                // suppresses the external-MPI pass-through.
+                let feature_data = build_braintree_three_ds_feature_data(
+                    &payment_method_id,
+                    None,
+                    Some(authentication),
+                    payment_method.card_details(),
+                    None,
+                );
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        reference_id: Some(payment_method_id.peek().clone()),
+                        connector_feature_data: Some(feature_data),
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::PostAuthenticateResponse {
+                        authentication_data: Some(build_braintree_authentication_data(
+                            authentication,
+                            None,
+                        )),
+                        // The variant has no `resource_id`; the id the caller needs next is the
+                        // spendable one, so it goes here.
+                        connector_response_reference_id: Some(payment_method_id.peek().clone()),
+                        status_code: item.http_code,
                     }),
                     ..item.router_data
                 })

@@ -10,6 +10,9 @@
     "PaymentMethodService/Tokenize",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentService/Authorize"
+    "PaymentService/Authorize",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate"
   ]
 }
