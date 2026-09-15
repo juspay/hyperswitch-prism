@@ -45,58 +45,53 @@ use crate::{connectors::d24::D24RouterData, types::ResponseRouterData};
 ///   because no UCS field carries the customer's bank account (UNDECIDED #3,
 ///   option a). Chile has no `BANK_TRANSFER`-typed method at all.
 ///
-/// The wire code is the single source of truth in [`D24PaymentMethod::code`];
-/// `Serialize` writes exactly that string, so WebPay still serializes as `"WP"`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// The wire code is declared once per variant with `#[strum(serialize = ..)]`:
+/// [`D24PaymentMethod::code`] and `Serialize` both read it, so WebPay still
+/// serializes as `"WP"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, strum::IntoStaticStr)]
+#[serde(into = "&'static str")]
 pub enum D24PaymentMethod {
-    /// `WP` — Chile, card redirect.
+    /// Chile, card redirect.
+    #[strum(serialize = "WP")]
     Webpay,
-    /// `SE` — SPEI, Mexico, Bank Transfer.
+    /// SPEI, Mexico, Bank Transfer.
+    #[strum(serialize = "SE")]
     Spei,
-    /// `COD` — CoDi, Mexico, Bank Transfer.
+    /// CoDi, Mexico, Bank Transfer.
+    #[strum(serialize = "COD")]
     Codi,
-    /// `BM` — Banamex, Mexico, Bank Transfer.
+    /// Banamex, Mexico, Bank Transfer.
+    #[strum(serialize = "BM")]
     Banamex,
-    /// `STS` — Santander SuperNet, Mexico, Bank Transfer.
+    /// Santander SuperNet, Mexico, Bank Transfer.
+    #[strum(serialize = "STS")]
     SantanderSupernet,
-    /// `AF` — Afirme online banking, Mexico, Bank Transfer.
+    /// Afirme online banking, Mexico, Bank Transfer.
+    #[strum(serialize = "AF")]
     Afirme,
-    /// `BQL` — Banorte online banking, Mexico, Bank Transfer.
+    /// Banorte online banking, Mexico, Bank Transfer.
+    #[strum(serialize = "BQL")]
     Banorte,
-    /// `IX` — Pix, Brazil, BANK_TRANSFER.
+    /// Pix, Brazil, BANK_TRANSFER.
+    #[strum(serialize = "IX")]
     Pix,
-    /// `I` — Itaú, Brazil, BANK_TRANSFER. Requires the payer address.
+    /// Itaú, Brazil, BANK_TRANSFER. Requires the payer address.
+    #[strum(serialize = "I")]
     Itau,
-    /// `NU` — Nubank, Brazil, BANK_TRANSFER.
+    /// Nubank, Brazil, BANK_TRANSFER.
+    #[strum(serialize = "NU")]
     Nubank,
-    /// `ME` — MercadoPago, Brazil, BANK_TRANSFER. (`ME` is a *wallet* in
-    /// Mexico, which is why codes are only ever resolved together with the
-    /// billing country.)
+    /// MercadoPago, Brazil, BANK_TRANSFER. (`ME` is a *wallet* in Mexico,
+    /// which is why codes are only ever resolved together with the billing
+    /// country.)
+    #[strum(serialize = "ME")]
     MercadoPago,
-}
-
-impl Serialize for D24PaymentMethod {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.code())
-    }
 }
 
 impl D24PaymentMethod {
     /// The Directa24 `payment_method` code sent on `POST /v3/deposits`.
     pub fn code(self) -> &'static str {
-        match self {
-            Self::Webpay => "WP",
-            Self::Spei => "SE",
-            Self::Codi => "COD",
-            Self::Banamex => "BM",
-            Self::SantanderSupernet => "STS",
-            Self::Afirme => "AF",
-            Self::Banorte => "BQL",
-            Self::Pix => "IX",
-            Self::Itau => "I",
-            Self::Nubank => "NU",
-            Self::MercadoPago => "ME",
-        }
+        self.into()
     }
 
     fn name(self) -> &'static str {
@@ -132,10 +127,15 @@ impl D24PaymentMethod {
     /// Tech spec §"Country specifications": every documented country accepts
     /// its local currency or USD (CL: CLP/USD, MX: MXN/USD, BR: BRL/USD).
     fn local_currency(self) -> Currency {
-        match self.country() {
-            CountryAlpha2::MX => Currency::MXN,
-            CountryAlpha2::BR => Currency::BRL,
-            _ => Currency::CLP,
+        match self {
+            Self::Webpay => Currency::CLP,
+            Self::Spei
+            | Self::Codi
+            | Self::Banamex
+            | Self::SantanderSupernet
+            | Self::Afirme
+            | Self::Banorte => Currency::MXN,
+            Self::Pix | Self::Itau | Self::Nubank | Self::MercadoPago => Currency::BRL,
         }
     }
 
