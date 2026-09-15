@@ -52,21 +52,85 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Authorize,
+    source:    celero::CeleroTransactionStatus,
+    success:   Settled           => Charged,
+    failure:   Declined          => Failure,
+    {
+        Approved          => Authorized,
+        Error             => Failure,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Voided            => Voided,
+        Reversed          => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      PSync,
+    source:    celero::CeleroTransactionStatus,
+    success:   Settled           => Charged,
+    failure:   Declined          => Failure,
+    {
+        Approved          => Authorized,
+        Error             => Failure,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Voided            => Voided,
+        Reversed          => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Void,
+    source:    celero::CeleroTransactionStatus,
+    success:   Voided            => Voided,
+    failure:   Declined          => Failure,
+    {
+        Approved          => VoidInitiated,
+        Error             => Failure,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Settled           => VoidFailed,
+        Reversed          => Voided,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Celero<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Capture,
+    source:    celero::CeleroTransactionStatus,
+    success:   Settled           => Charged,
+    failure:   Declined          => CaptureFailed,
+    {
+        Approved          => Pending,
+        Error             => CaptureFailed,
+        Pending           => Pending,
+        PendingSettlement => Pending,
+        Voided            => CaptureFailed,
+        Reversed          => CaptureFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Celero<T>
 {
@@ -79,11 +143,29 @@ macros::macro_connector_payout_implementation!(
 );
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      Refund,
+    source:    celero::CeleroResponseStatus,
+    success:   Success => Success,
+    failure:   Error   => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Celero<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Celero<T>,
+    flow:      RSync,
+    source:    celero::CeleroResponseStatus,
+    success:   Success => Success,
+    failure:   Error   => Failure,
+    {}
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Celero<T>
 {

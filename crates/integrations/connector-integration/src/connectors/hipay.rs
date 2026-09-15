@@ -54,26 +54,210 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Hipay<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      Authorize,
+    source:    hipay::HipayPaymentStatus,
+    success:   Authorized                          => Authorized,
+    failure:   Refused                             => AuthorizationFailed,
+    {
+        AuthenticationFailed                       => AuthenticationFailed,
+        Blocked                                    => Failure,
+        Denied                                     => Failure,
+        AuthorizedAndPending                       => Pending,
+        Expired                                    => Failure,
+        Cancelled                                  => Voided,
+        CaptureRequested                           => Authorizing,
+        Captured                                   => Charged,
+        PartiallyCaptured                          => PartialCharged,
+        CaptureRefused                             => Failure,
+        AwaitingTerminal                           => Pending,
+        AuthorizationCancellationRequested         => Pending,
+        ChallengeRequested                         => AuthenticationPending,
+        SoftDeclined                               => Failure,
+        PendingPayment                             => Pending,
+        ChargedBack                                => Failure,
+        Created                                    => Started,
+        UnableToAuthenticate                       => AuthenticationFailed,
+        CouldNotAuthenticate                       => AuthenticationFailed,
+        CardholderAuthenticated                    => Pending,
+        AuthenticationAttempted                    => AuthenticationPending,
+        Collected                                  => Charged,
+        PartiallySettled                           => Charged,
+        PartiallyCollected                         => Charged,
+        Settled                                    => Charged,
+        AuthenticationRequested                    => AuthenticationPending,
+        Authenticated                              => AuthenticationSuccessful,
+        AcquirerNotFound                           => Failure,
+        RiskAccepted                               => Pending,
+        AuthorizationRefused                       => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Hipay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      PSync,
+    source:    hipay::HipayPaymentStatus,
+    success:   Captured                            => Charged,
+    failure:   Refused                             => Failure,
+    {
+        AuthenticationFailed                       => AuthenticationFailed,
+        Blocked                                    => Failure,
+        Denied                                     => Failure,
+        AuthorizedAndPending                       => Pending,
+        Expired                                    => Failure,
+        Cancelled                                  => Voided,
+        Authorized                                 => Authorized,
+        CaptureRequested                           => CaptureInitiated,
+        PartiallyCaptured                          => PartialCharged,
+        CaptureRefused                             => CaptureFailed,
+        AwaitingTerminal                           => Pending,
+        AuthorizationCancellationRequested         => VoidInitiated,
+        ChallengeRequested                         => AuthenticationPending,
+        SoftDeclined                               => Failure,
+        PendingPayment                             => Pending,
+        ChargedBack                                => Failure,
+        Created                                    => Started,
+        UnableToAuthenticate                       => AuthenticationFailed,
+        CouldNotAuthenticate                       => AuthenticationFailed,
+        CardholderAuthenticated                    => Pending,
+        AuthenticationAttempted                    => AuthenticationPending,
+        Collected                                  => Charged,
+        PartiallySettled                           => Charged,
+        PartiallyCollected                         => Charged,
+        Settled                                    => Charged,
+        AuthenticationRequested                    => AuthenticationPending,
+        Authenticated                              => AuthenticationSuccessful,
+        AcquirerNotFound                           => Failure,
+        RiskAccepted                               => Pending,
+        AuthorizationRefused                       => Failure,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Hipay<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      Void,
+    source:    hipay::HipayPaymentStatus,
+    success:   Cancelled                           => Voided,
+    failure:   Refused                             => VoidFailed,
+    {
+        AuthenticationFailed                       => VoidFailed,
+        Blocked                                    => Failure,
+        Denied                                     => Failure,
+        AuthorizedAndPending                       => Pending,
+        Expired                                    => Failure,
+        Authorized                                 => VoidInitiated,
+        CaptureRequested                           => Pending,
+        Captured                                   => VoidFailed,
+        PartiallyCaptured                          => VoidFailed,
+        CaptureRefused                             => Pending,
+        AwaitingTerminal                           => Pending,
+        AuthorizationCancellationRequested         => VoidInitiated,
+        ChallengeRequested                         => Pending,
+        SoftDeclined                               => Failure,
+        PendingPayment                             => Pending,
+        ChargedBack                                => Failure,
+        Created                                    => Pending,
+        UnableToAuthenticate                       => VoidFailed,
+        CouldNotAuthenticate                       => VoidFailed,
+        CardholderAuthenticated                    => Pending,
+        AuthenticationAttempted                    => Pending,
+        Collected                                  => VoidFailed,
+        PartiallySettled                           => VoidFailed,
+        PartiallyCollected                         => VoidFailed,
+        Settled                                    => VoidFailed,
+        AuthenticationRequested                    => Pending,
+        Authenticated                              => Pending,
+        AcquirerNotFound                           => Failure,
+        RiskAccepted                               => Pending,
+        AuthorizationRefused                       => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Hipay<T>
 {
+}
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      RSync,
+    source:    hipay::HipayRefundStatus,
+    success:   Refunded        => Success,
+    failure:   RefundRefused   => Failure,
+    {
+        RefundRequested    => Pending,
+        PartiallyRefunded  => Success,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Hipay<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      Refund,
+    source:    hipay::HipayRefundStatus,
+    success:   Refunded        => Success,
+    failure:   RefundRefused   => Failure,
+    {
+        RefundRequested    => Pending,
+        PartiallyRefunded  => Success,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Hipay<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Hipay<T>,
+    flow:      Capture,
+    source:    hipay::HipayPaymentStatus,
+    success:   Captured                            => Charged,
+    failure:   CaptureRefused                      => CaptureFailed,
+    {
+        AuthenticationFailed                       => CaptureFailed,
+        Blocked                                    => Failure,
+        Denied                                     => Failure,
+        AuthorizedAndPending                       => Pending,
+        Refused                                    => CaptureFailed,
+        Expired                                    => Failure,
+        Cancelled                                  => CaptureFailed,
+        Authorized                                 => Pending,
+        CaptureRequested                           => CaptureInitiated,
+        PartiallyCaptured                          => PartialCharged,
+        AwaitingTerminal                           => Pending,
+        AuthorizationCancellationRequested         => CaptureFailed,
+        ChallengeRequested                         => Pending,
+        SoftDeclined                               => CaptureFailed,
+        PendingPayment                             => Pending,
+        ChargedBack                                => Failure,
+        Created                                    => Pending,
+        UnableToAuthenticate                       => CaptureFailed,
+        CouldNotAuthenticate                       => CaptureFailed,
+        CardholderAuthenticated                    => Pending,
+        AuthenticationAttempted                    => Pending,
+        Collected                                  => Charged,
+        PartiallySettled                           => Charged,
+        PartiallyCollected                         => Charged,
+        Settled                                    => Charged,
+        AuthenticationRequested                    => Pending,
+        Authenticated                              => Pending,
+        AcquirerNotFound                           => Failure,
+        RiskAccepted                               => Pending,
+        AuthorizationRefused                       => CaptureFailed,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Hipay<T>

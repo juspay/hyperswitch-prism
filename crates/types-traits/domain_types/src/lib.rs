@@ -2,6 +2,8 @@
 
 pub mod api;
 pub mod connector_flow;
+pub mod flow_status;
+pub mod status_mapping;
 pub mod connector_types;
 pub mod errors;
 pub mod frm;

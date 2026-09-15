@@ -105,17 +105,60 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow:      Authorize,
+    source:    transformers::GigadatTransactionStatus,
+    success:   StatusSuccess   => Charged,
+    failure:   StatusFailed    => Failure,
+    {
+        StatusInited   => Pending,
+        StatusPending  => Pending,
+        StatusRejected => Failure,
+        StatusRejected1 => Failure,
+        StatusExpired  => Failure,
+        StatusAborted1 => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Gigadat<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow:      PSync,
+    source:    transformers::GigadatTransactionStatus,
+    success:   StatusSuccess   => Charged,
+    failure:   StatusFailed    => Failure,
+    {
+        StatusInited   => Pending,
+        StatusPending  => Pending,
+        StatusRejected => Failure,
+        StatusRejected1 => Failure,
+        StatusExpired  => Failure,
+        StatusAborted1 => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Gigadat<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Gigadat<T>,
+    flow:      Refund,
+    source:    gigadat::GigadatRefundStatus,
+    success:   Success  => Success,
+    failure:   Failure  => Failure,
+    {
+        Pending => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Gigadat<T>
 {

@@ -542,12 +542,13 @@ pub struct Status {
     pub operation_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub enum NextAction {
     #[serde(rename = "3d_verification")]
     ThreedsVerification,
     #[serde(rename = "pending_capture")]
     PendingCapture,
+    #[default]
     #[serde(rename = "not_applicable")]
     NotApplicable,
     #[serde(rename = "pending_confirmation")]

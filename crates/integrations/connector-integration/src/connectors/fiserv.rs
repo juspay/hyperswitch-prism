@@ -66,26 +66,122 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiserv<T>
 {
 }
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Authorize,
+    source:    transformers::FiservPaymentStatus,
+    success:   Authorized  => Authorized,
+    failure:   Failed      => Failure,
+    {
+        Succeeded   => Charged,
+        Captured    => Charged,
+        Declined    => Failure,
+        Voided      => Voided,
+        Processing  => Authorizing,
+        Created     => AuthenticationPending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiserv<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      PSync,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Charged,
+    failure:   Failed      => Failure,
+    {
+        Authorized  => Authorized,
+        Captured    => Charged,
+        Declined    => Failure,
+        Voided      => Voided,
+        Processing  => Authorizing,
+        Created     => AuthenticationPending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiserv<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Void,
+    source:    transformers::FiservPaymentStatus,
+    success:   Voided      => Voided,
+    failure:   Failed      => VoidFailed,
+    {
+        Authorized  => VoidInitiated,
+        Succeeded   => VoidFailed,
+        Captured    => VoidFailed,
+        Declined    => Failure,
+        Processing  => Pending,
+        Created     => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Fiserv<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      RSync,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    {
+        Captured    => Success,
+        Authorized  => Success,
+        Declined    => Failure,
+        Voided      => Pending,
+        Processing  => Pending,
+        Created     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Fiserv<T>
 {
 }
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Refund,
+    source:    transformers::FiservPaymentStatus,
+    success:   Succeeded   => Success,
+    failure:   Failed      => Failure,
+    {
+        Captured    => Success,
+        Authorized  => Success,
+        Declined    => Failure,
+        Voided      => Pending,
+        Processing  => Pending,
+        Created     => Pending,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Fiserv<T>
 {
+}
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Fiserv<T>,
+    flow:      Capture,
+    source:    transformers::FiservPaymentStatus,
+    success:   Captured    => Charged,
+    failure:   Failed      => CaptureFailed,
+    {
+        Authorized  => Pending,
+        Succeeded   => Charged,
+        Declined    => CaptureFailed,
+        Voided      => CaptureFailed,
+        Processing  => Pending,
+        Created     => Pending,
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Fiserv<T>

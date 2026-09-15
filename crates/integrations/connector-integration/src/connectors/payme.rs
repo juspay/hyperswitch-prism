@@ -44,32 +44,134 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 // ===== PAYMENT FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      Authorize,
+    source:    payme::SaleStatus,
+    success:   Authorized   => Authorized,
+    failure:   Failed       => Failure,
+    {
+        Initial      => Pending,
+        Completed    => Charged,
+        Refunded     => AutoRefunded,
+        PartialRefund => AutoRefunded,
+        Voided       => Voided,
+        PartialVoid  => Voided,
+        Chargeback   => AutoRefunded,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Payme<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      PSync,
+    source:    payme::SaleStatus,
+    success:   Completed    => Charged,
+    failure:   Failed       => Failure,
+    {
+        Initial      => Pending,
+        Authorized   => Authorized,
+        Refunded     => AutoRefunded,
+        PartialRefund => AutoRefunded,
+        Voided       => Voided,
+        PartialVoid  => Voided,
+        Chargeback   => AutoRefunded,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Payme<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      Void,
+    source:    payme::SaleStatus,
+    success:   Voided       => Voided,
+    failure:   Failed       => Failure,
+    {
+        Initial      => Pending,
+        Completed    => VoidFailed,
+        Authorized   => VoidInitiated,
+        Refunded     => VoidFailed,
+        PartialRefund => VoidFailed,
+        PartialVoid  => Voided,
+        Chargeback   => VoidFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Payme<T>
 {
 }
 
+domain_types::impl_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      Capture,
+    source:    payme::SaleStatus,
+    success:   Completed    => Charged,
+    failure:   Failed       => CaptureFailed,
+    {
+        Initial      => Pending,
+        Authorized   => Pending,
+        Refunded     => CaptureFailed,
+        PartialRefund => CaptureFailed,
+        Voided       => CaptureFailed,
+        PartialVoid  => CaptureFailed,
+        Chargeback   => CaptureFailed,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Payme<T>
 {
 }
 
 // ===== REFUND FLOW TRAIT IMPLEMENTATIONS =====
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      Refund,
+    source:    payme::SaleStatus,
+    success:   Refunded      => Success,
+    failure:   Failed        => Failure,
+    {
+        PartialRefund  => Success,
+        Completed      => Success,
+        Initial        => Pending,
+        Authorized     => Pending,
+        Voided         => Failure,
+        PartialVoid    => Failure,
+        Chargeback     => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundV2 for Payme<T>
 {
 }
 
+domain_types::impl_refund_flow_status_mapping! {
+    generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector: Payme<T>,
+    flow:      RSync,
+    source:    payme::SaleStatus,
+    success:   Refunded      => Success,
+    failure:   Failed        => Failure,
+    {
+        PartialRefund  => Success,
+        Completed      => Success,
+        Initial        => Pending,
+        Authorized     => Pending,
+        Voided         => Failure,
+        PartialVoid    => Failure,
+        Chargeback     => Failure,
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Payme<T>
 {
