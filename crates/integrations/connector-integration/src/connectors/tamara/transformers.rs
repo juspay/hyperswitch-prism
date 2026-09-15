@@ -14,7 +14,7 @@ use domain_types::{
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, PerPmEligibility, RefundFlowData, RefundSyncData, RefundsData,
+        PaymentsSyncData, PMEligibility, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
     errors,
@@ -987,7 +987,7 @@ impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
             .request
             .payment_method_types
             .iter()
-            .map(|payment_method_type| PerPmEligibility {
+            .map(|payment_method_type| PMEligibility {
                 payment_method_type: *payment_method_type,
                 eligibility,
                 error_info: None,

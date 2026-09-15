@@ -9,7 +9,7 @@ use crate::{
         self, AuthenticatorConnectorEnum, CaptureSyncResponse, ConnectorEnum,
         CreatePaymentMethodData, CreatePaymentMethodResponseData, FrmConnectorEnum,
         GetPaymentMethodData, GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PayoutConnectorEnum, PerPmEligibility,
+        PaymentMethodEligibilityResponse, PayoutConnectorEnum, PMEligibility, EligibilityErrorInfo,
         RechargeRequestData, RechargeResponseData, SurchargeConnectorEnum,
     },
     payment_method_data::SamsungPayWalletCredentials,
@@ -6746,31 +6746,41 @@ impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilitySta
 /// Generates a PaymentMethodServiceEligibilityResponse from the router data.
 /// Used by PaymentMethodService.Eligibility (new route).
 /// Builds a proto per-PM eligibility result; the payment method type is echoed verbatim.
-fn eligibility_result_to_proto(
-    result: PerPmEligibility,
-) -> grpc_api_types::payments::PaymentMethodEligibilityResult {
-    grpc_api_types::payments::PaymentMethodEligibilityResult {
-        payment_method_type: i32::from(result.payment_method_type),
-        eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
-            result.eligibility,
-        )),
-        error_info: result
-            .error_info
-            .map(|e| grpc_api_types::payments::ErrorInfo {
-                unified_details: None,
-                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(e.code),
-                    reason: e.reason,
-                    connector_transaction_id: None,
-                    message: Some(e.message),
-                    status: None,
-                }),
-                issuer_details: None,
+impl ForeignFrom<EligibilityErrorInfo> for grpc_api_types::payments::ErrorInfo {
+    fn foreign_from(value: EligibilityErrorInfo) -> Self {
+        Self {
+            unified_details: None,
+            connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                code: Some(value.code),
+                reason: value.reason,
+                connector_transaction_id: None,
+                message: Some(value.message),
+                status: None,
             }),
-        payment_method_details: result
-            .payment_method_details
-            .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
+            issuer_details: None,
+        }
     }
+}
+
+impl ForeignFrom<PMEligibility> for grpc_api_types::payments::PaymentMethodEligibilityResult {
+    fn foreign_from(result: PMEligibility) -> Self {
+        Self {
+            payment_method_type: i32::from(result.payment_method_type),
+            eligibility: i32::from(grpc_api_types::payments::EligibilityStatus::foreign_from(
+                result.eligibility,
+            )),
+            error_info: result.error_info.map(grpc_api_types::payments::ErrorInfo::foreign_from),
+            payment_method_details: result
+                .payment_method_details
+                .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
+        }
+    }
+}
+
+fn eligibility_result_to_proto(
+    result: PMEligibility,
+) -> grpc_api_types::payments::PaymentMethodEligibilityResult {
+    grpc_api_types::payments::PaymentMethodEligibilityResult::foreign_from(result)
 }
 
 #[allow(deprecated)] // mirrors results[0] into the deprecated top-level response fields

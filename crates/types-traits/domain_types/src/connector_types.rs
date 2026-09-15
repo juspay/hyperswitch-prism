@@ -1655,13 +1655,13 @@ pub struct PaymentMethodEligibilityResponse {
     /// Per-payment-method eligibility verdicts, one per requested payment
     /// method. Connectors that make a single PM-agnostic processor call fan the
     /// same verdict across every requested payment method.
-    pub results: Vec<PerPmEligibility>,
+    pub results: Vec<PMEligibility>,
     pub status_code: u32,
 }
 
 /// Eligibility verdict for a single payment method.
 #[derive(Debug, Clone)]
-pub struct PerPmEligibility {
+pub struct PMEligibility {
     /// The payment method this verdict is for (wire enum, echoed verbatim).
     pub payment_method_type: grpc_api_types::payments::PaymentMethodType,
     /// Eligibility verdict for this payment method.

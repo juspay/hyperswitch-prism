@@ -9,7 +9,7 @@ use domain_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
         GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
         PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentsAuthorizeData,
-        PaymentsResponseData, PerPmEligibility, RawConnectorStatus, RechargeRequestData,
+        PaymentsResponseData, PMEligibility, RawConnectorStatus, RechargeRequestData,
         RechargeResponseData, RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
@@ -1270,7 +1270,7 @@ impl TryFrom<ResponseRouterData<QwikcilverEligibilityResponse, Self>>
                     .request
                     .payment_method_types
                     .iter()
-                    .map(|payment_method_type| PerPmEligibility {
+                    .map(|payment_method_type| PMEligibility {
                         payment_method_type: *payment_method_type,
                         eligibility,
                         error_info: None,
