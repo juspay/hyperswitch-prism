@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.15.0
+
+### Features
+
+- **connector:** [Trustly] Add support for closed loop payouts and Webhooks ([#2255](https://github.com/juspay/connector-service/pull/2255)) ([`980bdf6`](https://github.com/juspay/connector-service/commit/980bdf6dc74da30ed88e0b4f3a70fe0107af1461))
+
+**Full Changelog:** [`2026.09.14.1...2026.09.15.0`](https://github.com/juspay/connector-service/compare/2026.09.14.1...2026.09.15.0)
+
+- - -
+
 ## 2026.09.14.1
 
 ### Bug Fixes
