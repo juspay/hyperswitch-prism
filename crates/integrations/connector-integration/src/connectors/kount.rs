@@ -8,8 +8,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck,
-        PreAuthenticate, PreRiskCheck, ServerAuthenticationToken,
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, PostRiskCheck, PreRiskCheck,
+        ServerAuthenticationToken,
     },
     connector_types::{
         PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
@@ -26,7 +26,7 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
-    router_response_types::{RedirectForm, Response},
+    router_response_types::Response,
     types::Connectors,
 };
 use error_stack::ResultExt;
@@ -61,6 +61,14 @@ const KOUNT_TOKEN_PATH_PROD: &str = "/as/token";
 const KOUNT_SANDBOX_AUTH_SERVER_ID: &str = "ausdppkujzCPQuIrY357";
 const KOUNT_ORDERS_PATH: &str = "/commerce/v2/orders";
 const FORM_URL_ENCODED: &str = "application/x-www-form-urlencoded";
+
+/// Kount sandbox vs production for one request: the caller's `test_mode`,
+/// assuming sandbox when it is absent (same rule as Adyen's
+/// `build_env_specific_endpoint`). Drives both the DDC `environment` flag and
+/// the OAuth token path, so the two can't disagree.
+fn is_sandbox(test_mode: Option<bool>) -> bool {
+    test_mode.unwrap_or(true)
+}
 
 /// Kount Web Client SDK (`@kount/kount-web-client-sdk`), hosted as a browser
 /// ESM bundle by jsDelivr. Self-contained `<script type="module">` load — no
@@ -391,144 +399,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Kount<T>
-{
-    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
-        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+macros::macro_connector_local_flow_implementation!(
+    connector: Kount,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    handle_response: kount::handle_pre_authenticate_response,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        validate_request: kount::validate_pre_authenticate_request,
     }
-
-    fn build_request_v2(
-        &self,
-        req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<Option<common_utils::request::Request>, IntegrationError> {
-        // No outbound call: the DDC HTML is built locally in `handle_response_v2`.
-        // The CID is still resolved here, because this is the request-phase hook the
-        // executor runs for `HandleResponseWithoutBuildRequest` flows: rejecting a
-        // missing one as an `IntegrationError` surfaces it as a configuration error
-        // rather than the internal error a `ConnectorError` would produce.
-        ddc_client_id(&req.connector_config)?;
-        Ok(None)
-    }
-
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        // Never called (build_request_v2 returns None); present to satisfy the trait.
-        Err(IntegrationError::connector_flow_not_implemented(
-            ConnectorCommon::id(self),
-            "pre_authenticate_url",
-            IntegrationErrorContext {
-                additional_context: Some(
-                    "Kount PreAuthenticate makes no outbound call (local DDC HTML only); \
-                     get_url is unreachable because build_request_v2 returns None"
-                        .to_owned(),
-                ),
-                suggested_action: Some(
-                    "No action required: the DDC HTML is built locally in handle_response_v2"
-                        .to_owned(),
-                ),
-                doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
-            },
-        )
-        .into())
-    }
-
-    fn handle_response_v2(
-        &self,
-        data: &RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        _event_builder: Option<&mut events::Event>,
-        _res: Response,
-    ) -> CustomResult<
-        RouterDataV2<
-            PreAuthenticate,
-            PaymentFlowData,
-            PaymentsPreAuthenticateData<T>,
-            PaymentsResponseData,
-        >,
-        ConnectorError,
-    > {
-        use domain_types::connector_types::RawConnectorRequestResponse;
-
-        // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
-        // deviceSessionId (which hashes the same merchant transaction id). Falls
-        // back to the connector request reference when it is absent.
-        let session_ref = data
-            .request
-            .merchant_transaction_id
-            .clone()
-            .unwrap_or_else(|| {
-                data.resource_common_data
-                    .connector_request_reference_id
-                    .clone()
-            });
-        let session_id = kount::hash_session_id(&session_ref);
-        // Already validated in `build_request_v2`, which the executor runs first for
-        // `HandleResponseWithoutBuildRequest` flows, so failing here would mean the two
-        // hooks disagreed rather than that the merchant sent a bad config.
-        let client_id = ddc_client_id(&data.connector_config).change_context(
-            ConnectorError::ResponseHandlingFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: None,
-                    additional_context: Some(
-                        "Kount client_id missing while rendering the DDC script".to_owned(),
-                    ),
-                },
-            },
-        )?;
-        // DDC `environment` follows the deployment environment: only a production
-        // deployment gets PROD, everything else (development/sandbox) gets TEST.
-        // Deliberately `!matches!(.., Production)` rather than listing the non-prod
-        // variants, so a future `Env` variant defaults to TEST — the safe direction.
-        let sandbox = !matches!(
-            common_utils::consts::Env::current_env(),
-            common_utils::consts::Env::Production
-        );
-        let script = build_ddc_script(&client_id, &session_id, sandbox);
-
-        let mut router_data = data.clone();
-        router_data.resource_common_data.status =
-            common_enums::AttemptStatus::DeviceDataCollectionPending;
-        router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
-            resource_id: None,
-            authentication_data: None,
-            redirection_data: Some(Box::new(RedirectForm::Script {
-                script_data: script,
-            })),
-            connector_response_reference_id: Some(
-                data.resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            ),
-            status_code: 200,
-        });
-        router_data
-            .resource_common_data
-            .set_typed_connector_response(None);
-        Ok(router_data)
-    }
-}
+);
 
 // ===== PAYOUT (no-op) IMPLEMENTATIONS =====
 crate::connectors::macros::macro_connector_payout_implementation!(
@@ -647,25 +530,19 @@ macros::macro_connector_implementation!(
             // Sandbox and production do not share a token endpoint shape: production
             // is Equifax PingFederate (`/as/token`), sandbox is Kount's Okta
             // authorization server, whose path embeds the account's auth-server id.
-            // Matched with a `_` arm rather than by listing the non-prod variants so
-            // a future `Env` variant defaults to sandbox — the safe direction, same
-            // reasoning as the DDC `environment` flag above.
+            // Chosen by `is_sandbox`, the same rule as the DDC `environment` flag.
             //
-            // NOTE: the host comes from config and the path from `Env`, so the two
-            // must agree; see the comment on `kount.secondary_base_url` in the
-            // environment config files.
-            match common_utils::consts::Env::current_env() {
-                common_utils::consts::Env::Production => {
-                    Ok(format!("{login_base_url}{KOUNT_TOKEN_PATH_PROD}"))
-                }
-                _ => {
-                    let auth = kount::KountAuthType::try_from(&req.connector_config)?;
-                    let auth_server_id = auth
-                        .auth_server_id
-                        .as_deref()
-                        .unwrap_or(KOUNT_SANDBOX_AUTH_SERVER_ID);
-                    Ok(format!("{login_base_url}/oauth2/{auth_server_id}/v1/token"))
-                }
+            // NOTE: the host comes from config (`secondary_base_url`, fixed per
+            // deployment) and the path from `test_mode`, so the two must agree.
+            if is_sandbox(req.resource_common_data.test_mode) {
+                let auth = kount::KountAuthType::try_from(&req.connector_config)?;
+                let auth_server_id = auth
+                    .auth_server_id
+                    .as_deref()
+                    .unwrap_or(KOUNT_SANDBOX_AUTH_SERVER_ID);
+                Ok(format!("{login_base_url}/oauth2/{auth_server_id}/v1/token"))
+            } else {
+                Ok(format!("{login_base_url}{KOUNT_TOKEN_PATH_PROD}"))
             }
         }
     }

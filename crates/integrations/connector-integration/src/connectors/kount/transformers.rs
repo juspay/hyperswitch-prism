@@ -3,10 +3,12 @@ use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
-        FrmPaymentOutcome, FrmRefundProcessed, PreRiskCheck, ServerAuthenticationToken,
+        FrmPaymentOutcome, FrmRefundProcessed, PreAuthenticate, PreRiskCheck,
+        ServerAuthenticationToken,
     },
     connector_types::{
-        CustomerInfo, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CustomerInfo, PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
     frm::frm_types::{
@@ -20,6 +22,7 @@ use domain_types::{
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_response_types::{RedirectForm, Response},
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -740,6 +743,104 @@ pub fn hash_session_id(raw: &str) -> String {
         .generate_digest(raw.as_bytes())
         .map(|digest| hex::encode(digest).chars().take(32).collect())
         .unwrap_or_else(|_| to_session_id(raw))
+}
+
+/// `other_functions.validate_request` for Kount PreAuthenticate (see
+/// `macro_connector_local_flow_implementation!`). No outbound call is made — the
+/// DDC HTML is built locally in [`handle_pre_authenticate_response`] — but the CID
+/// is resolved here, because this runs in `build_request_v2`, the request-phase hook
+/// the executor runs first for `HandleResponseWithoutBuildRequest` flows: rejecting a
+/// missing one as an `IntegrationError` surfaces it as a configuration error rather
+/// than the internal error a `ConnectorError` would produce.
+pub(crate) fn validate_pre_authenticate_request<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    req: &RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+) -> common_utils::errors::CustomResult<(), errors::IntegrationError> {
+    super::ddc_client_id(&req.connector_config).map(|_| ())
+}
+
+/// `handle_response` for Kount PreAuthenticate (see
+/// `macro_connector_local_flow_implementation!`): renders the DDC script locally.
+pub(crate) fn handle_pre_authenticate_response<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    data: &RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+    _event_builder: Option<&mut common_utils::events::Event>,
+    _res: Response,
+) -> common_utils::errors::CustomResult<
+    RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >,
+    errors::ConnectorError,
+> {
+    use domain_types::connector_types::RawConnectorRequestResponse;
+    use error_stack::ResultExt;
+
+    // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
+    // deviceSessionId (which hashes the same merchant transaction id). Falls
+    // back to the connector request reference when it is absent.
+    let session_ref = data
+        .request
+        .merchant_transaction_id
+        .clone()
+        .unwrap_or_else(|| {
+            data.resource_common_data
+                .connector_request_reference_id
+                .clone()
+        });
+    let session_id = hash_session_id(&session_ref);
+    // Already validated in `validate_pre_authenticate_request`, which the executor
+    // runs first (via `build_request_v2`) for `HandleResponseWithoutBuildRequest`
+    // flows, so failing here would mean the two hooks disagreed rather than that
+    // the merchant sent a bad config.
+    let client_id = super::ddc_client_id(&data.connector_config).change_context(
+        errors::ConnectorError::ResponseHandlingFailed {
+            context: errors::ResponseTransformationErrorContext {
+                http_status_code: None,
+                additional_context: Some(
+                    "Kount client_id missing while rendering the DDC script".to_owned(),
+                ),
+            },
+        },
+    )?;
+    // DDC `environment` follows the caller's `test_mode` (TEST when absent);
+    // see `is_sandbox`.
+    let sandbox = super::is_sandbox(data.resource_common_data.test_mode);
+    let script = super::build_ddc_script(&client_id, &session_id, sandbox);
+
+    let mut router_data = data.clone();
+    router_data.resource_common_data.status = AttemptStatus::DeviceDataCollectionPending;
+    router_data.response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+        resource_id: None,
+        authentication_data: None,
+        redirection_data: Some(Box::new(RedirectForm::Script {
+            script_data: script,
+        })),
+        connector_response_reference_id: Some(
+            data.resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        ),
+        status_code: 200,
+    });
+    router_data
+        .resource_common_data
+        .set_typed_connector_response(None);
+    Ok(router_data)
 }
 
 /// Round a Kount omniscore (a 0–99 float) to the integer FRM risk score.

@@ -679,6 +679,7 @@ impl
             capture_method: item.capture_method,
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
+            test_mode: item.test_mode,
         }
     }
 }
@@ -1375,6 +1376,7 @@ impl
             capture_method: item.capture_method,
             description: item.description.clone(),
             merchant_transaction_id: item.merchant_transaction_id.clone(),
+            test_mode: item.test_mode,
         }
     }
 }

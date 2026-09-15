@@ -4007,6 +4007,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 16;
 }
 
 // Response message for pre-authentication step
