@@ -36,10 +36,10 @@ use interfaces::{
 use serde::Serialize;
 
 use self::transformers::{
-    Shift4AuthType, Shift4CaptureRequest, Shift4ClientAuthRequest, Shift4ClientAuthResponse,
-    Shift4CreateCustomerRequest, Shift4CreateCustomerResponse, Shift4ErrorResponse,
-    Shift4IncrementalAuthRequest, Shift4PSyncRequest, Shift4PaymentsRequest,
-    Shift4PaymentsResponse as Shift4AuthorizeResponse,
+    is_shift4_payment_method_mandate, Shift4AuthType, Shift4CaptureRequest,
+    Shift4ClientAuthRequest, Shift4ClientAuthResponse, Shift4CreateCustomerRequest,
+    Shift4CreateCustomerResponse, Shift4ErrorResponse, Shift4IncrementalAuthRequest,
+    Shift4PSyncRequest, Shift4PaymentsRequest, Shift4PaymentsResponse as Shift4AuthorizeResponse,
     Shift4PaymentsResponse as Shift4CaptureResponse,
     Shift4PaymentsResponse as Shift4IncrementalAuthResponse,
     Shift4PaymentsResponse as Shift4PSyncResponse, Shift4RSyncRequest, Shift4RefundRequest,
@@ -57,6 +57,15 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
+}
+
+/// Removes an `Idempotency-Key` whose value is empty, so no empty key is sent that
+/// every request without a merchant reference would share. Used on the wallet
+/// charge paths.
+fn remove_empty_idempotency_key(header: &mut Vec<(String, Maskable<String>)>) {
+    header.retain(|(name, value)| {
+        name != headers::IDEMPOTENCY_KEY || !value.clone().into_inner().trim().is_empty()
+    });
 }
 
 // ===== CONNECTOR COMMON IMPLEMENTATION - Must be defined before macros =====
@@ -347,6 +356,9 @@ macros::macro_connector_implementation!(
                         .clone()
                 });
             header.push((headers::IDEMPOTENCY_KEY.to_string(), idempotency_key.into()));
+            if matches!(req.request.payment_method_data, PaymentMethodData::Wallet(_)) {
+                remove_empty_idempotency_key(&mut header);
+            }
             Ok(header)
         }
 
@@ -535,9 +547,10 @@ macros::macro_connector_implementation!(
     }
 );
 
-// RepeatPayment Flow (MIT) — POST /charges on the card SetupMandate stored:
-// `card` = connector_mandate_id (`card_...`) plus `customerId` = the owning
-// Shift4 customer (`cust_...`). Shift4 has no dedicated MIT endpoint.
+// RepeatPayment Flow (MIT) — POST /charges on the stored credential plus
+// `customerId` = the owning Shift4 customer (`cust_...`): a card mandate
+// (`card_...`) is sent as `card`, an Apple Pay / Google Pay mandate (`pm_...`)
+// as `paymentMethod`. Shift4 has no dedicated MIT endpoint.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type],
     connector: Shift4,
@@ -555,9 +568,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            // An MIT moves money on a stored card with no cardholder present, so
-            // a retried request must never charge twice.
-            self.build_charge_headers(req)
+            // An MIT moves money on a stored credential with no cardholder
+            // present, so a retried request must never charge twice. A wallet
+            // (`pm_...`) MIT omits an empty key rather than send a shared one.
+            let mut header = self.build_charge_headers(req)?;
+            if is_shift4_payment_method_mandate(&req.request.mandate_reference) {
+                remove_empty_idempotency_key(&mut header);
+            }
+            Ok(header)
         }
 
         fn get_url(
@@ -736,9 +754,7 @@ macros::macro_connector_implementation!(
             // A wallet setup omits an empty key instead of sending one that every
             // setup without a merchant reference would share.
             if matches!(req.request.payment_method_data, PaymentMethodData::Wallet(_)) {
-                header.retain(|(name, value)| {
-                    name != headers::IDEMPOTENCY_KEY || !value.clone().into_inner().trim().is_empty()
-                });
+                remove_empty_idempotency_key(&mut header);
             }
             Ok(header)
         }
