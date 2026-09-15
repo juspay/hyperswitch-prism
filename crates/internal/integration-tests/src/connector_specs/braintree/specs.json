@@ -1,6 +1,7 @@
 {
   "connector": "braintree",
   "supported_suites": [
+    "PaymentMethodAuthenticationService/PreAuthenticate",
     "PaymentService/Capture",
     "MerchantAuthenticationService/CreateClientAuthenticationToken",
     "PaymentService/Get",

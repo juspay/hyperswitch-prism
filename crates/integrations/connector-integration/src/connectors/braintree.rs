@@ -14,16 +14,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, SetupMandate, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PreAuthenticate,
+        RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
         DisputeWebhookDetailsResponse, EventType, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
+        WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -43,11 +44,11 @@ use transformers::{
     self as braintree, BraintreeAuthResponse, BraintreeCancelRequest, BraintreeCancelResponse,
     BraintreeCaptureRequest, BraintreeCaptureResponse, BraintreeClientTokenRequest,
     BraintreePSyncRequest, BraintreePSyncResponse, BraintreePaymentsRequest,
-    BraintreePaymentsResponse, BraintreeRSyncRequest, BraintreeRSyncResponse,
-    BraintreeRefundRequest, BraintreeRefundResponse, BraintreeRepeatPaymentRequest,
-    BraintreeRepeatPaymentResponse, BraintreeSessionResponse, BraintreeSetupMandateRequest,
-    BraintreeSetupMandateResponse, BraintreeTokenRequest, BraintreeTokenResponse,
-    BraintreeVoidPCRequest, BraintreeVoidPCResponse,
+    BraintreePaymentsResponse, BraintreePreAuthenticateRequest, BraintreePreAuthenticateResponse,
+    BraintreeRSyncRequest, BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
+    BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeSessionResponse,
+    BraintreeSetupMandateRequest, BraintreeSetupMandateResponse, BraintreeTokenRequest,
+    BraintreeTokenResponse, BraintreeVoidPCRequest, BraintreeVoidPCResponse,
 };
 
 use super::macros;
@@ -388,6 +389,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentTokenV2<T> for Braintree<T>
 {
 }
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Braintree<T>
+{
+}
 macros::create_all_prerequisites!(
     connector_name: Braintree,
     generic_type: T,
@@ -397,6 +402,12 @@ macros::create_all_prerequisites!(
             request_body: BraintreeTokenRequest<T>,
             response_body: BraintreeTokenResponse,
             router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: BraintreePreAuthenticateRequest<T>,
+            response_body: BraintreePreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -904,6 +915,37 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Braintree-hosted 3D Secure, leg 1: PreAuthenticate — one call carrying both
+// `tokenizeCreditCard` and `createClientToken` as root mutation fields, returning the client
+// token + nonce + BIN the caller's browser needs to run device data collection.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreePreAuthenticateRequest<T>),
+    curl_response: BraintreePreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+             Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 // ConnectorIntegrationV2 implementations for authentication flows
 
 macros::macro_connector_flow_status_impls!(
@@ -921,7 +963,6 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         Accept,
         MandateRevoke,
-        PreAuthenticate,
         Authenticate,
         PostAuthenticate,
     ],

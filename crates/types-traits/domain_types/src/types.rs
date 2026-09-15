@@ -19668,6 +19668,27 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             ),
                         }),
+                        // Braintree's device-data-collection bootstrap. Same payload as the
+                        // shared `RedirectForm` mapper above; this flow keeps its own match
+                        // because the two intentionally differ (`CybersourceAuthSetup` is mapped
+                        // here and rejected there).
+                        router_response_types::RedirectForm::Braintree {
+                            client_token,
+                            card_token,
+                            bin,
+                            acs_url,
+                        } => Ok(grpc_api_types::payments::RedirectForm {
+                            form_type: Some(
+                                grpc_api_types::payments::redirect_form::FormType::Braintree(
+                                    grpc_api_types::payments::BraintreeData {
+                                        client_token,
+                                        card_token,
+                                        bin,
+                                        acs_url,
+                                    },
+                                ),
+                            ),
+                        }),
                         _ => Err(report!(ConnectorError::UnexpectedResponseError {
                             context: ResponseTransformationErrorContext {
                                 http_status_code: None,

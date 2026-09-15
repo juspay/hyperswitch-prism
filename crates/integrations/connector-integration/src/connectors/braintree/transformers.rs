@@ -9,8 +9,8 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync,
-        RepeatPayment, SetupMandate, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, PreAuthenticate,
+        RSync, RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         self, AmountInfo, ApplePayPaymentRequest, ApplePaySessionResponse,
@@ -21,10 +21,11 @@ use domain_types::{
         GpayTokenizationSpecification, GpayTransactionInfo, MandateReference, NextActionCall,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentRequestMetadata, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        PaypalClientAuthenticationResponse, PaypalTransactionInfo, RefundFlowData, RefundSyncData,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SdkNextAction,
-        SecretInfoToInitiateSdk, SetupMandateRequestData, ThirdPartySdkSessionResponse,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, PaymentsSyncData, PaypalClientAuthenticationResponse,
+        PaypalTransactionInfo, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SdkNextAction, SecretInfoToInitiateSdk,
+        SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -35,7 +36,7 @@ use domain_types::{
     router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use time::PrimitiveDateTime;
@@ -47,6 +48,13 @@ pub mod constants {
     pub const CHANNEL_CODE: &str = "HyperSwitchBT_Ecom";
     pub const CLIENT_TOKEN_MUTATION: &str = "mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}";
     pub const TOKENIZE_CREDIT_CARD: &str = "mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }";
+    // Braintree-hosted 3DS, leg 1 (PreAuthenticate). `tokenizeCreditCard` and `createClientToken`
+    // take disjoint inputs, so neither needs the other's output and both can be root fields of a
+    // single document (GraphQL executes root mutation fields serially, in document order). This
+    // keeps the leg to one HTTP call and yields every member of `RedirectForm::Braintree`
+    // (client token + nonce + BIN + return URL) without a new domain type or proto message.
+    // Verified accepted by the Braintree sandbox under `Braintree-Version: 2019-01-01`.
+    pub const PRE_AUTHENTICATE_MUTATION: &str = "mutation braintreeThreeDsPreAuthenticate($card: TokenizeCreditCardInput!, $clientToken: CreateClientTokenInput!) { tokenizeCreditCard(input: $card) { paymentMethod { id } } createClientToken(input: $clientToken) { clientToken } }";
     // Response selection set is kept in lock-step with `TransactionAuthChargeResponseBody`.
     // Every field below was verified to exist under the pinned `Braintree-Version: 2019-01-01`
     // via a sandbox introspection + live-mutation check (a selection the versioned schema does
@@ -83,6 +91,7 @@ pub type BraintreeRefundRequest = GenericBraintreeRequest<BraintreeRefundVariabl
 pub type BraintreePSyncRequest = GenericBraintreeRequest<PSyncInput>;
 pub type BraintreeRSyncRequest = GenericBraintreeRequest<RSyncInput>;
 pub type BraintreeWalletRequest = GenericBraintreeRequest<GenericVariableInput<WalletPaymentInput>>;
+pub type BraintreePreAuthenticateRequest<T> = GenericBraintreeRequest<PreAuthenticateVariables<T>>;
 
 pub type BraintreeRefundResponse = GenericBraintreeResponse<RefundResponse>;
 pub type BraintreeCaptureResponse = GenericBraintreeResponse<CaptureResponse>;
@@ -1517,7 +1526,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Some(Box::new(get_braintree_redirect_form(
-                            *client_token_data,
+                            client_token_data
+                                .data
+                                .create_client_token
+                                .client_token
+                                .clone(),
                             payment_method_token,
                             item.router_data.request.payment_method_data.clone(),
                             complete_authorize_url,
@@ -1911,7 +1924,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::NoResponseId,
                         redirection_data: Some(Box::new(get_braintree_redirect_form(
-                            *client_token_data,
+                            client_token_data
+                                .data
+                                .create_client_token
+                                .client_token
+                                .clone(),
                             payment_method_token,
                             item.router_data.request.payment_method_data.clone(),
                             complete_authorize_url,
@@ -3509,17 +3526,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 fn get_braintree_redirect_form<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
-    client_token_data: ClientTokenResponse,
+    client_token: Secret<String>,
     payment_method_token: Secret<String>,
     card_details: PaymentMethodData<T>,
     complete_authorize_url: String,
 ) -> Result<RedirectForm, Report<ConnectorError>> {
     Ok(RedirectForm::Braintree {
-        client_token: client_token_data
-            .data
-            .create_client_token
-            .client_token
-            .expose(),
+        client_token: client_token.expose(),
         card_token: payment_method_token.expose(),
         bin: match card_details {
             PaymentMethodData::Card(_) => {
@@ -4396,6 +4409,326 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// -------------------------------------------------------------------------------------------
+// Braintree-hosted 3D Secure, leg 1: `PreAuthenticate` (device data collection setup).
+//
+// Braintree has no server-side "DDC setup" endpoint. Its documented bootstrap for 3DS is the
+// client token: the cardholder's browser runs `braintree.threeDSecure.create({authorization:
+// clientToken})` and then `threeDSecure.prepareLookup({nonce, bin})` to produce the
+// `dfReferenceId` that the later `Authenticate` leg (`performThreeDSecureLookup`) requires.
+// This leg therefore mints that client token and hands the caller the three things
+// `prepareLookup` needs — client token, single-use nonce and card BIN — plus the caller's own
+// completion URL, as `RedirectForm::Braintree`.
+//
+// Both mutations go out in ONE HTTP call as two root fields of a single document
+// (`constants::PRE_AUTHENTICATE_MUTATION`); they take disjoint inputs so neither depends on the
+// other's result.
+// -------------------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreAuthenticateVariables<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+> {
+    /// `$card: TokenizeCreditCardInput!`
+    card: InputData<T>,
+    /// `$clientToken: CreateClientTokenInput!`
+    client_token: InputClientTokenData,
+}
+
+/// Resolve the Braintree merchant account id for a flow whose request carries only the generic
+/// `metadata` bag rather than a dedicated `merchant_account_id` member.
+///
+/// The per-request value wins over the connector-config copy, mirroring the precedence the
+/// Authorize builder applies to `PaymentsAuthorizeData::merchant_account_id`.
+fn resolve_merchant_account_id(
+    request_metadata: &Option<pii::SecretSerdeValue>,
+    connector_config: &ConnectorSpecificConfig,
+) -> Result<Secret<String>, Report<IntegrationError>> {
+    if let Ok(merchant_account_id) =
+        extract_metadata_string_field(request_metadata, "merchant_account_id")
+    {
+        info!("BRAINTREE: Picking merchant_account_id from the per-request metadata");
+        return Ok(merchant_account_id);
+    }
+    BraintreeAuthType::try_from(connector_config)?
+        .merchant_account_id
+        .ok_or_else(|| {
+            IntegrationError::InvalidConnectorConfig {
+                config: "merchant_account_id",
+                context: domain_types::errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Braintree's `createClientToken` is merchant-account scoped and this \
+                         connector treats `merchantAccountId` as mandatory on every flow."
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Send `merchant_account_id` in the request metadata, or configure it on \
+                         the Braintree connector account."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://graphql.braintreepayments.com/reference/#Input--ClientTokenInput"
+                            .to_string(),
+                    ),
+                },
+            }
+            .into()
+        })
+}
+
+fn pre_authenticate_payment_method_error(detail: &str) -> Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: "given payment method on Braintree PreAuthenticate".to_string(),
+        connector: "Braintree",
+        context: domain_types::errors::IntegrationErrorContext {
+            additional_context: Some(detail.to_string()),
+            suggested_action: Some(
+                "Send the raw card in `payment_method.card` on PreAuthenticate. Braintree's \
+                 `threeDSecure.prepareLookup` needs the card BIN alongside the nonce, and a BIN \
+                 cannot be recovered from an already-issued token."
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://developer.paypal.com/braintree/docs/guides/3d-secure/step-by-step-integration/javascript/v3"
+                    .to_string(),
+            ),
+        },
+    })
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BraintreeRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BraintreePreAuthenticateRequest<T>
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: BraintreeRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_account_id = resolve_merchant_account_id(
+            &item.router_data.request.metadata,
+            &item.router_data.connector_config,
+        )?;
+
+        // No currency validation on this leg: `createClientToken` moves no money and
+        // `ClientTokenInput` has no amount member, so `merchant_config_currency` is not consulted.
+        let payment_method_data = item
+            .router_data
+            .request
+            .payment_method_data
+            .clone()
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_data",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "PreAuthenticate has nothing to authenticate without a card."
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Send the card in `payment_method.card` on the PreAuthenticate request."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?;
+
+        match payment_method_data {
+            PaymentMethodData::Card(card_data) => Ok(Self {
+                query: constants::PRE_AUTHENTICATE_MUTATION.to_string(),
+                variables: PreAuthenticateVariables {
+                    card: InputData {
+                        credit_card: CreditCardData {
+                            number: card_data.card_number,
+                            expiration_year: card_data.card_exp_year,
+                            expiration_month: card_data.card_exp_month,
+                            cvv: card_data.card_cvc,
+                            cardholder_name: card_data.card_holder_name.clone(),
+                        },
+                    },
+                    client_token: InputClientTokenData {
+                        client_token: ClientTokenInput {
+                            merchant_account_id,
+                        },
+                    },
+                },
+            }),
+            // An already-issued nonce carries no BIN (`PaymentMethodData::PaymentMethodToken` is
+            // `{ token, token_payment_method_type }`), and `threeDSecure.prepareLookup` requires
+            // one. Reject rather than emit a `RedirectForm` with an empty `bin`.
+            PaymentMethodData::PaymentMethodToken(_) => Err(pre_authenticate_payment_method_error(
+                "Braintree's 3D Secure device-data-collection bootstrap needs the card BIN, which \
+                 an already-tokenized payment method does not carry.",
+            )),
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                Err(pre_authenticate_payment_method_error(
+                    "Braintree-hosted 3D Secure is card-only on this connector.",
+                ))
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreAuthenticateData {
+    tokenize_credit_card: TokenizeCreditCardData,
+    create_client_token: ClientToken,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PreAuthenticateSuccessResponse {
+    data: PreAuthenticateData,
+}
+
+/// Braintree answers HTTP 200 for everything, so success and failure are separated by body shape.
+///
+/// `ErrorResponse` is listed **first** deliberately: on a GraphQL partial success the body carries
+/// both a populated `errors[]` and a `data` object, and the errors must win. `ErrorResponse`
+/// requires an `errors` member, so a clean success can never match it.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum BraintreePreAuthenticateResponse {
+    ErrorResponse(Box<ErrorResponse>),
+    PreAuthenticateResponse(Box<PreAuthenticateSuccessResponse>),
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<BraintreePreAuthenticateResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BraintreePreAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        match item.response {
+            BraintreePreAuthenticateResponse::ErrorResponse(error_response) => Ok(Self {
+                // No status write on the error path: `AttemptStatus` for a failed authentication
+                // setup belongs to the caller's state machine, and the shared Braintree error
+                // builder is flow-agnostic.
+                response: build_error_response::<PaymentsResponseData>(
+                    error_response.errors.as_ref(),
+                    item.http_code,
+                )
+                .map_err(|err| *err),
+                ..item.router_data
+            }),
+            BraintreePreAuthenticateResponse::PreAuthenticateResponse(success) => {
+                let client_token = success.data.create_client_token.client_token.clone();
+                if client_token.peek().is_empty() {
+                    // `CreateClientTokenPayload.clientToken` is nullable in the SDL. An empty
+                    // token would produce a `RedirectForm` the browser cannot bootstrap from.
+                    return Err(utils::unexpected_response_fail(
+                        item.http_code,
+                        "Braintree returned an empty clientToken on createClientToken",
+                    )
+                    .into());
+                }
+
+                let card_details = item
+                    .router_data
+                    .request
+                    .payment_method_data
+                    .clone()
+                    .ok_or_else(|| {
+                        utils::unexpected_response_fail(
+                            item.http_code,
+                            "PreAuthenticate response reached the transformer without the card it \
+                             was built from",
+                        )
+                    })?;
+
+                // Echoed back to the caller so the browser knows where to post the DDC outcome.
+                // `RedirectForm::Braintree::acs_url` is a misnomer inherited from hyperswitch: it
+                // is the merchant's own completion URL, not an ACS URL.
+                let ddc_return_url = item
+                    .router_data
+                    .request
+                    .continue_redirection_url
+                    .as_ref()
+                    .or(item.router_data.request.router_return_url.as_ref())
+                    .map(ToString::to_string)
+                    .ok_or_else(|| {
+                        utils::unexpected_response_fail(
+                            item.http_code,
+                            "PreAuthenticate needs `continue_redirection_url` or \
+                             `router_return_url` to tell the browser where to return after device \
+                             data collection",
+                        )
+                    })?;
+
+                let redirection_data = get_braintree_redirect_form(
+                    client_token,
+                    success.data.tokenize_credit_card.payment_method.id.clone(),
+                    card_details,
+                    ddc_return_url,
+                )?;
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        // Fixed, not mapped: `createClientToken` returns no status of any kind,
+                        // and the next thing that must happen is device data collection.
+                        status: enums::AttemptStatus::DeviceDataCollectionPending,
+                        ..item.router_data.resource_common_data.clone()
+                    },
+                    response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        // A client token is a credential, not a Braintree object: `node(id:)`
+                        // cannot resolve it, so any id here would be unsyncable.
+                        resource_id: None,
+                        // Nothing has been authenticated yet — no CAVV, no ECI, no status.
+                        authentication_data: None,
+                        redirection_data: Some(Box::new(redirection_data)),
+                        connector_response_reference_id: None,
+                        status_code: item.http_code,
+                    }),
+                    ..item.router_data
+                })
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 #[allow(clippy::expect_used)]
@@ -4836,5 +5169,163 @@ mod tests {
             }))
             .is_none()
         );
+    }
+
+    // --- Braintree-hosted 3DS leg 1: PreAuthenticate ------------------------------------------
+
+    #[test]
+    fn pre_authenticate_sends_one_document_with_two_root_mutations() {
+        // The whole point of this leg's shape: `tokenizeCreditCard` and `createClientToken` take
+        // disjoint inputs, so both ride one HTTP call as root fields of one document. Verified
+        // accepted by the Braintree sandbox under `Braintree-Version: 2019-01-01`.
+        let request = BraintreePreAuthenticateRequest::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        > {
+            query: constants::PRE_AUTHENTICATE_MUTATION.to_string(),
+            variables: PreAuthenticateVariables {
+                card: InputData {
+                    credit_card: CreditCardData {
+                        number: Default::default(),
+                        expiration_year: Secret::new("2030".to_string()),
+                        expiration_month: Secret::new("03".to_string()),
+                        cvv: Secret::new("123".to_string()),
+                        cardholder_name: None,
+                    },
+                },
+                client_token: InputClientTokenData {
+                    client_token: ClientTokenInput {
+                        merchant_account_id: Secret::new("merchant_account".to_string()),
+                    },
+                },
+            },
+        };
+        let json = serde_json::to_value(&request).unwrap();
+        let query = json["query"].as_str().expect("query");
+        assert!(
+            query.contains("tokenizeCreditCard(input: $card)"),
+            "{query}"
+        );
+        assert!(
+            query.contains("createClientToken(input: $clientToken)"),
+            "{query}"
+        );
+        // The variable names in the document must be the keys of the `variables` object, or
+        // Braintree rejects the document before it executes either field.
+        assert!(query.contains("$card: TokenizeCreditCardInput!"), "{query}");
+        assert!(
+            query.contains("$clientToken: CreateClientTokenInput!"),
+            "{query}"
+        );
+        assert!(json["variables"]["card"]["creditCard"].is_object());
+        assert_eq!(
+            json["variables"]["clientToken"]["clientToken"]["merchantAccountId"],
+            serde_json::json!("merchant_account")
+        );
+        // Nothing money-shaped belongs on this leg — `ClientTokenInput` has no amount member and
+        // the lookup's amount belongs to the later `Authenticate` leg.
+        assert!(json["variables"]["clientToken"]["clientToken"]
+            .get("amount")
+            .is_none());
+    }
+
+    #[test]
+    fn pre_authenticate_reads_both_root_fields_off_a_success_body() {
+        let response: BraintreePreAuthenticateResponse =
+            serde_json::from_value(serde_json::json!({
+                "data": {
+                    "tokenizeCreditCard": { "paymentMethod": { "id": "tokencc_bh_test_nonce" } },
+                    "createClientToken": { "clientToken": "eyJ2ZXJzaW9uIjoy" }
+                }
+            }))
+            .unwrap();
+        match response {
+            BraintreePreAuthenticateResponse::PreAuthenticateResponse(success) => {
+                assert_eq!(
+                    success.data.tokenize_credit_card.payment_method.id.peek(),
+                    "tokencc_bh_test_nonce"
+                );
+                assert_eq!(
+                    success.data.create_client_token.client_token.peek(),
+                    "eyJ2ZXJzaW9uIjoy"
+                );
+            }
+            BraintreePreAuthenticateResponse::ErrorResponse(_) => {
+                panic!("a clean success body must not match the error arm")
+            }
+        }
+    }
+
+    #[test]
+    fn pre_authenticate_errors_win_over_a_partially_populated_data_object() {
+        // Braintree answers HTTP 200 for everything, and a GraphQL partial success carries both
+        // `errors[]` and a `data` object. `ErrorResponse` is listed first in the untagged enum
+        // precisely so the errors win here instead of being silently dropped.
+        let response: BraintreePreAuthenticateResponse =
+            serde_json::from_value(serde_json::json!({
+                "data": {
+                    "tokenizeCreditCard": { "paymentMethod": { "id": "tokencc_bh_test_nonce" } },
+                    "createClientToken": null
+                },
+                "errors": [{
+                    "message": "Merchant account does not exist.",
+                    "extensions": { "legacyCode": "93108", "errorClass": "VALIDATION" }
+                }]
+            }))
+            .unwrap();
+        let BraintreePreAuthenticateResponse::ErrorResponse(error_response) = response else {
+            panic!("a body carrying errors[] must not be read as a success")
+        };
+        let built =
+            build_error_response::<PaymentsResponseData>(error_response.errors.as_ref(), 200)
+                .expect_err("a populated errors[] must become an ErrorResponse");
+        assert_eq!(built.code, "93108");
+        assert_eq!(built.message, "Merchant account does not exist.");
+        assert_eq!(built.status_code, 200);
+        // Flow-agnostic error builder: it must never assert a terminal attempt status.
+        assert!(built.attempt_status.is_none());
+    }
+
+    #[test]
+    fn pre_authenticate_redirect_form_carries_the_ddc_bootstrap_triple() {
+        // `RedirectForm::Braintree::acs_url` is a misnomer inherited from hyperswitch — it is the
+        // merchant's own completion URL, not an ACS URL.
+        let form = get_braintree_redirect_form(
+            Secret::new("eyJ2ZXJzaW9uIjoy".to_string()),
+            Secret::new("tokencc_bh_test_nonce".to_string()),
+            PaymentMethodData::Card(domain_types::payment_method_data::Card::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            > {
+                card_number: RawCardNumber(
+                    cards::CardNumber::try_from("4111111111111111".to_string()).unwrap(),
+                ),
+                card_exp_month: Secret::new("03".to_string()),
+                card_exp_year: Secret::new("2030".to_string()),
+                card_cvc: Secret::new("123".to_string()),
+                card_issuer: None,
+                card_network: None,
+                card_type: None,
+                card_issuing_country: None,
+                bank_code: None,
+                nick_name: None,
+                card_holder_name: None,
+                co_badged_card_data: None,
+            }),
+            "https://merchant.example/ddc-return".to_string(),
+        )
+        .expect("redirect form");
+        let RedirectForm::Braintree {
+            client_token,
+            card_token,
+            bin,
+            acs_url,
+        } = form
+        else {
+            panic!("expected RedirectForm::Braintree")
+        };
+        assert_eq!(client_token, "eyJ2ZXJzaW9uIjoy");
+        assert_eq!(card_token, "tokencc_bh_test_nonce");
+        // `threeDSecure.prepareLookup` takes the first six PAN digits as `bin`.
+        assert_eq!(bin, "411111");
+        assert_eq!(acs_url, "https://merchant.example/ddc-return");
     }
 }
