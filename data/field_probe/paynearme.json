@@ -685,8 +685,8 @@
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for paynearme"
+        "status": "error",
+        "error": "Invalid data format: connector_mandate_id. connector_mandate_id is not JSON; a PayNearMe mandate reference is {\"pmi\": \"<payment_method_identifier>\", \"oid\": \"<pnm_order_identifier>\"}"
       }
     },
     "recurring_revoke": {
