@@ -13,6 +13,7 @@ use common_enums::{
 };
 use common_utils::{
     consts,
+    date_time::{self, DateFormat},
     pii::SecretSerdeValue,
     types::{MinorUnit, SemanticVersion},
 };
@@ -485,11 +486,15 @@ pub fn build_3ds2_securehash(digest: Gp3ds2Digest<'_>, shared_secret: &str) -> S
 
 /// `YYYYMMDDHHMMSS`, UTC, no separators. The gateway rejects anything more than 86400 s away from
 /// its own clock. The same string is used for both the `@timestamp` attribute and the digest.
+///
+/// The clock is read through `common_utils::date_time` rather than `OffsetDateTime::now_utc`, so
+/// every wall-clock read in connector code flows through one (record/replay-able) source; the
+/// connector clippy.toml enforces this. [`DateFormat::YYYYMMDDHHmmss`] spells out the padding and
+/// 24-hour defaults explicitly and renders byte-for-byte what this connector previously built by
+/// hand — which matters because this string is hashed into the `sha1hash`, not merely sent.
 fn current_timestamp() -> Result<String, error_stack::Report<IntegrationError>> {
-    let now = time::OffsetDateTime::now_utc();
-    let format = time::macros::format_description!("[year][month][day][hour][minute][second]");
-    now.format(&format)
-        .change_context(IntegrationError::RequestEncodingFailed {
+    date_time::format_date(date_time::now(), DateFormat::YYYYMMDDHHmmss).change_context(
+        IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
                     "Failed to format the current UTC time as YYYYMMDDHHMMSS for the \
@@ -498,7 +503,8 @@ fn current_timestamp() -> Result<String, error_stack::Report<IntegrationError>> 
                 ),
                 ..Default::default()
             },
-        })
+        },
+    )
 }
 
 /// The 3DS2 JSON API's `request_timestamp`: `yyyy-MM-ddTHH:mm:ss.SSSSSS`, UTC, **no** trailing
@@ -509,11 +515,11 @@ fn current_timestamp() -> Result<String, error_stack::Report<IntegrationError>> 
 /// are never called with the same string, and this value additionally appears verbatim inside the
 /// `securehash` — see [`Gp3ds2Digest`].
 pub fn current_3ds2_timestamp() -> Result<String, error_stack::Report<IntegrationError>> {
-    let now = time::OffsetDateTime::now_utc();
     let format = time::macros::format_description!(
         "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:6]"
     );
-    now.format(&format)
+    date_time::now()
+        .format(&format)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
@@ -4875,6 +4881,36 @@ mod tests {
         assert_eq!(
             verify_response_hash(&document(None), SHARED_SECRET),
             HashVerification::Skipped
+        );
+    }
+
+    #[test]
+    fn timestamps_keep_the_exact_shape_that_is_hashed_into_the_digest() {
+        // Both timestamps are hashed into their respective digests, not merely sent, so their
+        // rendering is load-bearing: a stray separator or a 12-hour clock means every request is
+        // rejected for a hash mismatch. The clock now comes from the shared `date_time` helper
+        // (connector clippy.toml forbids reading it directly), so pin the two shapes here — this
+        // fails if that helper's format ever drifts from what this gateway expects.
+        let xml = current_timestamp().expect("xml timestamp");
+        assert_eq!(xml.len(), 14, "XML timestamp must be YYYYMMDDHHMMSS: {xml}");
+        assert!(
+            xml.chars().all(|c| c.is_ascii_digit()),
+            "XML timestamp must be digits only, no separators: {xml}"
+        );
+
+        let json = current_3ds2_timestamp().expect("3ds2 timestamp");
+        // yyyy-MM-ddTHH:mm:ss.SSSSSS — no trailing `Z` and no offset (see the fn docs).
+        assert_eq!(json.len(), 26, "3DS2 timestamp must be 26 chars: {json}");
+        assert!(
+            !json.ends_with('Z') && !json.contains('+'),
+            "3DS2 timestamp must carry no zone designator: {json}"
+        );
+        let (date, time) = json.split_once('T').expect("T separator");
+        assert_eq!(date.len(), 10, "date part must be yyyy-MM-dd: {json}");
+        assert_eq!(
+            time.split_once('.').map(|(_, frac)| frac.len()),
+            Some(6),
+            "3DS2 timestamp must carry exactly 6 fractional digits: {json}"
         );
     }
 
