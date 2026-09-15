@@ -122,6 +122,8 @@ pub enum ConnectorEnum {
     Nexixpay,
     Mollie,
     Moneris,
+    Etisalat,
+    Merchante,
     Airwallex,
     Tsys,
     Bankofamerica,
@@ -174,6 +176,7 @@ pub enum ConnectorEnum {
     D24,
     Paydotcom,
     GlobalpaymentsHeartland,
+    Payhere,
 }
 
 // snake case for enum variants
@@ -520,6 +523,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Zift => Ok(Self::Zift),
             grpc_api_types::payments::Connector::Revolv3 => Ok(Self::Revolv3),
             grpc_api_types::payments::Connector::Moneris => Ok(Self::Moneris),
+            grpc_api_types::payments::Connector::Etisalat => Ok(Self::Etisalat),
+            grpc_api_types::payments::Connector::Merchante => Ok(Self::Merchante),
             grpc_api_types::payments::Connector::Ppro => Ok(Self::Ppro),
             grpc_api_types::payments::Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
             grpc_api_types::payments::Connector::Truelayer => Ok(Self::Truelayer),
@@ -558,6 +563,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Paynearme => Ok(Self::Paynearme),
             grpc_api_types::payments::Connector::D24 => Ok(Self::D24),
             grpc_api_types::payments::Connector::Paydotcom => Ok(Self::Paydotcom),
+            grpc_api_types::payments::Connector::Payhere => Ok(Self::Payhere),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -3133,6 +3139,9 @@ pub enum EventType {
     MandateFailed,
     MandateRevoked,
 
+    // Associated Data events
+    PaymentAssociatedDataUpdate,
+
     // Misc events
     EndpointVerification,
     ExternalAuthenticationAres,
@@ -3180,6 +3189,7 @@ impl EventType {
                 | Self::PaymentActionRequired
                 | Self::SourceChargeable
                 | Self::SourceTransactionCreated
+                | Self::PaymentAssociatedDataUpdate
                 | Self::Payment
         )
     }
@@ -3331,6 +3341,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::MandateActive => Ok(Self::MandateActive),
             grpc_api_types::payments::WebhookEventType::MandateFailed => Ok(Self::MandateFailed),
             grpc_api_types::payments::WebhookEventType::MandateRevoked => Ok(Self::MandateRevoked),
+            grpc_api_types::payments::WebhookEventType::PaymentAssociatedDataUpdate => {
+                Ok(Self::PaymentAssociatedDataUpdate)
+            }
             grpc_api_types::payments::WebhookEventType::EndpointVerification => {
                 Ok(Self::EndpointVerification)
             }
@@ -3405,6 +3418,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::MandateActive => Ok(Self::MandateActive),
             EventType::MandateFailed => Ok(Self::MandateFailed),
             EventType::MandateRevoked => Ok(Self::MandateRevoked),
+            EventType::PaymentAssociatedDataUpdate => Ok(Self::PaymentAssociatedDataUpdate),
             EventType::EndpointVerification => Ok(Self::EndpointVerification),
             EventType::ExternalAuthenticationAres => Ok(Self::ExternalAuthenticationAres),
             EventType::FrmApproved => Ok(Self::FrmApproved),
@@ -4273,6 +4287,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
                 payment_method_data::WalletData::PaymayaRedirect(_) => Self::PaymayaRedirect,
+                payment_method_data::WalletData::PayhereRedirect {} => Self::PayhereRedirect,
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
@@ -5907,6 +5922,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Moneris(_) => Ok(Self::Payment(ConnectorEnum::Moneris)),
+            AuthType::Etisalat(_) => Ok(Self::Payment(ConnectorEnum::Etisalat)),
+            AuthType::Merchante(_) => Ok(Self::Payment(ConnectorEnum::Merchante)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
@@ -5930,6 +5947,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paynearme(_) => Ok(Self::Payment(ConnectorEnum::Paynearme)),
             AuthType::D24(_) => Ok(Self::Payment(ConnectorEnum::D24)),
             AuthType::Paydotcom(_) => Ok(Self::Payment(ConnectorEnum::Paydotcom)),
+            AuthType::Payhere(_) => Ok(Self::Payment(ConnectorEnum::Payhere)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
