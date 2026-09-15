@@ -31,6 +31,9 @@
 //!
 //! 3-D Secure does not exist anywhere in the PayNearMe API surface, so a
 //! `ThreeDs` authorize is rejected outright rather than silently downgraded.
+//!
+//! Apple Pay cannot be sent through this API in any form, so an Apple Pay
+//! authorize is rejected with `NotSupported` (see [`apple_pay_not_supported`]).
 
 use common_enums::{AttemptStatus, AuthenticationType, Currency, FutureUsage, RefundStatus};
 use common_utils::{crypto::SignMessage, types::StringMajorUnit};
@@ -45,7 +48,10 @@ use domain_types::{
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        ApplePayPaymentData, ApplePayWalletData, Card, PaymentMethodData, PaymentMethodDataTypes,
+        WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
@@ -510,6 +516,42 @@ pub struct PaynearmeAuthorizeRequest {
 type AuthorizeRouterData<T> =
     RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>;
 
+/// The error for an Apple Pay Authorize, in either token form.
+///
+/// PayNearMe's server-to-server API cannot receive Apple Pay payment data:
+/// * <https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix>: the
+///   ApplePay row is marked unavailable under both "API - Create Payment Method"
+///   and "API - Make Payment". Apple Pay exists only in PayNearMe-hosted UIs
+///   (Embedded Client / Web-JS, Smart Links, Agent Interface), where PayNearMe
+///   runs the Apple Pay session itself.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_create-payment-method>:
+///   `payment_method_type` is one of `card`, `ach`, `paypal` or `venmo`, and there
+///   is no cryptogram, ECI, network-token (DPAN), token-requestor or wallet field.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_make-payment>: only
+///   charges an existing `payment_method_identifier`; no wallet field.
+///
+/// A decrypted token is not sent as a plain card either. That would drop the
+/// cryptogram and ECI and present a device-token transaction as a keyed PAN.
+///
+/// The match is exhaustive, so a new Apple Pay payment-data variant has to be
+/// decided here. Neither message carries any token data (DPAN, cryptogram, ECI
+/// or the encrypted payload). The `apple_pay_*` values of
+/// [`PaynearmeStoredMethodType`] only describe hosted-UI options in responses.
+fn apple_pay_not_supported(
+    apple_pay: &ApplePayWalletData,
+) -> error_stack::Report<IntegrationError> {
+    match &apple_pay.payment_data {
+        ApplePayPaymentData::Decrypted(_) => not_supported(
+            "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no \
+             wallet or network-token fields)",
+        ),
+        ApplePayPaymentData::Encrypted(_) => not_supported(
+            "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its \
+             hosted UIs, not through the API)",
+        ),
+    }
+}
+
 /// `MM/YYYY`, built from the two-digit month and the four-digit year.
 fn card_expiry_mm_yyyy<T: PaymentMethodDataTypes>(
     card: &Card<T>,
@@ -609,6 +651,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card,
+            // `NotSupported` rather than the generic `NotImplemented` below: the
+            // PayNearMe API has no field that could ever carry Apple Pay data, so
+            // this is not a gap to fill later. Refused before anything else is
+            // read or sent.
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                return Err(apple_pay_not_supported(apple_pay))
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Only card payments are supported by paynearme".to_string(),
@@ -1758,9 +1807,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
 /// token, an 11-digit order) it is 44 characters.
 ///
 /// Nothing in it is card-specific: any payment method `/create_payment_method`
-/// tokenises yields a `payment_method_identifier` that `/make_payment` charges the
-/// same way, so wallet-stored credentials can reuse this reference unchanged. It
-/// never carries a PAN, CVV or cryptogram.
+/// tokenises (`card`, `ach`, `paypal` or `venmo`) yields a
+/// `payment_method_identifier` that `/make_payment` charges the same way, so
+/// another tokenised method could reuse this reference unchanged. Apple Pay cannot
+/// be tokenised there (see [`apple_pay_not_supported`]). It never carries a PAN,
+/// CVV, DPAN or cryptogram.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaynearmeMandateReference {
     #[serde(rename = "pmi")]
@@ -3405,5 +3456,55 @@ mod tests {
         .expect("response");
         assert!(response.envelope.is_ok());
         assert!(response.stored_credential_order.is_err());
+    }
+
+    /// Both Apple Pay token forms are refused as `NotSupported`, each with its own
+    /// message, and neither error carries the DPAN, cryptogram or encrypted token.
+    #[test]
+    fn refuses_apple_pay_in_either_token_form_without_leaking_token_data() {
+        use domain_types::payment_method_data::{
+            ApplePayCryptogramData, ApplePayDecryptedData, ApplepayPaymentMethod,
+        };
+
+        const DPAN: &str = "4111111111111111";
+        const CRYPTOGRAM: &str = "AgAAAAAABk4DWZ4C28yUQAAAAAA=";
+        const ENCRYPTED_TOKEN: &str = "eyJkYXRhIjoiYXBwbGUtZW5jcnlwdGVkLXRva2VuIn0=";
+
+        let wallet = |payment_data| ApplePayWalletData {
+            payment_data,
+            payment_method: ApplepayPaymentMethod {
+                display_name: "Visa 1111".to_string(),
+                network: "Visa".to_string(),
+                pm_type: "debit".to_string(),
+            },
+            transaction_identifier: "apple_pay_txn_001".to_string(),
+        };
+        let decrypted = wallet(ApplePayPaymentData::Decrypted(ApplePayDecryptedData {
+            application_primary_account_number: cards::CardNumber::try_from(DPAN.to_string())
+                .expect("dpan"),
+            application_expiration_month: Secret::new("12".to_string()),
+            application_expiration_year: Secret::new("2030".to_string()),
+            payment_data: ApplePayCryptogramData {
+                online_payment_cryptogram: Secret::new(CRYPTOGRAM.to_string()),
+                eci_indicator: Some("05".to_string()),
+            },
+        }));
+        let encrypted = wallet(ApplePayPaymentData::Encrypted(ENCRYPTED_TOKEN.to_string()));
+
+        for (apple_pay, variant) in [
+            (decrypted, "Hyperswitch-decrypted"),
+            (encrypted, "Apple-encrypted"),
+        ] {
+            let report = apple_pay_not_supported(&apple_pay);
+            assert!(matches!(
+                report.current_context(),
+                IntegrationError::NotSupported { message, connector: PAYNEARME, .. }
+                    if message.contains(variant)
+            ));
+            let rendered = format!("{report:?}");
+            for token_data in [DPAN, CRYPTOGRAM, ENCRYPTED_TOKEN] {
+                assert!(!rendered.contains(token_data));
+            }
+        }
     }
 }

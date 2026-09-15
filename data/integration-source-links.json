@@ -237,7 +237,9 @@
     "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix",
     "https://apidocs.paynearme.com/devdocs/docs/learning-the-basics",
     "https://apidocs.paynearme.com/devdocs/docs/understanding-the-platform",
-    "https://apidocs.paynearme.com/devdocs/reference/payments"
+    "https://apidocs.paynearme.com/devdocs/reference/payments",
+    "https://apidocs.paynearme.com/devdocs/reference/post_get-fees",
+    "https://apidocs.paynearme.com/devdocs/reference/post_get-smart-token"
   ],
   "Paydotcom": [
     "https://apiref.pay.com/reference/introduction",
