@@ -546,6 +546,21 @@ fn d24_language(language: Option<String>) -> Option<String> {
     })
 }
 
+/// Directa24 caps `description` at 100 characters (tech spec §"Request
+/// Parameters — top level"). It is display text shown to the customer, carrying
+/// no identity and no routing meaning, so an over-long merchant description is
+/// truncated rather than forwarded — forwarding it would make D24 reject the
+/// whole deposit with a `201` bean-validation error. Same rule as the refund
+/// `comments` below.
+const D24_DESCRIPTION_MAX_LEN: usize = 100;
+
+fn d24_description(description: Option<&str>) -> Option<String> {
+    description.and_then(|description| {
+        let truncated: String = description.chars().take(D24_DESCRIPTION_MAX_LEN).collect();
+        (!truncated.is_empty()).then_some(truncated)
+    })
+}
+
 /// `invoice_id` is constrained to `^[A-Za-z0-9-_]*$` (max 128).
 fn sanitize_invoice_id(reference: &str) -> String {
     reference
@@ -782,7 +797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             back_url: return_url.clone(),
             error_url: return_url,
             client_ip: request.get_ip_address_as_optional(),
-            description: router_data.resource_common_data.description.clone(),
+            description: d24_description(router_data.resource_common_data.description.as_deref()),
             language: d24_language(request.get_optional_language_from_browser_info()),
         })
     }
