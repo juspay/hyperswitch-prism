@@ -25,7 +25,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -102,7 +102,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             "Basic {}",
             BASE64_ENGINE.encode(format!("{}:", auth.api_key.expose()))
         );
-        Ok(vec![(headers::AUTHORIZATION.to_string(), api_key.into())])
+        Ok(vec![(
+            headers::AUTHORIZATION.to_string(),
+            api_key.into_masked(),
+        )])
     }
 
     fn build_error_response(
