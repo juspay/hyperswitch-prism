@@ -260,5 +260,22 @@
     "https://apiref.pay.com/reference/retrieve-a-payment-method",
     "https://apiref.pay.com/reference/mastercard-merchant-advice-codes",
     "https://apiref.pay.com/reference/simulating-clearing-while-in-integration"
+  ],
+  "D24": [
+    "https://docs.d24.com/api-reference/deposits-api/manage-payments/create-deposit",
+    "https://docs.d24.com/deposits/create-deposits/bank-transfers-and-cash-vouchers",
+    "https://docs.d24.com/api-reference/deposits-api/security-aspects/calculating-the-signature",
+    "https://docs.d24.com/getting-started/get-your-api-keys",
+    "https://docs.d24.com/api-reference/deposits-api/manage-payments/get-deposit-status",
+    "https://docs.d24.com/api-reference/deposits-api/manage-payments/api-codes",
+    "https://docs.d24.com/deposits/create-deposits/notifications",
+    "https://docs.d24.com/deposits/status-flow",
+    "https://docs.d24.com/api-reference/deposits-api/payment-methods/get-payment-methods",
+    "https://docs.d24.com/deposits/payment-methods/america/mexico",
+    "https://docs.d24.com/deposits/payment-methods/america/brazil",
+    "https://docs.d24.com/deposits/payment-methods/america/chile",
+    "https://docs.d24.com/getting-started/start-testing",
+    "https://docs.d24.com/api-reference/references/test-merchant-and-mock-psp",
+    "https://docs.d24.com/former/api-documentation/deposits-api/endpoints/deposit-creation-endpoint"
   ]
 }
