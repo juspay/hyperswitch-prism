@@ -1319,7 +1319,7 @@ pub struct KountPayment {
     /// Stable, salted hash of the payment instrument (never the raw PAN). Lets
     /// Kount link/score the instrument across orders. See [`payment_token_hash`].
     #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
-    pub payment_token: Option<Secret<String>>,
+    pub payment_token: Option<String>,
     /// Card expiry month as an integer (Kount's schema types it int32, not `MM`).
     /// Card data, masked.
     #[serde(rename = "expirationMonth", skip_serializing_if = "Option::is_none")]
@@ -2114,7 +2114,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         payment_type: instrument.payment_type,
                         bin: bin.map(Secret::new),
                         last4: last4.map(Secret::new),
-                        payment_token: payment_token.map(Secret::new),
+                        payment_token,
                         expiration_month: exp_month.map(Secret::new),
                         expiration_year: exp_year.map(Secret::new),
                     })
