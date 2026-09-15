@@ -507,11 +507,47 @@ pub struct D24PayerAddress {
     pub zip_code: Option<Secret<String>>,
 }
 
-fn invalid_payer_document() -> error_stack::Report<IntegrationError> {
+/// A customer document that fails Directa24's format rule for the billing
+/// country. The cause goes into `additional_context`, so a bad CPF, a bad CNPJ
+/// and a malformed Mexican document stay distinguishable at the gRPC boundary
+/// instead of collapsing into one bare `InvalidDataFormat`. The document number
+/// itself is never echoed.
+fn invalid_payer_document(reason: String) -> error_stack::Report<IntegrationError> {
     error_stack::report!(IntegrationError::InvalidDataFormat {
         field_name: "payer.document",
-        context: IntegrationErrorContext::default(),
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Send customer_document_details.document_number in the format Directa24 \
+                 accepts for the billing country: BR CPF (11 digits) or CNPJ (14 digits) with \
+                 valid check digits, separators allowed; MX 7-18 letters and digits."
+                    .to_string(),
+            ),
+            additional_context: Some(reason),
+            ..Default::default()
+        },
     })
+}
+
+/// Brazil: separators stripped, check digits validated.
+fn brazilian_payer_document(
+    document: &CustomerDocumentDetails,
+    document_type: D24DocumentType,
+    label: &str,
+) -> Result<(Option<D24DocumentType>, Secret<String>), error_stack::Report<IntegrationError>> {
+    let digits: String = document
+        .document_number
+        .peek()
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect();
+    document.document_type.validate(&digits).map_err(|_| {
+        invalid_payer_document(format!(
+            "{label} has {} digits after removing separators and failed the length or \
+             check-digit validation",
+            digits.len()
+        ))
+    })?;
+    Ok((Some(document_type), Secret::new(digits)))
 }
 
 /// Maps the UCS customer document onto Directa24's `payer.document` /
@@ -537,27 +573,22 @@ fn d24_payer_document(
             Some(D24DocumentType::Rut),
             crate::utils::validate_and_normalize_chilean_rut(&document.document_number)?,
         )),
-        (kind @ (DocumentKind::Cpf | DocumentKind::Cnpj), CountryAlpha2::BR) => {
-            let digits: String = document
-                .document_number
-                .peek()
-                .chars()
-                .filter(char::is_ascii_digit)
-                .collect();
-            kind.validate(&digits)
-                .map_err(|_| invalid_payer_document())?;
-            let document_type = match kind {
-                DocumentKind::Cnpj => D24DocumentType::Cnpj,
-                _ => D24DocumentType::Cpf,
-            };
-            Ok((Some(document_type), Secret::new(digits)))
+        (DocumentKind::Cpf, CountryAlpha2::BR) => {
+            brazilian_payer_document(document, D24DocumentType::Cpf, "CPF")
+        }
+        (DocumentKind::Cnpj, CountryAlpha2::BR) => {
+            brazilian_payer_document(document, D24DocumentType::Cnpj, "CNPJ")
         }
         (DocumentKind::Other, CountryAlpha2::MX) => {
             let normalized = document.document_number.peek().trim().to_ascii_uppercase();
             if !(7..=18).contains(&normalized.len())
                 || !normalized.chars().all(|c| c.is_ascii_alphanumeric())
             {
-                return Err(invalid_payer_document());
+                return Err(invalid_payer_document(format!(
+                    "a Mexican document (CURP, RFC, IFE or passport) must be 7-18 ASCII \
+                     letters and digits; received {} characters",
+                    normalized.chars().count()
+                )));
             }
             Ok((None, Secret::new(normalized)))
         }
@@ -762,22 +793,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             let city = billing.get_optional_city();
             let state = billing.state.clone();
             let zip_code = billing.get_optional_zip();
+            // Itaú: the shared address getters fail with `MissingRequiredField`
+            // naming the first absent field.
             if payment_method.requires_payer_address() {
-                for (present, field_name) in [
-                    (street.is_some(), "billing_address.line1"),
-                    (city.is_some(), "billing_address.city"),
-                    (state.is_some(), "billing_address.state"),
-                    (zip_code.is_some(), "billing_address.zip"),
-                ] {
-                    if !present {
-                        return Err(error_stack::report!(
-                            IntegrationError::MissingRequiredField {
-                                field_name,
-                                context: IntegrationErrorContext::default(),
-                            }
-                        ));
-                    }
-                }
+                billing.get_line1()?;
+                billing.get_city()?;
+                billing.get_state()?;
+                billing.get_zip()?;
             }
             if street.is_some() || city.is_some() || state.is_some() || zip_code.is_some() {
                 Some(D24PayerAddress {
