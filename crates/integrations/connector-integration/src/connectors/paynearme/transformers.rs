@@ -32,8 +32,9 @@
 //! 3-D Secure does not exist anywhere in the PayNearMe API surface, so a
 //! `ThreeDs` authorize is rejected outright rather than silently downgraded.
 //!
-//! Apple Pay cannot be sent through this API in any form, so an Apple Pay
-//! authorize is rejected with `NotSupported` (see [`apple_pay_not_supported`]).
+//! Apple Pay and Google Pay cannot be sent through this API in any form, so an
+//! authorize with either wallet is rejected with `NotSupported` (see
+//! [`apple_pay_not_supported`] and [`google_pay_not_supported`]).
 
 use common_enums::{AttemptStatus, AuthenticationType, Currency, FutureUsage, RefundStatus};
 use common_utils::{crypto::SignMessage, types::StringMajorUnit};
@@ -49,8 +50,8 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
-        ApplePayPaymentData, ApplePayWalletData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        WalletData,
+        ApplePayPaymentData, ApplePayWalletData, Card, GooglePayWalletData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -540,16 +541,93 @@ type AuthorizeRouterData<T> =
 fn apple_pay_not_supported(
     apple_pay: &ApplePayWalletData,
 ) -> error_stack::Report<IntegrationError> {
+    const MATRIX_ROW: &str = "PayNearMe's payment-methods matrix marks ApplePay unavailable \
+                              under both \"API - Create Payment Method\" and \"API - Make Payment\"";
     match &apple_pay.payment_data {
-        ApplePayPaymentData::Decrypted(_) => not_supported(
+        ApplePayPaymentData::Decrypted(_) => wallet_not_supported(
             "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no \
              wallet or network-token fields)",
+            MATRIX_ROW,
         ),
-        ApplePayPaymentData::Encrypted(_) => not_supported(
+        ApplePayPaymentData::Encrypted(_) => wallet_not_supported(
             "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its \
              hosted UIs, not through the API)",
+            MATRIX_ROW,
         ),
     }
+}
+
+/// The error for a Google Pay Authorize, in either token form:
+/// `GpayTokenizationData::Decrypted` (a Hyperswitch-decrypted PAN or DPAN, with a
+/// cryptogram and ECI for `CRYPTOGRAM_3DS`, without them for `PAN_ONLY`) and
+/// `GpayTokenizationData::Encrypted` (the Google-encrypted token).
+///
+/// PayNearMe's server-to-server API cannot receive Google Pay payment data:
+/// * <https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix>: the
+///   GooglePay row is marked unavailable under "API - Create Payment Method", and
+///   "API - Make Payment" is limited by the note "The /make_payment API call with a
+///   GooglePay payment method can only be used for disbursement orders (i.e., push
+///   orders)". Google Pay payments exist only in PayNearMe-hosted UIs (Smart Links
+///   Consumer Portal, Embedded Client `flow_google_pay`, Web/JS library
+///   `google_pay: true`), where PayNearMe runs the Google Pay session itself.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_create-payment-method>:
+///   `payment_method_type` is one of `card`, `ach`, `paypal` or `venmo`, and there
+///   is no cryptogram, ECI, DPAN, network-token, wallet-type or Google Pay token
+///   field.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_make-payment>: only
+///   charges a PayNearMe-created `payment_method_identifier`; no wallet field.
+///
+/// The decrypted PAN is not sent as a plain card either. For `CRYPTOGRAM_3DS` that
+/// would drop the cryptogram and ECI and present a device-token transaction as a
+/// keyed PAN; a `PAN_ONLY` PAN is still a Google Pay credential, not a card the
+/// cardholder entered.
+///
+/// The match is exhaustive, so a new tokenization variant has to be decided here.
+/// Neither message carries any token data (PAN/DPAN, expiry, cryptogram, ECI or
+/// the encrypted token). The `gpay` value of [`PaynearmeStoredMethodType`] only
+/// describes a hosted-UI option in responses.
+fn google_pay_not_supported(
+    google_pay: &GooglePayWalletData,
+) -> error_stack::Report<IntegrationError> {
+    const MATRIX_ROW: &str = "PayNearMe's payment-methods matrix marks GooglePay unavailable \
+                              under \"API - Create Payment Method\", and allows it on \"API - \
+                              Make Payment\" only for disbursement (push) orders";
+    match &google_pay.tokenization_data {
+        GpayTokenizationData::Decrypted(_) => wallet_not_supported(
+            "Google Pay (Hyperswitch-decrypted PAN or DPAN, with or without a cryptogram; the \
+             PayNearMe API has no wallet or network-token fields)",
+            MATRIX_ROW,
+        ),
+        GpayTokenizationData::Encrypted(_) => wallet_not_supported(
+            "Google Pay (Google-encrypted payment token; PayNearMe offers Google Pay only in its \
+             hosted UIs, not through the API)",
+            MATRIX_ROW,
+        ),
+    }
+}
+
+/// `NotSupported` for a wallet the PayNearMe API cannot carry, shared by
+/// [`apple_pay_not_supported`] and [`google_pay_not_supported`] so both refusals
+/// give the caller the same guidance: `additional_context` quotes the wallet's
+/// row in the payment-methods matrix, `doc_url` links the matrix, and
+/// `suggested_action` names the paths PayNearMe does offer. Callers pass only
+/// fixed text, never token data.
+fn wallet_not_supported(message: &str, matrix_row: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: message.to_string(),
+        connector: PAYNEARME,
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Pay by card, or take the wallet payment in a PayNearMe-hosted UI (Embedded \
+                 Client / Web-JS library, Smart Links), where PayNearMe runs the wallet session"
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix".to_string(),
+            ),
+            additional_context: Some(matrix_row.to_string()),
+        },
+    })
 }
 
 /// `MM/YYYY`, built from the two-digit month and the four-digit year.
@@ -657,6 +735,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // read or sent.
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
                 return Err(apple_pay_not_supported(apple_pay))
+            }
+            // Same reasoning for Google Pay, decrypted (CRYPTOGRAM_3DS or PAN_ONLY)
+            // or encrypted: its PAN is never sent as a card.
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+                return Err(google_pay_not_supported(google_pay))
             }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
@@ -1809,9 +1892,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
 /// Nothing in it is card-specific: any payment method `/create_payment_method`
 /// tokenises (`card`, `ach`, `paypal` or `venmo`) yields a
 /// `payment_method_identifier` that `/make_payment` charges the same way, so
-/// another tokenised method could reuse this reference unchanged. Apple Pay cannot
-/// be tokenised there (see [`apple_pay_not_supported`]). It never carries a PAN,
-/// CVV, DPAN or cryptogram.
+/// another tokenised method could reuse this reference unchanged. Apple Pay and
+/// Google Pay cannot be tokenised there (see [`apple_pay_not_supported`] and
+/// [`google_pay_not_supported`]). It never carries a PAN, CVV, DPAN or cryptogram.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaynearmeMandateReference {
     #[serde(rename = "pmi")]
@@ -3502,6 +3585,75 @@ mod tests {
                     if message.contains(variant)
             ));
             let rendered = format!("{report:?}");
+            for token_data in [DPAN, CRYPTOGRAM, ENCRYPTED_TOKEN] {
+                assert!(!rendered.contains(token_data));
+            }
+        }
+    }
+
+    /// Google Pay is refused as `NotSupported` in every token form: decrypted with a
+    /// cryptogram and ECI (`CRYPTOGRAM_3DS`), decrypted without them (`PAN_ONLY`),
+    /// and encrypted. The error points at the payment-methods matrix and carries
+    /// none of the PAN, cryptogram or encrypted token.
+    #[test]
+    fn refuses_google_pay_in_every_token_form_without_leaking_token_data() {
+        use domain_types::payment_method_data::{
+            GooglePayDecryptedData, GooglePayPaymentMethodInfo, GpayEncryptedTokenizationData,
+        };
+
+        const DPAN: &str = "4761739001010010";
+        const CRYPTOGRAM: &str = "AgAAAAAAAIR8CQrXcIhbQAAAAAA=";
+        const ENCRYPTED_TOKEN: &str = "eyJzaWduZWRNZXNzYWdlIjoiZ29vZ2xlLWVuY3J5cHRlZCJ9";
+
+        let wallet = |tokenization_data| GooglePayWalletData {
+            pm_type: "CARD".to_string(),
+            description: "Visa 0010".to_string(),
+            info: GooglePayPaymentMethodInfo {
+                card_network: "VISA".to_string(),
+                card_details: "0010".to_string(),
+                assurance_details: None,
+            },
+            tokenization_data,
+        };
+        let decrypted = |cryptogram: Option<&str>, eci_indicator: Option<&str>| {
+            wallet(GpayTokenizationData::Decrypted(GooglePayDecryptedData {
+                card_exp_month: Secret::new("12".to_string()),
+                card_exp_year: Secret::new("2030".to_string()),
+                application_primary_account_number: cards::CardNumber::try_from(DPAN.to_string())
+                    .expect("dpan"),
+                cryptogram: cryptogram.map(|value| Secret::new(value.to_string())),
+                eci_indicator: eci_indicator.map(str::to_string),
+            }))
+        };
+        let cryptogram_3ds = decrypted(Some(CRYPTOGRAM), Some("05"));
+        let pan_only = decrypted(None, None);
+        let encrypted = wallet(GpayTokenizationData::Encrypted(
+            GpayEncryptedTokenizationData {
+                token_type: "PAYMENT_GATEWAY".to_string(),
+                token: ENCRYPTED_TOKEN.to_string(),
+            },
+        ));
+
+        for (google_pay, variant) in [
+            (cryptogram_3ds, "Hyperswitch-decrypted"),
+            (pan_only, "Hyperswitch-decrypted"),
+            (encrypted, "Google-encrypted"),
+        ] {
+            let report = google_pay_not_supported(&google_pay);
+            assert!(matches!(
+                report.current_context(),
+                IntegrationError::NotSupported { message, connector: PAYNEARME, context }
+                    if message.starts_with("Google Pay")
+                        && message.contains(variant)
+                        && context.doc_url.as_deref()
+                            == Some("https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix")
+                        && context
+                            .additional_context
+                            .as_deref()
+                            .is_some_and(|row| row.contains("GooglePay"))
+                        && context.suggested_action.is_some()
+            ));
+            let rendered = format!("{report:?} {}", report.current_context());
             for token_data in [DPAN, CRYPTOGRAM, ENCRYPTED_TOKEN] {
                 assert!(!rendered.contains(token_data));
             }
