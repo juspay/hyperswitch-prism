@@ -275,6 +275,24 @@
     "https://developer.paypal.com/braintree/docs/guides/3d-secure/applying-3ds-to-transactions-and-verifications/",
     "https://developer.paypal.com/braintree/docs/guides/3d-secure/advanced-options/",
     "https://developer.paypal.com/braintree/docs/guides/3d-secure/3ri/",
-    "https://developer.paypal.com/braintree/docs/guides/3d-secure/testing/"
+    "https://developer.paypal.com/braintree/docs/guides/3d-secure/testing/",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/overview",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/create",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/parse",
+    "https://developer.paypal.com/braintree/docs/guides/webhooks/testing-go-live",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/overview",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/transaction/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/dispute/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/disbursement/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/fraud-protection/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/local-payment-methods/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/payment-method/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/webhooks/test/ruby",
+    "https://developer.paypal.com/braintree/docs/reference/general/statuses",
+    "https://developer.paypal.com/braintree/docs/reference/response/transaction/ruby",
+    "https://developer.paypal.com/braintree/docs/guides/ach/server-side/ruby",
+    "https://raw.githubusercontent.com/braintree/braintree_python/master/braintree/webhook_notification.py",
+    "https://raw.githubusercontent.com/braintree/braintree_python/master/braintree/webhook_notification_gateway.py",
+    "https://raw.githubusercontent.com/braintree/braintree_ruby/master/lib/braintree/webhook_testing_gateway.rb"
   ]
 }

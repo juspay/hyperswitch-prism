@@ -13,6 +13,15 @@
     "PaymentMethodService/Tokenize",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentService/Authorize"
-  ]
+    "PaymentService/Authorize",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "payment_succeeded": "the global scenario asserts a top-level `event_status` field, but `EventServiceHandleResponse` (proto/events.proto) has no such field - it carries event_type, event_content, source_verified, merchant_event_id, event_ack_response and supported_integrity_checks and nothing else - so this assertion cannot pass for ANY connector. Same finding adyen records for its own HandleEvent scenarios. The fixture in webhook_payload.json is real and was verified end-to-end by hand against EventService/HandleEvent (sourceVerified=true, eventType=PAYMENT_INTENT_SUCCESS, status=CHARGED); it goes live the moment the global scenario or its assertion is fixed.",
+      "payment_failed": "the global scenario asserts a top-level `event_status` field, but `EventServiceHandleResponse` (proto/events.proto) has no such field - it carries event_type, event_content, source_verified, merchant_event_id, event_ack_response and supported_integrity_checks and nothing else - so this assertion cannot pass for ANY connector. Same finding adyen records for its own HandleEvent scenarios. The fixture in webhook_payload.json is real and was verified end-to-end by hand against EventService/HandleEvent (sourceVerified=true, eventType=PAYMENT_INTENT_FAILURE, status=FAILURE); it goes live the moment the global scenario or its assertion is fixed.",
+      "invalid_signature": "the global scenario asserts a top-level `event_status` field, but `EventServiceHandleResponse` (proto/events.proto) has no such field - it carries event_type, event_content, source_verified, merchant_event_id, event_ack_response and supported_integrity_checks and nothing else - so this assertion cannot pass for ANY connector. Same finding adyen records for its own HandleEvent scenarios. The fixture in webhook_payload.json is real and was verified end-to-end by hand against EventService/HandleEvent (sourceVerified=true, sourceVerified absent on a tampered bt_signature); it goes live the moment the global scenario or its assertion is fixed.",
+      "refund_succeeded": "Braintree emits no refund-success webhook at all. `refund_failed` is the ONLY refund kind on the Braintree webhook surface - there is no `refund_settled` and no `refund_succeeded` - so a successful refund is observable only through RefundService/Get (RSync). The global scenario asserts event_type WEBHOOK_REFUND_SUCCESS, which this connector can never produce."
+    }
+  }
 }

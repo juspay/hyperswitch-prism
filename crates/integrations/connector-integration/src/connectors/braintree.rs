@@ -24,8 +24,9 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -400,6 +401,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         braintree::get_webhook_reference(&notif)
     }
 
+    /// Braintree's only two transaction-family webhook kinds are `transaction_settled` and
+    /// `transaction_settlement_declined`, and Braintree documents both as available for **ACH
+    /// and SEPA Direct Debit only** — every SDK sample hard-codes
+    /// `<payment-instrument-type>us_bank_account</payment-instrument-type>`. There is no
+    /// card payment-lifecycle webhook kind at all: `authorized`, `voided`,
+    /// `processor_declined` and `gateway_rejected` are transaction *statuses*, not kinds. So
+    /// **this handler cannot fire for a card payment** — a card attempt is observable only
+    /// through the synchronous mutation response and PSync.
+    ///
+    /// It is implemented regardless: it is the same code the ACH/SEPA payment methods will
+    /// need, and the trait default is a hard `WebhooksNotImplemented` error that the
+    /// misc-event fall-through in `process_webhook_event` would surface for every unmodelled
+    /// kind (subscription, disbursement, …) that UCS must tolerate rather than reject.
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<domain_types::connector_types::EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_payment_response(&notif, &request.body)
+    }
+
+    /// `refund_failed` is the ONLY refund webhook kind Braintree emits — there is no
+    /// `refund_settled` / `refund_succeeded`, so a successful refund is observable only
+    /// through RSync. Its subject is a `<transaction>` whose `<id>` is the refund's own id and
+    /// whose `<refunded-transaction-id>` is the parent sale.
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let notif = braintree::decode_from_request(&request)?;
+        braintree::build_webhook_refund_response(&notif, &request.body)
+    }
+
     fn process_dispute_webhook(
         &self,
         request: RequestDetails,
@@ -433,8 +472,44 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn sample_webhook_body(&self) -> &'static [u8] {
         // form-urlencoded `bt_signature=<pubkey>|<sig>&bt_payload=<base64 dispute_opened XML>`.
-        // Dummy values only; `bt_payload` base64 decodes to a minimal `dispute_opened` notification.
-        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"#
+        // Dummy values only — this is a PARSE probe, not a verification probe, so the
+        // signature is a placeholder.
+        //
+        // The payload is derived from Braintree's OWN SDK sample generator, never from the
+        // structs in `transformers.rs`: the previous fixture was written against the parser it
+        // was meant to exercise, so it encoded the same four defects the parser had (no
+        // `<subject>` wrapper, snake_case element names, an uppercase dispute stage and an
+        // integer minor-unit amount) and validated the broken parser instead of falsifying it.
+        //
+        // `bt_payload` base64-decodes to a `dispute_opened` notification that deliberately
+        // exercises the `<subject>` nesting, kebab-case element names, a `type="datetime"` and
+        // a `type="date"` attribute, a `nil="true"` empty element, a lowercase dispute stage
+        // and a decimal major-unit amount:
+        //
+        //   <notification>
+        //     <timestamp type="datetime">2024-01-01T00:00:00Z</timestamp>
+        //     <kind>dispute_opened</kind>
+        //     <subject><dispute>
+        //       <amount-disputed>10.00</amount-disputed>
+        //       <amount-won nil="true"/>
+        //       <case-number>CASE-001</case-number>
+        //       <currency-iso-code>USD</currency-iso-code>
+        //       <id>dummy_dispute_id_001</id>
+        //       <kind>chargeback</kind>
+        //       <status>open</status>
+        //       <reason>fraud</reason>
+        //       <reason-code>83</reason-code>
+        //       <created-at type="datetime">2024-01-01T00:00:00Z</created-at>
+        //       <reply-by-date type="date">2024-01-15</reply-by-date>
+        //       <transaction>
+        //         <id>dummy_txn_id_001</id>
+        //         <amount>10.00</amount>
+        //         <order-id>dummy_order_001</order-id>
+        //         <payment-instrument-type>credit_card</payment-instrument-type>
+        //       </transaction>
+        //     </dispute></subject>
+        //   </notification>
+        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI0LTAxLTAxVDAwOjAwOjAwWjwvdGltZXN0YW1wPjxraW5kPmRpc3B1dGVfb3BlbmVkPC9raW5kPjxzdWJqZWN0PjxkaXNwdXRlPjxhbW91bnQtZGlzcHV0ZWQ%2BMTAuMDA8L2Ftb3VudC1kaXNwdXRlZD48YW1vdW50LXdvbiBuaWw9InRydWUiLz48Y2FzZS1udW1iZXI%2BQ0FTRS0wMDE8L2Nhc2UtbnVtYmVyPjxjdXJyZW5jeS1pc28tY29kZT5VU0Q8L2N1cnJlbmN5LWlzby1jb2RlPjxpZD5kdW1teV9kaXNwdXRlX2lkXzAwMTwvaWQ%2BPGtpbmQ%2BY2hhcmdlYmFjazwva2luZD48c3RhdHVzPm9wZW48L3N0YXR1cz48cmVhc29uPmZyYXVkPC9yZWFzb24%2BPHJlYXNvbi1jb2RlPjgzPC9yZWFzb24tY29kZT48Y3JlYXRlZC1hdCB0eXBlPSJkYXRldGltZSI%2BMjAyNC0wMS0wMVQwMDowMDowMFo8L2NyZWF0ZWQtYXQ%2BPHJlcGx5LWJ5LWRhdGUgdHlwZT0iZGF0ZSI%2BMjAyNC0wMS0xNTwvcmVwbHktYnktZGF0ZT48dHJhbnNhY3Rpb24%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjxhbW91bnQ%2BMTAuMDA8L2Ftb3VudD48b3JkZXItaWQ%2BZHVtbXlfb3JkZXJfMDAxPC9vcmRlci1pZD48cGF5bWVudC1pbnN0cnVtZW50LXR5cGU%2BY3JlZGl0X2NhcmQ8L3BheW1lbnQtaW5zdHJ1bWVudC10eXBlPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvc3ViamVjdD48L25vdGlmaWNhdGlvbj4%3D"#
     }
 }
 

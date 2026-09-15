@@ -39,7 +39,6 @@ use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
-use time::PrimitiveDateTime;
 use tracing::info;
 
 pub const BRAINTREE_CONNECTOR_NAME: &str = "braintree";
@@ -3875,6 +3874,52 @@ fn validate_currency(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Incoming webhooks (§W of the Braintree technical specification)
+//
+// Braintree POSTs `application/x-www-form-urlencoded` with exactly two fields,
+// `bt_signature` and `bt_payload`; `bt_payload` is line-wrapped base64 of the
+// notification XML. EVERY notification, for EVERY kind, nests its entity one level
+// down, under `<subject>`:
+//
+//   <notification>
+//     <timestamp type="datetime"/><kind/><source-merchant-id/>?
+//     <subject><dispute>..</dispute> | <transaction>..</transaction></subject>
+//   </notification>
+//
+// The un-wrapped form does not exist. Element names are kebab-case on the wire; the
+// snake_case spellings that appear throughout Braintree's own SDK source are a
+// post-parse rewrite (`braintree_python/.../xml_util.py` `__underscored`,
+// `braintree_ruby/.../xml/parser.rb` `tr("-", "_")`), never the wire form.
+//
+// None of these structs may carry `deny_unknown_fields`: Braintree annotates typed
+// elements (`type="datetime"`, `type="array"`, `nil="true"`), and quick-xml surfaces
+// attributes as `@<attr>` fields.
+// ---------------------------------------------------------------------------
+
+/// Braintree emits absent optional elements as `<foo nil="true"/>`. quick-xml deserializes
+/// an empty element as an empty *value*, not as a missing field, so a typed target
+/// (`Currency`, an amount) sees `""` and fails — and a failed parse fails the WHOLE
+/// notification, not just the field. That is a lost dispute notification with a reply-by
+/// deadline attached, so every typed optional goes through this helper: empty or
+/// whitespace-only content becomes `None` before the real deserializer ever runs.
+fn deserialize_nil_aware<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    let raw = Option::<String>::deserialize(deserializer)?;
+    match raw.as_deref().map(str::trim) {
+        None | Some("") => Ok(None),
+        // Routed through `serde_json::Value::String` rather than serde's own `StrDeserializer`:
+        // the latter forwards `deserialize_newtype_struct` to `visit_str`, which a newtype
+        // amount type such as `StringMajorUnit` rejects ("expected tuple struct").
+        Some(value) => T::deserialize(serde_json::Value::String(value.to_string()))
+            .map(Some)
+            .map_err(serde::de::Error::custom),
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct BraintreeWebhookResponse {
     pub bt_signature: String,
@@ -3884,62 +3929,374 @@ pub struct BraintreeWebhookResponse {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Notification {
-    pub kind: String, // xml parse only string to fields
+    /// The notification kind. Deliberately `String`, not an enum: Braintree adds kinds over
+    /// time and an unrecognised kind must degrade to
+    /// `EventType::IncomingWebhookEventUnspecified`, never fail the parse.
+    pub kind: String,
     pub timestamp: String,
+    /// Present when the webhook was delivered to a partner/marketplace parent account on
+    /// behalf of a sub-merchant. Not used for routing today; captured so the raw resource
+    /// object surfaced by `get_webhook_resource_object` is complete.
+    #[serde(default)]
+    pub source_merchant_id: Option<String>,
+    /// The entity wrapper. Optional only so that a kind whose subject UCS does not model
+    /// (subscription, disbursement, partner-merchant) still parses and reaches the
+    /// `IncomingWebhookEventUnspecified` arm instead of `WebhookBodyDecodingFailed`.
+    #[serde(default)]
+    pub subject: Option<NotificationSubject>,
+}
+
+impl Notification {
+    /// The `<subject><dispute>` entity, if this notification carries one.
+    pub(super) fn dispute(&self) -> Option<&BraintreeDisputeData> {
+        self.subject.as_ref().and_then(|s| s.dispute.as_ref())
+    }
+
+    /// The `<subject><transaction>` entity, if this notification carries one. Shared by the
+    /// payment kinds and by `refund_failed` — Braintree uses one element for both.
+    pub(super) fn transaction(&self) -> Option<&BraintreeWebhookTransaction> {
+        self.subject.as_ref().and_then(|s| s.transaction.as_ref())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct NotificationSubject {
+    #[serde(default)]
     pub dispute: Option<BraintreeDisputeData>,
+    /// Carries BOTH the payment-lifecycle entity (`transaction_settled`,
+    /// `transaction_settlement_declined`) and the refund entity (`refund_failed`).
+    /// Braintree uses one `<transaction>` element for both; the refund reading is a
+    /// projection of this same struct, not a second wire type.
+    #[serde(default)]
+    pub transaction: Option<BraintreeWebhookTransaction>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+/// The `<transaction>` entity: the subject of `transaction_settled`,
+/// `transaction_settlement_declined` and `refund_failed`.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct BraintreeWebhookTransaction {
+    /// For a payment kind: the sale's own id. For `refund_failed`: the REFUND's own id
+    /// (NOT the parent sale — that is `refunded_transaction_id`).
+    pub id: String,
+    pub status: BraintreeWebhookTransactionStatus,
+    /// Decimal MAJOR units on the wire, e.g. `10.00`.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub amount: Option<StringMajorUnit>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub currency_iso_code: Option<enums::Currency>,
+    /// The merchant-assigned reference UCS sent on the Authorize leg.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub order_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub merchant_account_id: Option<String>,
+    /// `credit_card`, `us_bank_account`, `paypal_account`, `apple_pay_card`, … . The
+    /// discriminator that proves a `transaction_settled` payload is an ACH/SEPA event and
+    /// not a card one.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub payment_instrument_type: Option<String>,
+    /// `refund_failed` only: the id of the SALE this refund was taken against. This is the
+    /// payment-lookup key. Braintree's Ruby sample emits `<refunded-transaction-id>` and both
+    /// the Python and Ruby `Transaction` models declare `refunded_transaction_id`.
+    ///
+    /// `refunded-transaction-fk` is a stale artifact present only in the Python/Node/PHP/Java
+    /// *sample generators*; no SDK ever parses it. It is accepted here as an alias purely so a
+    /// payload produced by one of those generators in a test harness still parses. Production
+    /// logic must never be keyed on the `-fk` spelling.
+    #[serde(
+        default,
+        alias = "refunded-transaction-fk",
+        deserialize_with = "deserialize_nil_aware"
+    )]
+    pub refunded_transaction_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub processor_response_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub processor_response_text: Option<String>,
+    /// `Option<String>` rather than a datetime: these are informational only, and a
+    /// `nil="true"` element must not be able to fail the parse.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub created_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub updated_at: Option<String>,
+}
+
+impl BraintreeWebhookTransaction {
+    /// `refund_failed`: this entity's own id IS the refund id.
+    pub(super) fn connector_refund_id(&self) -> String {
+        self.id.clone()
+    }
+
+    /// `refund_failed`: the parent sale. `None` is possible on a malformed payload and must
+    /// degrade to a `None` reference slot, never to reusing `self.id` — putting the refund id
+    /// in the payment slot makes the caller's lookup hit the wrong row.
+    pub(super) fn parent_transaction_id(&self) -> Option<String> {
+        self.refunded_transaction_id.clone()
+    }
+}
+
+/// Braintree transaction status as it appears in webhook XML: the REST spelling, lowercase
+/// snake_case (`<status>processor_declined</status>`).
+///
+/// This CANNOT be `BraintreePaymentStatus`, which is `SCREAMING_SNAKE_CASE` because it
+/// deserializes the GraphQL response. Feeding webhook XML into that enum sends every real
+/// status into its `#[serde(other)] Unknown` arm — a silent, total misreading that no test on
+/// the GraphQL path can catch. Same value set, different encoding, so the two are bridged by
+/// the `From` impl below rather than duplicating the `-> AttemptStatus` mapping.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BraintreeWebhookTransactionStatus {
+    Authorized,
+    Authorizing,
+    /// GraphQL spells this `AUTHORIZED_EXPIRED`; the REST/webhook surface spells it
+    /// `authorization_expired`. Both accepted.
+    #[serde(alias = "authorized_expired")]
+    AuthorizationExpired,
+    Failed,
+    ProcessorDeclined,
+    GatewayRejected,
+    Voided,
+    Settling,
+    Settled,
+    SettlementPending,
+    SettlementDeclined,
+    SettlementConfirmed,
+    SubmittedForSettlement,
+    /// Braintree adds statuses over time. An unrecognised one must not fail the parse; it
+    /// maps to `AttemptStatus::Unspecified` so the caller applies its own previous-status
+    /// fallback rather than UCS inventing a Pending or a Failure it cannot substantiate.
+    #[serde(other)]
+    Unknown,
+}
+
+/// Bridge to the GraphQL-side enum so there is exactly ONE `-> enums::AttemptStatus` mapping
+/// for Braintree and the webhook path cannot drift from the PSync path. Both matches are
+/// exhaustive with no `_` arm, so adding a variant to either enum is a compile error rather
+/// than a silent mismapping.
+impl From<BraintreeWebhookTransactionStatus> for BraintreePaymentStatus {
+    fn from(item: BraintreeWebhookTransactionStatus) -> Self {
+        match item {
+            BraintreeWebhookTransactionStatus::Authorized => Self::Authorized,
+            BraintreeWebhookTransactionStatus::Authorizing => Self::Authorizing,
+            BraintreeWebhookTransactionStatus::AuthorizationExpired => Self::AuthorizedExpired,
+            BraintreeWebhookTransactionStatus::Failed => Self::Failed,
+            BraintreeWebhookTransactionStatus::ProcessorDeclined => Self::ProcessorDeclined,
+            BraintreeWebhookTransactionStatus::GatewayRejected => Self::GatewayRejected,
+            BraintreeWebhookTransactionStatus::Voided => Self::Voided,
+            BraintreeWebhookTransactionStatus::Settling => Self::Settling,
+            BraintreeWebhookTransactionStatus::Settled => Self::Settled,
+            BraintreeWebhookTransactionStatus::SettlementPending => Self::SettlementPending,
+            BraintreeWebhookTransactionStatus::SettlementDeclined => Self::SettlementDeclined,
+            BraintreeWebhookTransactionStatus::SettlementConfirmed => Self::SettlementConfirmed,
+            BraintreeWebhookTransactionStatus::SubmittedForSettlement => {
+                Self::SubmittedForSettlement
+            }
+            BraintreeWebhookTransactionStatus::Unknown => Self::Unknown,
+        }
+    }
+}
+
+/// Maps the webhook transaction status onto a refund status. `refund_failed` is the only
+/// refund kind Braintree emits, so only the failure arm is reachable today; the success arm
+/// is written out so that if Braintree ever adds a refund-success kind the mapping is already
+/// correct and the compiler enforces completeness. Exhaustive, no `_` arm.
+///
+/// `RefundStatus::Unknown` — not `Pending` — is the honest target for a status that says
+/// nothing about the refund: UCS must not invent a Pending it cannot substantiate.
+impl From<BraintreeWebhookTransactionStatus> for enums::RefundStatus {
+    fn from(item: BraintreeWebhookTransactionStatus) -> Self {
+        match item {
+            BraintreeWebhookTransactionStatus::ProcessorDeclined
+            | BraintreeWebhookTransactionStatus::GatewayRejected
+            | BraintreeWebhookTransactionStatus::Failed
+            | BraintreeWebhookTransactionStatus::SettlementDeclined => Self::Failure,
+            BraintreeWebhookTransactionStatus::Settled
+            | BraintreeWebhookTransactionStatus::Settling
+            | BraintreeWebhookTransactionStatus::SettlementConfirmed
+            | BraintreeWebhookTransactionStatus::SubmittedForSettlement
+            | BraintreeWebhookTransactionStatus::SettlementPending => Self::Success,
+            BraintreeWebhookTransactionStatus::Authorized
+            | BraintreeWebhookTransactionStatus::Authorizing
+            | BraintreeWebhookTransactionStatus::AuthorizationExpired
+            | BraintreeWebhookTransactionStatus::Voided
+            | BraintreeWebhookTransactionStatus::Unknown => Self::Unknown,
+        }
+    }
+}
+
+/// The `<subject><dispute>` entity.
+///
+/// `rename_all = "kebab-case"` is load-bearing: without it every multi-word field is looked
+/// up under a name the wire never uses (`amount_disputed` vs `amount-disputed`) and the
+/// struct cannot deserialize a single real dispute payload.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct BraintreeDisputeData {
-    pub amount_disputed: MinorUnit,
-    pub amount_won: Option<String>,
-    pub case_number: Option<String>,
-    pub chargeback_protection_level: Option<String>,
-    pub currency_iso_code: enums::Currency,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub created_at: Option<PrimitiveDateTime>,
-    pub evidence: Option<DisputeEvidence>,
+    /// Braintree's dispute id. Non-optional: every dispute payload carries it, and without it
+    /// there is no dispute to report.
     pub id: String,
-    pub kind: String, // xml parse only string to fields
-    pub status: String,
+    /// Decimal MAJOR units on the wire, e.g. `10.00` — NOT minor units.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub amount_disputed: Option<StringMajorUnit>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub amount_won: Option<StringMajorUnit>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub currency_iso_code: Option<enums::Currency>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub case_number: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub chargeback_protection_level: Option<String>,
+    /// The dispute STAGE — `chargeback` | `pre_arbitration` | `retrieval`. Distinct from the
+    /// notification `kind`, and case-variable on the wire.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub kind: Option<String>,
+    /// `open` | `won` | `lost` | `accepted` | `expired` | `disputed` | `under_review`.
+    /// Informational only: UCS derives `DisputeStatus` from the notification kind, not from
+    /// here.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub status: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub reason: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
     pub reason_code: Option<String>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub updated_at: Option<PrimitiveDateTime>,
-    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
-    pub reply_by_date: Option<PrimitiveDateTime>,
+    /// Set when this dispute is a pre-arbitration escalation of an earlier one.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub original_dispute_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub merchant_account_id: Option<String>,
+    /// `Option<String>`, not `Option<PrimitiveDateTime>`: Braintree emits these as
+    /// `nil="true"` empty elements when unset, which a datetime deserializer cannot survive.
+    /// Parse downstream if a typed value is ever needed.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub created_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub updated_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub reply_by_date: Option<String>,
+    /// Not consumed by any mapping; it exists for the raw resource object. Braintree emits
+    /// this as a `type="array"` wrapper on some payloads — an unrecognised nested element is
+    /// simply ignored (no `deny_unknown_fields` anywhere in this module), so the array form
+    /// degrades to all-`None` rather than failing the notification.
+    #[serde(default)]
+    pub evidence: Option<DisputeEvidence>,
+    /// Non-optional: the dispute cannot be attributed to a payment without it, and
+    /// `get_webhook_reference` uses `transaction.id` as the payment-lookup key.
     pub transaction: DisputeTransaction,
+    /// `type="array"` on the wire. Not consumed today; declared so it is visible in the raw
+    /// resource object and so a future pass does not have to rediscover the element name.
+    #[serde(default)]
+    pub status_history: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DisputeTransaction {
-    pub amount: StringMajorUnit,
+    /// The disputed SALE's id. This is the payment-lookup key for the dispute reference.
     pub id: String,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub amount: Option<StringMajorUnit>,
+    /// The merchant-assigned reference from the original Authorize. Populates
+    /// `DisputeWebhookDetailsResponse::connector_response_reference_id`.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub order_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub payment_instrument_type: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub merchant_account_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub created_at: Option<String>,
 }
-#[derive(Debug, Deserialize, Serialize)]
+
+/// One `<evidence>` record. Every field is optional: `comment` and `url` are routinely
+/// `nil="true"`, and `url::Url` cannot parse the `""` that a nil element yields — which
+/// would fail the whole notification. Kept for the raw resource object; no mapping reads it.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
 pub struct DisputeEvidence {
-    pub comment: String,
-    pub id: Secret<String>,
-    pub created_at: Option<PrimitiveDateTime>,
-    pub url: url::Url,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub id: Option<Secret<String>>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub comment: Option<String>,
+    /// `Option<String>`, not `url::Url`: a `nil="true"` element yields `""`, which is not a
+    /// valid URL and would fail the whole notification parse.
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub category: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub sequence_number: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub created_at: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_nil_aware")]
+    pub sent_to_processor_at: Option<String>,
 }
 
 // Maps the Braintree notification `kind` to the prism webhook event type.
-// Ports HS `get_status` (hyperswitch braintree/transformers.rs `get_status`) 1:1.
+//
+// A `&str` match with a `_` arm, deliberately, rather than a `#[serde]` enum on
+// `Notification::kind`: an unknown kind must REACH the fallback arm, not fail
+// deserialization.
+//
+// `process_webhook_event` fans out to process_payment/refund/dispute_webhook purely from
+// `EventType::is_payment_event()` / `is_refund_event()` / `is_dispute_event()`. Anything
+// matching none of the three — `IncomingWebhookEventUnspecified` included — falls through to
+// the PAYMENT handler, not to an error, so a wrongly classed kind produces a wrong-shaped
+// response rather than a failure.
 pub(super) fn get_status(status: &str) -> connector_types::EventType {
     match status {
+        // --- dispute family: the 8 kinds Braintree emits, all reachable on a Card run ---
         "dispute_opened" => connector_types::EventType::DisputeOpened,
-        "dispute_lost" => connector_types::EventType::DisputeLost,
-        "dispute_won" => connector_types::EventType::DisputeWon,
         "dispute_accepted" | "dispute_auto_accepted" => connector_types::EventType::DisputeAccepted,
+        // `dispute_under_review` fires after evidence is submitted while the issuer reviews
+        // it. UCS has no "under review" variant; `DisputeChallenged` is exactly "evidence
+        // submitted, outcome pending", keeps the dispute non-terminal and is idempotent with
+        // the `dispute_disputed` that preceded it. Leaving it unmapped would send a dispute
+        // payload to `process_payment_webhook` via the misc fall-through.
+        "dispute_disputed" | "dispute_under_review" => {
+            connector_types::EventType::DisputeChallenged
+        }
         "dispute_expired" => connector_types::EventType::DisputeExpired,
-        "dispute_disputed" => connector_types::EventType::DisputeChallenged,
+        "dispute_won" => connector_types::EventType::DisputeWon,
+        "dispute_lost" => connector_types::EventType::DisputeLost,
+
+        // --- transaction family: these two are the ENTIRE transaction webhook family ---
+        // Braintree documents them as available for ACH and SEPA Direct Debit only, and every
+        // SDK sample hard-codes `<payment-instrument-type>us_bank_account</...>`. They cannot
+        // fire for a card payment. There is no `transaction_authorized`, no
+        // `transaction_voided`, no `transaction_processor_declined`, no
+        // `transaction_gateway_rejected` — those are transaction STATUSES, not webhook kinds.
+        // A Braintree card payment produces no payment-lifecycle webhook, ever.
+        "transaction_settled" => connector_types::EventType::PaymentIntentSuccess,
+        "transaction_settlement_declined" => connector_types::EventType::PaymentIntentFailure,
+
+        // --- refund family: `refund_failed` is the ONLY refund kind ---
+        // There is no `refund_settled` and no `refund_succeeded`; a successful refund is
+        // observable only through RSync.
+        "refund_failed" => connector_types::EventType::RefundFailure,
+
+        // --- everything else ---
+        // Subscription, marketplace/sub-merchant, partner-merchant, disbursement, Local
+        // Payment Method, Account Updater, grant/revoke, Fraud Protection (`transaction_reviewed`,
+        // whose subject is `<transaction-review>`, a fourth entity this module does not model),
+        // the deprecated `transaction_disbursed`, and every kind Braintree adds after this was
+        // written.
+        //
+        // MUST be `IncomingWebhookEventUnspecified`. Never a substituted
+        // PaymentIntentProcessing, never a Failure, never a Dispute*: UCS has no basis for any
+        // of those and an invented status propagates to the merchant's ledger.
         _ => connector_types::EventType::IncomingWebhookEventUnspecified,
     }
 }
 
-// Maps the Braintree notification `kind` to the prism dispute status.
-// Mirrors how the HS router derives `DisputeStatus` from the webhook event.
+// Maps the Braintree NOTIFICATION `kind` to the prism dispute status.
+//
+// `DisputeStatus` has no `Unknown` variant and `DisputeWebhookDetailsResponse::status` is not
+// an `Option`, so a total function is forced. `DisputeOpened` is the least-harmful default
+// (it is also the enum's `#[default]`) and is unreachable in practice: this is only entered
+// once `get_status` has already returned a dispute `EventType`, which only the kinds below
+// can produce. The arm is kept anyway — the two functions must not be coupled by an invariant
+// no type enforces. `DisputeCancelled` has no Braintree kind and is never produced.
 pub(super) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
     match status {
         "dispute_opened" => enums::DisputeStatus::DisputeOpened,
@@ -3947,23 +4304,31 @@ pub(super) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
         "dispute_won" => enums::DisputeStatus::DisputeWon,
         "dispute_accepted" | "dispute_auto_accepted" => enums::DisputeStatus::DisputeAccepted,
         "dispute_expired" => enums::DisputeStatus::DisputeExpired,
-        "dispute_disputed" => enums::DisputeStatus::DisputeChallenged,
+        "dispute_disputed" | "dispute_under_review" => enums::DisputeStatus::DisputeChallenged,
         _ => enums::DisputeStatus::DisputeOpened,
     }
 }
 
-// Maps the Braintree dispute `kind` to the prism dispute stage.
-// Ports HS `get_dispute_stage` 1:1.
-pub(super) fn get_dispute_stage(
-    code: &str,
-) -> Result<enums::DisputeStage, Report<domain_types::errors::WebhookError>> {
-    match code {
-        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
-        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
-        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
-        _ => Err(error_stack::report!(
-            domain_types::errors::WebhookError::WebhookBodyDecodingFailed
-        )),
+/// Maps the DISPUTE's own `<kind>` (the STAGE — distinct from the notification kind, and
+/// confusingly spelled identically) to the prism dispute stage.
+///
+/// Case-insensitive: Braintree's legacy sample generator emits `CHARGEBACK` and the modern
+/// one emits `chargeback`, and both are valid on the wire. Returns a value rather than a
+/// `Result`: an unrecognised stage must not discard a dispute notification that has a
+/// reply-by deadline attached — the error path was itself the bug.
+pub(super) fn get_dispute_stage(code: Option<&str>) -> enums::DisputeStage {
+    match code.map(str::trim).map(str::to_ascii_uppercase).as_deref() {
+        Some("CHARGEBACK") => enums::DisputeStage::Dispute,
+        Some("PRE_ARBITRATION") => enums::DisputeStage::PreArbitration,
+        Some("RETRIEVAL") => enums::DisputeStage::PreDispute,
+        other => {
+            tracing::warn!(
+                target: "braintree_webhook",
+                stage = ?other,
+                "unrecognised Braintree dispute stage; defaulting to Dispute"
+            );
+            enums::DisputeStage::Dispute
+        }
     }
 }
 
@@ -4010,7 +4375,10 @@ pub(super) fn get_matching_webhook_signature(
 }
 
 // Full request -> `Notification` decode: urlencoded envelope, then base64 + XML on the
-// newline-stripped `bt_payload`. Mirrors the two-step decode the trait methods performed inline.
+// newline-stripped `bt_payload`. Braintree's base64 output is line-wrapped, so the newlines
+// must go before the base64 step — but `verify_webhook_source` signs the RAW, newline-
+// inclusive `bt_payload`. The asymmetry is deliberate; normalising both to one string breaks
+// verification.
 pub(super) fn decode_from_request(
     request: &connector_types::RequestDetails,
 ) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
@@ -4018,30 +4386,175 @@ pub(super) fn decode_from_request(
     decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())
 }
 
-// Builds the typed webhook resource reference for a dispute notification.
+// Builds the typed webhook resource reference for the ParseEvent phase.
+//
+// `Ok(None)` is the documented, legal answer for "no actionable reference" and is what an
+// unmodelled kind (subscription, disbursement, partner-merchant) must get — returning
+// `WebhookReferenceIdNotFound` there turns a webhook UCS simply does not model into a hard
+// ParseEvent error. `WebhookReferenceIdNotFound` is reserved for a payload whose kind IS
+// modelled but whose identifying element is genuinely missing.
+//
+// One id per slot: the caller matches on which field is populated, so duplicating an id "to
+// be safe" makes a refund webhook resolve as a payment.
 pub(super) fn get_webhook_reference(
     notification: &Notification,
 ) -> Result<
     Option<connector_types::WebhookResourceReference>,
     Report<domain_types::errors::WebhookError>,
 > {
-    match &notification.dispute {
+    let event_type = get_status(notification.kind.as_str());
+
+    if event_type.is_dispute_event() {
+        let dispute_data = notification.dispute().ok_or_else(|| {
+            error_stack::report!(domain_types::errors::WebhookError::WebhookReferenceIdNotFound)
+        })?;
         // HS emits `PaymentId(ConnectorTransactionId(transaction.id))`. The shadow normaliser
         // maps a prism Dispute reference via `connector_dispute_id.or(connector_transaction_id)`,
         // preferring connector_dispute_id, so it MUST be `None` here to match HS byte-for-byte.
-        Some(dispute_data) => Ok(Some(connector_types::WebhookResourceReference::Dispute(
+        // The dispute's own id is still reported, on `DisputeWebhookDetailsResponse::dispute_id`.
+        return Ok(Some(connector_types::WebhookResourceReference::Dispute(
             connector_types::DisputeWebhookReference {
                 connector_dispute_id: None,
                 connector_transaction_id: Some(dispute_data.transaction.id.clone()),
             },
-        ))),
-        None => Err(error_stack::report!(
-            domain_types::errors::WebhookError::WebhookReferenceIdNotFound
-        )),
+        )));
     }
+
+    if event_type.is_refund_event() {
+        let transaction = notification.transaction().ok_or_else(|| {
+            error_stack::report!(domain_types::errors::WebhookError::WebhookReferenceIdNotFound)
+        })?;
+        return Ok(Some(connector_types::WebhookResourceReference::Refund(
+            connector_types::RefundWebhookReference {
+                // `<id>` on a `refund_failed` payload is the REFUND's own id; the parent sale
+                // is `<refunded-transaction-id>`. Swapping these updates the wrong row.
+                connector_refund_id: Some(transaction.connector_refund_id()),
+                merchant_refund_id: None,
+                connector_transaction_id: transaction.parent_transaction_id(),
+                merchant_transaction_id: transaction.order_id.clone(),
+            },
+        )));
+    }
+
+    if event_type.is_payment_event() {
+        let transaction = notification.transaction().ok_or_else(|| {
+            error_stack::report!(domain_types::errors::WebhookError::WebhookReferenceIdNotFound)
+        })?;
+        return Ok(Some(connector_types::WebhookResourceReference::Payment(
+            connector_types::PaymentWebhookReference {
+                connector_transaction_id: Some(transaction.id.clone()),
+                merchant_transaction_id: transaction.order_id.clone(),
+            },
+        )));
+    }
+
+    // Unmodelled kind: no actionable reference, not an error.
+    Ok(None)
+}
+
+// Builds the payment webhook response.
+//
+// Reachable for `transaction_settled` / `transaction_settlement_declined` and — via the
+// misc-event fall-through in `process_webhook_event` — for every unmodelled kind. The
+// unmodelled case has no `<transaction>` at all and must degrade to `Unspecified`, not error,
+// which is why the transaction is optional here.
+//
+// NOTE: both transaction kinds are ACH / SEPA Direct Debit ONLY. Braintree emits no
+// payment-lifecycle webhook for a card transaction, so this handler cannot fire for a card
+// payment. It is implemented anyway because it is the same code the ACH/SEPA payment methods
+// will need, and because the trait default is a hard `WebhooksNotImplemented` error that the
+// misc fall-through would surface for every unmodelled kind.
+pub(super) fn build_webhook_payment_response(
+    notification: &Notification,
+    raw_body: &[u8],
+) -> Result<connector_types::WebhookDetailsResponse, Report<domain_types::errors::WebhookError>> {
+    let transaction = notification.transaction();
+
+    if let Some(instrument) = transaction.and_then(|t| t.payment_instrument_type.as_deref()) {
+        if instrument != "us_bank_account" && instrument != "sepa_debit_account" {
+            // Not rejected: a webhook must never be dropped on a shape assumption. Logged so
+            // the anomaly is visible if Braintree ever extends the family to other instruments.
+            tracing::warn!(
+                target: "braintree_webhook",
+                payment_instrument_type = instrument,
+                kind = notification.kind.as_str(),
+                "Braintree transaction webhook on a non-bank instrument"
+            );
+        }
+    }
+
+    // Derived from `<status>`, never from the kind, and routed through the GraphQL-side enum
+    // so the single `From<BraintreePaymentStatus> for AttemptStatus` mapping is reused.
+    let status = transaction
+        .map(|t| enums::AttemptStatus::from(BraintreePaymentStatus::from(t.status)))
+        .unwrap_or(enums::AttemptStatus::Unspecified);
+
+    // Processor codes are only meaningful on the declined kind.
+    let is_failure = domain_types::utils::is_payment_failure(status);
+    let error_code = transaction
+        .filter(|_| is_failure)
+        .and_then(|t| t.processor_response_code.clone());
+    let error_message = transaction
+        .filter(|_| is_failure)
+        .and_then(|t| t.processor_response_text.clone());
+
+    Ok(connector_types::WebhookDetailsResponse {
+        resource_id: transaction.map(|t| ResponseId::ConnectorTransactionId(t.id.clone())),
+        status,
+        connector_response_reference_id: transaction.and_then(|t| t.order_id.clone()),
+        // Braintree echoes no separate request reference in the webhook payload.
+        connector_request_reference_id: None,
+        // Braintree has no mandate webhook kind.
+        mandate_reference: None,
+        error_code,
+        error_message,
+        error_reason: None,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        // `transaction_settled` reports a SETTLEMENT. Equating a settled amount with a
+        // captured amount is an inference a webhook handler should not make when PSync
+        // reports the captured amount directly.
+        amount_captured: None,
+        minor_amount_captured: None,
+        // Not carried in the webhook payload.
+        network_txn_id: None,
+        payment_method_update: None,
+        sender_payment_instrument_id: None,
+        connector_returned_payment_method_details: None,
+    })
+}
+
+// Builds the refund webhook response for `refund_failed`, the only refund kind Braintree
+// emits. The payload is a `<transaction>` whose `<id>` is the REFUND's own id and whose
+// `<refunded-transaction-id>` is the parent sale.
+pub(super) fn build_webhook_refund_response(
+    notification: &Notification,
+    raw_body: &[u8],
+) -> Result<connector_types::RefundWebhookDetailsResponse, Report<domain_types::errors::WebhookError>>
+{
+    let transaction = notification.transaction().ok_or_else(|| {
+        error_stack::report!(domain_types::errors::WebhookError::WebhookResourceObjectNotFound)
+    })?;
+
+    Ok(connector_types::RefundWebhookDetailsResponse {
+        connector_refund_id: Some(transaction.connector_refund_id()),
+        merchant_transaction_id: transaction.order_id.clone(),
+        status: enums::RefundStatus::from(transaction.status),
+        // The PARENT sale, never this entity's own id.
+        connector_response_reference_id: transaction.parent_transaction_id(),
+        error_code: transaction.processor_response_code.clone(),
+        error_message: transaction.processor_response_text.clone(),
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
 }
 
 // Builds the dispute webhook response, including the webhook amount conversion.
+//
+// `amount` and `currency` on `DisputeWebhookDetailsResponse` are NOT `Option`, so a missing
+// `amount-disputed` or `currency-iso-code` is a typed error — never a substituted zero.
 pub(super) fn build_webhook_dispute_response(
     notification: &Notification,
     raw_body: &[u8],
@@ -4049,28 +4562,53 @@ pub(super) fn build_webhook_dispute_response(
     connector_types::DisputeWebhookDetailsResponse,
     Report<domain_types::errors::WebhookError>,
 > {
-    match &notification.dispute {
-        Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
-            amount: domain_types::utils::convert_amount_for_webhook(
-                &common_utils::types::StringMinorUnitForConnector,
-                dispute_data.amount_disputed,
-                dispute_data.currency_iso_code,
-            )?,
-            currency: dispute_data.currency_iso_code,
-            dispute_id: dispute_data.id.clone(),
-            status: get_dispute_status(notification.kind.as_str()),
-            stage: get_dispute_stage(dispute_data.kind.as_str())?,
-            connector_response_reference_id: None,
-            dispute_message: dispute_data.reason.clone(),
-            connector_reason_code: dispute_data.reason_code.clone(),
-            raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
-            status_code: 200,
-            response_headers: None,
-        }),
-        None => Err(error_stack::report!(
-            domain_types::errors::WebhookError::WebhookResourceObjectNotFound
-        )),
-    }
+    let dispute_data = notification.dispute().ok_or_else(|| {
+        error_stack::report!(domain_types::errors::WebhookError::WebhookResourceObjectNotFound)
+    })?;
+
+    let currency = dispute_data.currency_iso_code.ok_or_else(|| {
+        error_stack::report!(
+            domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                field: "currency-iso-code",
+            }
+        )
+    })?;
+
+    // Braintree puts money on the wire as a decimal MAJOR-unit string (`10.00`), so the value
+    // is parsed back to minor units before being handed to the connector's configured webhook
+    // converter (`amount_converter_webhooks: StringMinorUnit`).
+    let amount_disputed = dispute_data.amount_disputed.clone().ok_or_else(|| {
+        error_stack::report!(
+            domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                field: "amount-disputed",
+            }
+        )
+    })?;
+    let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
+        &common_utils::types::StringMajorUnitForConnector,
+        amount_disputed,
+        currency,
+    )?;
+
+    Ok(connector_types::DisputeWebhookDetailsResponse {
+        amount: domain_types::utils::convert_amount_for_webhook(
+            &common_utils::types::StringMinorUnitForConnector,
+            minor_amount,
+            currency,
+        )?,
+        currency,
+        dispute_id: dispute_data.id.clone(),
+        // Status comes from the NOTIFICATION kind; stage from the DISPUTE's own `<kind>`.
+        // Both elements are literally named `kind`, which is why this is easy to get wrong.
+        status: get_dispute_status(notification.kind.as_str()),
+        stage: get_dispute_stage(dispute_data.kind.as_deref()),
+        connector_response_reference_id: dispute_data.transaction.order_id.clone(),
+        dispute_message: dispute_data.reason.clone(),
+        connector_reason_code: dispute_data.reason_code.clone(),
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -8652,5 +9190,576 @@ mod tests {
             )
         )
         .is_none());
+    }
+
+    // --- §W incoming webhooks ----------------------------------------------------------------
+    //
+    // The old `sample_webhook_body` fixture was written against the (broken) structs rather
+    // than against a captured payload, so it encoded exactly the defects the parser had and
+    // kept validating them. Every test below is written against Braintree's own SDK sample
+    // shape instead: `<subject>` wrapper, kebab-case elements, `type=` attributes,
+    // `nil="true"` empties, lowercase statuses and decimal major-unit amounts.
+
+    /// The real `sample_webhook_body`, round-tripped through the real decode path. This is the
+    /// regression guard on the whole fixture: if the fixture and the structs ever drift apart
+    /// again, this fails.
+    fn sample_request() -> connector_types::RequestDetails {
+        use interfaces::connector_types::IncomingWebhook;
+
+        let connector =
+            super::super::Braintree::<domain_types::payment_method_data::DefaultPCIHolder>::new();
+        connector_types::RequestDetails {
+            method: connector_types::HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: connector.sample_webhook_body().to_vec(),
+            query_params: None,
+        }
+    }
+
+    /// Wraps a `<subject>` body in the full form-urlencoded + base64 envelope Braintree sends,
+    /// so every test exercises `decode_from_request` — the production path — rather than the
+    /// XML parse alone.
+    fn braintree_webhook_request(xml: &str) -> connector_types::RequestDetails {
+        let encoded = super::super::BASE64_ENGINE.encode(xml.as_bytes());
+        let body = serde_urlencoded::to_string([
+            ("bt_signature", "dummy_public_key|dummy_signature"),
+            ("bt_payload", encoded.as_str()),
+        ])
+        .expect("form-encode the Braintree webhook envelope");
+
+        connector_types::RequestDetails {
+            method: connector_types::HttpMethod::Post,
+            uri: None,
+            headers: std::collections::HashMap::new(),
+            body: body.into_bytes(),
+            query_params: None,
+        }
+    }
+
+    const DISPUTE_XML: &str = concat!(
+        "<notification>",
+        "<timestamp type=\"datetime\">2024-01-01T00:00:00Z</timestamp>",
+        "<kind>dispute_opened</kind>",
+        "<source-merchant-id>sub_merchant_1</source-merchant-id>",
+        "<subject><dispute>",
+        "<amount-disputed>10.00</amount-disputed>",
+        "<amount-won nil=\"true\"/>",
+        "<case-number>CASE-001</case-number>",
+        "<currency-iso-code>USD</currency-iso-code>",
+        "<id>dispute_id_001</id>",
+        "<kind>chargeback</kind>",
+        "<status>open</status>",
+        "<reason>fraud</reason>",
+        "<reason-code nil=\"true\"/>",
+        "<created-at type=\"datetime\">2024-01-01T00:00:00Z</created-at>",
+        "<reply-by-date type=\"date\">2024-01-15</reply-by-date>",
+        "<evidence><comment nil=\"true\"/><url nil=\"true\"/></evidence>",
+        "<transaction>",
+        "<id>sale_id_001</id>",
+        "<amount>10.00</amount>",
+        "<order-id>order_001</order-id>",
+        "<payment-instrument-type>credit_card</payment-instrument-type>",
+        "</transaction>",
+        "</dispute></subject>",
+        "</notification>"
+    );
+
+    const REFUND_FAILED_XML: &str = concat!(
+        "<notification>",
+        "<timestamp type=\"datetime\">2024-01-01T00:00:00Z</timestamp>",
+        "<kind>refund_failed</kind>",
+        "<subject><transaction>",
+        "<id>refund_id_001</id>",
+        "<status>processor_declined</status>",
+        "<amount>10.00</amount>",
+        "<currency-iso-code>USD</currency-iso-code>",
+        "<order-id>order_001</order-id>",
+        "<refunded-transaction-id>sale_id_001</refunded-transaction-id>",
+        "<processor-response-code>2001</processor-response-code>",
+        "<processor-response-text>Insufficient Funds</processor-response-text>",
+        "</transaction></subject>",
+        "</notification>"
+    );
+
+    const TRANSACTION_SETTLED_XML: &str = concat!(
+        "<notification>",
+        "<timestamp type=\"datetime\">2024-01-01T00:00:00Z</timestamp>",
+        "<kind>transaction_settled</kind>",
+        "<subject><transaction>",
+        "<id>sale_id_002</id>",
+        "<status>settled</status>",
+        "<amount>100.00</amount>",
+        "<currency-iso-code>USD</currency-iso-code>",
+        "<order-id>order_002</order-id>",
+        "<payment-instrument-type>us_bank_account</payment-instrument-type>",
+        "</transaction></subject>",
+        "</notification>"
+    );
+
+    // §W.2.2.1 — pins the actual quick-xml 0.31 behaviour rather than trusting it: `type=`
+    // attributes on a scalar element must not break the bind, and `nil="true"` empties must
+    // not fail the notification.
+    #[test]
+    fn parses_attributed_and_nil_elements() {
+        let notification = decode_from_request(&braintree_webhook_request(DISPUTE_XML))
+            .expect("attributed/nil payload must parse");
+
+        // `<timestamp type="datetime">` — attribute present, text still binds.
+        assert_eq!(notification.timestamp, "2024-01-01T00:00:00Z");
+        let dispute = notification.dispute().expect("dispute subject");
+        assert_eq!(
+            dispute.created_at.as_deref(),
+            Some("2024-01-01T00:00:00Z"),
+            "created-at carries type=\"datetime\""
+        );
+        assert_eq!(dispute.reply_by_date.as_deref(), Some("2024-01-15"));
+        // `nil="true"` empties map to None through `deserialize_nil_aware` (typed targets) and
+        // must not fail the parse for the untyped ones either.
+        assert!(dispute.amount_won.is_none(), "<amount-won nil=\"true\"/>");
+        assert!(dispute.evidence.is_some());
+        // Verified behaviour of quick-xml 0.31, not an assumption: without the helper a
+        // `nil="true"` element deserializes into `Option<String>` as `Some("")` — an empty
+        // `connector_reason_code` reaching the merchant — and into a typed target as a hard
+        // parse error that fails the WHOLE notification. Every optional element on these
+        // structs therefore routes through `deserialize_nil_aware`.
+        assert_eq!(
+            dispute.reason_code, None,
+            "<reason-code nil=\"true\"/> -> None"
+        );
+    }
+
+    // §W.0.2 / defect W-1 + W-2: the `<subject>` level and kebab-case element names. Before
+    // this fix `dispute` was a direct child of `<notification>` and every field was looked up
+    // under a snake_case name the wire never uses, so a real chargeback could not deserialize.
+    #[test]
+    fn parses_subject_wrapped_kebab_case_dispute() {
+        let notification = decode_from_request(&braintree_webhook_request(DISPUTE_XML))
+            .expect("subject-wrapped dispute must parse");
+
+        assert_eq!(
+            notification.source_merchant_id.as_deref(),
+            Some("sub_merchant_1")
+        );
+        let dispute = notification
+            .dispute()
+            .expect("subject.dispute is populated");
+        assert_eq!(dispute.id, "dispute_id_001");
+        assert_eq!(dispute.case_number.as_deref(), Some("CASE-001"));
+        assert_eq!(dispute.currency_iso_code, Some(enums::Currency::USD));
+        assert_eq!(
+            dispute
+                .amount_disputed
+                .as_ref()
+                .map(|a| a.get_amount_as_string()),
+            Some("10.00".to_string()),
+            "amount-disputed is a decimal MAJOR-unit string, not integer minor units"
+        );
+        assert_eq!(dispute.transaction.id, "sale_id_001");
+        assert_eq!(dispute.transaction.order_id.as_deref(), Some("order_001"));
+    }
+
+    // §W.7.4 / defect W-5: `10.00` major -> 1000 minor -> "1000" through the connector's
+    // configured webhook converter. The old code typed this `MinorUnit` and would have read
+    // `10.00` as an integer (in fact it failed to parse at all).
+    #[test]
+    fn dispute_amount_is_major_units_converted_back_to_minor() {
+        let notification = decode_from_request(&braintree_webhook_request(DISPUTE_XML)).unwrap();
+        let response = build_webhook_dispute_response(&notification, b"raw").unwrap();
+
+        assert_eq!(response.amount.to_string(), "1000");
+        assert_eq!(response.currency, enums::Currency::USD);
+        assert_eq!(response.dispute_id, "dispute_id_001");
+        assert_eq!(response.status, enums::DisputeStatus::DisputeOpened);
+        assert_eq!(response.stage, enums::DisputeStage::Dispute);
+        assert_eq!(
+            response.connector_response_reference_id.as_deref(),
+            Some("order_001")
+        );
+        assert_eq!(response.dispute_message.as_deref(), Some("fraud"));
+        assert_eq!(response.status_code, 200);
+    }
+
+    // §W.6.2 / defect W-3: the old matcher accepted only the three uppercase spellings and
+    // returned Err on anything else — so Braintree's modern lowercase `<kind>chargeback</kind>`
+    // discarded the commonest dispute webhook in existence.
+    #[test]
+    fn dispute_stage_is_case_insensitive_and_never_errors() {
+        for spelling in ["chargeback", "CHARGEBACK", "Chargeback", " chargeback "] {
+            assert_eq!(
+                get_dispute_stage(Some(spelling)),
+                enums::DisputeStage::Dispute,
+                "{spelling}"
+            );
+        }
+        assert_eq!(
+            get_dispute_stage(Some("pre_arbitration")),
+            enums::DisputeStage::PreArbitration
+        );
+        assert_eq!(
+            get_dispute_stage(Some("PRE_ARBITRATION")),
+            enums::DisputeStage::PreArbitration
+        );
+        assert_eq!(
+            get_dispute_stage(Some("retrieval")),
+            enums::DisputeStage::PreDispute
+        );
+        // An unrecognised or absent stage must NOT discard a notification that has a reply-by
+        // deadline attached: it degrades to the default stage.
+        assert_eq!(
+            get_dispute_stage(Some("who_knows")),
+            enums::DisputeStage::Dispute
+        );
+        assert_eq!(get_dispute_stage(None), enums::DisputeStage::Dispute);
+    }
+
+    // §W.4.1: all 8 dispute kinds map, and every one classifies as a dispute event so the
+    // fan-out in `process_webhook_event` reaches `process_dispute_webhook`.
+    #[test]
+    fn all_eight_dispute_kinds_map_to_dispute_events() {
+        let expected = [
+            (
+                "dispute_opened",
+                connector_types::EventType::DisputeOpened,
+                enums::DisputeStatus::DisputeOpened,
+            ),
+            (
+                "dispute_accepted",
+                connector_types::EventType::DisputeAccepted,
+                enums::DisputeStatus::DisputeAccepted,
+            ),
+            (
+                "dispute_auto_accepted",
+                connector_types::EventType::DisputeAccepted,
+                enums::DisputeStatus::DisputeAccepted,
+            ),
+            (
+                "dispute_disputed",
+                connector_types::EventType::DisputeChallenged,
+                enums::DisputeStatus::DisputeChallenged,
+            ),
+            // defect W-4: previously unmapped, so it fell to the misc arm and routed a dispute
+            // payload to `process_payment_webhook`.
+            (
+                "dispute_under_review",
+                connector_types::EventType::DisputeChallenged,
+                enums::DisputeStatus::DisputeChallenged,
+            ),
+            (
+                "dispute_expired",
+                connector_types::EventType::DisputeExpired,
+                enums::DisputeStatus::DisputeExpired,
+            ),
+            (
+                "dispute_won",
+                connector_types::EventType::DisputeWon,
+                enums::DisputeStatus::DisputeWon,
+            ),
+            (
+                "dispute_lost",
+                connector_types::EventType::DisputeLost,
+                enums::DisputeStatus::DisputeLost,
+            ),
+        ];
+
+        for (kind, event_type, dispute_status) in expected {
+            let mapped = get_status(kind);
+            assert!(
+                mapped.is_dispute_event(),
+                "{kind} must classify as a dispute event"
+            );
+            assert_eq!(mapped, event_type, "{kind}");
+            assert_eq!(get_dispute_status(kind), dispute_status, "{kind}");
+        }
+    }
+
+    // §W.4.2 / §W.4.4: the transaction family is exactly two kinds and the refund family
+    // exactly one. `transaction_authorized`, `transaction_voided`,
+    // `transaction_processor_declined`, `transaction_gateway_rejected`, `refund_settled` and
+    // `refund_succeeded` DO NOT EXIST — they must not be silently mapped.
+    #[test]
+    fn transaction_and_refund_kinds_are_exactly_the_documented_set() {
+        assert_eq!(
+            get_status("transaction_settled"),
+            connector_types::EventType::PaymentIntentSuccess
+        );
+        assert_eq!(
+            get_status("transaction_settlement_declined"),
+            connector_types::EventType::PaymentIntentFailure
+        );
+        assert!(get_status("transaction_settled").is_payment_event());
+        assert!(get_status("transaction_settlement_declined").is_payment_event());
+
+        assert_eq!(
+            get_status("refund_failed"),
+            connector_types::EventType::RefundFailure
+        );
+        assert!(get_status("refund_failed").is_refund_event());
+
+        for invented in [
+            "transaction_authorized",
+            "transaction_voided",
+            "transaction_processor_declined",
+            "transaction_gateway_rejected",
+            "transaction_captured",
+            "refund_settled",
+            "refund_succeeded",
+        ] {
+            assert_eq!(
+                get_status(invented),
+                connector_types::EventType::IncomingWebhookEventUnspecified,
+                "{invented} is not a Braintree webhook kind and must not be mapped"
+            );
+        }
+    }
+
+    // §W.9 / defect W-1: an unmodelled kind must be a benign `Ok(None)`, not a hard
+    // ParseEvent error. Previously every non-dispute kind returned
+    // `Err(WebhookReferenceIdNotFound)`.
+    #[test]
+    fn unknown_kind_is_unspecified_and_has_no_reference() {
+        let xml = "<notification><timestamp>2024-01-01T00:00:00Z</timestamp>\
+                   <kind>subscription_went_past_due</kind></notification>";
+        let notification = decode_from_request(&braintree_webhook_request(xml))
+            .expect("an unmodelled kind must still deserialize");
+
+        assert_eq!(
+            get_status(&notification.kind),
+            connector_types::EventType::IncomingWebhookEventUnspecified
+        );
+        assert!(matches!(get_webhook_reference(&notification), Ok(None)));
+    }
+
+    // §W.7.2: `<id>` on a refund_failed payload is the REFUND, the parent sale is
+    // `<refunded-transaction-id>`. Swapping them updates the wrong row.
+    #[test]
+    fn refund_failed_ids_are_not_swapped() {
+        let notification =
+            decode_from_request(&braintree_webhook_request(REFUND_FAILED_XML)).unwrap();
+        let response = build_webhook_refund_response(&notification, b"raw").unwrap();
+
+        assert_eq!(
+            response.connector_refund_id.as_deref(),
+            Some("refund_id_001")
+        );
+        assert_eq!(
+            response.connector_response_reference_id.as_deref(),
+            Some("sale_id_001")
+        );
+        assert_ne!(
+            response.connector_refund_id,
+            response.connector_response_reference_id
+        );
+        assert_eq!(
+            response.merchant_transaction_id.as_deref(),
+            Some("order_001")
+        );
+        // `processor_declined` is a terminal Braintree state -> a terminal UCS state.
+        assert_eq!(response.status, enums::RefundStatus::Failure);
+        // Checklist #11: a refund failure webhook must carry the reason, not a bare status.
+        assert_eq!(response.error_code.as_deref(), Some("2001"));
+        assert_eq!(
+            response.error_message.as_deref(),
+            Some("Insufficient Funds")
+        );
+
+        match get_webhook_reference(&notification).unwrap() {
+            Some(connector_types::WebhookResourceReference::Refund(reference)) => {
+                assert_eq!(
+                    reference.connector_refund_id.as_deref(),
+                    Some("refund_id_001")
+                );
+                assert_eq!(
+                    reference.connector_transaction_id.as_deref(),
+                    Some("sale_id_001")
+                );
+                assert_eq!(
+                    reference.merchant_transaction_id.as_deref(),
+                    Some("order_001")
+                );
+                assert!(reference.merchant_refund_id.is_none());
+            }
+            other => panic!("expected a Refund reference, got {other:?}"),
+        }
+    }
+
+    // The `-fk` spelling appears only in four SDKs' *sample generators*; no SDK parses it.
+    // Tolerated as an alias so a harness payload produced by one of them still parses —
+    // production logic is keyed on `refunded-transaction-id`.
+    #[test]
+    fn refunded_transaction_fk_alias_parses() {
+        let xml = REFUND_FAILED_XML.replace("refunded-transaction-id", "refunded-transaction-fk");
+        let notification = decode_from_request(&braintree_webhook_request(&xml)).unwrap();
+        let transaction = notification.transaction().expect("transaction subject");
+        assert_eq!(
+            transaction.parent_transaction_id().as_deref(),
+            Some("sale_id_001")
+        );
+    }
+
+    // §W.3.4: the webhook `<status>` is lowercase snake_case while `BraintreePaymentStatus` is
+    // SCREAMING_SNAKE (it parses GraphQL). Reusing the GraphQL enum would send every real
+    // webhook status into its `#[serde(other)] Unknown` arm — a silent, total misreading.
+    #[test]
+    fn lowercase_webhook_statuses_do_not_fall_into_the_unknown_arm() {
+        let notification =
+            decode_from_request(&braintree_webhook_request(TRANSACTION_SETTLED_XML)).unwrap();
+        let transaction = notification.transaction().unwrap();
+        assert_eq!(
+            transaction.status,
+            BraintreeWebhookTransactionStatus::Settled
+        );
+
+        // The same bytes through the GraphQL enum are Unknown — this is the bug being avoided.
+        assert!(matches!(
+            serde_json::from_str::<BraintreePaymentStatus>("\"processor_declined\"").unwrap(),
+            BraintreePaymentStatus::Unknown
+        ));
+        assert!(matches!(
+            serde_json::from_str::<BraintreeWebhookTransactionStatus>("\"processor_declined\"")
+                .unwrap(),
+            BraintreeWebhookTransactionStatus::ProcessorDeclined
+        ));
+
+        // Unrecognised statuses degrade to Unspecified, never an invented Pending or Failure.
+        let unknown: BraintreeWebhookTransactionStatus =
+            serde_json::from_str("\"some_future_status\"").unwrap();
+        assert_eq!(unknown, BraintreeWebhookTransactionStatus::Unknown);
+        assert_eq!(
+            enums::AttemptStatus::from(BraintreePaymentStatus::from(unknown)),
+            enums::AttemptStatus::Unspecified
+        );
+    }
+
+    // §W.5: terminal Braintree state -> terminal UCS state, derived from `<status>` and routed
+    // through the single `From<BraintreePaymentStatus> for AttemptStatus` mapping.
+    #[test]
+    fn payment_webhook_maps_settled_and_settlement_declined() {
+        let settled =
+            decode_from_request(&braintree_webhook_request(TRANSACTION_SETTLED_XML)).unwrap();
+        let response = build_webhook_payment_response(&settled, b"raw").unwrap();
+        assert_eq!(response.status, enums::AttemptStatus::Charged);
+        assert!(matches!(
+            response.resource_id,
+            Some(ResponseId::ConnectorTransactionId(ref id)) if id == "sale_id_002"
+        ));
+        assert_eq!(
+            response.connector_response_reference_id.as_deref(),
+            Some("order_002")
+        );
+        // Settlement is not capture: these stay None and PSync reports the captured amount.
+        assert!(response.amount_captured.is_none());
+        assert!(response.minor_amount_captured.is_none());
+        assert!(response.error_code.is_none());
+
+        let declined_xml = TRANSACTION_SETTLED_XML
+            .replace("transaction_settled", "transaction_settlement_declined")
+            .replace(
+                "<status>settled</status>",
+                "<status>settlement_declined</status>",
+            )
+            .replace(
+                "<order-id>order_002</order-id>",
+                "<order-id>order_002</order-id>\
+                 <processor-response-code>4001</processor-response-code>\
+                 <processor-response-text>Settlement Declined</processor-response-text>",
+            );
+        let declined = decode_from_request(&braintree_webhook_request(&declined_xml)).unwrap();
+        let response = build_webhook_payment_response(&declined, b"raw").unwrap();
+        assert_eq!(response.status, enums::AttemptStatus::Failure);
+        assert_eq!(response.error_code.as_deref(), Some("4001"));
+        assert_eq!(
+            response.error_message.as_deref(),
+            Some("Settlement Declined")
+        );
+    }
+
+    // The misc-event fall-through routes every unmodelled kind to `process_payment_webhook`.
+    // With no `<transaction>` at all it must degrade to `Unspecified`, not error — the default
+    // trait impl (a hard `WebhooksNotImplemented`) is what this replaces.
+    #[test]
+    fn unmodelled_kind_falls_through_to_an_unspecified_payment_response() {
+        let xml = "<notification><timestamp>2024-01-01T00:00:00Z</timestamp>\
+                   <kind>disbursement</kind></notification>";
+        let notification = decode_from_request(&braintree_webhook_request(xml)).unwrap();
+        let response = build_webhook_payment_response(&notification, b"raw").unwrap();
+
+        assert_eq!(response.status, enums::AttemptStatus::Unspecified);
+        assert!(response.resource_id.is_none());
+        assert!(response.error_code.is_none());
+    }
+
+    // §W.9: `connector_dispute_id` is deliberately None — the shadow normaliser resolves a
+    // prism Dispute reference as `connector_dispute_id.or(connector_transaction_id)`, and HS
+    // emits the transaction id, so populating it would break byte-for-byte parity.
+    #[test]
+    fn dispute_reference_uses_the_parent_transaction_id() {
+        let notification = decode_from_request(&braintree_webhook_request(DISPUTE_XML)).unwrap();
+        match get_webhook_reference(&notification).unwrap() {
+            Some(connector_types::WebhookResourceReference::Dispute(reference)) => {
+                assert!(reference.connector_dispute_id.is_none());
+                assert_eq!(
+                    reference.connector_transaction_id.as_deref(),
+                    Some("sale_id_001")
+                );
+            }
+            other => panic!("expected a Dispute reference, got {other:?}"),
+        }
+    }
+
+    // Defect W-7: the shipped `sample_webhook_body` must parse through the REAL code path and
+    // produce the real response. The previous fixture was derived from the parser under test,
+    // so it could not falsify it; this asserts against values read off the payload itself.
+    #[test]
+    fn sample_webhook_body_round_trips_through_the_real_path() {
+        let request = sample_request();
+        let notification = decode_from_request(&request).expect("sample body must parse");
+
+        assert_eq!(notification.kind, "dispute_opened");
+        assert_eq!(
+            get_status(&notification.kind),
+            connector_types::EventType::DisputeOpened
+        );
+
+        let dispute = notification
+            .dispute()
+            .expect("sample body has a subject.dispute");
+        assert_eq!(dispute.id, "dummy_dispute_id_001");
+        // Lowercase stage — the spelling the old fixture (and the old matcher) could not handle.
+        assert_eq!(dispute.kind.as_deref(), Some("chargeback"));
+
+        let response = build_webhook_dispute_response(&notification, &request.body).unwrap();
+        assert_eq!(response.amount.to_string(), "1000");
+        assert_eq!(response.currency, enums::Currency::USD);
+        assert_eq!(response.stage, enums::DisputeStage::Dispute);
+        assert_eq!(
+            response.connector_response_reference_id.as_deref(),
+            Some("dummy_order_001")
+        );
+    }
+
+    // §W.7.4: `amount` and `currency` on the dispute response are non-Option, so a missing
+    // element is a typed error and NEVER a substituted zero.
+    #[test]
+    fn a_missing_disputed_amount_is_an_error_not_a_zero() {
+        let xml = DISPUTE_XML.replace("<amount-disputed>10.00</amount-disputed>", "");
+        let notification = decode_from_request(&braintree_webhook_request(&xml)).unwrap();
+        let error = build_webhook_dispute_response(&notification, b"raw").unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                field: "amount-disputed"
+            }
+        ));
+
+        let xml = DISPUTE_XML.replace("<currency-iso-code>USD</currency-iso-code>", "");
+        let notification = decode_from_request(&braintree_webhook_request(&xml)).unwrap();
+        let error = build_webhook_dispute_response(&notification, b"raw").unwrap_err();
+        assert!(matches!(
+            error.current_context(),
+            domain_types::errors::WebhookError::WebhookMissingRequiredField {
+                field: "currency-iso-code"
+            }
+        ));
     }
 }

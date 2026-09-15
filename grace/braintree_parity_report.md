@@ -1428,3 +1428,223 @@ This run's prior failure mode — codegen hardcoding sandbox values into fixture
   to keep it: everything specified here is already present at that version, so there is no NTID
   argument for raising it. §7.1's `CountryCode` alpha-3 → alpha-2 hazard at 2021-02-01 stands
   unchanged.
+
+---
+
+## 10. Incoming webhooks — payment, refund, and the dispute path that never worked
+
+Scope of this run: `impl IncomingWebhook`, `PAYMENT_METHOD: Card`. The brief framed it as "add
+`process_payment_webhook` and `process_refund_webhook`; chargeback already works, just confirm it."
+Both halves of that framing turned out to be wrong, in opposite directions.
+
+### 10.1 The brief's kind list was wrong — for the third time in six runs
+
+The brief asked which of `authorization`, `submitted_for_settlement`, `voided`,
+`processor_declined`, `gateway_rejected` Braintree emits. **None of them.** Those are Braintree
+transaction *statuses*, not webhook kinds. There is no `transaction_authorized`, no
+`transaction_voided`, no `transaction_processor_declined`, no `transaction_gateway_rejected`.
+
+The transaction webhook family has exactly **two** members — `transaction_settled` and
+`transaction_settlement_declined` — and Braintree scopes both away from us:
+
+> "Transaction webhooks are available for ACH and SEPA Direct Debit `Transaction: Sale` and
+> `Transaction: Refund` requests."
+> — https://developer.paypal.com/braintree/docs/reference/general/webhooks/transaction/ruby
+
+Every SDK sample for both kinds hard-codes
+`<payment-instrument-type>us_bank_account</payment-instrument-type>`; no card variant exists in
+any Braintree SDK. **A Braintree card payment produces no payment-lifecycle webhook, ever.** The
+card lifecycle is synchronous-response-plus-PSync by design, not by omission.
+
+So this run adds **no reachable card payment webhook**, and that is the correct outcome rather
+than a shortfall. Both kinds are implemented anyway — same code the ACH/SEPA payment methods will
+need — and the constraint is stated in a doc comment on `process_payment_webhook` so the next
+reader does not re-litigate it.
+
+`refund_failed` is likewise the **only** refund kind. There is no `refund_settled` and no
+`refund_succeeded`; a successful refund is observable only through RSync. That is recorded as the
+`refund_succeeded` entry in `unsupported_scenarios`, with the reason, rather than left to look
+like a coverage hole.
+
+### 10.2 The dispute path did not "already work" — it had three independent blockers
+
+The brief said chargeback notification already works and asked for confirmation. It does not work,
+and never did. Verified against Braintree's own SDK sample-XML generators (`braintree_ruby`
+`webhook_testing_gateway.rb`, `braintree_python` `webhook_testing_gateway.py` /
+`webhook_notification.py`, corroborated by `braintree_node`):
+
+| # | Defect | Effect on a real chargeback |
+|---|---|---|
+| **B1** | `Notification` had no `<subject>` level; `dispute` was declared a direct child of `<notification>`. The real envelope is `<notification><timestamp/><kind/><subject><dispute>…</subject></notification>` — the Ruby generator builds `<subject>` for *every* kind from one envelope function, Python reads `attributes["subject"]` unconditionally, Ruby reads `@subject[:dispute]`. The un-wrapped form does not exist. | `dispute` always deserialised to `None` → `WebhookReferenceIdNotFound` on ParseEvent, `WebhookResourceObjectNotFound` on HandleEvent |
+| **B2** | `BraintreeDisputeData` / `DisputeTransaction` / `DisputeEvidence` carried no `rename_all`, so they expected `amount_disputed` / `currency_iso_code`; the wire is kebab-case `amount-disputed` / `currency-iso-code`. Both fields were non-`Option`. | hard parse failure, independent of B1 |
+| **B3** | `amount_disputed: MinorUnit`, and `MinorUnit` is `pub struct MinorUnit(pub i64)`. The wire value is a decimal major-unit string: `<amount-disputed>100.00</amount-disputed>`. | hard parse failure, independent of B1 and B2 |
+
+Each alone is sufficient to fail every real chargeback. The operator's listed requirement,
+"Chargeback notification on dashboard (API/Webhooks)", was therefore **unmet in production** before
+this run — not partially met, not degraded: zero real Braintree dispute webhooks could be
+processed.
+
+B2 has an instructive cause. The snake_case spelling is correct *in SDK code*, because both SDKs
+rewrite `-`→`_` after parsing (`braintree_python/util/parser.py::__underscored`,
+`braintree_ruby/xml/parser.rb` `tr("-","_")`). Reading key names out of SDK source and pasting them
+into a serde deserializer is exactly the trap, and it is invisible unless you read the *generator*
+rather than the *parser*.
+
+### 10.3 Why three blockers survived review: the fixture was derived from the parser
+
+`sample_webhook_body` was the only fixture, and it was hand-written to match the structs rather
+than captured from Braintree. Base64-decoded, the old payload was un-wrapped, snake_case,
+uppercase-stage and integer-minor-amount — it encoded **all three blockers**, so it round-tripped
+perfectly through the broken parser. A fixture derived from the code under test cannot falsify that
+code; it can only confirm it.
+
+There is no captured Braintree payload anywhere in either repo. That is why the identical defect
+sits untouched in hyperswitch today.
+
+The replacement fixture is derived from Braintree's SDK sample generator and deliberately carries
+every feature the old one lacked: `<subject>` nesting, kebab-case names, a `type="datetime"` and a
+`type="date"` attribute, a `nil="true"` empty element, a lowercase dispute stage and a decimal
+major-unit amount. `sample_webhook_body_round_trips_through_the_real_path` drives it through
+`decode_from_request` — form-urlencode → base64 → XML — i.e. the production path, not the XML
+parser in isolation.
+
+### 10.4 Parity — stated in both directions
+
+**Where UCS now leads.** Hyperswitch's Braintree has **no payment webhook handling and no refund
+webhook handling at all**, and cannot acquire either without a struct change: its `Notification`
+(`hyperswitch_connectors/src/connectors/braintree/transformers.rs:2786-2791`) has exactly `kind`,
+`timestamp`, `dispute`, so a transaction or refund body deserialises with every field dropped. Its
+`get_status` maps 7 dispute kinds and sends everything else to `_ => EventNotSupported`, and
+`get_webhook_object_reference_id` hard-errors when `dispute` is `None` — there is no
+`ObjectReferenceId::RefundId` branch anywhere in the file. After this run UCS handles
+`transaction_settled`, `transaction_settlement_declined` and `refund_failed`; hyperswitch handles
+none of the three.
+
+**Where neither leads, because UCS inherited the defect verbatim.** B1, B2 and B3 are all present
+in hyperswitch, unchanged, today. UCS was not *behind* on the dispute path — both were broken
+identically, because the UCS port was faithful. This run does not close a gap against hyperswitch;
+it opens a lead, and simultaneously fixes a bug that is still live upstream. That is worth an
+upstream issue.
+
+**Where both were short.** `dispute_under_review` — one of Braintree's 8 dispute kinds — was
+unmapped in both. Now mapped in UCS (§10.5), still unmapped upstream.
+
+**Deliberate, recorded divergences from hyperswitch created by this run.** §1 of this report
+recorded "status mapping — zero divergences" and the dispute path as a 1:1 port. That is no longer
+true, by intent:
+- `get_dispute_stage` returns a value, not a `Result`. HS's catch-all is
+  `Err(WebhookBodyDecodingFailed)`, which discards a whole dispute notification — one carrying a
+  reply-by deadline — because its stage string was unrecognised. The error path was itself the bug.
+- The stage match is now case-insensitive. Braintree's legacy sample emits `CHARGEBACK`, the modern
+  one emits `chargeback`; both are valid on the wire and HS accepts only the former.
+- `get_webhook_reference` returns `Ok(None)` for unmodelled kinds rather than `Err`, per
+  `webhook.md`.
+These three are improvements over upstream, not drift, and are listed here so a future parity pass
+does not "restore" them.
+
+### 10.5 What shipped
+
+| File | Δ |
+|---|---|
+| `crates/integrations/connector-integration/src/connectors/braintree.rs` | +79 / −4 |
+| `crates/integrations/connector-integration/src/connectors/braintree/transformers.rs` | +1182 / −73 |
+| `crates/internal/integration-tests/src/connector_specs/braintree/specs.json` | +11 / −2 |
+| `crates/internal/integration-tests/src/connector_specs/braintree/webhook_payload.json` | new, 51 lines |
+| `data/integration-source-links.json` | +19 / −1 (webhook doc + SDK sources, unioned onto the existing GraphQL/3DS entry) |
+
+Structural: `Notification` gains `source_merchant_id` and `subject: Option<NotificationSubject>`
+holding `dispute` / `transaction`, with `Notification::dispute()` / `::transaction()` accessors so
+call sites do not reach through two `Option`s. `kebab-case` on all four webhook structs.
+`amount_disputed: Option<StringMajorUnit>`, converted via the **pre-existing**
+`convert_back_amount_to_minor_units_for_webhook` (`domain_types/src/utils.rs:346`) — no new
+generic helper, per checklist #15/#16.
+
+Kind → `EventType`: the 8 dispute kinds (incl. new `dispute_under_review` → `DisputeChallenged`);
+`transaction_settled` → `PaymentIntentSuccess`; `transaction_settlement_declined` →
+`PaymentIntentFailure`; `refund_failed` → `RefundFailure`; **everything else →
+`IncomingWebhookEventUnspecified`**, never a substituted `Pending` or `Failure`.
+
+Status: a new lowercase wire enum `BraintreeWebhookTransactionStatus` (14 variants,
+`#[serde(other)] Unknown`). This one is load-bearing and easy to miss — the existing
+`BraintreePaymentStatus` is `SCREAMING_SNAKE_CASE` because it parses GraphQL, so reusing it for
+webhooks would have sent *every* real webhook status into its `Unknown` arm: a silent, total
+misread that no GraphQL-path test could catch. A `From<BraintreeWebhookTransactionStatus> for
+BraintreePaymentStatus` bridge keeps exactly one `→ AttemptStatus` mapping so the two paths cannot
+drift. Both matches exhaustive, no `_` arm.
+
+`verify_webhook_source`, `get_webhook_api_response`, `get_webhook_object_from_body`,
+`decode_webhook_payload`, `get_matching_webhook_signature` and `decode_from_request` bodies are
+**untouched**, as instructed.
+
+### 10.6 Evidence
+
+- `cargo test -p connector-integration braintree` → **70 passed, 0 failed** (55 → 70; 15 new).
+- `cargo clippy -p connector-integration --all-targets` → clean (sole warning is a pre-existing
+  third-party dependency notice, unrelated).
+- `cargo +nightly fmt --all -- --check` → clean. `check_connector_specs` → "All checks passed. OK.",
+  `Missing webhook_payload.json: 0`.
+- Live `EventService/ParseEvent` + `HandleEvent` against a locally built grpc-server, 8 calls:
+  `dispute_opened` → `WEBHOOK_DISPUTE_OPENED` / `DISPUTE_OPENED` / stage `ACTIVE_DISPUTE`, ack
+  `[accepted]`; `refund_failed` → `WEBHOOK_REFUND_FAILURE` with refund id and parent sale id in
+  their correct slots; `transaction_settled` → `PAYMENT_INTENT_SUCCESS` / `CHARGED`;
+  `transaction_settlement_declined` → `PAYMENT_INTENT_FAILURE` / `FAILURE`;
+  `subscription_went_past_due` → `UNSPECIFIED` with no error (it was an `Err` before this change);
+  tampered `bt_signature` → body still processed with `sourceVerified` absent, confirming the bool
+  is data and not a gate.
+- **Honest limit:** no real Braintree-signed payload exists in the repo and none was captured.
+  Every transcript above uses a synthetic payload signed with a dummy keypair through Braintree's
+  documented algorithm. B3 (decimal major units on `<amount-disputed>`) is therefore *inferred from
+  the SDK generator*, not *observed from Braintree*. B1 and B2 are required regardless.
+
+### 10.7 Reviewer-checklist audit (`grace/braintree_review_checklist.md`)
+
+| # | Item | Verdict |
+|---|---|---|
+| 1 | Currency is `common_enums::Currency` | **PASS** — `currency_iso_code: Option<enums::Currency>`; no currency string anywhere in the new code |
+| 2 | Amounts use an amount type, same type as siblings | **PASS, and this was the B3 fix** — `amount_disputed` moved `MinorUnit` → `StringMajorUnit`, matching its sibling `DisputeTransaction::amount`. No `String`/`f64` amount |
+| 3 | PII/credentials are `Secret<…>` | **PASS** — no new credential or PII field. Webhook payloads carry ids/amounts/status only; `DisputeEvidence::id` keeps its existing `Secret<String>` |
+| 4 | Fixed-value strings become enums | **PASS** — new `BraintreeWebhookTransactionStatus` enum rather than matching `&str`. **Deviation, deliberate:** notification `kind` stays `String`, matched by `&str`. 41 kinds exist and UCS models 11; a `#[serde(other)]` enum would add 30 dead variants and a second place to edit. Recorded, not accidental |
+| 5 | Never hardcode `AttemptStatus::Failure` in `build_error_response` | **N/A** — `build_error_response` untouched; webhooks do not route through it |
+| 6 | Unknown status → `Unspecified` | **PASS** — unknown kind → `IncomingWebhookEventUnspecified`; unknown wire status → `Unspecified` via `#[serde(other)] Unknown`. Test: `unknown_kind_is_unspecified_and_has_no_reference` |
+| 7 | Terminal connector state → terminal UCS state | **PASS** — `settlement_declined` → `Failure`; `processor_declined`/`gateway_rejected`/`failed` → `RefundStatus::Failure`. Nothing terminal maps to `Pending` |
+| 8 | Do not map a state the pipeline cannot advance | **PASS** — the three mapped payment/refund kinds are all terminal; none strands an attempt |
+| 9 | Partial capture → `PartialCharged` | **N/A** — no capture semantics on the webhook surface; Braintree emits no partial-settlement kind |
+| 10 | A 200 carrying a failure body → `ErrorResponse` | **PASS (adapted)** — `refund_failed` and `transaction_settlement_declined` arrive HTTP-200 and are surfaced with `error_code`/`error_message` from `processor-response-code`/`-text`, not silently dropped. Verified live: `{2001, "Insufficient Funds"}` |
+| 11 | Refund error paths must set `attempt_status` | **N/A** — `RefundWebhookDetailsResponse` has 9 fields and no `attempt_status`; the field does not exist on this path. Its intent is met by #10 above |
+| 12 | Authorize and PSync return the same resource id | **PASS (analogous)** — the webhook returns the same `connector_transaction_id` Authorize/PSync return. For `refund_failed` the refund's own id and the parent sale are in distinct slots; test `refund_failed_ids_are_not_swapped` pins it |
+| 13 | Use `get_merchant_request_id()` for idempotency | **N/A** — inbound webhooks are not idempotency-keyed; no outbound request is made |
+| 14 | Prefer per-request field over connector-config copy | **N/A** — no config read on this path. `transformers.rs:437` unchanged, so the reference implementation PR2187 cited is not regressed |
+| 15 | Reuse existing helpers | **PASS** — reuses `convert_amount_for_webhook` and the pre-existing `convert_back_amount_to_minor_units_for_webhook`; no hand-rolled amount maths. `verify_webhook_source` and the four decode helpers reused untouched |
+| 16 | Generic logic belongs in `utils.rs` | **PASS** — nothing generic added to the connector. `deserialize_nil_aware` is Braintree-XML-specific (a `nil="true"` quirk) and correctly stays local |
+| 17 | No `billing_full_name` fallback for card holder name | **N/A** — no cardholder name on the webhook surface |
+| 18 | Fill in `IntegrationErrorContext` | **N/A** — webhook paths return typed `WebhookError` variants, which carry their own context. Used purposefully: `WebhookMissingRequiredField { field }` names the exact missing element rather than a generic decode failure |
+| 19 | Comment non-obvious logic | **PASS** — the ACH/SEPA-only constraint, the "these are statuses not kinds" trap, the SCREAMING_SNAKE vs lowercase status trap, the fixture's former circularity, and the `get_dispute_stage` `Result`→value change each carry a comment explaining *why* |
+| 20 | Novel local logic needs a `#[cfg(test)]` test | **PASS** — 15 new tests, all driven through `decode_from_request` (the production path): `<subject>` nesting, kebab-case, `nil="true"`, `type=` attributes, major→minor conversion, case-insensitive stage, all 8 dispute kinds, the exact transaction/refund kind set, unknown-kind fall-through, refund id slotting, the `-fk` alias, the lowercase-status trap, and the fixture round-trip |
+| 21 | Never guess a production hostname | **PASS** — no config/*.toml touched; webhooks are inbound and need no URL |
+| 22 | No unrelated regenerated files | **PASS** — 5 files, all in scope. `data/integration-source-links.json` needs a note: the Links Agent **replaced** the Braintree entry, silently dropping the 14 GraphQL/3DS URLs that document the already-shipped flows on this branch. Caught and repaired to a 32-link union before staging; all 20 other connector entries verified byte-identical |
+
+### 10.8 Residual risks and open items
+
+1. **B3 is inferred, not observed.** `<amount-disputed>` being decimal major units comes from
+   Braintree's SDK generator, not a captured payload. If it is in fact minor units, disputes would
+   report a 100× amount. Mitigated by a typed error on a missing/unparseable value rather than a
+   substituted zero, but the real fix is to capture one live dispute webhook and assert against it.
+2. **No real signed payload anywhere in the repo.** Until one is captured, `verify_webhook_source`
+   is exercised only against self-generated signatures. The algorithm is unchanged and was already
+   in production, so this is a test-coverage gap, not a regression.
+3. **The Braintree integration-test harness cannot run in this environment, pre-existing.**
+   `ConnectorSpecificConfig::Braintree` has four `Vec<String>` fields with no `#[serde(default)]`,
+   and `build_wrapped_config` emits only the keys present in `creds.json`, so the
+   `x-connector-config` header fails to parse and **all 22 pre-existing Authorize scenarios fail
+   identically**, unrelated to this change. It is why the gRPC evidence above was driven by hand.
+   Worth a separate fix; it currently masks every Braintree suite result.
+4. **Three `EventService/HandleEvent` scenarios are parked on a global harness defect**, not a
+   Braintree one: the global scenario asserts a top-level `event_status` field that
+   `EventServiceHandleResponse` (`proto/events.proto:183-201`) does not have — it carries
+   `event_type`, `event_content`, `source_verified`, `merchant_event_id`, `event_ack_response`,
+   `supported_integrity_checks` and nothing else. Adyen records the same finding. Fixtures are real
+   and pass on substance by hand; they go live when the global assertion is fixed.
+5. **`transaction_reviewed` is unmodelled.** Its subject is `<transaction-review>`, a fourth entity
+   shape. It correctly falls through to `IncomingWebhookEventUnspecified` rather than being
+   misidentified as a transaction.
+6. **Upstream bug.** B1/B2/B3 are live in hyperswitch today. Someone should file it.

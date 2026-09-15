@@ -1,0 +1,51 @@
+{
+  "_webhook_config": {
+    "signature_location": "body",
+    "signature_path": "bt_signature",
+    "signature_algorithm": "braintree_hmac_sha1_over_sha1_of_private_key",
+    "signature_encoding": "hex",
+    "_comment": "Braintree signs the raw `bt_payload` form value with HMAC-SHA1 keyed by the SHA-1 DIGEST of the merchant private key, and returns `pubkey1|sig1&pubkey2|sig2&...` in the `bt_signature` form field - not in a header. There is therefore no `signature_header` and no generator arm in webhook_signatures.rs: each body below carries a precomputed signature over the dummy keypair declared in its own `webhook_secrets` (secret = private key, additional_secret = public key)."
+  },
+  "payment_succeeded": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": "YnRfc2lnbmF0dXJlPWR1bW15X3B1YmxpY19rZXklN0MzMWQ5ODlhZGYyNzA3NDA4OWE3YzQ4YzhmZTQyNmFkZTAyOTM2NDM2JmJ0X3BheWxvYWQ9UEc1dmRHbG1hV05oZEdsdmJqNDhkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHlNREkwTFRBeExUQXhWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGp4cmFXNWtQblJ5WVc1ellXTjBhVzl1WDNObGRIUnNaV1E4TDJ0cGJtUSUyQlBITjFZbXBsWTNRJTJCUEhSeVlXNXpZV04wYVc5dVBqeHBaRDVpY21GcGJuUnlaV1ZmZEhodVgzTmxkSFJzWldSZk1EQXhQQzlwWkQ0OGMzUmhkSFZ6UG5ObGRIUnNaV1E4TDNOMFlYUjFjejQ4WVcxdmRXNTBQakl3TGpBd1BDOWhiVzkxYm5RJTJCUEdOMWNuSmxibU41TFdsemJ5MWpiMlJsUGxWVFJEd3ZZM1Z5Y21WdVkza3RhWE52TFdOdlpHVSUyQlBHOXlaR1Z5TFdsa1BuUmxjM1JmY0dGNWJXVnVkRjh3TURFOEwyOXlaR1Z5TFdsa1BqeHRaWEpqYUdGdWRDMWhZMk52ZFc1MExXbGtQbXAxYzNCaGVUd3ZiV1Z5WTJoaGJuUXRZV05qYjNWdWRDMXBaRDQ4Y0dGNWJXVnVkQzFwYm5OMGNuVnRaVzUwTFhSNWNHVSUyQmRYTmZZbUZ1YTE5aFkyTnZkVzUwUEM5d1lYbHRaVzUwTFdsdWMzUnlkVzFsYm5RdGRIbHdaVDQ4WTNKbFlYUmxaQzFoZENCMGVYQmxQU0prWVhSbGRHbHRaU0klMkJNakF5TkMwd01TMHdNVlF3TURvd01Eb3dNRm84TDJOeVpXRjBaV1F0WVhRJTJCUEM5MGNtRnVjMkZqZEdsdmJqNDhMM04xWW1wbFkzUSUyQlBDOXViM1JwWm1sallYUnBiMjQlMkI="
+      },
+      "merchant_event_id": "braintree_webhook_transaction_settled_001",
+      "webhook_secrets": {
+        "secret": "dummy_private_key",
+        "additional_secret": "dummy_public_key"
+      }
+    }
+  },
+  "payment_failed": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": "YnRfc2lnbmF0dXJlPWR1bW15X3B1YmxpY19rZXklN0MzNGFhZmM2M2YzZGEyM2ExMjBlOTk3YWFmZGVlMDIyMzlmNjk0YjlmJmJ0X3BheWxvYWQ9UEc1dmRHbG1hV05oZEdsdmJqNDhkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHlNREkwTFRBeExUQXhWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGp4cmFXNWtQblJ5WVc1ellXTjBhVzl1WDNObGRIUnNaVzFsYm5SZlpHVmpiR2x1WldROEwydHBibVElMkJQSE4xWW1wbFkzUSUyQlBIUnlZVzV6WVdOMGFXOXVQanhwWkQ1aWNtRnBiblJ5WldWZmRIaHVYMlJsWTJ4cGJtVmtYekF3TVR3dmFXUSUyQlBITjBZWFIxY3o1elpYUjBiR1Z0Wlc1MFgyUmxZMnhwYm1Wa1BDOXpkR0YwZFhNJTJCUEdGdGIzVnVkRDR5TUM0d01Ed3ZZVzF2ZFc1MFBqeGpkWEp5Wlc1amVTMXBjMjh0WTI5a1pUNVZVMFE4TDJOMWNuSmxibU41TFdsemJ5MWpiMlJsUGp4dmNtUmxjaTFwWkQ1MFpYTjBYM0JoZVcxbGJuUmZNREF5UEM5dmNtUmxjaTFwWkQ0OGJXVnlZMmhoYm5RdFlXTmpiM1Z1ZEMxcFpENXFkWE53WVhrOEwyMWxjbU5vWVc1MExXRmpZMjkxYm5RdGFXUSUyQlBIQmhlVzFsYm5RdGFXNXpkSEoxYldWdWRDMTBlWEJsUG5WelgySmhibXRmWVdOamIzVnVkRHd2Y0dGNWJXVnVkQzFwYm5OMGNuVnRaVzUwTFhSNWNHVSUyQlBIQnliMk5sYzNOdmNpMXlaWE53YjI1elpTMWpiMlJsUGpRd01ERThMM0J5YjJObGMzTnZjaTF5WlhOd2IyNXpaUzFqYjJSbFBqeHdjbTlqWlhOemIzSXRjbVZ6Y0c5dWMyVXRkR1Y0ZEQ1VFpYUjBiR1Z0Wlc1MElFUmxZMnhwYm1Wa1BDOXdjbTlqWlhOemIzSXRjbVZ6Y0c5dWMyVXRkR1Y0ZEQ0OEwzUnlZVzV6WVdOMGFXOXVQand2YzNWaWFtVmpkRDQ4TDI1dmRHbG1hV05oZEdsdmJqNCUzRA=="
+      },
+      "merchant_event_id": "braintree_webhook_settlement_declined_001",
+      "webhook_secrets": {
+        "secret": "dummy_private_key",
+        "additional_secret": "dummy_public_key"
+      }
+    }
+  },
+  "invalid_signature": {
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": "YnRfc2lnbmF0dXJlPWR1bW15X3B1YmxpY19rZXklN0MwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwJmJ0X3BheWxvYWQ9UEc1dmRHbG1hV05oZEdsdmJqNDhkR2x0WlhOMFlXMXdJSFI1Y0dVOUltUmhkR1YwYVcxbElqNHlNREkwTFRBeExUQXhWREF3T2pBd09qQXdXand2ZEdsdFpYTjBZVzF3UGp4cmFXNWtQblJ5WVc1ellXTjBhVzl1WDNObGRIUnNaV1E4TDJ0cGJtUSUyQlBITjFZbXBsWTNRJTJCUEhSeVlXNXpZV04wYVc5dVBqeHBaRDVpY21GcGJuUnlaV1ZmZEhodVgzTmxkSFJzWldSZk1EQXhQQzlwWkQ0OGMzUmhkSFZ6UG5ObGRIUnNaV1E4TDNOMFlYUjFjejQ4WVcxdmRXNTBQakl3TGpBd1BDOWhiVzkxYm5RJTJCUEdOMWNuSmxibU41TFdsemJ5MWpiMlJsUGxWVFJEd3ZZM1Z5Y21WdVkza3RhWE52TFdOdlpHVSUyQlBHOXlaR1Z5TFdsa1BuUmxjM1JmY0dGNWJXVnVkRjh3TURFOEwyOXlaR1Z5TFdsa1BqeHRaWEpqYUdGdWRDMWhZMk52ZFc1MExXbGtQbXAxYzNCaGVUd3ZiV1Z5WTJoaGJuUXRZV05qYjNWdWRDMXBaRDQ4Y0dGNWJXVnVkQzFwYm5OMGNuVnRaVzUwTFhSNWNHVSUyQmRYTmZZbUZ1YTE5aFkyTnZkVzUwUEM5d1lYbHRaVzUwTFdsdWMzUnlkVzFsYm5RdGRIbHdaVDQ4WTNKbFlYUmxaQzFoZENCMGVYQmxQU0prWVhSbGRHbHRaU0klMkJNakF5TkMwd01TMHdNVlF3TURvd01Eb3dNRm84TDJOeVpXRjBaV1F0WVhRJTJCUEM5MGNtRnVjMkZqZEdsdmJqNDhMM04xWW1wbFkzUSUyQlBDOXViM1JwWm1sallYUnBiMjQlMkI="
+      },
+      "merchant_event_id": "braintree_webhook_invalid_sig",
+      "webhook_secrets": {
+        "secret": "dummy_private_key",
+        "additional_secret": "dummy_public_key"
+      }
+    }
+  }
+}
