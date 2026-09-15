@@ -234,7 +234,7 @@
       },
       "LocalBankTransfer": {
         "status": "not_supported",
-        "error": "LocalBankTransfer in billing country CL; Directa24 bank transfer is available in Mexico (MX) and Brazil (BR) only is not supported by d24"
+        "error": "LocalBankTransfer in billing country CL (Directa24 bank transfer is offered in MX and BR only) is not supported by d24"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
