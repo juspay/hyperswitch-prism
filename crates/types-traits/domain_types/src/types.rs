@@ -13609,6 +13609,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
         let payment_method_type = <Option<common_enums::PaymentMethodType>>::foreign_try_from(
             value.payment_method_type(),
         )?;
+        let setup_future_usage = match value.setup_future_usage() {
+            grpc_payment_types::FutureUsage::Unspecified => None,
+            future_usage => Some(common_enums::FutureUsage::foreign_try_from(future_usage)?),
+        };
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
@@ -13631,6 +13635,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             webhook_url,
             payment_method_type,
             order_details,
+            setup_future_usage,
         })
     }
 }
@@ -13692,7 +13697,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id,
             ),
-            customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer,
             description: None,
             return_url: None,

@@ -7,10 +7,19 @@
 //! concatenation of the body it is about to be sent with (see
 //! [`paynearme_signature`]).
 //!
-//! Scope of this module: Card, one-time payments only.
-//! * `CreateOrder` -> `POST /create_order`
+//! Scope of this module: Card — one-time payments, storing a card for later
+//! merchant-initiated use, and charging the stored card.
+//! * `CreateOrder` -> `POST /create_order` (a standing order for
+//!   `setup_future_usage = OffSession`, see [`PaynearmeOrderSettings`])
 //! * `Authorize`   -> `POST /create_payment_method` with `send_payment=true`
-//!   (tokenises the card and charges it in one round trip)
+//!   (tokenises the card and charges it in one round trip; for a
+//!   customer-initiated mandate payment the stored card is also returned as the
+//!   mandate reference, see [`stores_card_for_later`])
+//! * `SetupMandate` -> `POST /create_payment_method` without `send_payment`
+//!   (tokenises only; the token becomes the mandate reference, see
+//!   [`PaynearmeMandateReference`])
+//! * `RepeatPayment` -> `POST /make_payment` (charges the stored token against the
+//!   standing order, both read from `connector_mandate_id`)
 //! * `PSync`       -> `POST /find_payment`
 //! * `Void`        -> `POST /cancel_payment`
 //! * `Refund`      -> `POST /refund_payment`
@@ -22,18 +31,28 @@
 //!
 //! 3-D Secure does not exist anywhere in the PayNearMe API surface, so a
 //! `ThreeDs` authorize is rejected outright rather than silently downgraded.
+//!
+//! Apple Pay and Google Pay cannot be sent through this API in any form, so an
+//! authorize with either wallet is rejected with `NotSupported` (see
+//! [`apple_pay_not_supported`] and [`google_pay_not_supported`]).
 
-use common_enums::{AttemptStatus, AuthenticationType, Currency, RefundStatus};
+use common_enums::{AttemptStatus, AuthenticationType, Currency, FutureUsage, RefundStatus};
 use common_utils::{crypto::SignMessage, types::StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, CreateOrder, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
+    },
     connector_types::{
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        ApplePayPaymentData, ApplePayWalletData, Card, GooglePayWalletData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
@@ -58,16 +77,34 @@ const SIGNATURE_EXEMPT_FIELDS: [&str; 3] = ["format", "signature", "call"];
 const SIGNATURE_REQUIRED_FIELDS: [&str; 3] = ["site_identifier", "timestamp", "version"];
 
 /// `order_type` for a one-time payment of a known amount (`any` | `exact` | `up-to`).
-const ORDER_TYPE_EXACT: &str = "exact";
-/// A standing order is a repeatedly-payable balance — out of scope here.
-const ORDER_IS_STANDING_FALSE: &str = "false";
+pub(super) const ORDER_TYPE_EXACT: &str = "exact";
+/// `order_type` for a standing order that holds a stored card: later
+/// merchant-initiated charges need not equal the order amount. This is the value
+/// PayNearMe's own standing-order recipe pairs with `order_is_standing="true"`.
+const ORDER_TYPE_ANY: &str = "any";
+/// A one-time order: paid once, then done.
+pub(super) const ORDER_IS_STANDING_FALSE: &str = "false";
+/// "If the order can be repeatedly paid for, enter `true`" — required for an order
+/// a stored card will be charged against more than once.
+const ORDER_IS_STANDING_TRUE: &str = "true";
+/// Hyperswitch persists `connector_mandate_id` in a `VARCHAR(128)` column. A
+/// longer reference is refused rather than truncated: a truncated reference would
+/// be stored as valid and fail on the first merchant-initiated charge.
+pub(super) const CONNECTOR_MANDATE_ID_MAX_LEN: usize = 128;
 /// The only `payment_method_type` in scope. PayNearMe classifies credit vs debit
 /// from the BIN and reports it back in `payment_type`.
 const PAYMENT_METHOD_TYPE_CARD: &str = "card";
-/// The only `site_channel` in scope (the `*_recurring` values are out of scope).
-const SITE_CHANNEL_CONSUMER: &str = "consumer";
+/// The only `site_channel` in scope, on Authorize and RepeatPayment alike: a
+/// merchant-initiated charge stays on the same channel (and therefore the same
+/// site-configured pricing schedule) as the payment that stored the card. The
+/// `*_recurring` values are not used; whether a site has those schedules configured
+/// is not documented.
+pub(super) const SITE_CHANNEL_CONSUMER: &str = "consumer";
 /// Tokenise **and** charge in the same `/create_payment_method` call.
 const SEND_PAYMENT_TRUE: &str = "true";
+/// `/make_payment` `recurring`: "Pass `true` to make the payment recurring." Sent on
+/// every RepeatPayment, which by definition charges a stored credential.
+pub(super) const RECURRING_TRUE: &str = "true";
 /// Keep `payments[]` down to the single entry this Authorize just created.
 const LAST_PMT_ONLY_TRUE: &str = "true";
 /// `/create_order` returns only the identifiers we need when this is set.
@@ -138,7 +175,7 @@ fn current_timestamp() -> String {
 ///    `skip_serializing_if = "Option::is_none"` is not on the wire either.
 /// 3. Sort what remains alphabetically by key (plain lexicographic sort).
 /// 4. Concatenate `key + value` with **no** separators.
-fn paynearme_string_to_sign(
+pub(super) fn paynearme_string_to_sign(
     body: &serde_json::Value,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     let object = body
@@ -223,11 +260,147 @@ fn require_usd(currency: Currency) -> Result<Currency, error_stack::Report<Integ
 }
 
 // =============================================================================
+// STORED CREDENTIALS — shared by Authorize (off-session), SetupMandate, RepeatPayment
+// =============================================================================
+
+/// Whether an Authorize stores the card for later merchant-initiated charges.
+///
+/// Exactly when the payment is a customer-initiated mandate payment:
+/// `setup_future_usage == OffSession` together with `customer_acceptance` or
+/// `setup_mandate_details`. That is the gate Hyperswitch uses to persist the
+/// returned connector mandate (`is_connector_mandate` / `is_legacy_mandate` in
+/// `router/src/core/payments/operations/payment_response.rs`); an off-session
+/// payment without either is saved with no connector mandate even when one comes
+/// back. Such a payment is therefore charged here as a plain one-off: no
+/// `customer.id` requirement, no stored-card lookup and no mandate reference.
+fn stores_card_for_later<T: PaymentMethodDataTypes>(request: &PaymentsAuthorizeData<T>) -> bool {
+    request.is_customer_initiated_mandate_payment()
+}
+
+/// The caller's stable `customer.id`, required before any card is stored.
+///
+/// PayNearMe links a stored payment method to the customer of the order it is
+/// created on ("Payment Methods are linked to the Customer ID",
+/// <https://apidocs.paynearme.com/devdocs/reference/payment-methods>), and that
+/// order must have been created with this id as `site_customer_identifier`. The
+/// stored-card response is checked against it, so a request without one fails
+/// closed here instead of storing a card under an unknown customer. An empty
+/// `customer.id` cannot identify a customer and counts as absent, as it does on
+/// CreateOrder (see [`PaynearmeOrderSettings`]).
+fn stored_credential_customer_identifier(
+    common: &PaymentFlowData,
+) -> Result<&str, error_stack::Report<IntegrationError>> {
+    common
+        .customer_id
+        .as_ref()
+        .map(|customer_id| customer_id.get_string_repr())
+        .filter(|customer_id| !customer_id.is_empty())
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer.id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Send the stable customer id as customer.id; the PayNearMe order the \
+                         card is stored on must have been created with the same value as \
+                         site_customer_identifier"
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://apidocs.paynearme.com/devdocs/reference/payment-methods"
+                            .to_string(),
+                    ),
+                    additional_context: Some(
+                        "A stored PayNearMe card belongs to the order's customer".to_string(),
+                    ),
+                },
+            })
+        })
+}
+
+// =============================================================================
 // CREATE ORDER — `POST /create_order`
 // =============================================================================
 
+/// The three `/create_order` fields that decide whether an order can be paid
+/// again and whose it is. PayNearMe fixes them when the order is created:
+/// `/create_payment_method` and `/make_payment` have no field to change them
+/// (<https://apidocs.paynearme.com/devdocs/reference/post_create-order>).
+#[derive(Debug)]
+pub struct PaynearmeOrderSettings {
+    pub(super) order_type: &'static str,
+    pub(super) order_is_standing: &'static str,
+    pub(super) site_customer_identifier: Secret<String>,
+}
+
+impl PaynearmeOrderSettings {
+    /// Chooses the order from the payment it is created for.
+    ///
+    /// * `setup_future_usage = OffSession`: the payment stores the card for
+    ///   merchant-initiated charges (a customer-initiated Authorize, or a SetupMandate),
+    ///   and each of those charges pays this same order again. So the order is
+    ///   standing ("If the order can be repeatedly paid for, enter `true`"), with
+    ///   `order_type="any"` because those charges need not equal the order amount.
+    ///   The stored card is linked to the order's customer, and the Authorize /
+    ///   SetupMandate response is checked against `customer.id`, so `customer.id`
+    ///   is required. A per-order fallback would mint a fresh PayNearMe customer
+    ///   and orphan the card.
+    /// * `OnSession` or unset: a one-time `exact` order that is paid once.
+    ///   `site_customer_identifier` is required and is a client-created unique
+    ///   string, so without a `customer.id` it falls back to the attempt reference.
+    ///
+    /// An empty `customer.id` counts as absent: it cannot identify a customer.
+    pub(super) fn new(
+        setup_future_usage: Option<FutureUsage>,
+        customer_id: Option<&str>,
+        connector_request_reference_id: &str,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let customer_id = customer_id.filter(|customer_id| !customer_id.is_empty());
+        match setup_future_usage {
+            Some(FutureUsage::OffSession) => {
+                let site_customer_identifier = customer_id.ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "customer.id",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send customer.id on CreateOrder when setup_future_usage is \
+                                 OFF_SESSION, with the same value later sent as customer.id on \
+                                 the Authorize or SetupRecurring that stores the card"
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://apidocs.paynearme.com/devdocs/reference/post_create-order"
+                                    .to_string(),
+                            ),
+                            additional_context: Some(
+                                "setup_future_usage=OFF_SESSION creates a standing PayNearMe \
+                                 order, and its site_customer_identifier owns the stored card"
+                                    .to_string(),
+                            ),
+                        },
+                    })
+                })?;
+                Ok(Self {
+                    order_type: ORDER_TYPE_ANY,
+                    order_is_standing: ORDER_IS_STANDING_TRUE,
+                    site_customer_identifier: Secret::new(site_customer_identifier.to_string()),
+                })
+            }
+            Some(FutureUsage::OnSession) | None => Ok(Self {
+                order_type: ORDER_TYPE_EXACT,
+                order_is_standing: ORDER_IS_STANDING_FALSE,
+                site_customer_identifier: Secret::new(
+                    customer_id
+                        .unwrap_or(connector_request_reference_id)
+                        .to_string(),
+                ),
+            }),
+        }
+    }
+}
+
 /// `/create_order` request. "With PayNearMe, an order is required any time money
-/// moves or is scheduled to move", so this runs ahead of every Authorize.
+/// moves or is scheduled to move", so this runs ahead of every Authorize, and a
+/// caller runs it ahead of SetupMandate (passing the id on as `order_id`).
 #[derive(Debug, Serialize)]
 pub struct PaynearmeCreateOrderRequest {
     pub site_identifier: Secret<String>,
@@ -236,7 +409,8 @@ pub struct PaynearmeCreateOrderRequest {
     pub signature: Secret<String>,
     pub order_amount: StringMajorUnit,
     pub order_currency: Currency,
-    pub site_customer_identifier: String,
+    /// The order's customer, see [`PaynearmeOrderSettings`].
+    pub site_customer_identifier: Secret<String>,
     pub order_type: String,
     pub order_is_standing: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -244,6 +418,35 @@ pub struct PaynearmeCreateOrderRequest {
     /// Returns only `pnm_order_identifier` / `pnm_customer_identifier`, which is
     /// all this flow consumes, and keeps the cash/slip payload out of the response.
     pub return_minimal_info: String,
+}
+
+impl PaynearmeCreateOrderRequest {
+    /// Builds the body and signs exactly what will be serialised. `timestamp` is a
+    /// parameter so the unit tests can pin the signature of a fixed body.
+    pub(super) fn signed(
+        auth: PaynearmeAuthType,
+        timestamp: String,
+        order_amount: StringMajorUnit,
+        order_currency: Currency,
+        settings: PaynearmeOrderSettings,
+        site_order_identifier: String,
+    ) -> Result<Self, error_stack::Report<IntegrationError>> {
+        let mut request = Self {
+            site_identifier: auth.site_identifier,
+            timestamp,
+            version: PAYNEARME_API_VERSION.to_string(),
+            signature: Secret::new(String::new()),
+            order_amount,
+            order_currency,
+            site_customer_identifier: settings.site_customer_identifier,
+            order_type: settings.order_type.to_string(),
+            order_is_standing: settings.order_is_standing.to_string(),
+            site_order_identifier: Some(site_order_identifier),
+            return_minimal_info: RETURN_MINIMAL_INFO_TRUE.to_string(),
+        };
+        request.signature = paynearme_signature(&auth.api_secret_key, &request)?;
+        Ok(request)
+    }
 }
 
 type CreateOrderRouterData =
@@ -263,29 +466,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_amount =
             PaynearmeAmountConvertor::convert(router_data.request.amount, Currency::USD)?;
 
-        // `site_customer_identifier` is required and is a client-created unique
-        // string; fall back to the attempt reference when no customer is attached.
-        let site_customer_identifier = common
-            .customer_id
-            .as_ref()
-            .map(|customer_id| customer_id.get_string_repr().to_string())
-            .unwrap_or_else(|| common.connector_request_reference_id.clone());
+        // `customer.id` is the same `PaymentFlowData.customer_id` the off-session
+        // Authorize and SetupMandate compare the order's customer against.
+        let settings = PaynearmeOrderSettings::new(
+            router_data.request.setup_future_usage,
+            common
+                .customer_id
+                .as_ref()
+                .map(|customer_id| customer_id.get_string_repr()),
+            &common.connector_request_reference_id,
+        )?;
 
-        let mut request = Self {
-            site_identifier: auth.site_identifier,
-            timestamp: current_timestamp(),
-            version: PAYNEARME_API_VERSION.to_string(),
-            signature: Secret::new(String::new()),
+        Self::signed(
+            auth,
+            current_timestamp(),
             order_amount,
             order_currency,
-            site_customer_identifier,
-            order_type: ORDER_TYPE_EXACT.to_string(),
-            order_is_standing: ORDER_IS_STANDING_FALSE.to_string(),
-            site_order_identifier: Some(common.connector_request_reference_id.clone()),
-            return_minimal_info: RETURN_MINIMAL_INFO_TRUE.to_string(),
-        };
-        request.signature = paynearme_signature(&auth.api_secret_key, &request)?;
-        Ok(request)
+            settings,
+            common.connector_request_reference_id.clone(),
+        )
     }
 }
 
@@ -294,10 +493,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // =============================================================================
 
 /// `/create_payment_method` request, card variant, charging in the same call.
-///
-/// The credit-card and debit-card `oneOf` variants of this endpoint are
-/// field-identical (both `payment_method_type: "card"`); PayNearMe decides which
-/// it is from the BIN.
 #[derive(Debug, Serialize)]
 pub struct PaynearmeAuthorizeRequest {
     pub site_identifier: Secret<String>,
@@ -306,17 +501,8 @@ pub struct PaynearmeAuthorizeRequest {
     pub signature: Secret<String>,
     /// The order created by the `CreateOrder` flow.
     pub pnm_order_identifier: String,
-    pub payment_method_type: String,
-    /// PAN, plain digits, no separators.
-    pub payment_method_card_number_pii: Secret<String>,
-    /// `MM/YYYY` per the field's normative description. (The docs' own examples
-    /// show `MM/YY`; `accounts.expiration_date` in responses uses `MM/YYYY`.)
-    pub payment_method_card_expiry_pii: Secret<String>,
-    pub payment_method_cvv_pii: Secret<String>,
-    pub payment_method_billing_name: Secret<String>,
-    pub payment_method_billing_address: Secret<String>,
-    pub payment_method_billing_zipcode: Secret<String>,
-    pub payment_method_billing_phone: Secret<String>,
+    #[serde(flatten)]
+    pub card: PaynearmeCardPaymentMethod,
     pub send_payment: String,
     pub payment_amount: StringMajorUnit,
     pub payment_currency: Currency,
@@ -330,6 +516,119 @@ pub struct PaynearmeAuthorizeRequest {
 type AuthorizeRouterData<T> =
     RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>;
 
+/// The error for an Apple Pay Authorize, in either token form.
+///
+/// PayNearMe's server-to-server API cannot receive Apple Pay payment data:
+/// * <https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix>: the
+///   ApplePay row is marked unavailable under both "API - Create Payment Method"
+///   and "API - Make Payment". Apple Pay exists only in PayNearMe-hosted UIs
+///   (Embedded Client / Web-JS, Smart Links, Agent Interface), where PayNearMe
+///   runs the Apple Pay session itself.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_create-payment-method>:
+///   `payment_method_type` is one of `card`, `ach`, `paypal` or `venmo`, and there
+///   is no cryptogram, ECI, network-token (DPAN), token-requestor or wallet field.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_make-payment>: only
+///   charges an existing `payment_method_identifier`; no wallet field.
+///
+/// A decrypted token is not sent as a plain card either. That would drop the
+/// cryptogram and ECI and present a device-token transaction as a keyed PAN.
+///
+/// The match is exhaustive, so a new Apple Pay payment-data variant has to be
+/// decided here. Neither message carries any token data (DPAN, cryptogram, ECI
+/// or the encrypted payload). The `apple_pay_*` values of
+/// [`PaynearmeStoredMethodType`] only describe hosted-UI options in responses.
+pub(super) fn apple_pay_not_supported(
+    apple_pay: &ApplePayWalletData,
+) -> error_stack::Report<IntegrationError> {
+    const MATRIX_ROW: &str = "PayNearMe's payment-methods matrix marks ApplePay unavailable \
+                              under both \"API - Create Payment Method\" and \"API - Make Payment\"";
+    match &apple_pay.payment_data {
+        ApplePayPaymentData::Decrypted(_) => wallet_not_supported(
+            "Apple Pay (Hyperswitch-decrypted DPAN + cryptogram; the PayNearMe API has no \
+             wallet or network-token fields)",
+            MATRIX_ROW,
+        ),
+        ApplePayPaymentData::Encrypted(_) => wallet_not_supported(
+            "Apple Pay (Apple-encrypted payment token; PayNearMe offers Apple Pay only in its \
+             hosted UIs, not through the API)",
+            MATRIX_ROW,
+        ),
+    }
+}
+
+/// The error for a Google Pay Authorize, in either token form:
+/// `GpayTokenizationData::Decrypted` (a Hyperswitch-decrypted PAN or DPAN, with a
+/// cryptogram and ECI for `CRYPTOGRAM_3DS`, without them for `PAN_ONLY`) and
+/// `GpayTokenizationData::Encrypted` (the Google-encrypted token).
+///
+/// PayNearMe's server-to-server API cannot receive Google Pay payment data:
+/// * <https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix>: the
+///   GooglePay row is marked unavailable under "API - Create Payment Method", and
+///   "API - Make Payment" is limited by the note "The /make_payment API call with a
+///   GooglePay payment method can only be used for disbursement orders (i.e., push
+///   orders)". Google Pay payments exist only in PayNearMe-hosted UIs (Smart Links
+///   Consumer Portal, Embedded Client `flow_google_pay`, Web/JS library
+///   `google_pay: true`), where PayNearMe runs the Google Pay session itself.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_create-payment-method>:
+///   `payment_method_type` is one of `card`, `ach`, `paypal` or `venmo`, and there
+///   is no cryptogram, ECI, DPAN, network-token, wallet-type or Google Pay token
+///   field.
+/// * <https://apidocs.paynearme.com/devdocs/reference/post_make-payment>: only
+///   charges a PayNearMe-created `payment_method_identifier`; no wallet field.
+///
+/// The decrypted PAN is not sent as a plain card either. For `CRYPTOGRAM_3DS` that
+/// would drop the cryptogram and ECI and present a device-token transaction as a
+/// keyed PAN; a `PAN_ONLY` PAN is still a Google Pay credential, not a card the
+/// cardholder entered.
+///
+/// The match is exhaustive, so a new tokenization variant has to be decided here.
+/// Neither message carries any token data (PAN/DPAN, expiry, cryptogram, ECI or
+/// the encrypted token). The `gpay` value of [`PaynearmeStoredMethodType`] only
+/// describes a hosted-UI option in responses.
+pub(super) fn google_pay_not_supported(
+    google_pay: &GooglePayWalletData,
+) -> error_stack::Report<IntegrationError> {
+    const MATRIX_ROW: &str = "PayNearMe's payment-methods matrix marks GooglePay unavailable \
+                              under \"API - Create Payment Method\", and allows it on \"API - \
+                              Make Payment\" only for disbursement (push) orders";
+    match &google_pay.tokenization_data {
+        GpayTokenizationData::Decrypted(_) => wallet_not_supported(
+            "Google Pay (Hyperswitch-decrypted PAN or DPAN, with or without a cryptogram; the \
+             PayNearMe API has no wallet or network-token fields)",
+            MATRIX_ROW,
+        ),
+        GpayTokenizationData::Encrypted(_) => wallet_not_supported(
+            "Google Pay (Google-encrypted payment token; PayNearMe offers Google Pay only in its \
+             hosted UIs, not through the API)",
+            MATRIX_ROW,
+        ),
+    }
+}
+
+/// `NotSupported` for a wallet the PayNearMe API cannot carry, shared by
+/// [`apple_pay_not_supported`] and [`google_pay_not_supported`] so both refusals
+/// give the caller the same guidance: `additional_context` quotes the wallet's
+/// row in the payment-methods matrix, `doc_url` links the matrix, and
+/// `suggested_action` names the paths PayNearMe does offer. Callers pass only
+/// fixed text, never token data.
+fn wallet_not_supported(message: &str, matrix_row: &str) -> error_stack::Report<IntegrationError> {
+    error_stack::report!(IntegrationError::NotSupported {
+        message: message.to_string(),
+        connector: PAYNEARME,
+        context: IntegrationErrorContext {
+            suggested_action: Some(
+                "Pay by card, or take the wallet payment in a PayNearMe-hosted UI (Embedded \
+                 Client / Web-JS library, Smart Links), where PayNearMe runs the wallet session"
+                    .to_string(),
+            ),
+            doc_url: Some(
+                "https://apidocs.paynearme.com/devdocs/docs/payment-methods-matrix".to_string(),
+            ),
+            additional_context: Some(matrix_row.to_string()),
+        },
+    })
+}
+
 /// `MM/YYYY`, built from the two-digit month and the four-digit year.
 fn card_expiry_mm_yyyy<T: PaymentMethodDataTypes>(
     card: &Card<T>,
@@ -337,6 +636,64 @@ fn card_expiry_mm_yyyy<T: PaymentMethodDataTypes>(
     let month = card.get_card_expiry_month_2_digit()?;
     let year = card.get_expiry_year_4_digit();
     Ok(Secret::new(format!("{}/{}", month.peek(), year.peek())))
+}
+
+/// The card and billing fields of `/create_payment_method`, shared by Authorize
+/// (tokenise and charge) and SetupMandate (tokenise only). Both calls take the same
+/// fields from the same sources, so they are built in one place. Flattened into
+/// each request, they serialise, and therefore sign, exactly as separate fields
+/// would.
+///
+/// The credit-card and debit-card `oneOf` variants of the endpoint are
+/// field-identical (both `payment_method_type: "card"`); PayNearMe decides which it
+/// is from the BIN.
+#[derive(Debug, Serialize)]
+pub struct PaynearmeCardPaymentMethod {
+    pub payment_method_type: String,
+    /// PAN, plain digits, no separators.
+    pub payment_method_card_number_pii: Secret<String>,
+    /// `MM/YYYY` per the field's normative description. (The docs' own examples
+    /// show `MM/YY`; `accounts.expiration_date` in responses uses `MM/YYYY`.)
+    pub payment_method_card_expiry_pii: Secret<String>,
+    pub payment_method_cvv_pii: Secret<String>,
+    pub payment_method_billing_name: Secret<String>,
+    pub payment_method_billing_address: Secret<String>,
+    pub payment_method_billing_zipcode: Secret<String>,
+    pub payment_method_billing_phone: Secret<String>,
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<(&Card<T>, &PaymentFlowData)>
+    for PaynearmeCardPaymentMethod
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from((card, common): (&Card<T>, &PaymentFlowData)) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_type: PAYMENT_METHOD_TYPE_CARD.to_string(),
+            payment_method_card_number_pii: Secret::new(card.card_number.peek().to_string()),
+            payment_method_card_expiry_pii: card_expiry_mm_yyyy(card)?,
+            payment_method_cvv_pii: card.card_cvc.clone(),
+            // `payment_method_billing_name` is a required field on
+            // `/create_payment_method`, so the billing full name is required here.
+            // It is read straight off the billing address — no cardholder-name
+            // fallback — so a caller that sends neither gets a precise
+            // missing-field error instead of a gateway 400.
+            payment_method_billing_name: common.get_billing_full_name()?,
+            payment_method_billing_address: common.get_billing_line1()?,
+            payment_method_billing_zipcode: common.get_billing_zip()?,
+            // Documented as required. It can be made optional per site, but
+            // surfacing the gap here beats a 400 from the gateway.
+            //
+            // The bare national number, **not** `get_billing_phone_number()`:
+            // that helper prefixes the country code including the `+`
+            // (`payment_address.rs:380`), producing `+14695555878`, while
+            // PayNearMe's own worked example for this field is
+            // `"469-555-5878"` (§8.2.1) — a US national number with no
+            // country code. `PhoneDetails::get_number()`
+            // (`payment_address.rs:375`) is the framework accessor for it.
+            payment_method_billing_phone: common.get_billing_phone()?.get_number()?,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -349,8 +706,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let common = &router_data.resource_common_data;
         let request = &router_data.request;
 
+        // Charging a stored card is RecurringPaymentService/Charge (RepeatPayment,
+        // `/make_payment`). Refused here rather than charged as a one-off: this call
+        // needs raw card data and would store a second token. UCS maps no Authorize
+        // field onto `mandate_id` today (`domain_types/src/types.rs` sets it `None`)
+        // and Hyperswitch routes a mandate payment to Charge, so this guards the
+        // contract rather than a live path.
+        if request
+            .mandate_id
+            .as_ref()
+            .is_some_and(|mandate_ids| mandate_ids.mandate_reference_id.is_some())
+            || matches!(
+                request.payment_method_data,
+                PaymentMethodData::MandatePayment
+            )
+        {
+            return Err(not_supported(
+                "Merchant-initiated payments through Authorize (use RecurringPaymentService/Charge)",
+            ));
+        }
+
         let card = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card,
+            // `NotSupported` rather than the generic `NotImplemented` below: the
+            // PayNearMe API has no field that could ever carry Apple Pay data, so
+            // this is not a gap to fill later. Refused before anything else is
+            // read or sent.
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                return Err(apple_pay_not_supported(apple_pay))
+            }
+            // Same reasoning for Google Pay, decrypted (CRYPTOGRAM_3DS or PAN_ONLY)
+            // or encrypted: its PAN is never sent as a card.
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+                return Err(google_pay_not_supported(google_pay))
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Only card payments are supported by paynearme".to_string(),
@@ -375,17 +764,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             return Err(not_supported("Three DS payments"));
         }
 
-        // Mandates / MIT / stored credentials are out of scope for this
-        // integration: `SetupMandate` and `RepeatPayment` are `not_implemented`
-        // and `mandates` is declared `NotSupported` in `paynearme.rs`. Nothing
-        // here reads `mandate_id` / `setup_mandate_details` / `setup_future_usage`,
-        // so without this guard an off-session or credential-storing authorize
-        // would be charged as a plain one-off and come back with
-        // `mandate_reference: None` — the merchant would believe a credential
-        // was stored when none was. Refuse, for the same reason 3DS is refused
-        // above rather than silently downgraded.
-        if request.is_mandate_payment() {
-            return Err(not_supported("Mandates / stored credentials"));
+        // A customer-initiated mandate payment (see `stores_card_for_later`) stores
+        // the card for later merchant-initiated charges. The wire request is the same
+        // `/create_payment_method` with `send_payment=true`; the response handler
+        // returns the stored card as the mandate reference. PayNearMe files the card
+        // under the order's customer, so require the stable customer id before any
+        // card data is sent.
+        if stores_card_for_later(request) {
+            stored_credential_customer_identifier(common)?;
         }
 
         // There is no capture endpoint anywhere in the API (see `Capture` in
@@ -417,12 +803,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     context: context(),
                 })?;
 
-        // `payment_method_billing_name` is a required field on
-        // `/create_payment_method`, so the billing full name is required here.
-        // It is read straight off the billing address — no cardholder-name
-        // fallback — so a caller that sends neither gets a precise
-        // missing-field error instead of a gateway 400.
-        let billing_name = common.get_billing_full_name()?;
+        let card = PaynearmeCardPaymentMethod::try_from((card, common))?;
 
         Ok({
             let mut built = Self {
@@ -431,24 +812,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 version: PAYNEARME_API_VERSION.to_string(),
                 signature: Secret::new(String::new()),
                 pnm_order_identifier,
-                payment_method_type: PAYMENT_METHOD_TYPE_CARD.to_string(),
-                payment_method_card_number_pii: Secret::new(card.card_number.peek().to_string()),
-                payment_method_card_expiry_pii: card_expiry_mm_yyyy(card)?,
-                payment_method_cvv_pii: card.card_cvc.clone(),
-                payment_method_billing_name: billing_name,
-                payment_method_billing_address: common.get_billing_line1()?,
-                payment_method_billing_zipcode: common.get_billing_zip()?,
-                // Documented as required. It can be made optional per site, but
-                // surfacing the gap here beats a 400 from the gateway.
-                //
-                // The bare national number, **not** `get_billing_phone_number()`:
-                // that helper prefixes the country code including the `+`
-                // (`payment_address.rs:380`), producing `+14695555878`, while
-                // PayNearMe's own worked example for this field is
-                // `"469-555-5878"` (§8.2.1) — a US national number with no
-                // country code. `PhoneDetails::get_number()`
-                // (`payment_address.rs:375`) is the framework accessor for it.
-                payment_method_billing_phone: common.get_billing_phone()?.get_number()?,
+                card,
                 send_payment: SEND_PAYMENT_TRUE.to_string(),
                 payment_amount,
                 payment_currency,
@@ -459,6 +823,123 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             built.signature = paynearme_signature(&auth.api_secret_key, &built)?;
             built
         })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE — `POST /create_payment_method`, tokenise only
+// =============================================================================
+
+/// `/create_payment_method` request, card variant, **without** `send_payment`:
+/// PayNearMe tokenises the card (running issuer AVS/CVV validation) and charges
+/// nothing. The `payment_method_identifier` it creates is what a later
+/// `/make_payment` charges.
+///
+/// Optional fields deliberately not sent:
+/// * `send_payment` / `payment_amount` / `payment_currency`: nothing is charged,
+///   and a non-zero setup amount is refused (see the `TryFrom`).
+/// * `site_channel` / `pricing_schedule_name`: both describe the channel of a
+///   *payment* ("The payment channel where this payment was created"), and a
+///   tokenise-only call creates none. The channel is sent on the `/make_payment`
+///   that RepeatPayment sends.
+/// * `return_minimal_info`: it would strip the `accounts[]` the token is read from.
+#[derive(Debug, Serialize)]
+pub struct PaynearmeSetupMandateRequest {
+    pub site_identifier: Secret<String>,
+    pub timestamp: String,
+    pub version: String,
+    pub signature: Secret<String>,
+    /// The standing order a prior CreateOrder created (with
+    /// `setup_future_usage = OffSession` and the same `customer.id`, see
+    /// [`PaynearmeOrderSettings`]), passed to SetupRecurring as `order_id`.
+    pub pnm_order_identifier: String,
+    #[serde(flatten)]
+    pub card: PaynearmeCardPaymentMethod,
+}
+
+type SetupMandateRouterData<T> =
+    RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<PaynearmeRouterData<SetupMandateRouterData<T>, T>> for PaynearmeSetupMandateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaynearmeRouterData<SetupMandateRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let common = &router_data.resource_common_data;
+        let request = &router_data.request;
+
+        let card = match &request.payment_method_data {
+            PaymentMethodData::Card(card) => card,
+            _ => {
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card mandates are supported by paynearme".to_string(),
+                    context(),
+                )))
+            }
+        };
+
+        // No 3-D Secure surface exists in the API; refused for the same reason
+        // Authorize refuses it.
+        if common.auth_type == AuthenticationType::ThreeDs || request.authentication_data.is_some()
+        {
+            return Err(not_supported("Three DS mandate setup"));
+        }
+
+        // Tokenise only. Charging a non-zero setup amount would need
+        // `send_payment="true"` and would make this a payment, whose outcome this
+        // flow does not report; ignoring the amount would leave the merchant
+        // believing the card was charged. Refuse instead.
+        if request
+            .minor_amount
+            .is_some_and(|amount| amount.get_amount_as_i64() != 0)
+        {
+            return Err(not_supported("SetupMandate with a non-zero amount"));
+        }
+
+        // PayNearMe binds a stored card to the customer of the order it is created
+        // on, and the response is checked against this id. Require it before any
+        // card data is sent.
+        stored_credential_customer_identifier(common)?;
+
+        // `/create_payment_method` attaches the card to an existing order, and the
+        // SetupRecurring handler makes a single connector call (no order-create
+        // pre-step), so the caller must supply it. Hyperswitch sends no `order_id`
+        // on SetupRecurring today.
+        let pnm_order_identifier = common.connector_order_id.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "order_id",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call PaymentService/CreateOrder with setup_future_usage \
+                         OFF_SESSION and this customer.id, and pass its connector_order_id \
+                         as order_id"
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "PayNearMe stores a card against an existing order".to_string(),
+                    ),
+                },
+            })
+        })?;
+
+        let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
+        let card = PaynearmeCardPaymentMethod::try_from((card, common))?;
+
+        let mut built = Self {
+            site_identifier: auth.site_identifier,
+            timestamp: current_timestamp(),
+            version: PAYNEARME_API_VERSION.to_string(),
+            signature: Secret::new(String::new()),
+            pnm_order_identifier,
+            card,
+        };
+        built.signature = paynearme_signature(&auth.api_secret_key, &built)?;
+        Ok(built)
     }
 }
 
@@ -839,10 +1320,15 @@ pub struct PaynearmePayment {
     /// The connector transaction id — the key for PSync, Void, Refund and RSync.
     #[serde(default, deserialize_with = "deserialize_string_or_number")]
     pub pnm_payment_identifier: Option<String>,
-    /// The card token, retained in `connector_metadata` so a later
-    /// `/make_payment` against the saved instrument stays possible.
-    #[serde(default, deserialize_with = "deserialize_string_or_number")]
-    pub payment_method_identifier: Option<String>,
+    /// The PayNearMe token of the payment method this payment was made with. On a
+    /// customer-initiated mandate payment it names the account the call stored (see
+    /// `off_session_mandate_reference`). `/make_payment` charges this token, so it
+    /// is a stored-credential secret: masked here (and so in
+    /// `typed_connector_response`, which is serialised masked) and never copied into
+    /// `connector_metadata`. The caller receives it only inside
+    /// `connector_mandate_id`, on the flows that establish a mandate.
+    #[serde(default, deserialize_with = "deserialize_optional_secret_string")]
+    pub payment_method_identifier: Option<Secret<String>>,
     /// Total charged, **including** PayNearMe's convenience fee.
     #[serde(default, deserialize_with = "deserialize_optional_string_major_unit")]
     pub payment_amount: Option<StringMajorUnit>,
@@ -869,27 +1355,17 @@ impl PaynearmePayment {
             .clone()
             .map(ResponseId::ConnectorTransactionId)
     }
+}
 
-    fn connector_metadata(&self) -> Option<serde_json::Value> {
-        self.connector_metadata_with_order(None)
-    }
-
-    /// Retains the card token so a later `/make_payment` against the saved
-    /// instrument stays possible, plus the order it was created against when the
-    /// response carried one (`/create_payment_method` does; `/find_payment` and
-    /// the post-authorization endpoints do not).
-    fn connector_metadata_with_order(
-        &self,
-        pnm_order_identifier: Option<&String>,
-    ) -> Option<serde_json::Value> {
-        if self.payment_method_identifier.is_none() && pnm_order_identifier.is_none() {
-            return None;
-        }
-        Some(serde_json::json!({
-            "payment_method_identifier": self.payment_method_identifier,
-            "pnm_order_identifier": pnm_order_identifier,
-        }))
-    }
+/// `connector_metadata` of a payment written by Authorize or RepeatPayment: the
+/// PayNearMe order it was made against. Nothing in this connector reads it back;
+/// it is informational. The card token is deliberately left out (see
+/// [`PaynearmePayment::payment_method_identifier`]): a merchant-initiated charge
+/// reads the token from `connector_mandate_id` only.
+fn order_connector_metadata(pnm_order_identifier: Option<&String>) -> Option<serde_json::Value> {
+    pnm_order_identifier.map(
+        |pnm_order_identifier| serde_json::json!({ "pnm_order_identifier": pnm_order_identifier }),
+    )
 }
 
 /// `electronic_payments` — where the ACH example puts `payments[]`.
@@ -939,9 +1415,9 @@ impl PaynearmeOrder {
     /// **When it returns `None`.** No `payments` key and no
     /// `electronic_payments.payments` key; or both present but empty. That is
     /// the "tokenised but not charged" shape, and the Authorize response handler
-    /// deliberately maps it to `Pending` with the order id as the resource id so
-    /// PSync can resolve it, rather than claiming `Charged`.
-    fn last_payment(&self) -> Option<&PaynearmePayment> {
+    /// maps it to `Pending` with the order id as the resource id (see
+    /// [`payment_outcome`]) rather than claiming `Charged`.
+    pub(super) fn last_payment(&self) -> Option<&PaynearmePayment> {
         self.payments
             .as_ref()
             .filter(|payments| !payments.is_empty())
@@ -1082,6 +1558,53 @@ fn envelope_is_ok(status: Option<&str>, response_code: Option<&str>) -> bool {
     status_ok && code_ok
 }
 
+/// Status, resource id and connector metadata of a non-declined Authorize
+/// (`/create_payment_method` with `send_payment`). The status itself comes from
+/// the one [`PaynearmePaymentStatus::attempt_status`] mapping RepeatPayment uses too.
+///
+/// * A payment with an identifier: its own status, keyed on
+///   `pnm_payment_identifier` (what PSync, Void and Refund use).
+/// * A payment without one (absent, or an empty string, which
+///   `deserialize_string_or_number` also reports as absent) on a malformed 2xx:
+///   pairing a money-moved status with `NoResponseId` would record an
+///   unreconcilable charge, so it is reported `Pending` under the order id that
+///   CreateOrder created for this payment. PSync cannot resolve that id
+///   (`/find_payment` takes only a `pnm_payment_identifier`); it is kept as the
+///   reference to reconcile the payment by in PayNearMe. This fallback predates
+///   the stored-card flows.
+/// * No payment at all: tokenised but not charged, so `Pending` rather than
+///   `Charged`, again with the order id.
+///
+/// RepeatPayment does not use this: its order is the standing order every
+/// merchant-initiated charge shares, so it requires the payment identifier (see
+/// its response `TryFrom`).
+fn payment_outcome(
+    payment: Option<&PaynearmePayment>,
+    order_identifier: Option<&String>,
+) -> (AttemptStatus, ResponseId, Option<serde_json::Value>) {
+    let order_resource_id = || {
+        order_identifier
+            .cloned()
+            .map(ResponseId::ConnectorTransactionId)
+            .unwrap_or(ResponseId::NoResponseId)
+    };
+    match payment {
+        Some(payment) => match payment.resource_id() {
+            Some(resource_id) => (
+                payment.attempt_status(),
+                resource_id,
+                order_connector_metadata(order_identifier),
+            ),
+            None => (
+                AttemptStatus::Pending,
+                order_resource_id(),
+                order_connector_metadata(order_identifier),
+            ),
+        },
+        None => (AttemptStatus::Pending, order_resource_id(), None),
+    }
+}
+
 // =============================================================================
 // CREATE ORDER RESPONSE
 // =============================================================================
@@ -1093,6 +1616,11 @@ fn envelope_is_ok(status: Option<&str>, response_code: Option<&str>) -> bool {
 pub struct PaynearmeOrderEnvelope {
     pub status: Option<String>,
     pub response_code: Option<String>,
+    /// With `return_minimal_info="true"`, which CreateOrder sends, `/create_order`
+    /// answers `{status, pnm_order_identifier, pnm_customer_identifier}`: the
+    /// order id sits at the top level and there is no `orders` object at all.
+    #[serde(default, deserialize_with = "deserialize_string_or_number")]
+    pub pnm_order_identifier: Option<String>,
     #[serde(alias = "order")]
     pub orders: Option<PaynearmeOrder>,
     #[serde(default)]
@@ -1100,7 +1628,7 @@ pub struct PaynearmeOrderEnvelope {
 }
 
 impl PaynearmeOrderEnvelope {
-    fn is_ok(&self) -> bool {
+    pub(super) fn is_ok(&self) -> bool {
         envelope_is_ok(self.status.as_deref(), self.response_code.as_deref())
     }
 }
@@ -1121,10 +1649,14 @@ impl TryFrom<ResponseRouterData<PaynearmeCreateOrderResponse, Self>> for CreateO
         let connector_order_id = response
             .is_ok()
             .then(|| {
-                response
-                    .orders
-                    .as_ref()
-                    .and_then(|order| order.pnm_order_identifier.clone())
+                // The minimal shape is what `return_minimal_info` asks for; the
+                // full `orders` object is the documented shape without it.
+                response.pnm_order_identifier.clone().or_else(|| {
+                    response
+                        .orders
+                        .as_ref()
+                        .and_then(|order| order.pnm_order_identifier.clone())
+                })
             })
             .flatten();
 
@@ -1166,9 +1698,48 @@ impl TryFrom<ResponseRouterData<PaynearmeCreateOrderResponse, Self>> for CreateO
 
 /// `/create_payment_method` response — the created payment is nested inside the
 /// order payload.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// The body is read twice. `envelope` is what every Authorize uses, parsed exactly
+/// as before. `stored_credential_order` is the same `order` read as a
+/// [`PaynearmeStoredCredentialOrder`], which only a customer-initiated Authorize consults.
+/// Its parse result is kept rather than propagated, so a stored-account shape that
+/// does not parse fails only the payment that needs it, never a one-off Authorize.
+#[derive(Debug, Clone, Serialize)]
 #[serde(transparent)]
-pub struct PaynearmeAuthorizeResponse(pub PaynearmeOrderEnvelope);
+pub struct PaynearmeAuthorizeResponse {
+    pub envelope: PaynearmeOrderEnvelope,
+    #[serde(skip)]
+    pub(super) stored_credential_order: Result<Option<PaynearmeStoredCredentialOrder>, String>,
+}
+
+impl<'de> Deserialize<'de> for PaynearmeAuthorizeResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let body = serde_json::Value::deserialize(deserializer)?;
+        let stored_credential_order = body
+            .get("order")
+            .or_else(|| body.get("orders"))
+            .cloned()
+            .map(serde_json::from_value::<PaynearmeStoredCredentialOrder>)
+            .transpose()
+            // Only the error category: serde's message can quote the offending
+            // value, and these are card accounts.
+            .map_err(|error| {
+                format!(
+                    "the stored accounts in PayNearMe's order did not parse ({:?} error)",
+                    error.classify()
+                )
+            });
+        let envelope =
+            PaynearmeOrderEnvelope::deserialize(body).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            envelope,
+            stored_credential_order,
+        })
+    }
+}
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeResponse, Self>>
     for AuthorizeRouterData<T>
@@ -1178,8 +1749,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
     fn try_from(
         item: ResponseRouterData<PaynearmeAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = item.response.0;
-        let order = response.orders.as_ref();
+        let response = item.response;
+        let order = response.envelope.orders.as_ref();
         let payment = order.and_then(PaynearmeOrder::last_payment);
         // The order this Authorize charged against: read back off the response
         // when PayNearMe echoed it, otherwise the id we sent as
@@ -1194,7 +1765,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
                     .clone()
             });
 
-        let declined = !response.is_ok()
+        let declined = !response.envelope.is_ok()
             || payment
                 .and_then(|payment| payment.payment_status.as_ref())
                 .map(|status| *status == PaynearmePaymentStatus::Rejected)
@@ -1205,8 +1776,8 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
                 response: Err(build_error_response(
                     item.http_code,
                     Some(FlowStatus::Payment(AttemptStatus::Failure)),
-                    response.response_code.as_deref(),
-                    &response.errors,
+                    response.envelope.response_code.as_deref(),
+                    &response.envelope.errors,
                     payment.and_then(|payment| payment.pnm_payment_identifier.clone()),
                 )),
                 resource_common_data: PaymentFlowData {
@@ -1217,41 +1788,74 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
             });
         }
 
-        // `payments[]` absent or empty on an otherwise-ok response means the card
-        // was tokenised but not charged; report Pending and let PSync resolve it
-        // rather than claiming Charged.
-        let (status, resource_id, connector_metadata) = match payment {
-            // A money-moved status is only trustworthy if it comes with an
-            // identifier to reconcile against. `pnm_payment_identifier` is
-            // absent — or an empty string, which `deserialize_string_or_number`
-            // also reports as absent — on a malformed 201, and pairing
-            // `Charged` with `NoResponseId` would record an unreconcilable,
-            // unrefundable charge that PSync, Void and Refund can never key on.
-            // Fall back to the order id and report Pending so PSync can resolve
-            // it, exactly as the `None` arm below already does.
-            Some(payment) => match payment.resource_id() {
-                Some(resource_id) => (
-                    payment.attempt_status(),
-                    resource_id,
-                    payment.connector_metadata_with_order(order_identifier.as_ref()),
-                ),
-                None => (
-                    AttemptStatus::Pending,
-                    order_identifier
-                        .clone()
-                        .map(ResponseId::ConnectorTransactionId)
-                        .unwrap_or(ResponseId::NoResponseId),
-                    payment.connector_metadata_with_order(order_identifier.as_ref()),
-                ),
-            },
-            None => (
-                AttemptStatus::Pending,
-                order_identifier
-                    .clone()
-                    .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
-                None,
-            ),
+        let (status, resource_id, connector_metadata) =
+            payment_outcome(payment, order_identifier.as_ref());
+
+        // A customer-initiated mandate payment (see `stores_card_for_later`): PayNearMe
+        // accepted the call, so the card it stored must now be identified.
+        //
+        // When it cannot be, what the call did to the money decides the outcome:
+        // * PayNearMe created a payment in the same call: money may have moved, so
+        //   that payment is reported as it is (status, `pnm_payment_identifier`)
+        //   with no mandate reference, and the reason is logged. A `Failure` here
+        //   would strand the charge: Hyperswitch can neither void nor refund a
+        //   failed payment. Hyperswitch core treats a charged CIT without a mandate
+        //   the same way (the payment stays charged and the saved payment method
+        //   gets no connector mandate), and so does NMI's SetupMandate here
+        //   (`nmi/transformers.rs`, `customer_vault_id.map(..)`). A later
+        //   merchant-initiated charge then finds no PayNearMe mandate and fails
+        //   before any money moves.
+        // * No payment: nothing was charged, so the attempt fails with the reason.
+        //   No auto-void: this handler makes exactly one connector call.
+        let mandate_reference = if stores_card_for_later(&item.router_data.request) {
+            match off_session_mandate_reference(
+                &response,
+                payment,
+                order_identifier.as_deref(),
+                &item.router_data,
+            ) {
+                Ok(connector_mandate_id) => Some(Box::new(MandateReference {
+                    connector_mandate_id: Some(connector_mandate_id),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })),
+                Err(reason) if payment.is_some() => {
+                    // `reason` never carries the card token, card data or customer id.
+                    tracing::warn!(
+                        connector = PAYNEARME,
+                        pnm_order_identifier = ?order_identifier,
+                        attempt_status = ?status,
+                        %reason,
+                        "PayNearMe created a payment for a customer-initiated mandate payment, \
+                         but the stored card could not be identified; returning the payment \
+                         without a mandate reference"
+                    );
+                    None
+                }
+                Err(reason) => {
+                    return Ok(Self {
+                        response: Err(build_error_response(
+                            item.http_code,
+                            Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                            None,
+                            &[PaynearmeErrorItem::Message(format!(
+                                "The card could not be stored for off-session use: {reason}. \
+                                 PayNearMe's response lists no payment for this call, so \
+                                 nothing was charged"
+                            ))],
+                            None,
+                        )),
+                        resource_common_data: PaymentFlowData {
+                            status: AttemptStatus::Failure,
+                            ..item.router_data.resource_common_data
+                        },
+                        ..item.router_data
+                    });
+                }
+            }
+        } else {
+            None
         };
 
         Ok(Self {
@@ -1259,13 +1863,841 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeAuthorizeRes
                 resource_id,
                 // Never: PayNearMe has no 3DS and no redirect step at all.
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 // `pnm_order_identifier`, per §7.3. PSync and Void report the
                 // same value (see below), so one payment has exactly one
                 // reference id whichever flow last spoke to PayNearMe.
+                connector_response_reference_id: order_identifier,
+                incremental_authorization_allowed: None,
+                splits: None,
+                status_code: item.http_code,
+                payment_account_reference: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// =============================================================================
+// SETUP MANDATE RESPONSE
+// =============================================================================
+
+/// What `connector_mandate_id` carries for a card stored at PayNearMe.
+///
+/// A merchant-initiated charge (`/make_payment`, the RepeatPayment flow) needs two
+/// PayNearMe identifiers: the card token (`payment_method_identifier`) and an order
+/// to charge it against (`pnm_order_identifier`, the standing order the card was
+/// stored on). The RecurringCharge request carries no connector order id
+/// (`PaymentFlowData.connector_order_id` is `None` on that path), so both have to
+/// travel inside the mandate reference. They travel together in
+/// `connector_mandate_id` because:
+/// * it is the mandate field every caller persists and sends back, and what
+///   RepeatPayment reads through `get_connector_mandate_id()`;
+///   `connector_mandate_request_reference_id` means something else (a
+///   merchant-side request reference) and is not guaranteed to be round-tripped;
+/// * a token without its order cannot be charged, so splitting the two across
+///   fields only adds a way to receive one without the other.
+///
+/// The keys are three letters so the JSON stays well inside
+/// [`CONNECTOR_MANDATE_ID_MAX_LEN`]: with the documented id shapes (a 13-character
+/// token, an 11-digit order) it is 44 characters.
+///
+/// Nothing in it is card-specific: any payment method `/create_payment_method`
+/// tokenises (`card`, `ach`, `paypal` or `venmo`) yields a
+/// `payment_method_identifier` that `/make_payment` charges the same way, so
+/// another tokenised method could reuse this reference unchanged. Apple Pay and
+/// Google Pay cannot be tokenised there (see [`apple_pay_not_supported`] and
+/// [`google_pay_not_supported`]). It never carries a PAN, CVV, DPAN or cryptogram.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PaynearmeMandateReference {
+    #[serde(rename = "pmi")]
+    pub payment_method_identifier: Secret<String>,
+    #[serde(rename = "oid")]
+    pub pnm_order_identifier: String,
+}
+
+impl PaynearmeMandateReference {
+    /// Serialises the reference, refusing (never truncating) one that would not fit
+    /// Hyperswitch's `connector_mandate_id` column.
+    pub(super) fn to_connector_mandate_id(&self) -> Result<String, String> {
+        let encoded = serde_json::to_string(self).map_err(|error| {
+            format!("the PayNearMe mandate reference could not be encoded: {error}")
+        })?;
+        if encoded.len() > CONNECTOR_MANDATE_ID_MAX_LEN {
+            return Err(format!(
+                "the PayNearMe mandate reference is {} characters, but \
+                 connector_mandate_id holds at most {CONNECTOR_MANDATE_ID_MAX_LEN}",
+                encoded.len()
+            ));
+        }
+        Ok(encoded)
+    }
+
+    /// Reads back a `connector_mandate_id` issued by [`Self::to_connector_mandate_id`].
+    ///
+    /// Refused, with a reason that never echoes the value (it holds the card
+    /// token): anything longer than [`CONNECTOR_MANDATE_ID_MAX_LEN`], which no
+    /// reference this connector issued can be; anything that is not JSON; JSON
+    /// without string `pmi` and `oid` fields; and an empty `pmi` or `oid`, which
+    /// `/make_payment` could only reject.
+    pub(super) fn from_connector_mandate_id(raw: &str) -> Result<Self, String> {
+        if raw.len() > CONNECTOR_MANDATE_ID_MAX_LEN {
+            return Err(format!(
+                "connector_mandate_id is {} characters, longer than any PayNearMe mandate \
+                 reference ({CONNECTOR_MANDATE_ID_MAX_LEN} at most)",
+                raw.len()
+            ));
+        }
+        let not_a_reference = || {
+            "connector_mandate_id is JSON but not a PayNearMe mandate reference: it must be an \
+             object with the string fields \"pmi\" and \"oid\""
+                .to_string()
+        };
+        let value: serde_json::Value = serde_json::from_str(raw).map_err(|_| {
+            "connector_mandate_id is not JSON; a PayNearMe mandate reference is \
+             {\"pmi\": \"<payment_method_identifier>\", \"oid\": \"<pnm_order_identifier>\"}"
+                .to_string()
+        })?;
+        // Only the object form this connector issues: a derived `Deserialize` would
+        // also accept a positional array such as `["<pmi>", "<oid>"]`.
+        if !value.is_object() {
+            return Err(not_a_reference());
+        }
+        let reference: Self = serde_json::from_value(value).map_err(|_| not_a_reference())?;
+        if reference.payment_method_identifier.peek().is_empty()
+            || reference.pnm_order_identifier.is_empty()
+        {
+            return Err(
+                "connector_mandate_id has an empty \"pmi\" or \"oid\"; both identifiers are \
+                 required to charge the stored payment method"
+                    .to_string(),
+            );
+        }
+        Ok(reference)
+    }
+}
+
+/// The stored credential a RepeatPayment charges, per `MandateReferenceId` variant:
+///
+/// | Variant               | Result |
+/// |-----------------------|--------|
+/// | `ConnectorMandateId`  | Supported: `connector_mandate_id` decoded as a [`PaynearmeMandateReference`] |
+/// | `NetworkMandateId`    | `NotSupported`: `/make_payment` takes no network transaction id, and PayNearMe returns none to store |
+/// | `NetworkTokenWithNTI` | `NotSupported`: same reason; PayNearMe also has no network-token field |
+impl TryFrom<&MandateReferenceId> for PaynearmeMandateReference {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(mandate_reference: &MandateReferenceId) -> Result<Self, Self::Error> {
+        match mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate) => {
+                let raw = connector_mandate
+                    .get_connector_mandate_id()
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "connector_mandate_id",
+                            context: IntegrationErrorContext {
+                                suggested_action: Some(
+                                    "Send the connector_mandate_id returned by the PayNearMe \
+                                 SetupRecurring or customer-initiated Authorize that stored the card"
+                                        .to_string(),
+                                ),
+                                doc_url: None,
+                                additional_context: None,
+                            },
+                        })
+                    })?;
+                Self::from_connector_mandate_id(&raw).map_err(|reason| {
+                    error_stack::report!(IntegrationError::InvalidDataFormat {
+                        field_name: "connector_mandate_id",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Send the connector_mandate_id exactly as the PayNearMe \
+                                 SetupRecurring or customer-initiated Authorize returned it"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                            additional_context: Some(reason),
+                        },
+                    })
+                })
+            }
+            MandateReferenceId::NetworkMandateId(_) => Err(not_supported(
+                "Merchant-initiated payments by network transaction id (use the \
+                 connector_mandate_id PayNearMe issued)",
+            )),
+            MandateReferenceId::NetworkTokenWithNTI(_) => Err(not_supported(
+                "Merchant-initiated payments by network token with network transaction id \
+                 (use the connector_mandate_id PayNearMe issued)",
+            )),
+        }
+    }
+}
+
+/// [`deserialize_string_or_number`], masked: stored-account fields are card data.
+fn deserialize_optional_secret_string<'de, D>(
+    deserializer: D,
+) -> Result<Option<Secret<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserialize_string_or_number(deserializer).map(|value| value.map(Secret::new))
+}
+
+/// `true` / `false` as either a JSON boolean or a string: `order_is_standing` is
+/// `true` in one documented `/create_payment_method` example and `"true"` in the
+/// other. Anything else reads as unknown.
+fn deserialize_optional_bool<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = Option::<serde_json::Value>::deserialize(deserializer)?;
+    Ok(match value {
+        Some(serde_json::Value::Bool(flag)) => Some(flag),
+        Some(serde_json::Value::String(text)) => match text.as_str() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        },
+        _ => None,
+    })
+}
+
+/// `accounts[].status` of a stored payment method.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PaynearmeAccountStatus {
+    Active,
+    /// Deactivated through `/update_payment_method`: permanently unusable.
+    Inactive,
+    #[serde(other)]
+    Unknown,
+}
+
+/// `electronic_payments.payment_methods[].type`, the bucket stored accounts are
+/// listed under.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaynearmeStoredMethodType {
+    Ach,
+    AchPush,
+    ApplePayCredit,
+    ApplePayDebit,
+    CashApp,
+    Credit,
+    Debit,
+    Gpay,
+    Paypal,
+    PaypalPush,
+    PushDebit,
+    Venmo,
+    VenmoPush,
+    #[serde(other)]
+    Unknown,
+}
+
+impl PaynearmeStoredMethodType {
+    /// A card sent to `/create_payment_method` is listed under `credit` or `debit`,
+    /// as PayNearMe classifies it from the BIN.
+    fn holds_cards(&self) -> bool {
+        match self {
+            Self::Credit | Self::Debit => true,
+            Self::Ach
+            | Self::AchPush
+            | Self::ApplePayCredit
+            | Self::ApplePayDebit
+            | Self::CashApp
+            | Self::Gpay
+            | Self::Paypal
+            | Self::PaypalPush
+            | Self::PushDebit
+            | Self::Venmo
+            | Self::VenmoPush
+            | Self::Unknown => false,
+        }
+    }
+}
+
+/// One stored account, reduced to what identifies a card.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeStoredAccount {
+    /// The token `/make_payment` charges.
+    #[serde(default, deserialize_with = "deserialize_optional_secret_string")]
+    pub payment_method_identifier: Option<Secret<String>>,
+    pub status: Option<PaynearmeAccountStatus>,
+    /// The card's last four digits.
+    #[serde(default, deserialize_with = "deserialize_optional_secret_string")]
+    pub number: Option<Secret<String>>,
+    /// `MM/YYYY`.
+    #[serde(default, deserialize_with = "deserialize_optional_secret_string")]
+    pub expiration_date: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeStoredPaymentMethods {
+    #[serde(rename = "type")]
+    pub method_type: Option<PaynearmeStoredMethodType>,
+    #[serde(default)]
+    pub accounts: Option<Vec<PaynearmeStoredAccount>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeStoredElectronicPayments {
+    #[serde(default)]
+    pub payment_methods: Option<Vec<PaynearmeStoredPaymentMethods>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeOrderCustomer {
+    #[serde(default, deserialize_with = "deserialize_string_or_number")]
+    pub site_customer_identifier: Option<String>,
+}
+
+/// The `order` of a `/create_payment_method` response, reduced to what SetupMandate
+/// reads. Kept apart from [`PaynearmeOrder`] so stored-account parsing cannot put
+/// the Authorize and CreateOrder responses at risk.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeStoredCredentialOrder {
+    #[serde(default, deserialize_with = "deserialize_optional_bool")]
+    pub order_is_standing: Option<bool>,
+    pub customer: Option<PaynearmeOrderCustomer>,
+    pub electronic_payments: Option<PaynearmeStoredElectronicPayments>,
+}
+
+impl PaynearmeStoredCredentialOrder {
+    /// Picks the token `/create_payment_method` just created.
+    ///
+    /// The response lists every stored account visible on the order ("Payment
+    /// methods created for one order appear in other orders with the same Customer
+    /// ID"), not only the new one, and nothing in it marks which account this call
+    /// created. So the card is found by what identifies it: an `active` account
+    /// under `credit` or `debit` whose last four digits and `MM/YYYY` expiry equal
+    /// the card that was sent.
+    ///
+    /// Tokenise only (SetupMandate, `charged_token: None`): exactly one distinct
+    /// token must match. None means the card was not stored, or not as `active`.
+    /// More than one means the customer already holds a card with the same last
+    /// four and expiry, and guessing between them could point every future charge
+    /// at the wrong card. Both are errors.
+    ///
+    /// Tokenise and charge (customer-initiated Authorize): the payment the call created
+    /// names the token it charged (`payments[].payment_method_identifier`; in the
+    /// documented "Create a Payment Method and Make a Payment" example it equals the
+    /// new account's token), which tells apart two stored cards with the same last
+    /// four and expiry. That token must still be one of the matching active card
+    /// accounts: a token that is not the card that was sent is never trusted on its
+    /// own.
+    pub(super) fn identify_card_token(
+        &self,
+        last4: &str,
+        expiry_mm_yyyy: &str,
+        charged_token: Option<&Secret<String>>,
+    ) -> Result<Secret<String>, String> {
+        let matches = self.card_account_tokens(last4, expiry_mm_yyyy);
+        if let Some(charged_token) = charged_token {
+            return matches
+                .into_iter()
+                .find(|token| token.peek() == charged_token.peek())
+                .cloned()
+                .ok_or_else(|| {
+                    "the payment PayNearMe created was made with a payment method that is not \
+                     an active credit or debit account matching the card's last four digits \
+                     and expiry"
+                        .to_string()
+                });
+        }
+        match matches.as_slice() {
+            [token] => Ok((*token).clone()),
+            [] => Err(
+                "PayNearMe reported success but lists no active credit or debit account \
+                 matching the card's last four digits and expiry"
+                    .to_string(),
+            ),
+            several => Err(format!(
+                "PayNearMe lists {} active accounts matching the card's last four digits and \
+                 expiry, so the card just stored cannot be told apart",
+                several.len()
+            )),
+        }
+    }
+
+    /// Distinct tokens of the `active` `credit` / `debit` accounts whose last four
+    /// digits and `MM/YYYY` expiry equal the card that was sent.
+    fn card_account_tokens(&self, last4: &str, expiry_mm_yyyy: &str) -> Vec<&Secret<String>> {
+        let mut matches: Vec<&Secret<String>> = Vec::new();
+        let card_buckets = self
+            .electronic_payments
+            .iter()
+            .flat_map(|electronic| electronic.payment_methods.iter().flatten())
+            .filter(|bucket| {
+                bucket
+                    .method_type
+                    .as_ref()
+                    .is_some_and(PaynearmeStoredMethodType::holds_cards)
+            });
+        for account in card_buckets.flat_map(|bucket| bucket.accounts.iter().flatten()) {
+            let same_card = account.status == Some(PaynearmeAccountStatus::Active)
+                && account
+                    .number
+                    .as_ref()
+                    .is_some_and(|number| number.peek() == last4)
+                && account
+                    .expiration_date
+                    .as_ref()
+                    .is_some_and(|expiry| expiry.peek() == expiry_mm_yyyy);
+            if let (true, Some(token)) = (same_card, account.payment_method_identifier.as_ref()) {
+                if !matches.iter().any(|known| known.peek() == token.peek()) {
+                    matches.push(token);
+                }
+            }
+        }
+        matches
+    }
+}
+
+/// `/create_payment_method` response for a tokenise-only call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaynearmeSetupMandateResponse {
+    pub status: Option<String>,
+    pub response_code: Option<String>,
+    #[serde(alias = "orders")]
+    pub order: Option<PaynearmeStoredCredentialOrder>,
+    #[serde(default)]
+    pub errors: Vec<PaynearmeErrorItem>,
+}
+
+/// Last four digits of the PAN that was sent, to find its account in `accounts[]`,
+/// which reports only the last four.
+fn card_last4<T: PaymentMethodDataTypes>(card: &Card<T>) -> Option<String> {
+    let digits: Vec<char> = card
+        .card_number
+        .peek()
+        .chars()
+        .filter(char::is_ascii_digit)
+        .collect();
+    let start = digits.len().checked_sub(4)?;
+    digits.get(start..).map(|last4| last4.iter().collect())
+}
+
+/// Everything a successful SetupMandate must establish, returned as
+/// `(connector_mandate_id, pnm_order_identifier)`, or the reason it could not.
+fn stored_credential_reference<T: PaymentMethodDataTypes>(
+    response: &PaynearmeSetupMandateResponse,
+    router_data: &SetupMandateRouterData<T>,
+) -> Result<(String, String), String> {
+    let common = &router_data.resource_common_data;
+
+    // The order the card was attached to is the one the request named.
+    let pnm_order_identifier = common
+        .connector_order_id
+        .clone()
+        .ok_or_else(|| "the request carried no PayNearMe order id".to_string())?;
+    let order = response
+        .order
+        .as_ref()
+        .ok_or_else(|| "PayNearMe returned no order object".to_string())?;
+
+    let connector_mandate_id = stored_card_mandate_id(
+        order,
+        &pnm_order_identifier,
+        common,
+        &router_data.request.payment_method_data,
+        None,
+    )?;
+
+    Ok((connector_mandate_id, pnm_order_identifier))
+}
+
+/// The `connector_mandate_id` a customer-initiated Authorize establishes: the card this
+/// `/create_payment_method` call stored and charged, on the order it charged.
+///
+/// The token is identified with the charged payment's own
+/// `payment_method_identifier` (see
+/// [`PaynearmeStoredCredentialOrder::identify_card_token`]), and the order must be
+/// standing and belong to `customer.id` exactly as for SetupMandate.
+fn off_session_mandate_reference<T: PaymentMethodDataTypes>(
+    response: &PaynearmeAuthorizeResponse,
+    payment: Option<&PaynearmePayment>,
+    pnm_order_identifier: Option<&str>,
+    router_data: &AuthorizeRouterData<T>,
+) -> Result<String, String> {
+    let pnm_order_identifier = pnm_order_identifier.ok_or_else(|| {
+        "neither the request nor PayNearMe's response carried the order id".to_string()
+    })?;
+    let order = response
+        .stored_credential_order
+        .as_ref()
+        .map_err(String::clone)?
+        .as_ref()
+        .ok_or_else(|| "PayNearMe returned no order object".to_string())?;
+    let charged_token = payment.and_then(|payment| payment.payment_method_identifier.clone());
+    stored_card_mandate_id(
+        order,
+        pnm_order_identifier,
+        &router_data.resource_common_data,
+        &router_data.request.payment_method_data,
+        charged_token.as_ref(),
+    )
+}
+
+/// The `connector_mandate_id` for a card a `/create_payment_method` call has just
+/// stored. Shared by SetupMandate (tokenise only, `charged_token: None`) and an
+/// customer-initiated Authorize (tokenise and charge), which establish the same
+/// credential and must therefore check the same things:
+///
+/// 1. The order is standing. RepeatPayment charges it again for every
+///    merchant-initiated payment, and "Non-standing orders can only be paid once"
+///    (<https://apidocs.paynearme.com/devdocs/docs/learning-the-basics>).
+/// 2. The order belongs to `customer.id`. The card is linked to the order's
+///    customer; an order keyed on a per-order fallback, or on another customer,
+///    would orphan it.
+/// 3. Exactly one active card account is the card that was sent.
+fn stored_card_mandate_id<T: PaymentMethodDataTypes>(
+    order: &PaynearmeStoredCredentialOrder,
+    pnm_order_identifier: &str,
+    common: &PaymentFlowData,
+    payment_method_data: &PaymentMethodData<T>,
+    charged_token: Option<&Secret<String>>,
+) -> Result<String, String> {
+    if order.order_is_standing != Some(true) {
+        return Err(format!(
+            "PayNearMe order {pnm_order_identifier} is not a standing order, so the stored \
+             card could not be charged against it again; create the order with \
+             setup_future_usage OFF_SESSION and this customer.id"
+        ));
+    }
+
+    let expected_customer = stored_credential_customer_identifier(common)
+        .map_err(|_| "the request carried no customer.id".to_string())?;
+    let order_customer = order
+        .customer
+        .as_ref()
+        .and_then(|customer| customer.site_customer_identifier.as_deref());
+    if order_customer != Some(expected_customer) {
+        return Err(format!(
+            "PayNearMe order {pnm_order_identifier} does not belong to customer.id; its \
+             site_customer_identifier must equal the customer.id sent with this request"
+        ));
+    }
+
+    let card = match payment_method_data {
+        PaymentMethodData::Card(card) => card,
+        _ => return Err("the stored payment method is not a card".to_string()),
+    };
+    let last4 =
+        card_last4(card).ok_or_else(|| "the card number has fewer than four digits".to_string())?;
+    let expiry = card_expiry_mm_yyyy(card)
+        .map_err(|_| "the card expiry could not be formatted as MM/YYYY".to_string())?;
+
+    PaynearmeMandateReference {
+        payment_method_identifier: order.identify_card_token(
+            &last4,
+            expiry.peek(),
+            charged_token,
+        )?,
+        pnm_order_identifier: pnm_order_identifier.to_string(),
+    }
+    .to_connector_mandate_id()
+}
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeSetupMandateResponse, Self>>
+    for SetupMandateRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaynearmeSetupMandateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+        let router_data = item.router_data;
+
+        // A declared error, `status: "error"` or a non-zero `response_code` such as
+        // 1003 (AVS mismatch) or 1007 (invalid security code), is PayNearMe
+        // refusing to store the card. SetupMandate is a write, so that is terminal.
+        let outcome = if envelope_is_ok(
+            response.status.as_deref(),
+            response.response_code.as_deref(),
+        ) {
+            // An ok envelope still has to yield a usable reference. When it does
+            // not, the attempt fails: nothing was charged, and succeeding with
+            // `mandate_reference: None` would tell the merchant a card was stored
+            // for later use when none can be charged.
+            stored_credential_reference(&response, &router_data).map_err(|reason| {
+                build_error_response(
+                    item.http_code,
+                    Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    None,
+                    &[PaynearmeErrorItem::Message(reason)],
+                    None,
+                )
+            })
+        } else {
+            Err(build_error_response(
+                item.http_code,
+                Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                response.response_code.as_deref(),
+                &response.errors,
+                None,
+            ))
+        };
+
+        match outcome {
+            Ok((connector_mandate_id, pnm_order_identifier)) => Ok(Self {
+                response: Ok(PaymentsResponseData::TransactionResponse {
+                    // A tokenise-only call creates no payment, so there is no
+                    // transaction id. Reporting the token here instead would invite
+                    // a PSync to look it up with `/find_payment`, which takes
+                    // payment ids only.
+                    resource_id: ResponseId::NoResponseId,
+                    redirection_data: None,
+                    mandate_reference: Some(Box::new(MandateReference {
+                        connector_mandate_id: Some(connector_mandate_id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
+                    })),
+                    connector_metadata: None,
+                    // PayNearMe returns no scheme transaction id on tokenisation.
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    // `pnm_order_identifier`, the reference id every flow reports.
+                    connector_response_reference_id: Some(pnm_order_identifier),
+                    incremental_authorization_allowed: None,
+                    splits: None,
+                    status_code: item.http_code,
+                    payment_account_reference: None,
+                }),
+                resource_common_data: PaymentFlowData {
+                    // The terminal success status zero-amount SetupMandate flows
+                    // report (NMI, Finix): the setup is complete, nothing to poll.
+                    status: AttemptStatus::Charged,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            }),
+            Err(error_response) => Ok(Self {
+                response: Err(error_response),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..router_data.resource_common_data
+                },
+                ..router_data
+            }),
+        }
+    }
+}
+
+// =============================================================================
+// REPEAT PAYMENT — `POST /make_payment`
+// =============================================================================
+
+/// `/make_payment` request: a merchant-initiated charge of a stored card.
+///
+/// Sent: the "Make a Payment Using the PayNearMe Order ID" option of
+/// <https://apidocs.paynearme.com/devdocs/reference/post_make-payment>, whose
+/// required set is `payment_amount`, `payment_currency`, `payment_method_identifier`,
+/// `pnm_order_identifier`, `signature`, `site_channel`, `site_identifier`,
+/// `timestamp` and `version`, plus the optional `recurring` and
+/// `site_payment_identifier`.
+///
+/// Deliberately not sent: `cvv_pii` (optional, and a merchant-initiated charge has
+/// no security code); `site_order_identifier` (the PayNearMe order id is used);
+/// `notification_contact`, `site_customer_phone`, `agent_identifier`,
+/// `ach_sec_code`, `ext_pin4_code_pii` (not applicable to a card charged by the
+/// merchant).
+#[derive(Debug, Serialize)]
+pub struct PaynearmeRepeatPaymentRequest {
+    pub site_identifier: Secret<String>,
+    pub timestamp: String,
+    pub version: String,
+    pub signature: Secret<String>,
+    /// The standing order the card was stored on, from `connector_mandate_id`.
+    pub pnm_order_identifier: String,
+    /// The stored card token, from `connector_mandate_id`.
+    pub payment_method_identifier: Secret<String>,
+    pub payment_amount: StringMajorUnit,
+    pub payment_currency: Currency,
+    pub site_channel: String,
+    pub recurring: String,
+    /// The attempt reference (`merchant_charge_id`), stable across retries of the
+    /// same charge and echoed back in PayNearMe's callbacks.
+    pub site_payment_identifier: String,
+}
+
+type RepeatPaymentRouterData<T> =
+    RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>;
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<PaynearmeRouterData<RepeatPaymentRouterData<T>, T>> for PaynearmeRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaynearmeRouterData<RepeatPaymentRouterData<T>, T>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let common = &router_data.resource_common_data;
+        let request = &router_data.request;
+
+        // The stored card and the standing order to charge it against. The
+        // Charge request carries no connector order id
+        // (`PaymentFlowData.connector_order_id` is `None` on this path), so both
+        // come from the mandate reference.
+        let mandate = PaynearmeMandateReference::try_from(&request.mandate_reference)?;
+
+        // No 3-D Secure surface exists in the API, so authentication results sent
+        // with a merchant-initiated charge could not be forwarded and are refused.
+        // `auth_type` alone is not: an off-session charge has no cardholder present
+        // to authenticate, and Hyperswitch sends the payment's stored
+        // `authentication_type` on every Charge (`auth_type:
+        // Some(router_data.auth_type)` in its UCS Charge builder), so refusing
+        // `ThreeDs` would fail every merchant-initiated charge of a payment first
+        // created with `three_ds`.
+        if request.authentication_data.is_some() {
+            return Err(not_supported(
+                "Merchant-initiated payments with 3-D Secure authentication data",
+            ));
+        }
+
+        // No capture endpoint exists (see `Capture` in `paynearme.rs`); a
+        // `/make_payment` is a sale, so a capture method needing a second call is
+        // refused exactly as on Authorize.
+        if !request.is_auto_capture() {
+            return Err(not_supported(match request.capture_method {
+                Some(method) => format!("{method} capture"),
+                None => "This capture method".to_string(),
+            }));
+        }
+
+        let auth = PaynearmeAuthType::try_from(&router_data.connector_config)?;
+        let payment_currency = require_usd(request.currency)?;
+        let payment_amount =
+            PaynearmeAmountConvertor::convert(request.minor_amount, Currency::USD)?;
+
+        let mut built = Self {
+            site_identifier: auth.site_identifier,
+            timestamp: current_timestamp(),
+            version: PAYNEARME_API_VERSION.to_string(),
+            signature: Secret::new(String::new()),
+            pnm_order_identifier: mandate.pnm_order_identifier,
+            payment_method_identifier: mandate.payment_method_identifier,
+            payment_amount,
+            payment_currency,
+            site_channel: SITE_CHANNEL_CONSUMER.to_string(),
+            recurring: RECURRING_TRUE.to_string(),
+            site_payment_identifier: common.connector_request_reference_id.clone(),
+        };
+        built.signature = paynearme_signature(&auth.api_secret_key, &built)?;
+        Ok(built)
+    }
+}
+
+/// `/make_payment` response — `{"status": "ok", "payment": { … }}`, the same
+/// envelope `/find_payment` returns.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct PaynearmeRepeatPaymentResponse(pub PaynearmePaymentEnvelope);
+
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaynearmeRepeatPaymentResponse, Self>>
+    for RepeatPaymentRouterData<T>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaynearmeRepeatPaymentResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response.0;
+        let payment = response.payment.as_ref();
+
+        // The standing order this charge was made against: the reference id every
+        // PayNearMe flow reports. The request builder already refused a reference
+        // that does not decode, so the `Err` arm is not expected here; it reports
+        // no reference id rather than failing a charge PayNearMe accepted.
+        let order_identifier = match PaynearmeMandateReference::try_from(
+            &item.router_data.request.mandate_reference,
+        ) {
+            Ok(mandate) => Some(mandate.pnm_order_identifier),
+            Err(_) => None,
+        };
+
+        let rejected = payment
+            .and_then(|payment| payment.payment_status.as_ref())
+            .is_some_and(|status| *status == PaynearmePaymentStatus::Rejected);
+
+        // RepeatPayment is a write: a declared error (`status: "error"`, a non-zero
+        // `response_code`) or a `rejected` payment is PayNearMe's verdict on this
+        // charge, so it is terminal. Transport failures never reach here; they go
+        // through `build_error_response`, which forces no status.
+        if !response.is_ok() || rejected {
+            let errors = if response.errors.is_empty() && rejected {
+                vec![PaynearmeErrorItem::Message(
+                    "PayNearMe rejected the payment (payment_status: rejected)".to_string(),
+                )]
+            } else {
+                response.errors.clone()
+            };
+            return Ok(Self {
+                response: Err(build_error_response(
+                    item.http_code,
+                    Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    response.response_code.as_deref(),
+                    &errors,
+                    response.transaction_id(),
+                )),
+                resource_common_data: PaymentFlowData {
+                    status: AttemptStatus::Failure,
+                    ..item.router_data.resource_common_data
+                },
+                ..item.router_data
+            });
+        }
+
+        // The documented response carries the payment this call created, keyed on
+        // `pnm_payment_identifier`. Without it the charge cannot be reported: the
+        // standing order id is shared by every charge against the mandate, and
+        // `/find_payment` cannot look an order id up, so a `Pending` under it would
+        // never resolve. Neither is it declared failed: PayNearMe answered ok, and
+        // the money may have moved. So it is a response that does not match the
+        // documented shape, and no status is claimed.
+        let Some((payment, pnm_payment_identifier)) = payment.and_then(|payment| {
+            payment
+                .pnm_payment_identifier
+                .clone()
+                .map(|pnm_payment_identifier| (payment, pnm_payment_identifier))
+        }) else {
+            return Err(error_stack::report!(
+                crate::utils::response_deserialization_fail(
+                    item.http_code,
+                    "paynearme: /make_payment answered status ok without \
+                     payment.pnm_payment_identifier, so the charge cannot be identified; \
+                     reconcile it in PayNearMe by site_payment_identifier (merchant_charge_id)",
+                )
+            ));
+        };
+        let status = payment.attempt_status();
+        let resource_id = ResponseId::ConnectorTransactionId(pnm_payment_identifier);
+        let connector_metadata = order_connector_metadata(order_identifier.as_ref());
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id,
+                redirection_data: None,
+                // The reference belongs to the SetupMandate / customer-initiated Authorize
+                // that established it; echoing it back on a charge would be read as
+                // a new mandate and rotate the stored id.
+                mandate_reference: None,
+                connector_metadata,
+                // PayNearMe returns no scheme transaction id on `/make_payment` (or
+                // anywhere else), so there is none to report.
+                network_txn_id: None,
+                network_txn_link_id: None,
+                // `pnm_order_identifier`, the reference id every flow reports.
                 connector_response_reference_id: order_identifier,
                 incremental_authorization_allowed: None,
                 splits: None,
@@ -1366,7 +2798,9 @@ impl TryFrom<ResponseRouterData<PaynearmeSyncResponse, Self>> for SyncRouterData
                 resource_id,
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: payment.connector_metadata(),
+                // `/find_payment` carries no order id, and the card token is never
+                // copied into `connector_metadata` (see `order_connector_metadata`).
+                connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: order_identifier,
@@ -1431,7 +2865,8 @@ impl TryFrom<ResponseRouterData<PaynearmeVoidResponse, Self>> for VoidRouterData
                 ),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: payment.and_then(PaynearmePayment::connector_metadata),
+                // As for PSync: no order id to report and no card token to copy.
+                connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 // The same `pnm_order_identifier` reference id as Authorize and
@@ -1630,126 +3065,5 @@ impl TryFrom<ResponseRouterData<PaynearmeRefundSyncResponse, Self>> for RefundSy
             },
             ..item.router_data
         })
-    }
-}
-
-// =============================================================================
-// TESTS
-// =============================================================================
-
-/// The signing helper is the only piece of novel logic in this connector: get it
-/// wrong and every single request is rejected, and nothing else in the codebase
-/// exercises it. Both worked vectors published on the Authentication page
-/// (spec §3.1) are pinned here — the second is the one the docs explicitly hand
-/// out as a unit test, because it exercises the `format` exemption and the
-/// alphabetical ordering.
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
-#[allow(clippy::expect_used)]
-mod tests {
-    use super::*;
-
-    /// Worked example #1 (spec §3.1, the `/create_order` sample): the full
-    /// envelope, including the empty `signature` field that must not sign
-    /// itself.
-    #[test]
-    fn signs_the_create_order_worked_example() {
-        let body = serde_json::json!({
-            "site_identifier": "S2155373459",
-            "timestamp": "1636142061",
-            "version": "3.0",
-            "signature": "",
-            "order_amount": "500",
-            "order_currency": "USD",
-            "site_customer_identifier": "11223344",
-            "order_type": "any",
-            "order_is_standing": "true",
-        });
-
-        let string_to_sign = paynearme_string_to_sign(&body).expect("string_to_sign");
-        assert_eq!(
-            string_to_sign,
-            // Split at the currency/`order_is_standing` boundary: concatenated
-            // end-to-end, those two run together into a token the spell checker
-            // flags as a misspelling. `concat!` keeps the runtime value identical.
-            concat!(
-                "order_amount500order_currencyUSD",
-                "order_is_standingtrueorder_typeany",
-                "site_customer_identifier11223344site_identifierS2155373459",
-                "timestamp1636142061version3.0",
-            )
-        );
-
-        let signature =
-            paynearme_signature(&Secret::new("ab7b539ea1317cca67c63c552".to_string()), &body)
-                .expect("signature");
-        assert_eq!(
-            signature.peek(),
-            "65c694f4b632187aa02fc4144cdd374373307f0a200448c9e53f2e47d84b3b82"
-        );
-    }
-
-    /// Worked example #2 (spec §3.1), the vector shipped in every reference
-    /// implementation: `format` is dropped from the input even though it is sent
-    /// on the wire, and the remaining keys are concatenated in alphabetical —
-    /// not insertion — order.
-    #[test]
-    fn signs_the_documented_unit_test_vector() {
-        let body = serde_json::json!({
-            "version": "3.0",
-            "site_identifier": "MySiteID",
-            "timestamp": "1582149833",
-            "hello": "world",
-            "foo": "bar",
-            "format": "json",
-        });
-
-        let string_to_sign = paynearme_string_to_sign(&body).expect("string_to_sign");
-        assert_eq!(
-            string_to_sign,
-            "foobarhelloworldsite_identifierMySiteIDtimestamp1582149833version3.0"
-        );
-
-        let signature =
-            paynearme_signature(&Secret::new("abc123".to_string()), &body).expect("signature");
-        assert_eq!(
-            signature.peek(),
-            "7986b4e59c15cd22fd496113c916f9739f619778812bf9ab8943af80749aadcc"
-        );
-    }
-
-    /// `version`, `site_identifier` and `timestamp` are mandatory inputs to the
-    /// signature (§3.1 step 2) — a body missing one must be refused rather than
-    /// signed into a request PayNearMe will reject with a bare 401.
-    #[test]
-    fn refuses_to_sign_without_the_required_envelope_fields() {
-        let body = serde_json::json!({
-            "site_identifier": "MySiteID",
-            "version": "3.0",
-        });
-        assert!(paynearme_string_to_sign(&body).is_err());
-    }
-
-    /// A field that is skipped by `skip_serializing_if = "Option::is_none"` is
-    /// absent from the wire, so it must be absent from the signature too — the
-    /// full-refund shape, where `refund_amount` / `refund_currency` are omitted,
-    /// depends on this.
-    #[test]
-    fn omitted_fields_do_not_enter_the_signature() {
-        let with_null = serde_json::json!({
-            "site_identifier": "MySiteID",
-            "timestamp": "1582149833",
-            "version": "3.0",
-            "refund_amount": serde_json::Value::Null,
-        });
-        let without = serde_json::json!({
-            "site_identifier": "MySiteID",
-            "timestamp": "1582149833",
-            "version": "3.0",
-        });
-        assert_eq!(
-            paynearme_string_to_sign(&with_null).expect("string_to_sign"),
-            paynearme_string_to_sign(&without).expect("string_to_sign")
-        );
     }
 }

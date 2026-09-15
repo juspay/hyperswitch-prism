@@ -172,6 +172,10 @@ impl
             test_mode: item.test_mode,
             payment_method_type: None,
             order_details: item.order_details.clone(),
+            // The order is created for this Authorize, so it carries the same
+            // customer and store-for-later intent the Authorize does.
+            customer: item.customer.clone(),
+            setup_future_usage: item.setup_future_usage,
         }
     }
 }

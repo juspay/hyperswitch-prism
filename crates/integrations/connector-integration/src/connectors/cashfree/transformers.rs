@@ -526,12 +526,17 @@ impl
 
         // Build customer details with optional billing data
         let customer_details = CashfreeCustomerDetails {
-            customer_id: item
-                .resource_common_data
-                .customer_id
-                .as_ref()
-                .map(|id| id.get_string_repr().to_string())
-                .unwrap_or_else(|| "guest".to_string()),
+            // Always "guest", deliberately not `resource_common_data.customer_id`.
+            // Until hyperswitch-prism#2295 no CreateOrder caller could set a
+            // customer (`PaymentFlowData.customer_id` was hardcoded `None` on
+            // CreateOrder), so this is the value Cashfree has always received here.
+            // CreateOrder now carries the caller's `customer.id`, but Cashfree
+            // accepts only "A unique identifier for the customer. Use alphanumeric
+            // values only." with minLength 3 / maxLength 50
+            // (https://www.cashfree.com/docs/api-reference/payments/latest/orders/create),
+            // which typical ids such as `cus_...` fail. Mapping it needs its own
+            // decision (and tests), so the wire value is unchanged.
+            customer_id: "guest".to_string(),
             customer_email: billing
                 .as_ref()
                 .and_then(|b| b.email.clone().map(|email| email.expose())),
