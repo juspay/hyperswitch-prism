@@ -29,6 +29,27 @@ use crate::{
     utils,
 };
 
+type SanityLayer<S> = crate::sanity_layer::SanityLayer<S>;
+type CompositePaymentsService = composite_service::payments::Payments<
+    crate::server::payments::Payments,
+    crate::server::payments::MerchantAuthentication,
+    crate::server::payments::Customer,
+    crate::server::refunds::Refunds,
+    crate::server::payments::PaymentMethodAuthentication,
+>;
+type CompositeEventService = composite_service::events::CompositeEvents<
+    crate::server::events::EventServiceImpl,
+    crate::server::payments::MerchantAuthentication,
+>;
+type CompositePaymentMethodService = composite_service::payment_methods::PaymentMethods<
+    crate::server::payments::PaymentMethod,
+    crate::server::payments::MerchantAuthentication,
+>;
+type CompositeFrmService = composite_service::frm::Frm<
+    crate::server::frm::FraudAndRiskManagement,
+    crate::server::payments::MerchantAuthentication,
+>;
+
 /// # Panics
 ///
 /// Will panic if redis connection establishment fails or signal handling fails
@@ -103,37 +124,24 @@ pub async fn server_builder(config: configs::Config) -> Result<(), Configuration
 
 pub struct Service {
     pub health_check_service: crate::server::health_check::HealthCheck,
-    pub composite_payments_service: composite_service::payments::Payments<
-        crate::server::payments::Payments,
-        crate::server::payments::MerchantAuthentication,
-        crate::server::payments::Customer,
-        crate::server::refunds::Refunds,
-        crate::server::payments::PaymentMethodAuthentication,
-    >,
-    pub composite_event_service: composite_service::events::CompositeEvents<
-        crate::server::events::EventServiceImpl,
-        crate::server::payments::MerchantAuthentication,
-    >,
-    pub composite_payment_method_service: composite_service::payment_methods::PaymentMethods<
-        crate::server::payments::PaymentMethod,
-        crate::server::payments::MerchantAuthentication,
-    >,
-    pub composite_frm_service: composite_service::frm::Frm<
-        crate::server::frm::FraudAndRiskManagement,
-        crate::server::payments::MerchantAuthentication,
-    >,
-    pub payments_service: crate::server::payments::Payments,
-    pub refunds_service: crate::server::refunds::Refunds,
-    pub disputes_service: crate::server::disputes::Disputes,
-    pub recurring_payment_service: crate::server::payments::RecurringPayments,
-    pub event_service: crate::server::events::EventServiceImpl,
-    pub payment_method_service: crate::server::payments::PaymentMethod,
-    pub merchant_authentication_service: crate::server::payments::MerchantAuthentication,
-    pub customer_service: crate::server::payments::Customer,
-    pub payment_method_authentication_service: crate::server::payments::PaymentMethodAuthentication,
-    pub payouts_service: crate::server::payouts::Payouts,
-    pub surcharges_service: crate::server::surcharges::Surcharges,
-    pub frm_service: crate::server::frm::FraudAndRiskManagement,
+    pub composite_payments_service: SanityLayer<CompositePaymentsService>,
+    pub composite_event_service: SanityLayer<CompositeEventService>,
+    pub composite_payment_method_service: SanityLayer<CompositePaymentMethodService>,
+    pub composite_frm_service: SanityLayer<CompositeFrmService>,
+    pub payments_service: SanityLayer<crate::server::payments::Payments>,
+    pub refunds_service: SanityLayer<crate::server::refunds::Refunds>,
+    pub disputes_service: SanityLayer<crate::server::disputes::Disputes>,
+    pub recurring_payment_service: SanityLayer<crate::server::payments::RecurringPayments>,
+    pub event_service: SanityLayer<crate::server::events::EventServiceImpl>,
+    pub payment_method_service: SanityLayer<crate::server::payments::PaymentMethod>,
+    pub merchant_authentication_service:
+        SanityLayer<crate::server::payments::MerchantAuthentication>,
+    pub customer_service: SanityLayer<crate::server::payments::Customer>,
+    pub payment_method_authentication_service:
+        SanityLayer<crate::server::payments::PaymentMethodAuthentication>,
+    pub payouts_service: SanityLayer<crate::server::payouts::Payouts>,
+    pub surcharges_service: SanityLayer<crate::server::surcharges::Surcharges>,
+    pub frm_service: SanityLayer<crate::server::frm::FraudAndRiskManagement>,
 }
 
 impl Service {
@@ -198,23 +206,30 @@ impl Service {
 
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
-            composite_payments_service,
-            composite_event_service,
-            composite_payment_method_service,
-            composite_frm_service,
-            payments_service,
-            refunds_service,
-            disputes_service: crate::server::disputes::Disputes,
-            recurring_payment_service: crate::server::payments::RecurringPayments,
-            event_service,
-            payment_method_service,
-            merchant_authentication_service,
-            customer_service,
-            payment_method_authentication_service:
+            composite_payments_service: crate::sanity_layer::wrap(composite_payments_service),
+            composite_event_service: crate::sanity_layer::wrap(composite_event_service),
+            composite_payment_method_service: crate::sanity_layer::wrap(
+                composite_payment_method_service,
+            ),
+            composite_frm_service: crate::sanity_layer::wrap(composite_frm_service),
+            payments_service: crate::sanity_layer::wrap(payments_service),
+            refunds_service: crate::sanity_layer::wrap(refunds_service),
+            disputes_service: crate::sanity_layer::wrap(crate::server::disputes::Disputes),
+            recurring_payment_service: crate::sanity_layer::wrap(
+                crate::server::payments::RecurringPayments,
+            ),
+            event_service: crate::sanity_layer::wrap(event_service),
+            payment_method_service: crate::sanity_layer::wrap(payment_method_service),
+            merchant_authentication_service: crate::sanity_layer::wrap(
+                merchant_authentication_service,
+            ),
+            customer_service: crate::sanity_layer::wrap(customer_service),
+            payment_method_authentication_service: crate::sanity_layer::wrap(
                 crate::server::payments::PaymentMethodAuthentication,
-            payouts_service: crate::server::payouts::Payouts,
-            surcharges_service: crate::server::surcharges::Surcharges,
-            frm_service: crate::server::frm::FraudAndRiskManagement,
+            ),
+            payouts_service: crate::sanity_layer::wrap(crate::server::payouts::Payouts),
+            surcharges_service: crate::sanity_layer::wrap(crate::server::surcharges::Surcharges),
+            frm_service: crate::sanity_layer::wrap(crate::server::frm::FraudAndRiskManagement),
         }
     }
 
