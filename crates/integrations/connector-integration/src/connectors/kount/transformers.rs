@@ -729,13 +729,37 @@ pub fn to_session_id(raw: &str) -> String {
 /// merchant id out of the client-visible DDC HTML and yields a valid (≤32-char,
 /// alphanumeric) session id regardless of the source format. The DDC HTML
 /// (PreAuthenticate) and the Evaluate Order both hash the *same* merchant
-/// transaction id, so the collected device data correlates.
+/// transaction id, so the collected device data correlates. Used as the
+/// fallback of [`resolve_session_id`] when the request metadata carries no
+/// merchant-provided session id.
 pub fn hash_session_id(raw: &str) -> String {
     use common_utils::crypto::{GenerateDigest, Sha256};
     Sha256
         .generate_digest(raw.as_bytes())
         .map(|digest| hex::encode(digest).chars().take(32).collect())
         .unwrap_or_else(|_| to_session_id(raw))
+}
+
+/// Read the merchant-provided DDC session id from request metadata parsed as
+/// when the metadata is absent, carries no `sessionId`, or the value is empty.
+pub fn session_id_from_metadata_value(metadata: Option<&serde_json::Value>) -> Option<String> {
+    metadata
+        .and_then(|metadata| metadata.get("sessionId"))
+        .and_then(|session_id| session_id.as_str())
+        .filter(|session_id| !session_id.trim().is_empty())
+        .map(ToString::to_string)
+}
+
+/// Same as [`session_id_from_metadata_value`], for metadata carried as a JSON
+/// string (`PreRiskCheckRequest::metadata`) instead of a parsed value.
+pub fn session_id_from_metadata_str(metadata: Option<&Secret<String>>) -> Option<String> {
+    let parsed = metadata
+        .and_then(|metadata| serde_json::from_str::<serde_json::Value>(metadata.peek()).ok());
+    session_id_from_metadata_value(parsed.as_ref())
+}
+
+pub fn resolve_session_id(provided_session_id: Option<String>, fallback_ref: &str) -> String {
+    provided_session_id.unwrap_or_else(|| hash_session_id(fallback_ref))
 }
 
 /// Locally builds the Kount device-data-collection (DDC) response: no outbound
@@ -762,9 +786,8 @@ pub(crate) fn handle_pre_authenticate_response<
 > {
     use domain_types::connector_types::RawConnectorRequestResponse;
 
-    // sessionID = hash(merchant_transaction_id), matching the Evaluate Order
-    // deviceSessionId (which hashes the same merchant transaction id). Falls
-    // back to the connector request reference when it is absent.
+    // sessionID: the merchant-provided `sessionId` from the request metadata. Otherwise hash(merchant_transaction_id), matching the Evaluate Order
+    // deviceSessionId (which hashes the same merchant transaction id). Falls back to the connector request reference when it is absent.
     let session_ref = data
         .request
         .merchant_transaction_id
@@ -774,7 +797,13 @@ pub(crate) fn handle_pre_authenticate_response<
                 .connector_request_reference_id
                 .clone()
         });
-    let session_id = hash_session_id(&session_ref);
+    let provided_session_id = session_id_from_metadata_value(
+        data.request
+            .metadata
+            .as_ref()
+            .map(|metadata| metadata.peek()),
+    );
+    let session_id = resolve_session_id(provided_session_id, &session_ref);
     // Access token threaded via state.access_token → PaymentFlowData.access_token.
     let token = data
         .resource_common_data
@@ -1626,7 +1655,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             order_id: order_id.clone(),
-            session_id: hash_session_id(&order_id),
+            // Merchant-provided `sessionId` from the request metadata (the
+            // DDC-collected reference) wins; otherwise hash the merchant
+            // transaction id — the same value the DDC script derives.
+            session_id: resolve_session_id(
+                session_id_from_metadata_str(req.metadata.as_ref()),
+                &order_id,
+            ),
             channel: KountChannel::Web,
             creation_date_time,
             user_ip,
