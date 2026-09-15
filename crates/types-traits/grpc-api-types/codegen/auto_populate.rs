@@ -285,10 +285,10 @@ fn generate_sanity_layer(out: &mut String, descriptor_set: &FileDescriptorSet) {
 
     out.push_str("    #[derive(Clone, Copy, Debug, Default)]\n    pub struct NoopSanitizer;\n\n");
     out.push_str(&format!(
-        "    pub trait RequestSanitizer: Clone + Send + Sync + 'static {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, metadata: &mut tonic::metadata::MetadataMap, request: &mut T);\n    }}\n\n",
+        "    pub trait RequestSanitizer: Clone + Send + Sync + 'static {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, metadata: &tonic::metadata::MetadataMap, request: &mut T);\n    }}\n\n",
     ));
     out.push_str(&format!(
-        "    impl RequestSanitizer for NoopSanitizer {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, _metadata: &mut tonic::metadata::MetadataMap, _request: &mut T) {{}}\n    }}\n\n",
+        "    impl RequestSanitizer for NoopSanitizer {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, _metadata: &tonic::metadata::MetadataMap, _request: &mut T) {{}}\n    }}\n\n",
     ));
     out.push_str(
         "    #[derive(Clone)]\n    pub struct SanityLayer<S, Z = NoopSanitizer> {\n        pub inner: S,\n        pub sanitizer: Z,\n    }\n\n",
@@ -323,7 +323,7 @@ fn generate_sanity_layer(out: &mut String, descriptor_set: &FileDescriptorSet) {
             let rust_method_name = method_name.to_snake_case();
 
             out.push_str(&format!(
-                "        async fn {method}(\n            &self,\n            request: tonic::Request<{types_module}::{input_type}>,\n        ) -> Result<tonic::Response<{types_module}::{output_type}>, tonic::Status> {{\n            let (mut metadata, extensions, mut message) = request.into_parts();\n            self.sanitizer.sanitize(&mut metadata, &mut message);\n            let request = tonic::Request::from_parts(metadata, extensions, message);\n            self.inner.{method}(request).await\n        }}\n\n",
+                "        async fn {method}(\n            &self,\n            mut request: tonic::Request<{types_module}::{input_type}>,\n        ) -> Result<tonic::Response<{types_module}::{output_type}>, tonic::Status> {{\n            let metadata = request.metadata().clone();\n            self.sanitizer.sanitize(&metadata, request.get_mut());\n            self.inner.{method}(request).await\n        }}\n\n",
                 method = rust_method_name,
                 types_module = SUPPORTED_PACKAGE_MODULE,
                 input_type = rust_type_name(input_type),

@@ -232,10 +232,9 @@ where
     S: SomeService,
     Z: RequestSanitizer,
 {
-    async fn some_method(&self, request: tonic::Request<RequestType>) -> Result<...> {
-        let (mut metadata, extensions, mut message) = request.into_parts();
-        self.sanitizer.sanitize(&mut metadata, &mut message);
-        let request = tonic::Request::from_parts(metadata, extensions, message);
+    async fn some_method(&self, mut request: tonic::Request<RequestType>) -> Result<...> {
+        let metadata = request.metadata().clone();
+        self.sanitizer.sanitize(&metadata, request.get_mut());
         self.inner.some_method(request).await
     }
 }
@@ -246,7 +245,7 @@ Reasoning:
 - sanity runs before the real handler
 - no flow handler file needs to be modified
 - HTTP handlers that call the same service object also pass through the wrapper
-- metadata can be cleaned before downstream typed header parsing
+- metadata can be inspected without being rewritten
 - the typed request body can be mutated before business logic sees it
 
 ## Why Runtime Use Is Feature-Gated
@@ -263,7 +262,7 @@ When `connector-sanity-layer` is enabled:
 
 - `crate::sanity_layer::wrap(service)` returns the generated `SanityLayer`
 - every wrapped service method calls the sanitizer before the real handler
-- Plaid redirect keys can be moved from raw metadata into the typed request
+- Plaid redirect keys can be read from raw metadata and copied into the typed request
 
 When `connector-sanity-layer` is disabled:
 
@@ -279,6 +278,11 @@ The generated code does not know Plaid, Euler, or merchant-specific config struc
 
 Runtime connector-specific code lives in `grpc-server/src/sanity_layer.rs`.
 
+That runtime layer is trait-shaped per connector. Each connector sanity implementation owns:
+
+- how to extract its raw connector config
+- how to apply its sanity behavior to a typed request
+
 For Plaid, that runtime layer:
 
 - resolves a connector name from metadata or raw config
@@ -286,7 +290,6 @@ For Plaid, that runtime layer:
 - reads Euler-only keys from raw `x-connector-config`
 - builds an `OsBasedReturnUrl` value containing `return_url_map`
 - calls `populate_os_based_return_url`
-- removes Euler-only keys from metadata before normal typed config parsing
 
 This keeps generated infrastructure generic and connector-specific policy outside `grpc-api-types`.
 
