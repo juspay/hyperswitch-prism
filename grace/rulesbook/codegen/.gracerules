@@ -310,7 +310,7 @@ Read: template-generation/macro_templates.md
 ```
 
 #### STEP 5: Execute Implementation Plan - MACRO-BASED APPROACH
-```bash
+````bash
 # CRITICAL: ALWAYS use macro-based pattern, NOT manual trait implementation
 
 ## Part A: Add Flow to create_all_prerequisites! macro
@@ -376,6 +376,18 @@ macros::macro_connector_implementation!(
 #[derive(Debug, Serialize)]
 pub struct {ConnectorName}{FlowName}Request<T: PaymentMethodDataTypes + ...> {
     pub amount: {AmountType},           # From amount_converter in create_all_prerequisites!
+                                        # Pick {AmountType} by READING THE VENDOR SPEC and matching
+                                        # its wire format. There are five unit types in
+                                        # crates/common/common_utils/src/types.rs:
+                                        #   MinorUnit             (i64 cents)        -> MinorUnitForConnector
+                                        #   StringMinorUnit       ("1250")           -> StringMinorUnitForConnector
+                                        #   FloatMajorUnit        (12.5)             -> FloatMajorUnitForConnector
+                                        #   StringMajorUnit       ("12.50")          -> StringMajorUnitForConnector
+                                        #   StringTwoDecimalUnit  ("12.50", forced)  -> StringTwoDecimalUnitForConnector
+                                        # There is NO safe default - do not reach for StringMinorUnit
+                                        # "when unclear"; on HEAD the real distribution is
+                                        # StringMajorUnit 34 / FloatMajorUnit 26 / MinorUnit 21 /
+                                        # StringMinorUnit 19.
     pub currency: String,
     pub payment_method: {ConnectorName}PaymentMethod<T>,  # If flow needs payment method
     // Add ONLY fields from API docs - DO NOT add fields "just in case"
@@ -421,13 +433,36 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
-        // Map response to RouterDataV2
-        // CRITICAL: NEVER hardcode status - ALWAYS derive from response
-        // WRONG: status: AttemptStatus::Charged
-        // CORRECT: status: map_{connector}_status_to_attempt_status(&item.response.status)
-        Ok(Self { /* updated router_data */ })
+        // `ResponseRouterData` fields are `response`, `router_data`, `http_code`
+        // (connector-integration/src/types.rs) - there is NO `item.data`.
+        // `RouterDataV2` fields are: flow, resource_common_data, connector_config,
+        // request, response - there is NO `status` field on it. Attempt/refund status
+        // lives on `resource_common_data`.
+        //
+        // CRITICAL: NEVER hardcode status - ALWAYS derive from the connector response.
+        // WRONG:   Ok(Self { status: AttemptStatus::Charged, ..item.data })
+        // CORRECT:
+        Ok(Self {
+            // Payment flows: PaymentsResponseData::TransactionResponse is an ENUM STRUCT
+            // VARIANT - no `..Default::default()` inside it, list ALL 11 fields or E0063.
+            // Refund flows: RefundsResponseData is a plain struct with 4 fields
+            // (connector_refund_id, refund_status, status_code, acquirer_reference_number).
+            response: Ok({ResponseData}::TransactionResponse { /* list ALL fields */ }),
+            resource_common_data: {FlowData} {
+                status: map_{connector}_status_to_attempt_status(&item.response.status),
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
     }
 }
+
+   IN-BAND FAILURE ON A 2xx: many connectors return HTTP 200 with a declined body. When the
+   mapped status is a failure, the transformer MUST return `Err(ErrorResponse { .. })` in the
+   `response` field instead of `Ok(..)`. Branch on a success predicate; the shared helper is
+   `domain_types::utils::is_payment_failure(status)`
+   (`crates/types-traits/domain_types/src/utils.rs`). `ErrorResponse` implements `Default`, so
+   fill only the fields you know and use `..Default::default()`.
 
 ## Part D: Add Status Mapping
 1. Create or update status mapping function:
@@ -440,15 +475,115 @@ fn map_{connector_name}_status_to_attempt_status(
         {ConnectorName}Status::Pending => common_enums::AttemptStatus::Pending,
         {ConnectorName}Status::Failed => common_enums::AttemptStatus::Failure,
         // CRITICAL: Map ALL possible connector status values from API docs
-        // NEVER leave status variants unmapped
+        // NEVER leave status variants unmapped, and NEVER add a catch-all `_ =>` arm here.
+        {ConnectorName}Status::Unknown => common_enums::AttemptStatus::Pending,
     }
 }
+
+   The two halves must BOTH be present - reviewers reject either one alone:
+   - DESERIALIZATION layer: the status enum carries an explicit unknown variant so an
+     unrecognised wire value does not fail the whole response parse.
+     ```rust
+     #[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+     #[serde(rename_all = "snake_case")]
+     pub enum {ConnectorName}Status {
+         Success,
+         Pending,
+         Failed,
+         #[serde(other)]
+         Unknown,
+     }
+     ```
+     (real example: `connectors/airwallex/transformers.rs` `AirwallexNextActionType`)
+   - STATUS-MAPPING layer: the `match` is EXHAUSTIVE over that enum, including `Unknown`.
+     A catch-all `_ =>` here silently swallows statuses added by the vendor later, so it is
+     a review blocker.
 
 2. CRITICAL STATUS MAPPING RULES:
    - ALWAYS create a dedicated status enum (e.g., {ConnectorName}Status)
    - ALWAYS use the status mapping function in response transformers
    - NEVER hardcode status values like AttemptStatus::Charged directly
    - Map status based on the actual response field, not assumptions
+   - `#[serde(other)] Unknown` at deserialization + exhaustive match at mapping - both, always
+
+## Part E: The Three Macros GRACE Historically Missed (verify against
+## crates/integrations/connector-integration/src/connectors/macros.rs)
+
+`macro_connector_implementation!` only covers flows the connector actually calls out to.
+Every connector on HEAD (112 of 112) ALSO invokes `macro_connector_flow_status_impls!` to
+stub the remaining `ConnectorIntegrationV2` flows; without it the connector does not
+satisfy the dispatcher's trait set and will not compile.
+
+1. `macros::macro_connector_flow_status_impls!` - stubs for flows this connector does not
+   implement. Two lists: `not_implemented:` (we have not built it yet) and `not_supported:`
+   (the vendor has no such API). Real invocation, copied from
+   `connectors/travelhub.rs`:
+
+   ```rust
+   macros::macro_connector_flow_status_impls!(
+       connector: Travelhub,
+       generic_type: T,
+       [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+       not_implemented: [
+           Accept, ClientAuthenticationToken, CreateConnectorCustomer, GetConnectorCustomer,
+           DefendDispute, MandateRevoke, Authenticate, IncrementalAuthorization, CreateOrder,
+           PostAuthenticate, PreAuthenticate, PaymentMethodToken, VoidPC, RepeatPayment,
+           ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
+           SubmitEvidence
+       ],
+       not_supported: [
+           VoidPostRefund,
+       ],
+   );
+   ```
+   Either list may be omitted, but a flow must appear in exactly one place: implemented
+   via `macro_connector_implementation!`, OR listed here. Never both.
+
+2. `macros::macro_connector_local_flow_implementation!` - for a flow with NO outbound HTTP
+   call (everything is decided locally in `handle_response`). Argument keys:
+   `connector`, `flow_name`, `resource_common_data`, `flow_request`, `flow_response`,
+   `handle_response` (a path to your handler fn), `generic_type`, `[bounds]`.
+   It emits `get_call_connector_action() -> HandleResponseWithoutBuildRequest` and a
+   `build_request_v2` that returns `Ok(None)`.
+
+3. `macros::macro_connector_payout_implementation!` - payout flow stubs. With no
+   `payout_flows:` list it covers the full default set - NINE flows on HEAD (PayoutCreate,
+   PayoutTransfer, PayoutGet, PayoutVoid, PayoutStage, PayoutCreateLink,
+   PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutEligibility). The stale
+   "eight payout flows" comment in macros.rs itself is wrong - count the list, do not
+   trust the comment:
+
+   ```rust
+   macros::macro_connector_payout_implementation!(
+       connector: Travelhub,
+       generic_type: T,
+       [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
+   );
+   ```
+   Pass `payout_flows: [PayoutCreate, PayoutGet, ...]` to narrow it.
+
+## Part F: Non-Generic Marker Traits (E0107 trap)
+
+`SourceVerification` (`crates/types-traits/interfaces/src/verification.rs`) and `BodyDecoding`
+(`.../interfaces/src/decode.rs`) take NO generic flow parameters. Write ONE impl per connector,
+not one per flow:
+
+```rust
+// CORRECT - one non-generic impl for the whole connector
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
+    for {ConnectorName}<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> BodyDecoding
+    for {ConnectorName}<T>
+{
+}
+```
+
+`impl<T> SourceVerification<Flow, Data, Req, Resp> for {ConnectorName}<T> {}` per flow is
+E0107 (wrong number of generic arguments). Exemplar:
+`crates/integrations/connector-integration/src/connectors/travelhub.rs`.
 
 ## CRITICAL RULES:
 - NEVER manually implement ConnectorIntegrationV2 - ALWAYS use macros
@@ -468,7 +603,7 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Error Messages**: Use specific NotSupported errors with exact feature names (e.g., "Apple Pay is not supported")
 - **Validation**: Only validate what's required by connector API, add comments explaining why
 - **Struct Cleanliness**: Only include fields actually used by the connector API
-```
+````
 
 #### STEP 6: Cargo Build and Debug
 ```bash
@@ -495,7 +630,7 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Flow Name**: ServerAuthenticationToken
 - **Pattern File**: guides/patterns/pattern_server_authentication_token.md
 - **Primary Responsibility**: OAuth/token acquisition before payment flows
-- **Key Implementation**: ConnectorIntegrationV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>
+- **Key Implementation**: ConnectorIntegrationV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>
 - **ValidationTrait**: Override `should_do_access_token()` to return `true`
 
 #### CREATEORDER FLOW SUBAGENT
@@ -523,7 +658,7 @@ fn map_{connector_name}_status_to_attempt_status(
 - **Flow Name**: ServerSessionAuthenticationToken
 - **Pattern File**: guides/patterns/pattern_server_session_authentication_token.md
 - **Primary Responsibility**: Session initialization before payment
-- **Key Implementation**: ConnectorIntegrationV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
+- **Key Implementation**: ConnectorIntegrationV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>
 - **ValidationTrait**: Override `should_do_session_token()` to return `true`
 
 #### CANONICAL PATTERN INDEX (for all flows and payment methods)
@@ -648,6 +783,13 @@ Files to analyze:
    - ✅ curl_request parameter omitted for GET endpoints
    - ✅ curl_request parameter present for POST/PUT/PATCH endpoints
    - ✅ Amount converter type matches across create_all_prerequisites! and transformers
+   - ✅ `macro_connector_flow_status_impls!` present, listing EVERY flow this connector does not
+     implement under `not_implemented:` / `not_supported:` (all 112 connectors on HEAD do this)
+   - ✅ Each flow appears in exactly one place: `macro_connector_implementation!` OR the
+     flow-status stub lists - never both
+   - ✅ `macro_connector_payout_implementation!` present when payout flows are in scope
+   - ✅ `SourceVerification` and `BodyDecoding` implemented ONCE per connector, non-generic over
+     flow (a per-flow `SourceVerification<Flow, Data, Req, Resp>` impl is E0107)
 
 2. Validate Rust Best Practices (Holistic Review)
    - Idiomatic error handling across all flows
@@ -689,7 +831,11 @@ Files to analyze:
    - ✅ Specific NotSupported errors with exact feature/method names
    - ✅ NO generic error messages - all errors are descriptive
    - ✅ Proper IntegrationError/ConnectorError types used throughout
-   - ✅ Error types match the situation (NotSupported, InvalidData, etc.)
+   - ✅ Error types match the situation and are REAL variants of the enum in
+     `crates/types-traits/domain_types/src/errors.rs` (request phase: `IntegrationError::NotSupported`,
+     `MissingRequiredField`, `InvalidDataFormat`, `NotImplemented(String, IntegrationErrorContext)`;
+     response phase: one of the five `ConnectorError` variants). `ConnectorError::InvalidData` does
+     not exist — flag any use of it as CRITICAL.
 
    **VALIDATION QUALITY CHECKS:**
    - ✅ Validation purposes explained in code comments
@@ -884,9 +1030,17 @@ IF status != "BLOCKED":
 
 ### Foundation Structure
 - [ ] ConnectorCommon trait properly implemented
-- [ ] Authentication type structure correct
-- [ ] Error response structure defined
-- [ ] Currency unit configuration appropriate
+- [ ] `get_auth_header(&self, _auth_type: &ConnectorSpecificConfig)` matches the trait in
+      `crates/types-traits/interfaces/src/api.rs` (auth comes from `req.connector_config`;
+      `RouterDataV2::connector_auth_type` no longer exists)
+- [ ] `build_error_response(&self, res, _event_builder: Option<&mut events::Event>,
+      _connector_config: &ConnectorSpecificConfig)` - three params, `events::Event`, and no
+      `set_error_response_body` call
+- [ ] Error response uses `NO_ERROR_CODE` / `NO_ERROR_MESSAGE` (not `unwrap_or_default()`)
+- [ ] `attempt_status` on the error path is `Option<FlowStatus>` and is flow-aware, not a blanket
+      `Some(AttemptStatus::Failure)` and not a blanket `None`
+- [ ] Amount unit type chosen from the vendor spec (one of MinorUnit / StringMinorUnit /
+      FloatMajorUnit / StringMajorUnit / StringTwoDecimalUnit) - no "default to StringMinorUnit"
 - [ ] Base URL configuration method correct
 
 ### All Flows Implementation
@@ -1070,8 +1224,86 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 - **Match error types to the situation**:
   - `IntegrationError::NotSupported` for unsupported features/methods (request phase)
   - `IntegrationError::MissingRequiredField` for missing required fields (request phase)
-  - `ConnectorError::ResponseDeserializationFailed` for parsing errors (response phase)
-  - `ConnectorError::InvalidData` for response data validation failures
+  - `ConnectorError::ResponseDeserializationFailed { context }` for parsing errors (response phase)
+  - `ConnectorError::UnexpectedResponseError { context }` for a well-formed response whose
+    contents are not usable (missing id, contradictory state) — response phase
+  - `ConnectorError::ResponseHandlingFailed { context }` when the response parsed but could not
+    be mapped into domain types
+- **`ConnectorError` has EXACTLY five variants** (`crates/types-traits/domain_types/src/errors.rs`);
+  every one of the first four is a STRUCT variant carrying a `context: ResponseTransformationErrorContext`:
+  `ResponseDeserializationFailed`, `ResponseHandlingFailed`, `UnexpectedResponseError`,
+  `IntegrityCheckFailed { context, field_names, connector_transaction_id }`, and the tuple variant
+  `ConnectorErrorResponse(Box<ErrorResponse>)`.
+  There is NO `ConnectorError::InvalidData`, no `ConnectorError::NotImplemented`, no
+  `ConnectorError::InvalidCard`. Writing one is a hard compile error (E0599).
+- **Read the real variant list before you pick one.** `IntegrationError` (same file) is the
+  request-phase enum; every variant there also carries `context: IntegrationErrorContext`
+  (both context types derive `Default`, so `context: Default::default()` is valid).
+
+### THE SHARED ERROR PATH (`build_error_response`) - VERIFIED SIGNATURE
+
+`crates/types-traits/interfaces/src/api.rs` - `ConnectorCommon::build_error_response` takes
+THREE parameters besides `&self`:
+
+```rust
+fn build_error_response(
+    &self,
+    res: domain_types::router_response_types::Response,
+    _event_builder: Option<&mut events::Event>,
+    _connector_config: &ConnectorSpecificConfig,
+) -> CustomResult<ErrorResponse, ConnectorError>
+```
+
+- The event type is `events::Event`. There is NO `ConnectorEvent` type in the connector crate.
+- `set_error_response_body` is NOT a method on `events::Event` - delete any such call.
+- The same third parameter (`&ConnectorSpecificConfig`) was added to `get_error_response_v2`
+  and `get_5xx_error_response` in `interfaces/src/connector_integration_v2.rs`.
+
+**Never `unwrap_or_default()` an error code or message.** An empty string reaches the
+merchant as a blank failure reason. Use the shared constants from
+`crates/common/common_utils/src/consts.rs` (real connectors do this 247 times):
+
+```rust
+code: response.error_code.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+message: response.error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+```
+
+**`attempt_status` on the shared error path must be flow-aware and non-terminal by default.**
+It is `Option<FlowStatus>`, not `Option<AttemptStatus>`. A blanket
+`attempt_status: Some(AttemptStatus::Failure)` is both a type error and the bug that reports a
+charged payment as FAILURE. A blanket `attempt_status: None` is ALSO wrong - a hard-declined
+refund then stays Pending and keeps retrying. Decide per response:
+
+```rust
+// minimal form - connectors/noon.rs
+let attempt_status = if response.result_code == 19001 {
+    Some(AttemptStatus::Failure)   // this specific code really is terminal
+} else {
+    None                           // let the caller keep polling
+};
+// ...
+attempt_status: attempt_status.map(FlowStatus::Payment),
+```
+
+Fuller, flow-aware exemplar (payment leg vs refund leg): `connectors/flywire.rs`.
+
+### AUTHENTICATION IS READ FROM `connector_config`, NOT `connector_auth_type`
+
+`connector_auth_type` was removed from `RouterDataV2`. `RouterDataV2` now has exactly five
+fields: `flow`, `resource_common_data`, `connector_config`, `request`, `response`.
+Auth comes from `req.connector_config: ConnectorSpecificConfig` via a per-connector variant,
+and the trait method signature is:
+
+```rust
+fn get_auth_header(
+    &self,
+    _auth_type: &ConnectorSpecificConfig,
+) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, IntegrationError>
+```
+
+Implementing `get_auth_header(&self, _: &ConnectorAuthType)` no longer matches the trait (E0407).
+Copy the auth idiom verbatim from a current connector, e.g.
+`crates/integrations/connector-integration/src/connectors/travelhub.rs`.
 
 ### UCS COMPLIANCE VALIDATION
 - **RouterDataV2**: NEVER use RouterData, always RouterDataV2
@@ -1157,26 +1389,66 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 ### NEVER HARDCODE STATUS VALUES
 - **ALWAYS derive status from connector response**, never assume or hardcode:
   ```rust
-  // WRONG - Hardcoded status
+  // WRONG - Hardcoded status, and wrong struct shape on both counts
   impl TryFrom<ResponseRouterData<StripePaymentResponse, ...>> for RouterDataV2<...> {
       fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
           Ok(Self {
-              status: AttemptStatus::Charged,  // ❌ WRONG - Hardcoded!
-              ..item.data
+              status: AttemptStatus::Charged,  // ❌ WRONG - hardcoded, AND `RouterDataV2` has no
+                                               //    `status` field (E0560)
+              ..item.data                      // ❌ WRONG - `ResponseRouterData`'s field is
+                                               //    `router_data`, not `data` (E0609)
           })
       }
   }
 
-  // CORRECT - Status derived from response
+  // CORRECT - Status derived from response, written against the real struct shape.
+  // `RouterDataV2` has exactly five fields (domain_types/src/router_data_v2.rs):
+  //   flow, resource_common_data, connector_config, request, response
+  // The attempt status lives on `resource_common_data` (`PaymentFlowData::status` /
+  // `RefundFlowData::status`), so it is updated through a nested functional update.
   impl TryFrom<ResponseRouterData<StripePaymentResponse, ...>> for RouterDataV2<...> {
       fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
           Ok(Self {
-              status: map_stripe_status_to_attempt_status(&item.response.status),  // ✅ CORRECT
-              ..item.data
+              response: Ok(PaymentsResponseData::TransactionResponse { /* all fields - see below */ }),
+              resource_common_data: PaymentFlowData {
+                  status: map_stripe_status_to_attempt_status(&item.response.status),  // ✅ CORRECT
+                  ..item.router_data.resource_common_data
+              },
+              ..item.router_data
           })
       }
   }
   ```
+  Copy this idiom verbatim from a current connector, e.g.
+  `crates/integrations/connector-integration/src/connectors/travelhub/transformers.rs`.
+
+### RESPONSE STRUCT SHAPES (ENUM VARIANTS HAVE NO `..Default::default()`)
+- `PaymentsResponseData::TransactionResponse` is an ENUM STRUCT VARIANT — functional-update
+  syntax is not allowed inside it, so EVERY field must be listed or you get E0063.
+  Its 11 fields (`crates/types-traits/domain_types/src/connector_types.rs`) are:
+  ```rust
+  PaymentsResponseData::TransactionResponse {
+      resource_id,                          // ResponseId
+      redirection_data,                     // Option<Box<RedirectForm>>
+      connector_metadata,                   // Option<serde_json::Value>
+      mandate_reference,                    // Option<Box<MandateReference>>
+      network_txn_id,                       // Option<String>
+      network_txn_link_id,                  // Option<String>
+      connector_response_reference_id,      // Option<String>
+      incremental_authorization_allowed,    // Option<bool>
+      splits,                               // Option<ConnectorSplitResponseData>
+      status_code,                          // u16  (use item.http_code)
+      payment_account_reference,            // Option<String>
+  }
+  ```
+- `RefundsResponseData` is a plain struct with 4 fields: `connector_refund_id: String`,
+  `refund_status: common_enums::RefundStatus`, `status_code: u16`,
+  `acquirer_reference_number: Option<String>`.
+- `ErrorResponse` has 13 fields and DOES implement `Default`
+  (`crates/types-traits/domain_types/src/router_data.rs`), so prefer
+  `ErrorResponse { code, message, reason, status_code, attempt_status, ..Default::default() }`.
+  Note `attempt_status` is `Option<FlowStatus>` — NOT `Option<AttemptStatus>`. Wrap it:
+  `Some(FlowStatus::Payment(AttemptStatus::Failure))` / `Some(FlowStatus::Refund(RefundStatus::Failure))`.
 
 ### CREATE COMPREHENSIVE STATUS MAPPING FUNCTIONS
 - **Map ALL possible status values** from the connector API:
@@ -1203,12 +1475,18 @@ Score: 100 - 40 - 15 - 5 = 40 (Poor ❌ - BLOCK)
 - **Add comments** explaining why a validation exists:
   ```rust
   // CORRECT - Validation with explanation
-  // Stripe requires amount to be at least $0.50 USD or equivalent
+  // Stripe requires amount to be at least $0.50 USD or equivalent.
+  // `InvalidDataFormat` is the real request-phase variant; it takes `field_name: &'static str`
+  // plus `context: IntegrationErrorContext`. There is no `IntegrationError::InvalidData`.
   if amount < 50 {
-      return Err(errors::IntegrationError::InvalidData {
-          message: "Amount must be at least 50 cents".to_string(),
-          context: Default::default(),
-      });
+      return Err(errors::IntegrationError::InvalidDataFormat {
+          field_name: "amount",
+          context: errors::IntegrationErrorContext {
+              additional_context: Some("Amount must be at least 50 cents".to_string()),
+              ..Default::default()
+          },
+      }
+      .into());
   }
   ```
 

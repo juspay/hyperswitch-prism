@@ -411,7 +411,7 @@ pub(crate) fn is_paysafe_redirect_apm<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
 ) -> bool {
     match payment_method_data {
-        PaymentMethodData::Wallet(WalletData::Skrill(_))
+        PaymentMethodData::Wallet(WalletData::Skrill(_) | WalletData::Neteller(_))
         | PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => true,
         PaymentMethodData::GiftCard(gift_card_data) => {
             matches!(gift_card_data.as_ref(), GiftCardData::PaySafeCard {})
@@ -515,7 +515,7 @@ where
             config: "account_id",
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "Paysafe redirect APMs need the account_id map in the connector config (skrill/interac slots) to resolve the processing account."
+                    "Paysafe redirect APMs need the account_id map in the connector config (skrill/neteller/interac slots) to resolve the processing account."
                         .to_string(),
                 ),
                 ..Default::default()
@@ -554,7 +554,7 @@ where
         // Cards never create a payment handle in the Authorize leg, so no card
         // account-kind (3DS vs no-3DS) is ever chosen here. This builder's sole
         // caller is gated by `is_paysafe_handle_creation_leg`, whose
-        // `is_paysafe_redirect_apm` check admits only Skrill / Interac / paysafecard.
+        // `is_paysafe_redirect_apm` check admits only Skrill / Neteller / Interac / paysafecard.
         // A card + 3DS mints its `threeDs` handle in the PreAuthenticate flow; a
         // no-3DS card mints via the PaymentMethodToken flow and settles through
         // `PaysafePaymentsRequest`, which resolves the account by `is_three_ds()`.
@@ -597,6 +597,33 @@ where
                 },
                 PaysafePaymentType::Skrill,
                 Some(skrill_account_id),
+                None,
+                None,
+                None,
+            )
+        }
+        PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+            let consumer_id = router_data
+                .resource_common_data
+                .get_optional_billing_email()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Neteller payment handles require the billing email as the Neteller consumerId."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
+            let neteller_account_id =
+                account_id.get_account_id(PaysafeAccountKind::Neteller, currency)?;
+            (
+                PaysafePaymentMethod::Neteller {
+                    neteller: PaysafeNeteller { consumer_id },
+                },
+                PaysafePaymentType::Neteller,
+                Some(neteller_account_id),
                 None,
                 None,
                 None,
@@ -690,7 +717,7 @@ where
         }
         _ => {
             return Err(IntegrationError::NotImplemented(
-                "Only card + 3DS, Skrill, Interac e-Transfer, and paysafecard create a payment handle in the Paysafe Authorize flow".to_string(),
+                "Only card + 3DS, Skrill, Neteller, Interac e-Transfer, and paysafecard create a payment handle in the Paysafe Authorize flow".to_string(),
                 Default::default(),
             )
             .into())
@@ -1556,6 +1583,30 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(skrill_account_id),
                     )
                 }
+                PaymentMethodData::Wallet(WalletData::Neteller(_)) => {
+                    let consumer_id = router_data
+                        .resource_common_data
+                        .get_optional_billing_email()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "email",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Neteller payment handles require the billing email as the Neteller consumerId."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+                    let neteller_account_id =
+                        account_id.get_account_id(PaysafeAccountKind::Neteller, currency)?;
+                    (
+                        PaysafePaymentMethod::Neteller {
+                            neteller: PaysafeNeteller { consumer_id },
+                        },
+                        PaysafePaymentType::Neteller,
+                        Some(neteller_account_id),
+                    )
+                }
                 PaymentMethodData::BankRedirect(BankRedirectData::Interac { email, .. }) => {
                     // Interac e-Transfer consumer id: prefer the variant email, else billing
                     // email. Mandatory.
@@ -1611,7 +1662,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 },
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, Neteller, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }
@@ -1627,6 +1678,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             PaysafePaymentType::Skrill => None,
+            PaysafePaymentType::Neteller => None,
             PaysafePaymentType::InteracEtransfer => None,
             PaysafePaymentType::Paysafecard => None,
         };

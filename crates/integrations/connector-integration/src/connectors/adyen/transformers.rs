@@ -1564,9 +1564,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
             | WalletData::PaymayaRedirect(_)
+            | WalletData::PayhereRedirect {}
             | WalletData::QwikcilverWalletDirect(_)
             | WalletData::GrabpayRedirect { .. }
-            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Skrill(_)
+            | WalletData::Neteller(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )

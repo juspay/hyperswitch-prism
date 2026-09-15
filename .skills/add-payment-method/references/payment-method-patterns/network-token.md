@@ -1,0 +1,1 @@
+../../../../grace/rulesbook/codegen/guides/patterns/authorize/network_token/pattern_authorize_network_token.md
