@@ -221,7 +221,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stripe<T>
 {
 }
-// RepeatPayment (MIT): typically auto-capture so Succeeded is the terminal success.
+// RepeatPayment (MIT): always auto-capture; Succeeded is the only terminal success.
+// Canceled → Failure (MIT payment rejected/canceled, not a void).
+// RequiresConfirmation → Pending (unusual for MIT but waiting for further action).
 domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Stripe<T>,
@@ -232,10 +234,10 @@ domain_types::impl_flow_status_mapping! {
     {
         RequiresCapture        => Authorized,
         RequiresPaymentMethod  => Failure,
-        Canceled               => Voided,
+        Canceled               => Failure,
         Processing             => Authorizing,
         RequiresCustomerAction => AuthenticationPending,
-        RequiresConfirmation   => ConfirmationAwaited,
+        RequiresConfirmation   => Pending,
         Chargeable             => Authorizing,
         Consumed               => Authorizing,
         Pending                => Pending,

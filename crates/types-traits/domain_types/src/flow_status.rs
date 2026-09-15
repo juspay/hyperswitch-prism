@@ -163,11 +163,16 @@ impl FlowStatusRules for connector_flow::VoidPC {
 impl FlowStatusRules for connector_flow::SetupMandate {
     const NAME: &'static str = "SetupMandate";
     const TERMINAL_SUCCESS_SET: &'static [AttemptStatus] = &[AttemptStatus::Charged];
-    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] =
-        &[AttemptStatus::Failure, AttemptStatus::AuthorizationFailed];
+    const TERMINAL_FAILURE_SET: &'static [AttemptStatus] = &[
+        AttemptStatus::Failure,
+        AttemptStatus::AuthorizationFailed,
+        AttemptStatus::AuthenticationFailed, // 3DS failure during mandate setup
+    ];
     const ALLOWED: &'static [AttemptStatus] = &[
         AttemptStatus::Started,
         AttemptStatus::AuthenticationPending,
+        AttemptStatus::AuthenticationSuccessful,
+        AttemptStatus::AuthenticationFailed,
         AttemptStatus::Pending,
         AttemptStatus::Charged,
         AttemptStatus::Failure,

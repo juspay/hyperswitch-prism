@@ -133,6 +133,20 @@ macro_rules! impl_flow_status_mapping {
             )
         );
 
+        $(
+            const _: () = assert!(
+                $crate::flow_status::const_contains(
+                    <$flow as $crate::flow_status::FlowStatusRules>::ALLOWED,
+                    common_enums::AttemptStatus::$target,
+                ),
+                concat!(
+                    "impl_flow_status_mapping: intermediate target `AttemptStatus::",
+                    stringify!($target),
+                    "` is not in the flow's ALLOWED set"
+                )
+            );
+        )*
+
         // ── ConnectorTerminalMapping impl ─────────────────────────────────
 
         impl<$($generic)*> $crate::flow_status::ConnectorTerminalMapping<$flow> for $connector {
