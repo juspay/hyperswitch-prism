@@ -15,16 +15,17 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken,
-        PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
+        PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment, SetupMandate, Void,
+        VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
         DisputeWebhookDetailsResponse, EventType, PaymentFlowData, PaymentMethodTokenResponse,
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        SetupMandateRequestData, WebhookResourceReference,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -45,8 +46,9 @@ use transformers::{
     BraintreeAuthenticateResponse, BraintreeCancelRequest, BraintreeCancelResponse,
     BraintreeCaptureRequest, BraintreeCaptureResponse, BraintreeClientTokenRequest,
     BraintreePSyncRequest, BraintreePSyncResponse, BraintreePaymentsRequest,
-    BraintreePaymentsResponse, BraintreePreAuthenticateRequest, BraintreePreAuthenticateResponse,
-    BraintreeRSyncRequest, BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
+    BraintreePaymentsResponse, BraintreePostAuthenticateRequest, BraintreePostAuthenticateResponse,
+    BraintreePreAuthenticateRequest, BraintreePreAuthenticateResponse, BraintreeRSyncRequest,
+    BraintreeRSyncResponse, BraintreeRefundRequest, BraintreeRefundResponse,
     BraintreeRepeatPaymentRequest, BraintreeRepeatPaymentResponse, BraintreeSessionResponse,
     BraintreeSetupMandateRequest, BraintreeSetupMandateResponse, BraintreeTokenRequest,
     BraintreeTokenResponse, BraintreeVoidPCRequest, BraintreeVoidPCResponse,
@@ -234,6 +236,68 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> bool {
         matches!(payment_method, PaymentMethod::Card)
     }
+
+    /// Drive the composite authorize flow through Braintree-HOSTED 3DS for card + ThreeDs:
+    /// PreAuthenticate (client token + nonce) -> Authenticate (`performThreeDSecureLookup`) ->
+    /// [PostAuthenticate (`node(id:)` readback) when a challenge was rendered] -> Authorize.
+    ///
+    /// Without this override the connector inherits the default, which returns
+    /// `AuthenticationStep::Authorize` and skips the entire trio — i.e. all three legs would be
+    /// unreachable code.
+    ///
+    /// The `RedirectWithoutParams` arm is the load-bearing one and it is NOT arbitrary: the ACS
+    /// posts its PaRes to BRAINTREE's own termUrl, not to UCS, so the browser comes back to the
+    /// merchant carrying nothing. A parameterless return is therefore exactly the signature of
+    /// "the challenge is over, go read the result". The device-data-collection return, by
+    /// contrast, does carry params (the `dfReferenceId`), which is what separates the two.
+    ///
+    /// Shape follows Cybersource's, which splits on the same params/no-params axis. Getnet's
+    /// shape routes the ACS return through `(RedirectWithParams, Some(Authenticate))`, which
+    /// assumes the challenge completes inside one composite call — true for Getnet, false for
+    /// Braintree, whose Authenticate leg breaks the dispatcher loop the moment it emits a
+    /// challenge.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, None) => AuthenticationStep::PreAuthenticate,
+                // Defensive: PreAuthenticate always returns a RedirectForm, so the dispatcher
+                // breaks out before this arm is reachable. Fall through rather than spin if that
+                // ever changes.
+                (RedirectState::InitialRequest, Some(_)) => AuthenticationStep::Authorize,
+
+                // Device-data-collection return: `redirection_response.params` carries the
+                // `dfReferenceId` the lookup wants.
+                (RedirectState::RedirectWithParams, None) => AuthenticationStep::Authenticate,
+                // Frictionless within the same call: Authenticate returned no challenge.
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+
+                // ACS return: no params, because the PaRes went to Braintree.
+                (RedirectState::RedirectWithoutParams, None) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+                (
+                    RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::PostAuthenticate),
+                ) => AuthenticationStep::Authorize,
+
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Braintree<T>
@@ -398,6 +462,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthenticateV2<T> for Braintree<T>
 {
 }
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPostAuthenticateV2<T> for Braintree<T>
+{
+}
 macros::create_all_prerequisites!(
     connector_name: Braintree,
     generic_type: T,
@@ -419,6 +487,12 @@ macros::create_all_prerequisites!(
             request_body: BraintreeAuthenticateRequest,
             response_body: BraintreeAuthenticateResponse,
             router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PostAuthenticate,
+            request_body: BraintreePostAuthenticateRequest,
+            response_body: BraintreePostAuthenticateResponse,
+            router_data: RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -992,6 +1066,46 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Braintree-hosted 3D Secure, leg 3: PostAuthenticate — the `node(id:)` readback that settles
+// the authentication after the cardholder finished the ACS challenge leg 2 emitted.
+//
+// It is a GraphQL *query*, not a mutation, and that is not a shortcut: the root Mutation type has
+// 112 fields and exactly one is 3DS-related (`performThreeDSecureLookup`, which is leg 2), while
+// the root Query type has none. The ACS posts its PaRes to Braintree's own termUrl, Braintree
+// records the outcome ON the payment method, and `PaymentMethod` implements `Node` — so
+// `node(id:)` is the only retrieval path that exists. A query is still an HTTP POST to the same
+// GraphQL endpoint, with the same headers and the same pinned `Braintree-Version: 2019-01-01`.
+//
+// Unlike leg 2 the readback is idempotent and non-consuming, so it is safely re-runnable and
+// pollable.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Braintree,
+    curl_request: Json(BraintreePostAuthenticateRequest),
+    curl_response: BraintreePostAuthenticateResponse,
+    flow_name: PostAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPostAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PostAuthenticate, PaymentFlowData, PaymentsPostAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+             Ok(self.connector_base_url_payments(req).to_string())
+        }
+    }
+);
+
 // ConnectorIntegrationV2 implementations for authentication flows
 
 macros::macro_connector_flow_status_impls!(
@@ -1009,7 +1123,6 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         Accept,
         MandateRevoke,
-        PostAuthenticate,
     ],
     not_supported: [
         VoidPostRefund,

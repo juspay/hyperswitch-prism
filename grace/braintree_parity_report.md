@@ -792,3 +792,368 @@ recommends — but the "is it even there?" question is now closed.
   (`"ChallengeRequired"`). The **pre-existing** `BraintreePaymentStatus` has the same latent
   mismatch and was deliberately not touched — out of scope for this diff, but it is a real papercut
   waiting for whoever reads `connector_feature_data` on the Authorize path.
+
+---
+
+## 8. 3DS — leg 3: `PostAuthenticate`
+
+Scope of this section: the **`PostAuthenticate`** leg (Braintree-hosted 3D Secure, leg 3 — the
+settlement of the authentication after the cardholder completes the ACS challenge leg 2 emitted).
+With it the trio is complete, so this section also owns the two things the prior two runs deferred
+to it: **retiring the Braintree-hosted-3DS guard** in the Authorize builder, and **overriding
+`next_authentication_step`** so the composite dispatcher routes the trio at all.
+
+Sections 6 and 7 are the handover this section builds on. Read them first. Where §6 or §7 is
+corrected below, the correction is stated explicitly rather than left for the reader to infer;
+neither section was edited.
+
+### 8.1 The central question, and the answer — with schema evidence
+
+The brief for this run was blunt: *do not fabricate a mutation or a field; if Braintree has no
+separate post-challenge retrieval call, say so with schema evidence and implement the honest
+minimum.* That was the right instruction, and the honest answer turned out to be neither "there is
+a completion mutation" nor "this leg is a local assembly". It is a third thing.
+
+**Braintree offers no post-challenge completion *mutation*, and no authentication-retrieval
+*query*. What it offers is that the ACS result is written onto the payment method, and the payment
+method is a `Node`.** Live introspection at `Braintree-Version: 2019-01-01`, three independent
+ways:
+
+| Probe | Result |
+|---|---|
+| Root `Mutation` field list (112 fields) grepped case-insensitively for `3d`, `3ds`, `threeDSecure`, `challenge` and the `authentication` stem | **Exactly one match** — `performThreeDSecureLookup`, which is leg 2. There is no completion mutation to call. |
+| Root `Query` field list (26 fields, served order) | No `threeDSecureAuthentication`, no `threeDSecureLookup`, no `paymentMethod(id:)`. `node(id: ID!)` is the only id-addressable entry point. |
+| `initializeChallengeWithLookupResponse` | **Does not exist as a mutation at all.** It is a browser JS-SDK method. |
+
+That last row corrects the tech spec twice over: both §P.12.2 and §A.12 framed this leg as
+*"ingests the browser's `initializeChallengeWithLookupResponse` outcome"*. There is nothing on the
+server to ingest it with. The spec's §PA section supersedes both.
+
+So the shipped leg is a **`node(id: <the NEW paymentMethod.id leg 2 returned>)` readback** — one
+GraphQL query, one real HTTP POST to the same endpoint with the same headers. Not a mutation, not
+a local assembly, not a no-op.
+
+**And it genuinely works, which was proved rather than assumed.** The decisive experiment POSTed a
+PaRes to Braintree's own `termUrl` and then re-read the *same* payment-method id:
+
+| Field | Before the ACS post-back | After the ACS post-back |
+|---|---|---|
+| `authenticationStatus` | `CHALLENGE_REQUIRED` | **`AUTHENTICATE_UNABLE_TO_AUTHENTICATE`** |
+| `transactionStatus` | `CHALLENGE_REQUIRED_FOR_AUTHENTICATION` | **`UNABLE_TO_COMPLETE_AUTHENTICATION`** |
+| `paresStatus` | `null` | **`UNABLE_TO_COMPLETE_AUTHENTICATION`** |
+
+`node(id:)` is a **live server-side view** of the authentication and it transitions when the ACS
+result reaches Braintree. (The probe's PaRes was synthetic, hence
+`UNABLE_TO_AUTHENTICATE` rather than `AUTHENTICATE_SUCCESSFUL`; the mechanism is what the
+experiment establishes. A real browser challenge driven to a post-challenge CAVV remains
+unobserved — recorded in §8.8.)
+
+Three further facts fell out of the same experiments and each changed the shipped code:
+
+1. **`node(id:)` resolves a single-use nonce, raw and verbatim.** This closes the standing unknown
+   §P.13 opened and §A.13 carried forward. `base64(id)`, `base64("PaymentMethod:"+id)`, the spent
+   `tokencc_…` nonce and `authenticationId` (raw and base64) all return `NOT_FOUND`. There is no
+   Relay global-id wrapper.
+2. **The readback is non-consuming and idempotent** — two consecutive calls returned byte-identical
+   `data`, and it is lossless relative to the lookup payload (all 14 `ThreeDSecureAuthentication`
+   members, `cavv` included). This leg is therefore safely re-runnable and pollable, the exact
+   opposite of leg 2, which destroys its input (§7.3.3).
+3. **The browser post-back never reaches the merchant.** Braintree 302s to
+   `assets.braintreegateway.com` with `frame-ancestors 'self'`; in the JS-SDK topology the SDK's
+   iframe catches it and `postMessage`s out. In a server-side, no-SDK integration there is no
+   receiver. Consequence, and it is a real divergence from most `PostAuthenticate`
+   implementations: **`PaymentsPostAuthenticateData.redirect_response` carries nothing this leg
+   needs.** `get_redirect_response_payload()` is deliberately not called, `params` is not required,
+   and a `None` `redirect_response` is not an error. It is a *timing signal* that the browser is
+   back, not a data channel — commented at the call site so a later reader does not "fix" it.
+
+Braintree's own documentation covers none of this: the step-by-step guide documents
+`threeDSecure.initializeChallengeWithLookupResponse` as a client-side SDK call and is silent on
+where the ACS posts and how a server learns the outcome; `TermUrl`, `PaReq` and `MD` appear in
+neither it nor the advanced-options page. Everything above is live-observed, not documented.
+
+### 8.2 Topology: hyperswitch's completion leg is a **charge**; UCS's is a **retrieval**
+
+Every hyperswitch line below was re-read in `/home/infamous/hyperswitch1` for this run.
+
+| Step | hyperswitch | UCS after this run |
+|---|---|---|
+| Flow marker | `CompleteAuthorize` — `braintree.rs:1237`. **UCS has no such marker** (§6.1) | `PostAuthenticate` |
+| What the completion leg *is* | a **charge**: `get_request_body` builds `chargeCreditCard` / `authorizeCreditCard` with `payment_method_id: three_ds_data.nonce` (`braintree/transformers.rs:2651-2716`) | a **retrieval**: `node(id:)`. The charge stays in `Authorize`, where it belongs |
+| Where the result comes from | the browser — `BraintreeRedirectionResponse { authentication_response: String }` (`transformers.rs:2508-2510`), parsed at `:2661-2666` | Braintree's server, off the payment method |
+| What the server learns | **three fields, ever**: `BraintreeThreeDsResponse { nonce, liability_shifted, liability_shift_possible }` (`transformers.rs:2494-2498`) | all 14 members of `ThreeDSecureAuthentication` |
+| What is discarded | everything else — `onLookupComplete: function(data, next) { next(); }` (`router/src/services/api.rs:1331`) binds the lookup result to `data` and throws it away | nothing |
+| Browser post-back → server | `ConnectorRedirectResponse::get_flow_type` (`braintree.rs:1191-1233`): `CompleteAuthorize \| PaymentAuthenticateCompleteAuthorize ⇒ Trigger`; a payload arriving on `PaymentAction::PSync` is the failure path and yields `AttemptStatus::AuthenticationFailed` (`:1221`) | no post-back is consumed; the outcome is read from Braintree (§8.1) |
+
+**Two facts worth stating precisely.**
+
+1. **hyperswitch parses two booleans it never reads.** `liability_shifted` and
+   `liability_shift_possible` are deserialized at `transformers.rs:2494-2498`, and a tree-wide grep
+   over `crates/hyperswitch_connectors/src/connectors/braintree*` finds **no read of either** —
+   only the two field declarations. So hyperswitch's *effective* learning from a Braintree-hosted
+   3DS authentication is **one field: the nonce.** UCS now carries both booleans *and* surfaces
+   them, which is what finally gives §7.4's *"`liabilityShifted` must be read, not inferred"* rule
+   somewhere to land. Live, from this run's frictionless case:
+   `"liability_shifted":true,"liability_shift_possible":true,"card_enrolled":"YES"`.
+2. **hyperswitch's approach is structurally unavailable to UCS.** Its `auth_response` exists only
+   because the Braintree **JS SDK** receives the `assets.braintreegateway.com` post-back and hands
+   it to merchant JavaScript. UCS's server-side topology has no such receiver — the payload is not
+   merely unused, it is unreachable. The `node(id:)` readback is what replaces it, and it returns
+   strictly more. This is not a preference; it is the only path that exists.
+
+§7.2's conclusion — *"UCS's split is strictly finer … nothing hyperswitch does is lost"* — now
+holds with **no leg outstanding**.
+
+### 8.3 Satisfying the HS driving contract
+
+The operator's contract for this run was verified against hyperswitch rather than assumed:
+`post_authentication_step` (`crates/router/src/core/payments/flows/complete_authorize_flow.rs:438-447`)
+gates on `is_post_authentication_flow_required(CurrentFlowInfo::CompleteAuthorize { .. })`, and in
+the reference connectors (`barclaycard.rs:1679-1694`, `cybersource.rs:2584-2606`) that gate is the
+exact **complement** of the `Authenticate` gate (`barclaycard.rs:1661-1671`): `redirect_response.params`
+present and non-empty ⇒ `Authenticate`; absent or empty ⇒ `PostAuthenticate`.
+
+UCS expresses the same split through `ValidationTrait::next_authentication_step`
+(`types-traits/interfaces/src/connector_types.rs:276`), which the composite dispatcher calls in a
+loop (`crates/internal/composite-service/src/payments.rs:819-905`). **Braintree did not override
+it** — §7.5 recorded that as a residual risk, and the consequence is stronger than "a missing
+nicety": `pattern_postauthenticate.md` is explicit that *a connector that implements this flow but
+does not override that method has an unreachable implementation*. All three legs were unreachable
+code. This run adds the override, on Cybersource's params/no-params axis:
+
+| `(RedirectState, completed_step)` | Step |
+|---|---|
+| `(InitialRequest, None)` | `PreAuthenticate` |
+| `(RedirectWithParams, None)` | `Authenticate` — the DDC return carries the `dfReferenceId` |
+| `(RedirectWithParams, Some(Authenticate))` | `Authorize` — frictionless within the same call |
+| `(RedirectWithoutParams, None)` | **`PostAuthenticate`** |
+| `(RedirectWithoutParams, Some(PostAuthenticate))` | `Authorize` |
+| anything else / not (ThreeDs ∧ Card) | `Authorize` |
+
+The `RedirectWithoutParams` arm is load-bearing and it is not arbitrary: **the ACS posts its PaRes
+to Braintree's own `termUrl`, not to UCS** (§8.1), so a parameterless browser return is exactly the
+signature of *"the challenge is over, go read the result"*. That is precisely what makes HS's
+complement gate the right shape for Braintree too, and it is why Cybersource's shape was chosen
+over Getnet's (`getnet.rs:166-200`), which routes the ACS return through
+`(RedirectWithParams, Some(Authenticate))` — true for Getnet, false for Braintree, whose
+`Authenticate` leg breaks the dispatcher loop the moment it emits a challenge.
+
+One consequence for whoever raises the HS-side PR (`grace/braintree_hs_side_notes.md` has the
+full scope): HS's `braintree.rs` still overrides none of the three
+`is_*_flow_required` methods, so the trio remains unreachable *from HS* until that PR lands. This
+run makes it reachable from UCS's own composite path, which is what the gRPC evidence below
+exercises.
+
+### 8.4 What shipped
+
+| `PostAuthenticateResponse` field | Value | Rationale |
+|---|---|---|
+| `authentication_data` | the full `threeDSecure.authentication` block mapped onto `AuthenticationData` | The one thing the leg exists to produce. Mapped by the **same function** leg 2 uses — `build_three_ds_authentication_data` was extracted and leg 2's inline copy now calls it, so the two cannot drift (checklist 15). |
+| `connector_response_reference_id` | the **payment-method id that was read** | The variant has no `resource_id`, and on this leg the id the caller needs next is the spendable one. **Deliberate divergence from §7.4**, which put `authenticationId` here — `node(id:)` does not return an `authenticationId` at all (it lives on `ThreeDSecureLookupData`, which has no query entry point). |
+| `status_code` | `item.http_code` (always 200) | |
+| `resource_common_data.status` | the **§A.7 / §7.4 table verbatim** — same enum, same `From` impl, keyed on `authenticationStatus` | No second table was invented. |
+| `resource_common_data.connector_feature_data` | the `braintree_three_ds` blob, refreshed from the readback, carrying `payment_method_id` + the liability booleans + `card_enrolled` + raw statuses + `bin`/`last4`/`brand_code` | **This is how the verified nonce leaves a variant that has no slot for it** — see below. |
+
+`PaymentsResponseData::PostAuthenticateResponse` (`connector_types.rs:2082-2086`) carries only
+`{authentication_data, connector_response_reference_id, status_code}`: no `resource_id`, no
+`redirection_data`, no `connector_feature_data`. The nonce problem is solved without touching it,
+because `types.rs:20023-20029` sources the gRPC response's `connector_feature_data` from
+**`resource_common_data`**, independently of the response variant, and sets it on *both* arms. So
+writing `resource_common_data.connector_feature_data` in the response transformer surfaces the blob
+with **zero `types.rs` and zero `proto/` change**.
+
+Returning `TransactionResponse` instead — which `types.rs:20054-20080` does accept from this flow —
+was rejected: that arm sets `authentication_data: None` unconditionally (`types.rs:20071`), which
+would discard the CAVV, ECI, DS-Trans-Id and trans-status, i.e. the entire output of the trio, and
+would break the composite dispatcher, which forwards
+`post_authenticate_response.authentication_data` into the Authorize request
+(`composite-service/src/transformers.rs:292-296`).
+
+**Blast radius outside the connector: zero.** No `types.rs`, no `connector_types.rs`, no
+`router_response_types.rs`, no `proto/`, no `config/*.toml`, no regenerated SDK bindings. This is
+strictly narrower than leg 1 (one `types.rs` match arm) and leg 2 (`PaymentsAuthenticateData::metadata`,
+8 + 7 lines). Three files changed: `braintree.rs`, `braintree/transformers.rs`, and one line in
+`connector_specs/braintree/specs.json`.
+
+**`metadata` was not needed, and that is a finding, not a gap.** `node(id: ID!)` takes one
+argument; the merchant is scoped by Basic auth. So `PaymentsPostAuthenticateData`'s missing
+`metadata` member — which looked like it would force leg 2's cross-crate change again — is a
+non-issue, `resolve_merchant_account_id` is deliberately **not** called here, and checklist item 14
+is N/A on this leg.
+
+`Braintree-Version` is unchanged at `2019-01-01`. Nothing this leg selects postdates the pin, so
+§7.1's gate covers it and no new gate was required. The `CountryCode` alpha-3 ceiling
+(`transformers.rs:4790`) is untouched — this leg sends no address at all.
+
+**Two selection-set footguns were captured live and are pinned by a test.** `createdAt` on a
+single-use payment method returns a *partial* `NOT_IMPLEMENTED` error that would drag an otherwise
+good readback into the error arm; `authenticationInsight` requires an `input` argument. Neither is
+selected, and `post_authenticate_document_selects_neither_created_at_nor_authentication_insight`
+asserts their literal absence from the document.
+
+### 8.5 Retiring the Authorize guard — and the cross-wiring trap
+
+§6.2 and §A.12 both assigned the Braintree-hosted-3DS guard (`transformers.rs:1011-1045`) to this
+run. Its stated reason — *"consuming the nonce that comes back needs a CompleteAuthorize flow,
+which this connector does not implement"* — is now obsolete, and the sentence was doubly wrong
+anyway: UCS has no `CompleteAuthorize` marker at all (§6.1).
+
+**The trap, which a naive retirement walks straight into.** After this run an Authorize request can
+carry `authentication_data` from two mutually exclusive ingresses:
+
+| Ingress | How `authentication_data` gets there | What Authorize must send |
+|---|---|---|
+| **External MPI** (already shipped) | the caller puts it on the original Authorize request | `options.threeDSecureAuthentication.passThrough` |
+| **Braintree-hosted** (legs 1-3) | the composite dispatcher copies PostAuthenticate's into the Authorize request (`composite-service/src/transformers.rs:292-296`); HS does the same at `complete_authorize_flow.rs:493-505` | **nothing** — just charge the verified nonce |
+
+The Authorize builder branched purely on `authentication_data.is_some()`. Deleting the guard would
+therefore have cross-wired a *Braintree-performed* authentication into the *external-MPI*
+pass-through — UCS asserting an externally performed authentication for one Braintree performed
+itself, which is exactly what §7.2 says must never happen.
+
+**Sending nothing is correct, and that was proved live before it was coded.** A 3DS-verified nonce
+charged with `chargeCreditCard` and **no** `threeDSecurePassThru` came back
+`SUBMITTED_FOR_SETTLEMENT` with a fully populated `paymentMethodSnapshot.threeDSecure.authentication`
+and `liabilityShifted: true`. Braintree attaches the authentication itself, because it lives on the
+payment method.
+
+The shipped discriminator is a four-variant `BraintreeAuthorizeThreeDsMode`
+(`None` / `Hosted` / `ExternalPassThrough` / `Unauthenticated`) computed once from
+`(is_three_ds, authentication_data, connector_feature_data)` and read at both the guard site and
+the pass-through site, so there is one source of truth. `Hosted` is keyed on the
+`braintree_three_ds` marker in `connector_feature_data`, behind a shared
+`BRAINTREE_THREE_DS_FEATURE_KEY` const so producer and consumer cannot drift, and it **wins over**
+`authentication_data`, because on the composite path both are present and the hosted authentication
+is the one that actually happened. Rejected alternatives are recorded in the code so they are not
+re-proposed: sniffing the token shape (`tokencc_` prefix vs bare UUID) is an undocumented string
+heuristic on a credential; `is_three_ds()` alone is true for external MPI too; and a new
+`PaymentsAuthorizeData` member would be a cross-crate change for something an already-forwarded
+channel expresses exactly.
+
+**The guard is narrowed, not deleted.** Deleting it outright would let a *direct*
+`PaymentService/Authorize` call — one that never ran the trio — through with `is_three_ds()` and no
+authentication, silently charging unauthenticated. Braintree-hosted 3DS still cannot happen inside
+one Authorize call; that was true before this run and remains true. Only the `Unauthenticated`
+variant now errors, and its message and `IntegrationErrorContext` were rewritten to point at the
+trio instead of at a flow UCS does not have. The `!hosted` clause carries one real case: a
+Braintree-hosted authentication that legitimately produced **no** `AuthenticationData` but did
+produce the marker — without it, such a payment would be rejected after the trio had already run to
+completion.
+
+Both directions were exercised live over gRPC, not only in unit tests: the verified nonce with the
+marker charged to `CHARGED` / `SUBMITTED_FOR_SETTLEMENT` with **zero** occurrences of
+`passThrough` in the whole server log for the run; the same Authorize with the marker and
+`authentication_data` both removed still fails closed.
+
+### 8.6 Error handling
+
+Unchanged in principle from §6.4 and §7.5, and for the same reason: Braintree answers HTTP 200 for
+everything, so success and failure are separated by body shape. `BraintreePostAuthenticateResponse`
+is an untagged enum with **`ErrorResponse` first**, and `GenericBraintreeResponse<T>` is again
+deliberately **not** reused because it orders success first.
+
+This leg adds one twist the prior two did not have: a `node(id:)` miss is a *partial* success —
+`{"data":{"node":null},"errors":[…]}` — so neither a `data`-key-presence test nor a
+`node != null` test would classify it correctly. Live, from the unknown-id case:
+`failure_message "An object with this ID was not found."`, **`status: PENDING` with no terminal
+status written** — the caller's own fallback, which is §P.7.1 / §P.8 behaviour and checklist item 5
+demonstrated rather than asserted.
+
+`CHALLENGE_REQUIRED` on the readback is **not** an error and is not converted into one. It maps to
+`AuthenticationPending` (non-terminal) exactly as §7.4's table says, no terminal failure is
+invented, no timeout is synthesised, and no `redirection_data` is emitted (the variant has no such
+field). Because the readback is idempotent, the documented remedy is simply to call
+`PostAuthenticate` again. Live-confirmed on the challenge card.
+
+### 8.7 Appendix — reviewer-checklist audit (`grace/braintree_review_checklist.md`)
+
+| Item | Applicable? | How it was satisfied |
+|---|---|---|
+| 1 — Currency is `common_enums::Currency` | No | The readback sends no currency and no amount; `node(id: ID!)` takes one argument. Nothing is stringified because nothing is sent. |
+| 2 — amounts use an amount type | No | No amount on this leg — the amount belongs to leg 2's lookup and to Authorize. The connector's `amount_converter` is deliberately not invoked. |
+| **3 — PII / credentials are `Secret<…>`** | **Yes** | The payment-method id is a spendable credential: `BraintreePostAuthenticateVariables.id` is `Secret<String>`, the readback's `node.id` is `Secret<String>`, and `cavv` is `Secret<String>` through the shared mapper. Proven by the live log line — the connector-response event printed `"id":"*** alloc::string::String ***"` and `"cavv":"*** alloc::string::String ***"`. |
+| **4 — fixed-value strings become enums** | **Yes** | `usage` is modelled as a `BraintreePaymentMethodUsage` enum rather than a raw `String`. The status enums are leg 2's, reused verbatim. `eciFlag` stays `String` for the reason §7.6 gives (network-scoped values, and the existing pass-through code already treats it as one). |
+| **5 — no hardcoded `Failure` in `build_error_response`** | **Yes** | The shared `ConnectorCommon::build_error_response` was not touched; the new error arm writes no status at all. Live-proven: the unknown-id case came back `PENDING`, not `Failure`. Leg 2's `TransactionStatus::default() == Failure` trap is inherited intact — the shared `to_trans_status` still returns `Option` and never `unwrap_or_default()`s. |
+| **6 — unknown status → `Unspecified`** | **Yes** | The `#[serde(other)] Unknown → AttemptStatus::Unspecified` arm is leg 2's, reused rather than re-declared, and `post_authenticate_status_mapping_is_leg_twos_table_verbatim` asserts it on this leg's path. |
+| **7 — terminal connector state → terminal UCS state** | **Yes** | Same table, same 15 reachable terminal statuses → `AuthenticationFailed`, and the test asserts `is_terminal_status()` on each. |
+| **8 — do not map a state the pipeline cannot advance** | **Yes** | `CHALLENGE_REQUIRED → AuthenticationPending` is advanceable *because the readback is idempotent* — the caller can re-invoke this very leg (§8.6). Every `AuthenticationSuccessful` row is advanceable because the guard retirement (§8.5) now lets the verified nonce reach Authorize; before this run it could not, which is precisely what made the trio unusable. |
+| 9 — partial capture | No | No capture on an authentication leg. |
+| **10 — a 200 carrying a failure body becomes an `ErrorResponse`** | **Yes — and harder than on the prior two legs** | §8.6. A `node(id:)` miss is a *partial* success (`{"data":{"node":null},"errors":[…]}`), so `ErrorResponse` must be first in the untagged enum AND the success variant must not be satisfiable by a null node. `post_authenticate_errors_win_over_a_populated_data_object` and `post_authenticate_detects_every_empty_fragment_explicitly` (4 cases) pin both halves. Live-proven with a populated `code`/`message`/`reason`. |
+| 11 — refund error paths set `attempt_status` | No | Not a refund flow. |
+| **12 — Authorize and PSync return the same resource id** | **Partly — and §7.6 flagged it for this run** | §7.6 warned that leg 2's `resource_id` is a *payment-method* id, not a transaction id, and that the two must not be conflated. This leg keeps them apart: it echoes the payment-method id on `connector_response_reference_id` (surfacing as `merchant_order_id`), and the transaction id is minted later by Authorize and is what PSync syncs. Neither Authorize nor PSync was touched. |
+| 13 — idempotency key from `get_merchant_request_id()` | No — **and this is the one leg where the concern genuinely evaporates** | `node(id:)` is a read. It consumes nothing, and two consecutive calls returned byte-identical data (live). No UUID is minted; a retry costs one HTTP request. Unlike leg 2, which is non-idempotent and destroys its input, this leg is safely re-runnable and pollable. |
+| **14 — prefer the per-request field over the connector-config copy** | **N/A on this leg, for a reason worth recording** | `node(id: ID!)` takes one argument and no merchant scope — Basic auth *is* the scope. So the leg needs no `merchant_account_id`, `resolve_merchant_account_id` is deliberately not called, and `PaymentsPostAuthenticateData`'s missing `metadata` member does **not** force leg 2's cross-crate change. The id it does read comes from the per-request field `connector_order_reference_id` and from nowhere else, pinned by `post_authenticate_reads_connector_order_reference_id_and_not_payment_method_data`. The PR2187 reference implementation in the Authorize builder was not modified. |
+| **15 / 16 — reuse existing helpers; generic logic in `utils.rs`** | **Yes — and this run paid down a clone rather than adding one** | `build_three_ds_authentication_data` was **extracted from leg 2 and is now shared by both legs**: both read the same `CreditCardDetails.threeDSecure.authentication` block, so they map it with one function instead of two copies that drift. Leg 2's behaviour was re-verified live after the refactor. Also reused: the `ThreeDSecureAuthenticationStatus` enum and its `From` impl, `ErrorResponse` / `ErrorDetails` / `AdditionalErrorDetails`, `build_error_response`, `utils::unexpected_response_fail`, and the existing `build_headers` / `connector_base_url_payments`. `GenericVariableInput<T>` was **not** reused — this document's variable is `{"id":…}`, not `{"input":…}`. Every new helper is Braintree-schema-specific, so nothing belonged in `utils.rs`. |
+| 17 — no `billing_full_name` fallback for cardholder name | No | This leg sends no name and no address at all. |
+| **18 — populated `IntegrationErrorContext`** | **Yes** | Every new error construction carries `additional_context` + `suggested_action`: the missing `connector_order_reference_id`, each empty-fragment case, and the rewritten Authorize guard (which also keeps its `doc_url`). On the response side `utils::unexpected_response_fail` populates `ResponseTransformationErrorContext`. No `::default()` in the new code. The missing-id message is quoted live in the gRPC evidence and names both the cause and the remedy. |
+| **19 — comment non-obvious logic** | **Yes** | Comments on: why a *query* rather than a mutation (with the 112-mutation / 26-query counts in the code), why `redirect_response` is deliberately unread, why `createdAt` and `authenticationInsight` are not selected, why the `RedirectWithoutParams` arm is the ACS return, why Cybersource's dispatcher shape was chosen over Getnet's, why `Hosted` wins over `authentication_data`, the three rejected discriminator alternatives, why the guard is narrowed rather than deleted, why `ErrorResponse` is first in the untagged enum, and why `authentication_id` / `lookup_transaction_id` are dropped at the leg-2 → leg-3 hand-off. |
+| **20 — novel local logic needs a `#[cfg(test)]` test** | **Yes — 9 new tests, 34 → 43, all green** | `post_authenticate_document_and_variables_key_agree` (both inline fragments, the `.authentication` nesting, and a byte-identical `authentication` selection shared with leg 2), `..._selects_neither_created_at_nor_authentication_insight` (literal negative assertions for the two live-captured footguns), `..._reads_connector_order_reference_id_and_not_payment_method_data`, `..._errors_win_over_a_populated_data_object`, `..._maps_a_settled_readback_onto_authentication_data`, `..._status_mapping_is_leg_twos_table_verbatim` (terminal / non-terminal / unknown → `Unspecified`), `..._detects_every_empty_fragment_explicitly` (4 cases), `next_authentication_step_routes_the_braintree_hosted_trio`, and `braintree_hosted_3ds_is_never_cross_wired_into_the_external_mpi_pass_through` (both directions plus the narrowed-guard cases). The sandbox and gRPC runs are evidence, not the test coverage. |
+| **21 — never guess a production hostname** | **Yes** | No config file was touched. A GraphQL query is a POST to the same endpoint every other Braintree flow uses, resolved through the existing `connector_base_url_payments`. |
+| **22 — no unrelated regenerated files** | **Yes** | `git status --porcelain` shows exactly three changed source files plus `data/integration-source-links.json`, which this run's Links Agent legitimately refreshed. `scripts/validation/pre-push.sh` was deliberately not run, so it could not regenerate `data/field_probe/braintree.json`, `docs-generated/**` or `examples/braintree/*` — nothing under those paths is dirty. `typos --config ./.typos.toml` clean, `cargo +nightly fmt --check` clean, `cargo clippy --all-targets` zero warnings, `check_connector_specs` 117/117. |
+
+#### Credential hygiene
+
+Re-verified over the whole **tracked** tree at the end of this run, per the operator's standing
+requirement: the sandbox `public_key`, `private_key` and `metadata.merchant_id` from `creds.json`
+have **zero** tracked hits. New test fixtures use the obviously-fake
+`00000000-1111-2222-3333-444444444444`. One pre-existing echo is recorded rather than silently
+churned: `merchant_account_id` is the literal string `juspay`, which leg 2's fixtures
+(`transformers.rs:7034`, `:7083`) and the long-standing
+`connector_specs/braintree/override.json` both contain. It is the organisation name, appears
+~1640 times across the repo including `.github/CODEOWNERS`, and is not a secret — but it *is* a
+`creds.json` value, so it is named here rather than left for a reviewer to find. The tech spec
+does quote the sandbox merchant id; that file is gitignored (`grace/.gitignore:31
+**/references/**`) and untracked, so it never reaches the tree.
+
+### 8.8 Residual risks recorded by this audit
+
+- **A real cardholder ACS challenge has still never been driven to completion in a browser.** The
+  readback's live-view behaviour was proved by POSTing a synthetic PaRes to Braintree's `termUrl`,
+  which produced `AUTHENTICATE_UNABLE_TO_AUTHENTICATE` — the *mechanism*, not a
+  post-challenge CAVV. The frictionless path *was* observed carrying a real `cavv` through
+  `node(id:)`, so the field is proven present on the readback surface; the specific
+  challenge → CAVV transition is not. **First thing to check** when a browser challenge is
+  exercised.
+- **The cardholder may be stranded on Braintree's completion frame — this is the biggest
+  end-to-end unknown.** Braintree 302s the browser to
+  `assets.braintreegateway.com/3ds/…/html/authentication_complete_frame` with
+  `frame-ancestors 'self'`. In the JS-SDK topology the SDK's iframe catches it; in UCS's
+  server-side topology **nothing brings the cardholder back to the merchant automatically**. This
+  leg is correct whenever it is invoked, and it is idempotent and pollable — but *what invokes it*
+  is the caller's problem, and neither this run nor the spec can settle it. A caller rendering
+  leg 2's `RedirectForm::Form` inside its own iframe and detecting navigation to the Braintree
+  assets origin is the likely answer; it was not built or tested.
+- **The dispatcher does not refuse to Authorize on a still-pending authentication.** The composite
+  loop (`composite-service/src/payments.rs:874-884`) does not inspect PostAuthenticate's status —
+  it sets `completed_step` and the next iteration returns `Authorize`. So a `CHALLENGE_REQUIRED`
+  readback would be followed by a charge with no liability shift. The mitigation available
+  entirely inside the connector is for the Authorize builder to refuse when the
+  `braintree_three_ds` blob says the authentication is unsettled; whether to build it is a
+  reviewer decision, deliberately not taken unilaterally because it may be better handled by the
+  caller simply re-invoking this leg.
+- **Braintree documents none of the server-side post-challenge path.** Everything in §8.1 is
+  live-observed. It is not schema-gated, so it could in principle change without a
+  `Braintree-Version` bump. Re-run the experiments if behaviour ever diverges.
+- **`authentication_id` and `lookup_transaction_id` are lost at the leg-2 → leg-3 hand-off.**
+  `node(id:)` returns neither, and the composite dispatcher replaces `connector_feature_data`
+  *wholesale* rather than merging. Nothing reads them on the Authorize path today, so this is
+  accepted — but it is a deliberate drop, not an oversight. If they are ever needed, the fix is to
+  merge rather than replace, and it belongs in the connector, not the dispatcher.
+- **The ACS form-field key casing (`PaReq` / `MD` / `TermUrl`) is now only half-inherited from
+  §7.6.** This run POSTed `PaRes` + `MD` to Braintree's `termUrl` and got a real 302 with a real
+  `auth_response`, so *Braintree's* side accepts that casing. What the ACS itself expects for
+  `PaReq` is still browser-unobserved. Narrower than §7.6 recorded it, not gone.
+- **The trio is still unreachable from hyperswitch.** HS's `braintree.rs` overrides none of the
+  three `is_*_flow_required` methods (eleven other connectors do). Until that HS PR lands —
+  scoped in `grace/braintree_hs_side_notes.md` — the legs are reachable only via UCS's own
+  `CompositeAuthorize`. This is an HS-side gap, not a UCS one, and it is unchanged by this run
+  except that §8.3's override now makes the UCS side complete.
+- **`extensions.errorClass` is still not modelled.** Unchanged from §6.5 / §7.5, except that this
+  run adds `NOT_FOUND` and `NOT_IMPLEMENTED` to the observed set. Still a shared-struct change
+  across every Braintree flow, still out of a single-flow diff.
+- **`AuthenticationInsight` is present on `ThreeDSecureDetails` and deliberately not selected** —
+  it requires an `input` argument, and its three members are SCA-regulation advisory data with no
+  `AuthenticationData` slot. A known, deliberate omission.
+- **`strum::Display` vs serde spelling** on the pre-existing `BraintreePaymentStatus` — unchanged
+  from §7.6, still deliberately untouched, still a papercut for whoever reads
+  `connector_feature_data` on the Authorize path.
