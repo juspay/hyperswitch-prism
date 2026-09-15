@@ -1,7 +1,11 @@
 use std::ops::Deref;
 
 use common_enums::{AttemptStatus, CountryAlpha2, Currency};
-use common_utils::{pii::Email, request::Method, types::FloatMajorUnit};
+use common_utils::{
+    pii::{self, Email},
+    request::Method,
+    types::FloatMajorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
@@ -460,7 +464,7 @@ pub struct D24PaymentsRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub client_ip: Option<Secret<String, common_utils::pii::IpAddress>>,
+    pub client_ip: Option<Secret<String, pii::IpAddress>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -873,7 +877,8 @@ pub struct D24PaymentsResponse {
     pub redirect_url: Option<url::Url>,
     /// Whether the checkout page may be embedded in an iframe.
     pub iframe: Option<bool>,
-    pub user_id: Option<String>,
+    /// Directa24's payer id. Never read; `Secret` like `D24SyncResponse::user_id`.
+    pub user_id: Option<Secret<String>>,
     pub merchant_invoice_id: Option<String>,
     /// ONE_SHOT only: the payment instructions for the chosen method.
     pub payment_info: Option<D24PaymentInfo>,
@@ -885,28 +890,42 @@ pub struct D24PaymentsResponse {
 /// Deliberately permissive — the deposit already exists by the time this is
 /// parsed, and a failure here would discard its `deposit_id`:
 ///
-/// * `type` is kept as an opaque string: the spec documents SPEI and Pix with
-///   both `VOUCHER` and `BANK_TRANSFER`, so nothing may branch on it.
+/// * `type` is informational only: the spec documents SPEI and Pix with both
+///   `VOUCHER` and `BANK_TRANSFER`, so nothing branches on it, and an
+///   unannounced value degrades to [`D24PaymentInfoType::Unknown`].
 /// * `expiration_date` / `created_at` arrive both as `2025-07-27 19:57:40` and
 ///   as `2020-06-17T07:04:16Z`, so they are kept as strings.
 /// * `metadata` / `secondary_metadata` are method-specific (CLABE, agency,
-///   account, CNPJ, Pix QR code, digitable line, ...) and `reference` is typed
-///   string but emitted as an integer, so both are kept as raw JSON.
-/// * `currency` is a string so an unexpected code cannot fail the response.
+///   account, CNPJ, Pix QR code, digitable line, and the payer's own document
+///   and name) and `reference` is typed string but emitted as an integer, so
+///   both are kept as raw JSON. They are `Secret`: the payer's CPF and name and
+///   the CLABE must not reach the logs or the masked typed connector response.
+///   Serializing them into `connector_metadata` still writes the plain JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct D24PaymentInfo {
     #[serde(rename = "type")]
-    pub payment_type: Option<String>,
+    pub payment_type: Option<D24PaymentInfoType>,
     pub payment_method: Option<String>,
     pub payment_method_name: Option<String>,
     /// The exact amount the customer must pay — may differ from the requested
     /// amount when fees or surcharges are on the payer.
     pub amount: Option<FloatMajorUnit>,
-    pub currency: Option<String>,
+    pub currency: Option<Currency>,
     pub expiration_date: Option<String>,
     pub created_at: Option<String>,
-    pub metadata: Option<serde_json::Value>,
-    pub secondary_metadata: Option<serde_json::Value>,
+    pub metadata: Option<pii::SecretSerdeValue>,
+    pub secondary_metadata: Option<pii::SecretSerdeValue>,
+}
+
+/// `payment_info.type` of a ONE_SHOT `201`. Informational only, see
+/// [`D24PaymentInfo`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum D24PaymentInfoType {
+    Voucher,
+    BankTransfer,
+    #[serde(other)]
+    Unknown,
 }
 
 /// Serialized into `connector_metadata` (gRPC `connector_feature_data`) when a
