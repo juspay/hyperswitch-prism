@@ -911,7 +911,7 @@ macros::macro_connector_implementation!(
             let paypal_meta: paypal::PaypalMeta = utils::to_connector_meta(req.request.connector_feature_data.clone().map(|m| m.expose()))?;
         match req.resource_common_data.payment_method {
             common_enums::PaymentMethod::Wallet | common_enums::PaymentMethod::BankRedirect => Ok(format!(
-                "{}v2/checkout/orders/{}",
+                "{}v2/checkout/orders/{}?fields=all",
                 self.connector_base_url_payments(req),
                 req.request
                     .connector_transaction_id
