@@ -55,6 +55,13 @@ pub fn decode_dot(s: &str) -> String {
 pub const X_TENANT_ID: &str = "x-tenant-id";
 /// Header key for request ID
 pub const X_REQUEST_ID: &str = "x-request-id";
+
+/// HTTP/2 PING interval (seconds) the gRPC server sends on idle client connections.
+pub const GRPC_HTTP2_KEEPALIVE_INTERVAL_SECS: u64 = 30;
+/// Time (seconds) to wait for a PING acknowledgement before the server drops the connection.
+pub const GRPC_HTTP2_KEEPALIVE_TIMEOUT_SECS: u64 = 10;
+/// Maximum age (seconds) of a client connection before the server retires it with a GOAWAY.
+pub const GRPC_MAX_CONNECTION_AGE_SECS: u64 = 300;
 /// Header key for connector identification
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 /// Header key for surcharge connector identification

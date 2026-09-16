@@ -14,7 +14,7 @@ use grpc_api_types::{
     payouts::payout_service_server,
     surcharge::surcharge_service_server,
 };
-use std::{future::Future, net, sync::Arc};
+use std::{future::Future, net, sync::Arc, time::Duration};
 use tokio::{
     signal::unix::{signal, SignalKind},
     sync::oneshot,
@@ -338,6 +338,18 @@ impl Service {
         let config_override_layer = RequestExtensionsLayer::new(base_config.clone());
 
         let server_builder = Server::builder()
+            // Connection lifetime is managed here, not left to chance. PING idle client
+            // connections so half-open ones are dropped instead of held forever, and retire every
+            // connection by GOAWAY after five minutes so clients re-dial through the Service and
+            // spread across current pods. Both ends then agree a connection is dead within
+            // ~40 s, and no connection lives long enough to hit idle timeouts on the path.
+            .http2_keepalive_interval(Some(Duration::from_secs(
+                consts::GRPC_HTTP2_KEEPALIVE_INTERVAL_SECS,
+            )))
+            .http2_keepalive_timeout(Some(Duration::from_secs(
+                consts::GRPC_HTTP2_KEEPALIVE_TIMEOUT_SECS,
+            )))
+            .max_connection_age(Duration::from_secs(consts::GRPC_MAX_CONNECTION_AGE_SECS))
             .layer(logging_layer)
             .layer(request_id_layer)
             .layer(propagate_request_id_layer);
