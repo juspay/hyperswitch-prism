@@ -65,7 +65,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      Authorize,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Authorized => Authorized,
     failure:   Rejected   => Failure,
     {
@@ -84,7 +84,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      PSync,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
     {
@@ -103,7 +103,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      Void,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Cancelled  => Voided,
     failure:   Rejected   => Failure,
     {
@@ -154,7 +154,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      Capture,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => CaptureFailed,
     {
@@ -177,7 +177,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      SetupMandate,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
     {
@@ -196,7 +196,7 @@ domain_types::impl_flow_status_mapping! {
     generics: [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     connector: Dlocal<T>,
     flow:      RepeatPayment,
-    source:    transformers::DlocalPaymentStatus,
+    source:    DlocalPaymentStatus,
     success:   Paid       => Charged,
     failure:   Rejected   => Failure,
     {

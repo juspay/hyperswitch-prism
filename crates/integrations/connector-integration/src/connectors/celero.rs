@@ -104,8 +104,8 @@ domain_types::impl_flow_status_mapping! {
     {
         Approved          => VoidInitiated,
         Error             => Failure,
-        Pending           => Pending,
-        PendingSettlement => Pending,
+        Pending           => VoidInitiated,
+        PendingSettlement => VoidInitiated,
         Settled           => VoidFailed,
         Reversed          => Voided,
     }
@@ -123,10 +123,10 @@ domain_types::impl_flow_status_mapping! {
     success:   Settled           => Charged,
     failure:   Declined          => CaptureFailed,
     {
-        Approved          => Pending,
+        Approved          => CaptureInitiated,
         Error             => CaptureFailed,
-        Pending           => Pending,
-        PendingSettlement => Pending,
+        Pending           => CaptureInitiated,
+        PendingSettlement => CaptureInitiated,
         Voided            => CaptureFailed,
         Reversed          => CaptureFailed,
     }

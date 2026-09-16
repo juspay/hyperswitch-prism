@@ -577,6 +577,42 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+domain_types::impl_flow_status_mapping_ctx! {
+    generics:        [T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    connector:       Ilixium<T>,
+    flow:            Authorize,
+    source:          transformers::IlixiumStatusCode,
+    context:         transformers::IlixiumAuthorizeCtx,
+    params:          [status, ctx],
+    success_status:  Success,
+    success_targets: [Charged, Authorized],
+    failure_status:  Declined,
+    failure_target:  Failure,
+    {
+        use common_enums::AttemptStatus;
+        use transformers::{IlixiumStatusCode, IlixiumOperationType};
+        match status {
+            IlixiumStatusCode::Success => match ctx.operation_type {
+                Some(IlixiumOperationType::AuthCap) => AttemptStatus::Charged,
+                Some(IlixiumOperationType::Auth)    => AttemptStatus::Authorized,
+                _ if ctx.is_auto_capture            => AttemptStatus::Charged,
+                _                                   => AttemptStatus::Authorized,
+            },
+            IlixiumStatusCode::Pending => {
+                if ctx.has_three_ds_url {
+                    AttemptStatus::AuthenticationPending
+                } else {
+                    AttemptStatus::Pending
+                }
+            }
+            IlixiumStatusCode::Cancelled => AttemptStatus::Voided,
+            IlixiumStatusCode::Declined
+            | IlixiumStatusCode::Rejected
+            | IlixiumStatusCode::Error => AttemptStatus::Failure,
+            IlixiumStatusCode::Resubmission | IlixiumStatusCode::Unknown => AttemptStatus::Pending,
+        }
+    }
+}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Ilixium<T>
 {

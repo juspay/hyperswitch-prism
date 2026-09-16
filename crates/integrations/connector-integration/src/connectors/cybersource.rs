@@ -181,8 +181,8 @@ domain_types::impl_flow_status_mapping! {
     failure:   Failed      => Failure,
     {
         Authorized             => Pending,
-        Succeeded              => VoidedPostCapture,
-        Transmitted            => VoidedPostCapture,
+        Succeeded              => VoidPostCaptureInitiated,
+        Transmitted            => VoidPostCaptureInitiated,
         Reversed               => VoidedPostCapture,
         Cancelled              => VoidedPostCapture,
         Pending                => Pending,
@@ -317,7 +317,7 @@ domain_types::impl_flow_status_mapping! {
     success:   Succeeded   => Charged,
     failure:   Failed      => Failure,
     {
-        Authorized             => Pending,
+        Authorized             => Charged,
         Transmitted            => Charged,
         Voided                 => Failure,
         Reversed               => Failure,

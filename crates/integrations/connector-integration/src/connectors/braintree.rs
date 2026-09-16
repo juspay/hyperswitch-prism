@@ -349,9 +349,9 @@ domain_types::impl_flow_status_mapping! {
         GatewayRejected       => CaptureFailed,
         Voided                => CaptureFailed,
         Settling              => Charged,
-        SettlementPending     => Pending,
+        SettlementPending     => Charged,
         SettlementConfirmed   => Charged,
-        SubmittedForSettlement => Pending,
+        SubmittedForSettlement => Charged,
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
