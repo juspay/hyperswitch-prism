@@ -476,7 +476,7 @@ impl Payments {
     #[cfg_attr(
         feature = "deja",
         tracing::instrument(
-            name = "ucs::flow_orchestration",
+            name = "ucs::flow_orchestrate",
             skip_all,
             fields(connector = ?connector, flow = "Authorize")
         )
