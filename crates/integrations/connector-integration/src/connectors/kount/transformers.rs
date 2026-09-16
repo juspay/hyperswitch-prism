@@ -896,8 +896,6 @@ pub enum KountFulfillmentType {
 pub enum KountPaymentType {
     #[serde(rename = "APAY")]
     ApplePay,
-    #[serde(rename = "CARD")]
-    Card,
     #[serde(rename = "CREDIT_CARD")]
     CreditCard,
     #[serde(rename = "DEBIT_CARD")]
@@ -1560,7 +1558,8 @@ fn apple_pay_instrument(apay: &ApplePayWalletData) -> KountInstrument {
         ApplePayPaymentData::Decrypted(data) => {
             let token_source = data
                 .merchant_token_identifier
-                .clone()
+                .as_ref()
+                .map(|token| token.peek().to_string())
                 .unwrap_or_else(|| data.application_primary_account_number.peek().to_string());
             KountInstrument::hashed(KountPaymentType::ApplePay, Some(token_source))
         }
@@ -1719,6 +1718,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let khash = auth
             .khash_config_key
             .as_ref()
+            .filter(|key| !key.peek().trim().is_empty())
             .map(|key| super::khash::Khash::new(key.peek()));
         let payment = req.payment_method.as_ref().and_then(|pm| {
             kount_instrument(pm, req.payment_method_type).map(|instrument| {
@@ -1739,7 +1739,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(khash.hash(source, super::khash::CARD_TOKEN_SUFFIX_LENGTH))
                         }
                         None => {
-                            tracing::warn!(
+                            tracing::debug!(
                                 connector = "kount",
                                 "no khash_config_key configured for a card-typed instrument; \
                                  falling back to the HMAC-SHA256 payment token"

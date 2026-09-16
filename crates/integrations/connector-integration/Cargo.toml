@@ -44,7 +44,6 @@ qrcode = "0.14.1"
 image = { version = "0.25.6", default-features = false, features = ["png"] }
 thiserror = { workspace = true }
 sha2 = "0.10"
-sha1 = "0.10"
 rand = "0.8"
 jsonwebtoken = "9.2"
 html-escape = "0.2"

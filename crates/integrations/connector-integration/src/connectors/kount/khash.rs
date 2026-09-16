@@ -22,8 +22,6 @@
 //! SHA-1 is retained deliberately for KHASH protocol compatibility; this is
 //! not a general-purpose password hasher.
 
-use sha1::{Digest, Sha1};
-
 /// Suffix length used for card payment tokens: six preserved prefix
 /// characters (the BIN) plus this many base-36 characters — 20 characters
 /// total for a 16-digit PAN, matching Kount's reference behaviour.
@@ -67,8 +65,11 @@ impl Khash {
     /// A `suffix_length` of zero returns only the preserved prefix.
     pub(crate) fn hash(&self, number: &str, suffix_length: usize) -> String {
         let message = format!("{number}.{}", self.salt);
-        let digest = Sha1::digest(encode_message(&message));
-        let hex = hex::encode(digest);
+        let digest = ring::digest::digest(
+            &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
+            &encode_message(&message),
+        );
+        let hex = hex::encode(digest.as_ref());
 
         let prefix: Vec<u16> = number
             .encode_utf16()

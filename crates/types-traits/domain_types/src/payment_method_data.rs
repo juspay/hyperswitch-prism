@@ -1360,7 +1360,7 @@ pub struct ApplePayDecryptedData {
     pub payment_data: ApplePayCryptogramData,
     /// Apple Pay merchant token identifier — present for merchant-provisioned
     /// tokens (MPAN) only; stable per card x device x merchant
-    pub merchant_token_identifier: Option<String>,
+    pub merchant_token_identifier: Option<Secret<String>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
