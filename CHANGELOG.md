@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.09.16.1
+
+### Features
+
+- **eligibility:** Check multiple payment methods per connector in one call ([#2226](https://github.com/juspay/connector-service/pull/2226)) ([`1ba9281`](https://github.com/juspay/connector-service/commit/1ba9281e1f7a137d22ec7cb6ec9e3cb51e003f0b))
+
+### Bug Fixes
+
+- **connector:** [Adyen] send store/splits for wallet payments and paymentdatasource for decrypted Google Pay ([#2309](https://github.com/juspay/connector-service/pull/2309)) ([`0081202`](https://github.com/juspay/connector-service/commit/00812023d712ab369bb1ea4d764758474c0e902b))
+- **grpc:** Surface full error context in the converged UCS error log ([#2288](https://github.com/juspay/connector-service/pull/2288)) ([`a288f4c`](https://github.com/juspay/connector-service/commit/a288f4cf96b8c23059239db405a7fb71c1e82dfb))
+- **psync:** Run connector pre-flight validation before dispatching a PSync ([#2271](https://github.com/juspay/connector-service/pull/2271)) ([`bfa6ef9`](https://github.com/juspay/connector-service/commit/bfa6ef9e8cb51f2c245abffcc08317ccb2be129d))
+
+**Full Changelog:** [`2026.09.16.0...2026.09.16.1`](https://github.com/juspay/connector-service/compare/2026.09.16.0...2026.09.16.1)
+
+- - -
+
 ## 2026.09.16.0
 
 ### Miscellaneous Tasks
