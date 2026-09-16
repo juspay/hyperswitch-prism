@@ -507,13 +507,16 @@ impl Payments {
     ) -> Result<PaymentServiceAuthorizeResponse, error_stack::Report<ucs_env::error::GrpcError>>
     {
         //get connector data
-        let connector_data =
+        let connector_data = {
+            // art-test TN-04: a span OUTSIDE the scored namespaces (ucs::, connector::).
+            let _probe = tracing::info_span!("art_canary::probe").entered();
             ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
                 ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
                     context: domain_types::errors::IntegrationErrorContext::default(),
                 })
-            })?;
+            })?
+        };
 
         // Get connector integration
         let connector_integration: BoxedConnectorIntegrationV2<
