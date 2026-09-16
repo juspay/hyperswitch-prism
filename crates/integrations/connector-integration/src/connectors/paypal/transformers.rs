@@ -859,7 +859,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let purchase_units = vec![PaypalOrderCreatePurchaseUnit {
             reference_id: Some(connector_request_reference_id.clone()),
-            invoice_id: Some(connector_request_reference_id),
+            invoice_id: Some(format!("{connector_request_reference_id}-v2")),
             amount: PaypalOrderCreateAmount {
                 currency_code: router_data.request.currency,
                 value,
@@ -1353,7 +1353,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let purchase_units = vec![PurchaseUnitRequest {
             reference_id: Some(connector_request_reference_id.clone()),
             custom_id: item.router_data.request.merchant_order_id.clone(),
-            invoice_id: Some(connector_request_reference_id),
+            invoice_id: Some(format!("{connector_request_reference_id}-v2")),
             amount,
             payee,
             shipping: Some(shipping_address),
@@ -3594,7 +3594,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let purchase_units = vec![PurchaseUnitRequest {
             reference_id: Some(connector_request_reference_id.clone()),
             custom_id: item.router_data.request.merchant_order_id.clone(),
-            invoice_id: Some(connector_request_reference_id),
+            invoice_id: Some(format!("{connector_request_reference_id}-v2")),
             amount,
             payee,
             shipping: Some(shipping_address),
