@@ -48,7 +48,16 @@ fn plaid_os_based_return_url(plaid_config: SecretSerdeValue, req: &mut dyn Conne
     );
 
     req.populate_os_based_return_url(OsBasedReturnUrl {
-        os_type: ClientPlatform::Unspecified as i32,
+        os_type: client_platform_code(ClientPlatform::Unspecified),
         return_url_map,
     });
+}
+
+fn client_platform_code(platform: ClientPlatform) -> i32 {
+    match platform {
+        ClientPlatform::Unspecified => 0,
+        ClientPlatform::Ios => 1,
+        ClientPlatform::Web => 2,
+        ClientPlatform::Android => 3,
+    }
 }

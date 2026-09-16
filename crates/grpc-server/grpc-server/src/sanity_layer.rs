@@ -9,7 +9,7 @@
 #[cfg(feature = "connector-sanity-layer")]
 use common_utils::SecretSerdeValue;
 #[cfg(feature = "connector-sanity-layer")]
-use connector_integration::sanity::{ConnectorSanityExt, ConnectorSanityRequest};
+use connector_integration::sanity::ConnectorSanityExt;
 #[cfg(feature = "connector-sanity-layer")]
 use domain_types::connector_types::ConnectorVariant;
 #[cfg(feature = "connector-sanity-layer")]
@@ -53,7 +53,7 @@ impl RequestSanitizer for ConnectorSanitizer {
         };
         let sanitizer = connector.sanity();
         let raw_config = raw_connector_config(metadata, &connector.get_connector_name());
-        sanitizer.apply(raw_config, req as &mut dyn ConnectorSanityRequest);
+        sanitizer.apply(raw_config, req);
     }
 }
 

@@ -108,13 +108,13 @@ impl AutoPopulateField {
             Self::OsBasedReturnUrl => match shape {
                 FieldShape::Optional => quote! {
                     if let Some(existing) = self.os_based_return_url.as_mut() {
-                        if existing.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                        if existing.os_type != 0 {
                             existing.return_url_map = value.return_url_map;
                         }
                     }
                 },
                 FieldShape::Required => quote! {
-                    if self.os_based_return_url.os_type != crate::payments::ClientPlatform::Unspecified as i32 {
+                    if self.os_based_return_url.os_type != 0 {
                         self.os_based_return_url.return_url_map = value.return_url_map;
                     }
                 },

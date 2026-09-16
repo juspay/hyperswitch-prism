@@ -39,7 +39,7 @@ pub static NOOP_SANITY: NoopSanity = NoopSanity;
 impl ConnectorSanityExt for ConnectorVariant {
     fn sanity(&self) -> &'static dyn ConnectorSanity {
         match self {
-            ConnectorVariant::Authenticator(AuthenticatorConnectorEnum::Plaid) => &PLAID_SANITY,
+            Self::Authenticator(AuthenticatorConnectorEnum::Plaid) => &PLAID_SANITY,
             _ => &NOOP_SANITY,
         }
     }

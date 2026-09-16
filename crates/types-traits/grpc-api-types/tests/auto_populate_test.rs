@@ -16,7 +16,7 @@ fn populates_nested_os_based_return_url_map_when_context_exists() {
             merchant_authentication_service_create_client_authentication_token_request::DomainContext::Authenticator(
                 AuthenticatorClientAuthenticationContext {
                     os_based_return_url: Some(OsBasedReturnUrl {
-                        os_type: ClientPlatform::Ios as i32,
+                        os_type: client_platform_code(ClientPlatform::Ios),
                         return_url_map: HashMap::new(),
                     }),
                     ..Default::default()
@@ -27,7 +27,7 @@ fn populates_nested_os_based_return_url_map_when_context_exists() {
     };
 
     req.populate_os_based_return_url(OsBasedReturnUrl {
-        os_type: ClientPlatform::Unspecified as i32,
+        os_type: client_platform_code(ClientPlatform::Unspecified),
         return_url_map: HashMap::from([
             ("ios".to_string(), "https://ios.example/return".to_string()),
             ("android".to_string(), "com.example.android".to_string()),
@@ -47,7 +47,10 @@ fn populates_nested_os_based_return_url_map_when_context_exists() {
         .os_based_return_url
         .expect("os_based_return_url should still be present");
 
-    assert_eq!(os_based_return_url.os_type, ClientPlatform::Ios as i32);
+    assert_eq!(
+        os_based_return_url.os_type,
+        client_platform_code(ClientPlatform::Ios)
+    );
     assert_eq!(
         os_based_return_url.return_url_map.get("ios"),
         Some(&"https://ios.example/return".to_string())
@@ -60,4 +63,13 @@ fn populates_nested_os_based_return_url_map_when_context_exists() {
         os_based_return_url.return_url_map.get("web"),
         Some(&"https://web.example/return".to_string())
     );
+}
+
+fn client_platform_code(platform: ClientPlatform) -> i32 {
+    match platform {
+        ClientPlatform::Unspecified => 0,
+        ClientPlatform::Ios => 1,
+        ClientPlatform::Web => 2,
+        ClientPlatform::Android => 3,
+    }
 }
