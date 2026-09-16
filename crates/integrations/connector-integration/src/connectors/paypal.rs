@@ -523,7 +523,7 @@ macros::create_all_prerequisites!(
                 ),
                 (
                     auth_headers::PREFER.to_string(),
-                    "return=representation".to_string().into(),
+                    "return=minimal".to_string().into(),
                 ),
                 (
                     auth_headers::PAYPAL_REQUEST_ID.to_string(),
