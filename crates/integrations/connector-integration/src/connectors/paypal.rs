@@ -1080,7 +1080,7 @@ macros::macro_connector_implementation!(
             let paypal_meta: paypal::PaypalMeta = utils::to_connector_meta(req.request.connector_feature_data.clone().expose_option())?;
             let capture_id = paypal_meta.capture_id.ok_or(IntegrationError::RequestEncodingFailed { context: Default::default() })?;
             Ok(format!(
-                "{}v2/payments/captures/{}/refund",
+                "{}v2/payments/captures/{}/refund?art=1",
                 self.connector_base_url_refunds(req),
                 capture_id,
             ))
