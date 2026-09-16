@@ -170,7 +170,7 @@ pub fn get_amount_as_string(
 ) -> core::result::Result<String, error_stack::Report<IntegrationError>> {
     let amount = match currency_unit {
         CurrencyUnit::Minor => amount.get_amount_as_i64().to_string(),
-        CurrencyUnit::Base => to_currency_base_unit(amount, currency)?,
+        CurrencyUnit::Base => format!("{}0", to_currency_base_unit(amount, currency)?),
     };
     Ok(amount)
 }
