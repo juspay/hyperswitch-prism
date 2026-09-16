@@ -328,7 +328,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   JuspayConfig: ["apiKey", "merchantId", "juspayEncryptionPublicKey", "responseDecryptionPrivateKey", "cardSyncKeyId"],
   QwikcilverConfig: ["bootstrapBearerToken", "terminalId", "username", "password"],
   PayconexConfig: ["apiKey", "accountId"],
-  KountConfig: ["apiKey"],
+  KountConfig: ["apiKey", "khashConfigKey"],
   NsureConfig: ["apiKey"],
   HyperswitchConfig: ["apiKey"],
   GlomopayConfig: ["apiKey"],
