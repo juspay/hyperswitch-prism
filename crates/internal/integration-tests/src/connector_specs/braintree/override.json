@@ -163,9 +163,6 @@
         "connector_feature_data": {
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         }
-      },
-      "assert": {
-        "connector_transaction_id": null
       }
     },
     "void_without_cancellation_reason": {
@@ -173,9 +170,6 @@
         "connector_feature_data": {
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         }
-      },
-      "assert": {
-        "connector_transaction_id": null
       }
     },
     "void_with_amount": {
@@ -183,9 +177,6 @@
         "connector_feature_data": {
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         }
-      },
-      "assert": {
-        "connector_transaction_id": null
       }
     }
   },
@@ -196,9 +187,6 @@
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         },
         "merchant_account_id": "juspay"
-      },
-      "assert": {
-        "connector_refund_id": null
       }
     },
     "refund_partial_amount": {
@@ -207,9 +195,6 @@
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         },
         "merchant_account_id": "juspay"
-      },
-      "assert": {
-        "connector_refund_id": null
       }
     },
     "refund_with_reason": {
@@ -218,9 +203,6 @@
           "value": "{\"merchant_account_id\":\"juspay\",\"merchant_config_currency\":\"USD\"}"
         },
         "merchant_account_id": "juspay"
-      },
-      "assert": {
-        "connector_refund_id": null
       }
     }
   },

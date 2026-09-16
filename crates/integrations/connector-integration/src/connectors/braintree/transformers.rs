@@ -5,7 +5,7 @@ use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::XmlExt,
     pii,
-    types::{MinorUnit, StringMajorUnit},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -149,7 +149,11 @@ pub mod constants {
         card_transaction_fields!(),
         " } } }"
     );
-    pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } status } } }";
+    /// `initialRequestedAuthorizationAmount` is selected alongside `amount` so a partial capture
+    /// can be distinguished from a full one: on a partially captured transaction `amount` is the
+    /// cumulative *captured* figure while `initialRequestedAuthorizationAmount` retains the
+    /// originally authorized total. Live-verified accepted at `Braintree-Version: 2019-01-01`.
+    pub const CAPTURE_TRANSACTION_MUTATION: &str = "mutation captureTransaction($input: CaptureTransactionInput!) { captureTransaction(input: $input) { clientMutationId transaction { id legacyId amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } status } } }";
     pub const VOID_TRANSACTION_MUTATION: &str = "mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }";
     pub const REFUND_TRANSACTION_MUTATION: &str = "mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }";
     // The vault variants keep `paymentMethod { id }` — it is the vaulted (multi-use) token
@@ -216,7 +220,10 @@ pub mod constants {
         "... on CreditCardVerificationDetails { amount { value currencyIsoCode } } } } } }"
     );
     pub const DELETE_PAYMENT_METHOD_FROM_VAULT_MUTATION: &str = "mutation deletePaymentMethodFromVault($input: DeletePaymentMethodFromVaultInput!) { deletePaymentMethodFromVault(input: $input) { clientMutationId } }";
-    pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status } } } } }";
+    /// Carries the same amount pair as `CAPTURE_TRANSACTION_MUTATION` so a PSync issued after a
+    /// partial capture keeps reporting `PartialCharged` instead of walking the payment back to
+    /// `Charged`. Live-verified accepted at `Braintree-Version: 2019-01-01`.
+    pub const TRANSACTION_QUERY: &str = "query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }";
     pub const REFUND_QUERY: &str = "query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }";
     pub const CHARGE_GOOGLE_PAY_MUTATION: &str = "mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }";
     pub const AUTHORIZE_GOOGLE_PAY_MUTATION: &str = "mutation authorizeGPay($input: AuthorizePaymentMethodInput!) { authorizePaymentMethod(input: $input) { transaction { id legacyId amount { value currencyCode } status } } }";
@@ -924,8 +931,7 @@ fn build_billing_address(flow_data: &PaymentFlowData) -> Option<BraintreeAddress
 fn build_line_item(
     item: &OrderDetailsWithAmount,
     currency: enums::Currency,
-    amount_converter: &'static (dyn common_utils::types::AmountConvertor<Output = StringMajorUnit>
-                  + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 ) -> Result<TransactionLineItemInput, Report<IntegrationError>> {
     let convert = |amount: MinorUnit| -> Result<StringMajorUnit, Report<IntegrationError>> {
         amount_converter.convert(amount, currency).change_context(
@@ -1021,8 +1027,7 @@ impl<T: PaymentMethodDataTypes> BraintreeEnrichmentSource for RepeatPaymentData<
 fn build_transaction_enrichment<Req: BraintreeEnrichmentSource>(
     request: &Req,
     flow_data: &PaymentFlowData,
-    amount_converter: &'static (dyn common_utils::types::AmountConvertor<Output = StringMajorUnit>
-                  + Sync),
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 ) -> Result<TransactionEnrichment, Report<IntegrationError>> {
     let currency = request.currency();
     let convert = |amount: MinorUnit| -> Result<StringMajorUnit, Report<IntegrationError>> {
@@ -2551,6 +2556,40 @@ impl From<BraintreeRefundStatus> for enums::RefundStatus {
     }
 }
 
+/// `attempt_status` for a refund that failed inside the GraphQL **envelope** — HTTP 200 with a
+/// populated `errors[]` and no `data.refundTransaction`, so Braintree never created a refund.
+///
+/// Branches on Braintree's own `errorClass` through the same `is_terminal_rejection` classifier
+/// SetupMandate uses, rather than stamping one status on every failure (review Theme 1). A
+/// `VALIDATION` rejection — a refund against an unsettled transaction, a bad merchant account id —
+/// will never succeed as sent and is safely terminal. An `INTERNAL`, `SERVICE_AVAILABILITY` or
+/// `RESOURCE_LIMIT` fault, or a class this enum does not recognise, is ambiguous: the refund may
+/// yet exist, so it must stay non-terminal and `None` leaves the caller's own status standing.
+///
+/// Without this, `generate_refund_response` reads `attempt_status: None` and reports *every*
+/// envelope error — a definite decline included — as `REFUND_STATUS_UNSPECIFIED`.
+///
+/// The axis here is "could a refund exist?", not "did the gateway decline?". That is what makes
+/// terminal safe for classes that are not declines at all — `AUTHENTICATION` and `AUTHORIZATION`
+/// included. An envelope error means `data.refundTransaction` is absent, so Braintree created
+/// nothing: there is no refund for RSync to converge on, and reporting non-terminal would leave
+/// the refund polling forever against an id that will never exist — the other half of Theme 1,
+/// and the exact PayNearMe failure it was written from. The classes left ambiguous are the ones
+/// where Braintree's own fault could mean the refund WAS created and only the response was lost.
+///
+/// Deliberately NOT applied to RSync. `NotFound` classifies as terminal here because on Execute it
+/// means the transaction being refunded does not exist; on a *sync* the same class can equally mean
+/// the refund is simply not indexed yet, and closing a refund as failed for that reason is exactly
+/// the false-terminal outcome Theme 1 forbids.
+fn refund_envelope_attempt_status(errors: &[ErrorDetails]) -> Option<FlowStatus> {
+    let terminal = errors
+        .iter()
+        .filter_map(|error| error.extensions.as_ref())
+        .filter_map(|extensions| extensions.error_class)
+        .any(BraintreeErrorClass::is_terminal_rejection);
+    terminal.then_some(FlowStatus::Refund(enums::RefundStatus::Failure))
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BraintreeRefundTransactionBody {
     pub id: String,
@@ -2583,17 +2622,34 @@ impl<F> TryFrom<ResponseRouterData<BraintreeRefundResponse, Self>>
         Ok(Self {
             response: match item.response {
                 BraintreeRefundResponse::ErrorResponse(error_response) => {
-                    build_error_response(&error_response.errors, item.http_code).map_err(|err| *err)
+                    build_error_response(&error_response.errors, item.http_code).map_err(|err| {
+                        let mut err = *err;
+                        err.attempt_status = refund_envelope_attempt_status(&error_response.errors);
+                        err
+                    })
                 }
                 BraintreeRefundResponse::SuccessResponse(refund_data) => {
                     let refund_data = refund_data.data.refund_transaction.refund;
                     let refund_status = enums::RefundStatus::from(refund_data.status.clone());
                     if utils::is_refund_failure(refund_status) {
-                        Err(create_failure_error_response(
+                        let mut error_response = create_failure_error_response(
                             refund_data.status,
                             Some(refund_data.id),
                             item.http_code,
-                        ))
+                        );
+                        // Braintree has EXPLICITLY declined this refund (`BraintreeRefundStatus::Failed`),
+                        // so the outcome is terminal on the refund flow. `generate_refund_response`
+                        // reads *only* `ErrorResponse.attempt_status`, so leaving it `None` reports a
+                        // hard decline as `REFUND_STATUS_UNSPECIFIED`.
+                        //
+                        // Set here and only here, never inside `create_failure_error_response` or the
+                        // flow-agnostic `build_error_response`: those are shared with Capture / Void /
+                        // PSync, where `None` is correct (the payment path falls back to
+                        // `router_data.status`) and where transport / 4xx / 5xx / GraphQL-envelope
+                        // errors are ambiguous and must not be stamped terminal.
+                        error_response.attempt_status =
+                            Some(FlowStatus::Refund(enums::RefundStatus::Failure));
+                        Err(error_response)
                     } else {
                         Ok(RefundsResponseData {
                             connector_refund_id: refund_data.id.clone(),
@@ -2715,11 +2771,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     merchant_config_currency,
                 }
             };
-        let currency = extract_metadata_field(
-            &item.router_data.request.refund_connector_metadata,
-            "currency",
-        )?;
-        validate_currency(currency, Some(metadata.merchant_config_currency))?;
+        // Currency for the cross-currency guard, resolved in precedence order:
+        //   1. `refund_money` — the first-class `RefundServiceGetRequest.refund_amount` field,
+        //      which is what Hyperswitch actually populates on an RSync.
+        //   2. the legacy `"currency"` key inside `refund_connector_metadata`, kept so a caller
+        //      that still sends the metadata shape keeps working.
+        //   3. neither — and that is deliberately NOT an error.
+        //
+        // Why absence is not a failure: the request built below carries only the refund id
+        // (`REFUND_QUERY` + `RefundSearchInput { id }`). Neither an amount nor a currency ever
+        // reaches Braintree on this flow, so a missing currency cannot produce a wrong call —
+        // hard-erroring on it could only reject syncs that would otherwise have succeeded.
+        // Both sources are optional by contract (`RefundSyncData.refund_money` and
+        // `.refund_connector_metadata` are `Option`, behind optional proto fields), so absence is
+        // the ordinary case rather than an anomaly. When a currency *is* resolvable the guard still
+        // runs, so a genuine cross-currency mismatch is still rejected.
+        let currency = item
+            .router_data
+            .request
+            .refund_money
+            .as_ref()
+            .map(|money| money.currency)
+            .or_else(|| {
+                extract_metadata_field::<enums::Currency>(
+                    &item.router_data.request.refund_connector_metadata,
+                    "currency",
+                )
+                .ok()
+            });
+        if let Some(currency) = currency {
+            validate_currency(currency, Some(metadata.merchant_config_currency))?;
+        }
         let refund_id = item.router_data.request.connector_refund_id;
         Ok(Self {
             query: constants::REFUND_QUERY.to_string(),
@@ -3139,10 +3221,75 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+/// Braintree GraphQL `MonetaryAmount`: a decimal **major-unit** string plus an ISO currency
+/// code, e.g. `{"value":"10.00","currencyCode":"USD"}`. `value` is typed as `StringMajorUnit`
+/// rather than a bare `String` so it can only leave this module through the shared amount
+/// converter, never through a hand-rolled decimal parse.
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BraintreeMonetaryAmount {
+    value: StringMajorUnit,
+    /// Braintree's `CurrencyCodeAlpha`, kept as a `String` rather than `enums::Currency` on
+    /// purpose. This field is only ever used to pick the converter and to check that the two
+    /// amounts being compared share a currency; typing it as the enum would make an unmapped
+    /// ISO code a hard deserialization failure that took the whole Capture/PSync response down,
+    /// to guard a comparison that is allowed to be skipped. It is parsed into `enums::Currency`
+    /// at the point of use, where an unparsable code falls back to the unrefined status.
+    currency_code: String,
+}
+
+/// Refine a mapped `Charged` into `PartialCharged` when Braintree reports that less than the
+/// originally authorized amount has been captured.
+///
+/// On a partially captured transaction `Transaction.amount` is the cumulative *captured* figure
+/// while `Transaction.initialRequestedAuthorizationAmount` retains the authorized total, so the
+/// gateway response is the only place this comparison is available: UCS never carries the
+/// authorized total onto a Capture (the `PaymentFlowData` built from `PaymentServiceCaptureRequest`
+/// hardcodes `minor_amount_authorized: None`, `PaymentsCaptureData` has no authorized-total field,
+/// and the proto request has none either).
+///
+/// Deliberately conservative — it only ever narrows `Charged` to `PartialCharged`, never the other
+/// way, and falls back to `Charged` whenever the answer is not certain:
+/// `initialRequestedAuthorizationAmount` is nullable in the SDL, the values are decimal strings
+/// that need a parseable currency to reach minor units, and a cross-currency pair would make the
+/// comparison meaningless. `Charged` is the pre-existing behaviour, so the fallback is a no-op.
+fn refine_capture_status(
+    status: enums::AttemptStatus,
+    captured: Option<&BraintreeMonetaryAmount>,
+    authorized: Option<&BraintreeMonetaryAmount>,
+) -> enums::AttemptStatus {
+    if status != enums::AttemptStatus::Charged {
+        return status;
+    }
+    let (Some(captured), Some(authorized)) = (captured, authorized) else {
+        return status;
+    };
+    if captured.currency_code != authorized.currency_code {
+        return status;
+    }
+    // Both sides go through the same converter, so the comparison is on minor units and never on
+    // the lexical ordering of the decimal strings.
+    let to_minor = |amount: &BraintreeMonetaryAmount| -> Option<MinorUnit> {
+        let currency = amount.currency_code.parse::<enums::Currency>().ok()?;
+        StringMajorUnitForConnector
+            .convert_back(amount.value.clone(), currency)
+            .ok()
+    };
+    match (to_minor(captured), to_minor(authorized)) {
+        (Some(captured_minor), Some(authorized_minor)) if captured_minor < authorized_minor => {
+            enums::AttemptStatus::PartialCharged
+        }
+        _ => status,
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CaptureResponseTransactionBody {
     id: String,
     status: BraintreePaymentStatus,
+    amount: Option<BraintreeMonetaryAmount>,
+    initial_requested_authorization_amount: Option<BraintreeMonetaryAmount>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3171,7 +3318,13 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
         match item.response {
             BraintreeCaptureResponse::SuccessResponse(capture_data) => {
                 let transaction_data = capture_data.data.capture_transaction.transaction;
-                let status = enums::AttemptStatus::from(transaction_data.status.clone());
+                let status = refine_capture_status(
+                    enums::AttemptStatus::from(transaction_data.status.clone()),
+                    transaction_data.amount.as_ref(),
+                    transaction_data
+                        .initial_requested_authorization_amount
+                        .as_ref(),
+                );
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         transaction_data.status,
@@ -3626,12 +3779,18 @@ impl<F> TryFrom<ResponseRouterData<BraintreeCancelResponse, Self>>
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         void_data.status,
-                        None,
+                        Some(void_data.id),
                         item.http_code,
                     ))
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::NoResponseId,
+                        // `reverseTransaction` returns `union TransactionReversal = Refund | Transaction`:
+                        // an unsettled transaction is VOIDED and comes back under its own id, a settled
+                        // one is refunded and comes back under the refund's id. Either way the id in the
+                        // response is the one a subsequent sync can address, so it is reported rather
+                        // than discarded (`NoResponseId` used to drop it and left Void the only flow on
+                        // this connector with no identifier).
+                        resource_id: ResponseId::ConnectorTransactionId(void_data.id),
                         redirection_data: None,
                         mandate_reference: None,
                         connector_metadata: None,
@@ -3692,9 +3851,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NodeData {
     id: String,
     status: BraintreePaymentStatus,
+    amount: Option<BraintreeMonetaryAmount>,
+    initial_requested_authorization_amount: Option<BraintreeMonetaryAmount>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -3748,7 +3910,16 @@ impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
                             Some("Braintree PSync: no transaction in search results".to_string()),
                         ))
                     })?;
-                let status = enums::AttemptStatus::from(edge_data.node.status.clone());
+                // Same refinement as Capture, so a PSync issued after a partial capture does not
+                // walk the payment back from `PartialCharged` to `Charged`.
+                let status = refine_capture_status(
+                    enums::AttemptStatus::from(edge_data.node.status.clone()),
+                    edge_data.node.amount.as_ref(),
+                    edge_data
+                        .node
+                        .initial_requested_authorization_amount
+                        .as_ref(),
+                );
                 let response = if domain_types::utils::is_payment_failure(status) {
                     Err(create_failure_error_response(
                         edge_data.node.status.clone(),
@@ -5047,7 +5218,7 @@ fn resolve_dispute_amount(
         })?;
 
     let minor_amount = domain_types::utils::convert_back_amount_to_minor_units_for_webhook(
-        &common_utils::types::StringMajorUnitForConnector,
+        &StringMajorUnitForConnector,
         amount_major,
         currency,
     )?;
