@@ -10,6 +10,15 @@
     "PaymentMethodService/Tokenize",
     "PaymentService/SetupRecurring",
     "PaymentService/Void",
-    "PaymentService/Authorize"
-  ]
+    "PaymentService/Authorize",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "EventService/HandleEvent"
+  ],
+  "unsupported_scenarios": {
+    "EventService/HandleEvent": {
+      "refund_succeeded": "Braintree has no refund-success webhook kind. `refund_failed` is the only refund notification the gateway emits (braintree_ruby WebhookNotification::Kind); a successful refund is observable only through RefundService/Get. There is no payload that could make this scenario pass, so no fixture is supplied."
+    }
+  }
 }

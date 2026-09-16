@@ -10,9 +10,10 @@ import sys
 from payments import PaymentClient
 from payments import MerchantAuthenticationClient
 from payments import EventClient
+from payments import PaymentMethodAuthenticationClient
 from payments.generated import sdk_config_pb2, payment_pb2, events_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "proxy_setup_recurring", "refund", "reverse", "setup_recurring", "void"]
+SUPPORTED_FLOWS = ["capture", "create_client_authentication_token", "get", "parse_event", "post_authenticate", "pre_authenticate", "refund", "reverse", "token_authorize", "token_setup_recurring", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -76,34 +77,51 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D".encode(),  # Body of the HTTP request.
+            body="bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjxraW5kPmRpc3B1dGVfb3BlbmVkPC9raW5kPjxzdWJqZWN0PjxkaXNwdXRlPjxpZD5kdW1teV9kaXNwdXRlX2lkXzAwMTwvaWQ%2BPGFtb3VudD4xMC4wMDwvYW1vdW50PjxhbW91bnQtZGlzcHV0ZWQ%2BMTAuMDA8L2Ftb3VudC1kaXNwdXRlZD48YW1vdW50LXdvbiBuaWw9InRydWUiLz48Y2FzZS1udW1iZXI%2BQ0FTRS0wMDE8L2Nhc2UtbnVtYmVyPjxjcmVhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvY3JlYXRlZC1hdD48Y3VycmVuY3ktaXNvLWNvZGU%2BVVNEPC9jdXJyZW5jeS1pc28tY29kZT48Zm9yd2FyZGVkLWNvbW1lbnRzIG5pbD0idHJ1ZSIvPjxraW5kPmNoYXJnZWJhY2s8L2tpbmQ%2BPG1lcmNoYW50LWFjY291bnQtaWQ%2BZHVtbXlfbWVyY2hhbnRfYWNjb3VudDwvbWVyY2hhbnQtYWNjb3VudC1pZD48cmVhc29uPmZyYXVkPC9yZWFzb24%2BPHJlYXNvbi1jb2RlIG5pbD0idHJ1ZSIvPjxyZWNlaXZlZC1kYXRlIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L3JlY2VpdmVkLWRhdGU%2BPHJlZmVyZW5jZS1udW1iZXI%2BUkVGLTAwMTwvcmVmZXJlbmNlLW51bWJlcj48cmVwbHktYnktZGF0ZSB0eXBlPSJkYXRlIj4yMDI2LTA5LTMwPC9yZXBseS1ieS1kYXRlPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjx1cGRhdGVkLWF0IHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdXBkYXRlZC1hdD48c3RhdHVzLWhpc3RvcnkgdHlwZT0iYXJyYXkiPjxzdGF0dXMtaGlzdG9yeT48c3RhdHVzPm9wZW48L3N0YXR1cz48dGltZXN0YW1wIHR5cGU9ImRhdGV0aW1lIj4yMDI2LTA5LTE2VDAwOjAwOjAwWjwvdGltZXN0YW1wPjwvc3RhdHVzLWhpc3Rvcnk%2BPC9zdGF0dXMtaGlzdG9yeT48ZXZpZGVuY2UgdHlwZT0iYXJyYXkiLz48dHJhbnNhY3Rpb24%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjxhbW91bnQ%2BMTAuMDA8L2Ftb3VudD48b3JkZXItaWQ%2BZHVtbXlfb3JkZXJfMDAxPC9vcmRlci1pZD48cGF5bWVudC1pbnN0cnVtZW50LXR5cGU%2BY3JlZGl0X2NhcmQ8L3BheW1lbnQtaW5zdHJ1bWVudC10eXBlPjwvdHJhbnNhY3Rpb24%2BPGRhdGUtb3BlbmVkIHR5cGU9ImRhdGUiPjIwMjYtMDktMTY8L2RhdGUtb3BlbmVkPjwvZGlzcHV0ZT48L3N1YmplY3Q%2BPC9ub3RpZmljYXRpb24%2B".encode(),  # Body of the HTTP request.
         ),
     )
 
-def _build_proxy_setup_recurring_request():
-    return payment_pb2.PaymentServiceProxySetupRecurringRequest(
-        merchant_recurring_payment_id="probe_proxy_mandate_001",
-        amount=payment_pb2.Money(
-            minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
+def _build_post_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePostAuthenticateRequest(
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        card_proxy=payment_methods_pb2.ProxyCardDetails(  # Card proxy for vault-aliased payments.
-            card_number=payment_methods_pb2.SecretString(value="4111111111111111"),  # Card Identification.
-            card_exp_month=payment_methods_pb2.SecretString(value="03"),
-            card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-            card_cvc=payment_methods_pb2.SecretString(value="123"),
-            card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
-            card_network=payment_methods_pb2.CardNetwork.Value("VISA"),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
         ),
-        address=payment_pb2.PaymentAddress(
+        address=payment_pb2.PaymentAddress(  # Address Information.
             billing_address=payment_pb2.Address(),
         ),
-        customer_acceptance=payment_pb2.CustomerAcceptance(
-            acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
-            accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+        connector_order_reference_id="probe_order_ref_001",
+    )
+
+def _build_pre_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServicePreAuthenticateRequest(
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),
-        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(),
+        ),
+        enrolled_for_3ds=False,  # Authentication Details.
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -124,34 +142,53 @@ def _build_reverse_request(connector_transaction_id: str):
         connector_transaction_id=connector_transaction_id,
     )
 
-def _build_setup_recurring_request():
-    return payment_pb2.PaymentServiceSetupRecurringRequest(
-        merchant_recurring_payment_id="probe_mandate_001",  # Identification.
-        amount=payment_pb2.Money(  # Mandate Details.
+def _build_token_authorize_request():
+    return payment_pb2.PaymentServiceTokenAuthorizeRequest(
+        merchant_transaction_id="probe_tokenized_txn_001",
+        amount=payment_pb2.Money(
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),  # Connector-issued token. Replaces PaymentMethod entirely. Examples: Stripe pm_xxx, Adyen recurringDetailReference, Braintree nonce.
+        address=payment_pb2.PaymentAddress(
+            billing_address=payment_pb2.Address(),
+        ),
+        capture_method=payment_pb2.CaptureMethod.Value("AUTOMATIC"),
+        return_url="https://example.com/return",
+    )
+
+def _build_token_setup_recurring_request():
+    return payment_pb2.PaymentServiceTokenSetupRecurringRequest(
+        merchant_recurring_payment_id="probe_tokenized_mandate_001",
+        amount=payment_pb2.Money(
             minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
-        payment_method=payment_methods_pb2.PaymentMethod(
-            card=payment_methods_pb2.CardDetails(
-                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
-                card_exp_month=payment_methods_pb2.SecretString(value="03"),
-                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-                card_cvc=payment_methods_pb2.SecretString(value="737"),
-                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
-            ),
-        ),
-        address=payment_pb2.PaymentAddress(  # Address Information.
+        connector_token=payment_methods_pb2.SecretString(value="pm_1AbcXyzStripeTestToken"),
+        address=payment_pb2.PaymentAddress(
             billing_address=payment_pb2.Address(),
         ),
-        auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Type of authentication to be used.
-        enrolled_for_3ds=False,  # Indicates if the customer is enrolled for 3D Secure.
-        return_url="https://example.com/mandate-return",  # URL to redirect after setup.
-        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),  # Indicates future usage intention.
-        request_incremental_authorization=False,  # Indicates if incremental authorization is requested.
-        customer_acceptance=payment_pb2.CustomerAcceptance(  # Details of customer acceptance.
-            acceptance_type=payment_pb2.AcceptanceType.Value("OFFLINE"),  # Type of acceptance (e.g., online, offline).
+        customer_acceptance=payment_pb2.CustomerAcceptance(
+            acceptance_type=payment_pb2.AcceptanceType.Value("ONLINE"),  # Type of acceptance (e.g., online, offline).
             accepted_at=0,  # Timestamp when the acceptance was made (Unix timestamp, seconds since epoch).
+            online_mandate_details=payment_pb2.OnlineMandate(  # Details if the acceptance was an online mandate.
+                ip_address="127.0.0.1",  # IP address from which the mandate was accepted.
+                user_agent="Mozilla/5.0",  # User agent string of the browser used for mandate acceptance.
+            ),
         ),
+        setup_mandate_details=payment_pb2.SetupMandateDetails(
+            mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
+                multi_use=payment_pb2.MandateAmountData(
+                    amount=0,  # Use amount_money instead (will be removed in a future release).
+                    currency=payment_pb2.Currency.Value("USD"),  # Use amount_money.currency instead (will be removed in a future release).
+                    amount_money=payment_pb2.Money(  # Amount in Money type.
+                        minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
+                        currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+                    ),
+                ),
+            ),
+        ),
+        setup_future_usage=payment_pb2.FutureUsage.Value("OFF_SESSION"),
     )
 
 def _build_void_request(connector_transaction_id: str):
@@ -195,13 +232,22 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     return {"event_type": parse_response.event_type}
 
 
-async def process_proxy_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.ProxySetupRecurring"""
-    payment_client = PaymentClient(config)
+async def process_post_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PostAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
 
-    proxy_response = await payment_client.proxy_setup_recurring(_build_proxy_setup_recurring_request())
+    post_response = await paymentmethodauthentication_client.post_authenticate(_build_post_authenticate_request())
 
-    return {"status": proxy_response.status}
+    return {"status": post_response.status}
+
+
+async def process_pre_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.PreAuthenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    pre_response = await paymentmethodauthentication_client.pre_authenticate(_build_pre_authenticate_request())
+
+    return {"status": pre_response.status}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -222,13 +268,22 @@ async def process_reverse(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": reverse_response.status}
 
 
-async def process_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.SetupRecurring"""
+async def process_token_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenAuthorize"""
     payment_client = PaymentClient(config)
 
-    setup_response = await payment_client.setup_recurring(_build_setup_recurring_request())
+    token_response = await payment_client.token_authorize(_build_token_authorize_request())
 
-    return {"status": setup_response.status, "mandate_id": setup_response.connector_recurring_payment_id}
+    return {"status": token_response.status}
+
+
+async def process_token_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.TokenSetupRecurring"""
+    payment_client = PaymentClient(config)
+
+    token_response = await payment_client.token_setup_recurring(_build_token_setup_recurring_request())
+
+    return {"status": token_response.status}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
