@@ -2156,9 +2156,16 @@ pub struct PaymentCreateOrderData {
     /// Store-for-later intent of the payment this order is created for, from
     /// `PaymentServiceCreateOrderRequest.setup_future_usage` (`None` when unset).
     /// Connectors that fix an order's reusability at creation time read it (e.g.
-    /// PayNearMe creates a standing order for `OffSession`). The order's customer
-    /// is `PaymentFlowData.customer_id`, as on every other payment flow.
+    /// PayNearMe creates a standing order for `OffSession`).
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Customer the order is created for, from
+    /// `PaymentServiceCreateOrderRequest.customer.id` (`None` when unset).
+    ///
+    /// It is carried here rather than in `PaymentFlowData.customer_id`, which
+    /// CreateOrder leaves `None`, so that connectors already reading
+    /// `PaymentFlowData.customer_id` in their CreateOrder transformer keep seeing
+    /// exactly what they saw before this field existed.
+    pub customer_id: Option<CustomerId>,
 }
 
 #[derive(Debug, Clone)]

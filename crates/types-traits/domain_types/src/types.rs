@@ -13609,6 +13609,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             grpc_payment_types::FutureUsage::Unspecified => None,
             future_usage => Some(common_enums::FutureUsage::foreign_try_from(future_usage)?),
         };
+        // Carried on the CreateOrder request data, not on `PaymentFlowData`, which
+        // stays `None` here so connectors reading `resource_common_data.customer_id`
+        // in their CreateOrder transformer are unaffected.
+        let customer_id = Option::<CustomerId>::foreign_try_from(value.customer.clone())?;
 
         let order_details = (!value.order_details.is_empty())
             .then(|| {
@@ -13632,6 +13636,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCreateOrderRequest>
             payment_method_type,
             order_details,
             setup_future_usage,
+            customer_id,
         })
     }
 }
@@ -13693,7 +13698,7 @@ impl
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_order_id,
             ),
-            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
+            customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
             connector_customer,
             description: None,
             return_url: None,

@@ -466,11 +466,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_amount =
             PaynearmeAmountConvertor::convert(router_data.request.amount, Currency::USD)?;
 
-        // `customer.id` is the same `PaymentFlowData.customer_id` the off-session
-        // Authorize and SetupMandate compare the order's customer against.
+        // CreateOrder carries its `customer.id` on the request data: `PaymentFlowData`
+        // has none on this flow. It is the same value the off-session Authorize and
+        // SetupMandate later send as `customer.id` (their `PaymentFlowData.customer_id`)
+        // and compare the order's customer against.
         let settings = PaynearmeOrderSettings::new(
             router_data.request.setup_future_usage,
-            common
+            router_data
+                .request
                 .customer_id
                 .as_ref()
                 .map(|customer_id| customer_id.get_string_repr()),
