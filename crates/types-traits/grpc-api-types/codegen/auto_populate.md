@@ -54,9 +54,10 @@ const SUPPORTED_PACKAGE_MODULE: &str = "crate::payments";
 
 If another generated module/package needs this mechanism later, the generator should be extended deliberately instead of assuming all descriptor packages map to `crate::payments`.
 
-## Developer-Written Contract: `FIELD_SPECS`
+## Developer-Written Contract: `AutoPopulateSpec`
 
-`FIELD_SPECS` is the only hand-written field declaration surface.
+`AutoPopulateField` is the only hand-written field registry. Each enum variant
+delegates to a small spec type that implements `AutoPopulateSpec`.
 
 For each field, the developer writes:
 
@@ -64,23 +65,73 @@ For each field, the developer writes:
 - generated trait name
 - generated method name
 - Rust value type
-- setter body for optional fields
-- setter body for non-optional singular fields
+- setter logic for optional fields
+- setter logic for non-optional singular fields
 
 Example:
 
 ```rust
-FieldSpec {
-    field_name: "os_based_return_url",
-    trait_name: "PopulateOsBasedReturnUrl",
-    method_name: "populate_os_based_return_url",
-    value_type: "crate::payments::OsBasedReturnUrl",
-    when_optional_body: "...",
-    when_required_body: "...",
+#[derive(Clone, Copy)]
+enum AutoPopulateField {
+    OsBasedReturnUrl,
+}
+
+const AUTO_POPULATE_FIELDS: &[AutoPopulateField] = &[AutoPopulateField::OsBasedReturnUrl];
+
+#[derive(Clone, Copy)]
+struct OsBasedReturnUrlSpec;
+
+impl AutoPopulateSpec for OsBasedReturnUrlSpec {
+    fn field_name(self) -> &'static str {
+        "os_based_return_url"
+    }
+
+    fn trait_name(self) -> &'static str {
+        "PopulateOsBasedReturnUrl"
+    }
+
+    fn method_name(self) -> &'static str {
+        "populate_os_based_return_url"
+    }
+
+    fn value_type(self) -> TokenStream {
+        quote! { crate::payments::OsBasedReturnUrl }
+    }
+
+    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
+        match shape {
+            FieldShape::Optional => quote! {
+                if let Some(existing) = self.os_based_return_url.as_mut() {
+                    if !existing.os_type.is_empty() {
+                        existing.return_url_map = value.return_url_map;
+                    }
+                }
+            },
+            FieldShape::Required => quote! {
+                if !self.os_based_return_url.os_type.is_empty() {
+                    self.os_based_return_url.return_url_map = value.return_url_map;
+                }
+            },
+            FieldShape::Repeated => {
+                let error = format!(
+                    "populate_os_based_return_url: `{message_name}.os_based_return_url` is repeated"
+                );
+                quote! {
+                    let _ = value;
+                    compile_error!(#error);
+                }
+            }
+        }
+    }
 }
 ```
 
 The developer does not list request/message types. The descriptor decides where the field exists.
+
+The generator uses `quote`/`proc_macro2` to build Rust tokens and
+`prettyplease` to format the generated file. That avoids string-built Rust
+setter bodies while keeping this as ordinary build-script code, not a separate
+procedural macro crate.
 
 ## Why Setter Bodies Are Shape-Based
 
@@ -92,10 +143,10 @@ Different proto field shapes generate different Rust field types:
 
 So the setter cannot be one generic assignment for every shape.
 
-The current contract supports:
+The current contract supports these `FieldShape` variants in `setter_body`:
 
-- `when_optional_body`
-- `when_required_body`
+- `FieldShape::Optional`
+- `FieldShape::Required`
 
 `repeated` is intentionally rejected with a generated `compile_error!`. This is safer than silently picking behavior for a shape that has not been designed.
 
@@ -321,25 +372,136 @@ Unsupported connectors explicitly go through the default match arm and log that 
 
 ## Adding A New Auto-Populated Field
 
-To add another field, add one `FieldSpec`.
+To add another field to the generated sanity infrastructure:
 
-Required information:
+1. Add the destination field to the relevant `.proto` message or messages.
+2. Add a new variant to `AutoPopulateField`.
+3. Add that variant to `AUTO_POPULATE_FIELDS`.
+4. Create a small spec type, for example `NativeAppIdentifierSpec`.
+5. Implement `AutoPopulateSpec` for that spec type:
+   - `field_name`: exact proto field name
+   - `trait_name`: generated Rust trait name
+   - `method_name`: generated Rust method name
+   - `value_type`: Rust type accepted by the generated setter
+   - `setter_body`: shape-based setter logic using `quote!`
+6. Add delegation for the new variant in `impl AutoPopulateSpec for AutoPopulateField`.
+7. Add or update focused tests in `grpc-api-types/tests/auto_populate_test.rs`.
+8. Build or test `grpc-api-types`; the generated file in `OUT_DIR` will include
+   trait impls for every descriptor-discovered matching message.
 
-- `field_name`: exact proto field name
-- `trait_name`: generated Rust trait name
-- `method_name`: generated Rust method name
-- `value_type`: Rust type passed to the setter
-- `when_optional_body`: assignment logic for `optional` proto fields
-- `when_required_body`: assignment logic for non-optional singular proto fields
+Example shape:
 
-No request/message list is needed.
+```rust
+#[derive(Clone, Copy)]
+struct NativeAppIdentifierSpec;
 
-After adding the spec:
+impl AutoPopulateSpec for NativeAppIdentifierSpec {
+    fn field_name(self) -> &'static str {
+        "native_app_identifier"
+    }
 
-1. Add the field to the relevant `.proto` messages.
-2. Run the build.
-3. The generated file in `OUT_DIR` will include trait impls for every matching message.
-4. Runtime sanity code can call the generated method generically.
+    fn trait_name(self) -> &'static str {
+        "PopulateNativeAppIdentifier"
+    }
+
+    fn method_name(self) -> &'static str {
+        "populate_native_app_identifier"
+    }
+
+    fn value_type(self) -> TokenStream {
+        quote! { String }
+    }
+
+    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
+        match shape {
+            FieldShape::Optional => quote! {
+                self.native_app_identifier = Some(value);
+            },
+            FieldShape::Required => quote! {
+                self.native_app_identifier = value;
+            },
+            FieldShape::Repeated => {
+                let error = format!(
+                    "populate_native_app_identifier: `{message_name}.native_app_identifier` is repeated"
+                );
+                quote! {
+                    let _ = value;
+                    compile_error!(#error);
+                }
+            }
+        }
+    }
+}
+```
+
+No request/message list is needed. The descriptor decides which generated proto
+types get a real setter, a nested delegate, or a no-op.
+
+If runtime code needs to call more than one generated populate method, update
+the sanitizer bound in `grpc-server/src/sanity_layer.rs`. For example:
+
+```rust
+fn sanitize<T: PopulateOsBasedReturnUrl + PopulateNativeAppIdentifier>(
+    &self,
+    metadata: &MetadataMap,
+    req: &mut T,
+)
+```
+
+The generated `RequestSanitizer` trait already includes every auto-populate
+field from `AUTO_POPULATE_FIELDS`, so connector runtime code must use matching
+bounds when it calls those generated methods.
+
+## Adding A New Connector Sanity Handler
+
+Connector-specific sanity logic lives in
+`crates/grpc-server/grpc-server/src/sanity_layer.rs`, not in generated code.
+
+To add a new connector:
+
+1. Make sure the connector can be resolved to a `ConnectorVariant` by the
+   existing metadata/config parsing path.
+2. Add a connector-specific sanity struct, for example `FooPaySanity`.
+3. Implement `ConnectorSanity` for that struct:
+   - `raw_config` should extract only that connector's raw config from
+     `x-connector-config`.
+   - `apply` should convert connector-specific config keys into the generic
+     request value and call the generated populate method.
+4. Add one match arm in `sanity_connector` for the connector enum variant.
+5. Add one match arm in `ConnectorSanitizer::sanitize` to call the connector's
+   sanity implementation.
+6. Leave all unsupported connectors on the `Other(connector)` path; they should
+   log `no connector sanity registered` and perform no mutation.
+7. Add a focused test or smoke command that sends raw `x-connector-config` for
+   the connector and confirms the typed request is populated before the handler
+   runs.
+
+Example shape:
+
+```rust
+struct FooPaySanity;
+
+impl ConnectorSanity for FooPaySanity {
+    fn raw_config(&self, metadata: &MetadataMap) -> Option<serde_json::Value> {
+        raw_connector_config(metadata, &["FooPay", "foo_pay"])
+    }
+
+    fn apply<T: PopulateOsBasedReturnUrl>(&self, metadata: &MetadataMap, req: &mut T) {
+        let Some(config) = self.raw_config(metadata) else {
+            return;
+        };
+        let Some(value) = build_value_from_foo_pay_config(config) else {
+            return;
+        };
+
+        req.populate_os_based_return_url(value);
+    }
+}
+```
+
+The connector handler owns the translation from merchant/Euler-specific config
+shape into UCS's generic request shape. The auto-populate generator only owns
+finding destination fields and emitting typed setters.
 
 ## What Happens When New Proto Is Added
 
