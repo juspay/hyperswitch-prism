@@ -4,18 +4,21 @@
 //! Discovery of *which* request messages contain a given field is entirely
 //! derived from the compiled `FileDescriptorSet` (via each service's RPC
 //! input types) — never hand-maintained. The only thing a developer writes
-//! per field is, in `FIELD_SPECS` below, the setter body for each possible
-//! field *shape* (optional vs. plain singular) — not a list of message
-//! types. Adding a new flow whose request contains the field therefore
-//! requires zero changes here; the next build picks it up automatically.
+//! per field is a spec implementation below: field name, generated trait API,
+//! value type, and typed setter tokens per field *shape* (optional vs. plain
+//! singular) — not a list of message types. Adding a new flow whose request
+//! contains the field therefore requires zero changes here; the next build
+//! picks it up automatically.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use heck::{ToSnakeCase, ToUpperCamelCase};
+use proc_macro2::{Ident, TokenStream};
 use prost_types::{
     field_descriptor_proto::{Label, Type},
     DescriptorProto, FieldDescriptorProto, FileDescriptorSet, ServiceDescriptorProto,
 };
+use quote::{format_ident, quote};
 
 /// Only the `types` package is aliased as `crate::payments` (see `src/lib.rs`);
 /// everything else (e.g. `grpc.health.v1`) is intentionally out of scope for
@@ -23,32 +26,125 @@ use prost_types::{
 const SUPPORTED_PACKAGE: &str = "types";
 const SUPPORTED_PACKAGE_MODULE: &str = "crate::payments";
 
-/// The entire developer-facing declaration surface: a field name, and one
-/// setter body per field shape. Nothing about *which messages* have the
-/// field is declared here.
-pub struct FieldSpec {
-    pub field_name: &'static str,
-    pub trait_name: &'static str,
-    pub method_name: &'static str,
-    pub value_type: &'static str,
-    /// Setter body for a field declared with the `optional` keyword
-    /// (prost emits `Option<value_type>`). May reference `req` and `value`.
-    pub when_optional_body: &'static str,
-    /// Setter body for a plain singular field (prost emits `value_type`
-    /// directly, no `Option`). May reference `req` and `value`.
-    pub when_required_body: &'static str,
+#[derive(Clone, Copy)]
+enum FieldShape {
+    Optional,
+    Required,
+    Repeated,
 }
 
-pub const FIELD_SPECS: &[FieldSpec] = &[
-    FieldSpec {
-        field_name: "os_based_return_url",
-        trait_name: "PopulateOsBasedReturnUrl",
-        method_name: "populate_os_based_return_url",
-        value_type: "crate::payments::OsBasedReturnUrl",
-        when_optional_body: "if let Some(existing) = req.os_based_return_url.as_mut() {\n                if !existing.os_type.is_empty() {\n                    existing.return_url_map = value.return_url_map;\n                }\n            }",
-        when_required_body: "if !req.os_based_return_url.os_type.is_empty() {\n                req.os_based_return_url.return_url_map = value.return_url_map;\n            }",
-    },
-];
+/// Registry of auto-populated fields. This is intentionally the only list a
+/// developer extends when adding a new generated populate API.
+#[derive(Clone, Copy)]
+enum AutoPopulateField {
+    OsBasedReturnUrl,
+}
+
+const AUTO_POPULATE_FIELDS: &[AutoPopulateField] = &[AutoPopulateField::OsBasedReturnUrl];
+
+/// Per-field codegen contract. Implementations describe what field should be
+/// discovered and how to emit the setter for that field; descriptor walking
+/// still decides which request/message structs receive the generated impl.
+trait AutoPopulateSpec: Copy {
+    fn field_name(self) -> &'static str;
+
+    fn trait_name(self) -> &'static str;
+
+    fn method_name(self) -> &'static str;
+
+    fn value_type(self) -> TokenStream;
+
+    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream;
+
+    fn trait_ident(self) -> Ident {
+        format_ident!("{}", self.trait_name())
+    }
+
+    fn method_ident(self) -> Ident {
+        format_ident!("{}", self.method_name())
+    }
+}
+
+#[derive(Clone, Copy)]
+struct OsBasedReturnUrlSpec;
+
+impl AutoPopulateSpec for OsBasedReturnUrlSpec {
+    fn field_name(self) -> &'static str {
+        "os_based_return_url"
+    }
+
+    fn trait_name(self) -> &'static str {
+        "PopulateOsBasedReturnUrl"
+    }
+
+    fn method_name(self) -> &'static str {
+        "populate_os_based_return_url"
+    }
+
+    fn value_type(self) -> TokenStream {
+        quote! { crate::payments::OsBasedReturnUrl }
+    }
+
+    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
+        match shape {
+            FieldShape::Optional => quote! {
+                if let Some(existing) = self.os_based_return_url.as_mut() {
+                    if !existing.os_type.is_empty() {
+                        existing.return_url_map = value.return_url_map;
+                    }
+                }
+            },
+            FieldShape::Required => quote! {
+                if !self.os_based_return_url.os_type.is_empty() {
+                    self.os_based_return_url.return_url_map = value.return_url_map;
+                }
+            },
+            FieldShape::Repeated => {
+                let method = self.method_name();
+                let field_name = self.field_name();
+                let error = format!(
+                    "{method}: `{message_name}.{field_name}` exists but is `repeated`, which this generator does not support — add explicit handling in codegen/auto_populate.rs",
+                );
+                quote! {
+                    let _ = value;
+                    compile_error!(#error);
+                }
+            }
+        }
+    }
+}
+
+impl AutoPopulateSpec for AutoPopulateField {
+    fn field_name(self) -> &'static str {
+        match self {
+            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.field_name(),
+        }
+    }
+
+    fn trait_name(self) -> &'static str {
+        match self {
+            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.trait_name(),
+        }
+    }
+
+    fn method_name(self) -> &'static str {
+        match self {
+            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.method_name(),
+        }
+    }
+
+    fn value_type(self) -> TokenStream {
+        match self {
+            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.value_type(),
+        }
+    }
+
+    fn setter_body(self, shape: FieldShape, message_name: &str) -> TokenStream {
+        match self {
+            Self::OsBasedReturnUrl => OsBasedReturnUrlSpec.setter_body(shape, message_name),
+        }
+    }
+}
 
 /// Every distinct request message name used as an RPC input type across every
 /// service in the descriptor, restricted to `SUPPORTED_PACKAGE`. This is the
@@ -88,6 +184,15 @@ fn rust_type_name(proto_name: &str) -> String {
     proto_name.to_upper_camel_case()
 }
 
+fn rust_type_ident(proto_name: &str) -> Ident {
+    format_ident!("{}", rust_type_name(proto_name))
+}
+
+fn path_tokens(path: &str) -> TokenStream {
+    path.parse()
+        .unwrap_or_else(|error| panic!("invalid generated path `{path}`: {error}"))
+}
+
 fn find_field<'a>(
     message: &'a DescriptorProto,
     field_name: &str,
@@ -98,25 +203,25 @@ fn find_field<'a>(
         .find(|field| field.name.as_deref() == Some(field_name))
 }
 
-/// For a message that has the field, decide which developer-supplied setter
-/// body applies, based on the field's shape as reported by the descriptor —
-/// never guessed from the message name or type.
-fn setter_body_for(spec: &FieldSpec, field: &FieldDescriptorProto, message_name: &str) -> String {
+fn field_shape(field: &FieldDescriptorProto) -> FieldShape {
     if field.label == Some(Label::Repeated as i32) {
-        return format!(
-            "let _ = value; compile_error!(\"{method}: `{message}.{field_name}` exists but is `repeated`, which this generator does not support — add explicit handling in build/auto_populate.rs\");",
-            method = spec.method_name,
-            message = message_name,
-            field_name = spec.field_name,
-        );
-    }
-
-    let body = if field.proto3_optional == Some(true) {
-        spec.when_optional_body
+        FieldShape::Repeated
+    } else if field.proto3_optional == Some(true) {
+        FieldShape::Optional
     } else {
-        spec.when_required_body
-    };
-    format!("let req = self;\n            {body}")
+        FieldShape::Required
+    }
+}
+
+/// For a message that has the field, decide which spec-supplied setter body
+/// applies, based on the field's shape as reported by the descriptor — never
+/// guessed from the message name or type.
+fn setter_body_for(
+    spec: AutoPopulateField,
+    field: &FieldDescriptorProto,
+    message_name: &str,
+) -> TokenStream {
+    spec.setter_body(field_shape(field), message_name)
 }
 
 fn type_name(path: &str) -> Option<&str> {
@@ -175,72 +280,85 @@ fn oneof_name(message: &DescriptorProto, field: &FieldDescriptorProto) -> Option
 }
 
 fn nested_delegate_body(
-    spec: &FieldSpec,
+    spec: AutoPopulateField,
     messages: &BTreeMap<String, &DescriptorProto>,
     message_name: &str,
     message: &DescriptorProto,
-) -> Option<String> {
+) -> Option<TokenStream> {
     let field = message
         .field
         .iter()
-        .find(|field| child_contains_field(messages, field, spec.field_name))?;
+        .find(|field| child_contains_field(messages, field, spec.field_name()))?;
     let child_name = message_field_type_name(field)?;
 
     if field.oneof_index.is_some() {
         let oneof_index = field.oneof_index?;
         let oneof_name = oneof_name(message, field)?;
-        let oneof_module = rust_type_name(message_name).to_snake_case();
-        let oneof_enum_name = message
-            .oneof_decl
-            .get(usize::try_from(oneof_index).ok()?)?
-            .name
-            .as_deref()?
-            .to_upper_camel_case();
+        let oneof_field_ident = format_ident!("{}", oneof_name);
+        let oneof_module_ident = format_ident!("{}", rust_type_name(message_name).to_snake_case());
+        let oneof_enum_ident = format_ident!(
+            "{}",
+            message
+                .oneof_decl
+                .get(usize::try_from(oneof_index).ok()?)?
+                .name
+                .as_deref()?
+                .to_upper_camel_case()
+        );
+        let method_ident = spec.method_ident();
+        let module = path_tokens(SUPPORTED_PACKAGE_MODULE);
         let arms = message
             .field
             .iter()
             .filter(|field| field.oneof_index == Some(oneof_index))
-            .filter(|field| child_contains_field(messages, field, spec.field_name))
+            .filter(|field| child_contains_field(messages, field, spec.field_name()))
             .filter_map(|field| {
                 field.name.as_deref().map(|name| {
-                    format!(
-                        "Some({module}::{oneof_module}::{oneof_enum_name}::{variant}(inner)) => {{\n                    inner.{method}(value);\n                }}",
-                        module = SUPPORTED_PACKAGE_MODULE,
-                        oneof_module = oneof_module,
-                        oneof_enum_name = oneof_enum_name,
-                        variant = name.to_upper_camel_case(),
-                        method = spec.method_name,
-                    )
+                    let variant_ident = format_ident!("{}", name.to_upper_camel_case());
+                    quote! {
+                        Some(#module::#oneof_module_ident::#oneof_enum_ident::#variant_ident(inner)) => {
+                            inner.#method_ident(value);
+                        }
+                    }
                 })
             })
-            .collect::<Vec<_>>()
-            .join(",\n                ");
+            .collect::<Vec<_>>();
 
         if arms.is_empty() {
             return None;
         }
 
-        Some(format!(
-            "match self.{oneof_name}.as_mut() {{\n                {arms},\n                _ => {{\n                    let _ = value;\n                }}\n            }}",
-            oneof_name = oneof_name,
-            arms = arms,
-        ))
+        Some(quote! {
+            match self.#oneof_field_ident.as_mut() {
+                #(#arms,)*
+                _ => {
+                    let _ = value;
+                }
+            }
+        })
     } else if field.label == Some(Label::Repeated as i32) {
-        Some(format!(
-            "compile_error!(\"{method}: `{message}.{field}` can reach `{target}` through repeated message `{child}`, which this generator does not support yet\");\n            let _ = value;",
-            method = spec.method_name,
+        let error = format!(
+            "{method}: `{message}.{field}` can reach `{target}` through repeated message `{child}`, which this generator does not support yet",
+            method = spec.method_name(),
             message = message_name,
             field = field.name.as_deref().unwrap_or("<unknown>"),
-            target = spec.field_name,
+            target = spec.field_name(),
             child = child_name,
-        ))
+        );
+        Some(quote! {
+            compile_error!(#error);
+            let _ = value;
+        })
     } else {
-        let field_name = field.name.as_deref()?;
-        Some(format!(
-            "if let Some(inner) = self.{field_name}.as_mut() {{\n                inner.{method}(value);\n            }} else {{\n                let _ = value;\n            }}",
-            field_name = field_name,
-            method = spec.method_name,
-        ))
+        let field_ident = format_ident!("{}", field.name.as_deref()?);
+        let method_ident = spec.method_ident();
+        Some(quote! {
+            if let Some(inner) = self.#field_ident.as_mut() {
+                inner.#method_ident(value);
+            } else {
+                let _ = value;
+            }
+        })
     }
 }
 
@@ -252,11 +370,11 @@ fn populate_impl_message_names(descriptor_set: &FileDescriptorSet) -> BTreeSet<S
         message_names(descriptor_set)
             .into_iter()
             .filter(|message_name| {
-                FIELD_SPECS.iter().any(|spec| {
+                AUTO_POPULATE_FIELDS.iter().any(|spec| {
                     message_contains_field(
                         &messages,
                         message_name,
-                        spec.field_name,
+                        spec.field_name(),
                         &mut BTreeSet::new(),
                     )
                 })
@@ -276,110 +394,155 @@ fn supported_services(descriptor_set: &FileDescriptorSet) -> Vec<&ServiceDescrip
         .collect()
 }
 
-fn generate_sanity_layer(out: &mut String, descriptor_set: &FileDescriptorSet) {
-    let sanitizer_bounds = FIELD_SPECS
+fn generate_sanity_layer(descriptor_set: &FileDescriptorSet) -> TokenStream {
+    let sanitizer_bounds = AUTO_POPULATE_FIELDS
         .iter()
-        .map(|spec| spec.trait_name)
-        .collect::<Vec<_>>()
-        .join(" + ");
+        .map(|spec| spec.trait_ident())
+        .collect::<Vec<_>>();
+    let service_impls = supported_services(descriptor_set)
+        .into_iter()
+        .map(|service| {
+            let service_name = service.name.as_deref().expect("service name was filtered");
+            let service_ident = format_ident!("{}", service_name);
+            let service_module_ident = format_ident!("{}_server", service_name.to_snake_case());
+            let module = path_tokens(SUPPORTED_PACKAGE_MODULE);
+            let method_impls = service
+                .method
+                .iter()
+                .filter_map(|method| {
+                    let method_ident = format_ident!("{}", method.name.as_deref()?.to_snake_case());
+                    let input_ident =
+                        rust_type_ident(method.input_type.as_deref().and_then(type_name)?);
+                    let output_ident =
+                        rust_type_ident(method.output_type.as_deref().and_then(type_name)?);
+                    Some(quote! {
+                        async fn #method_ident(
+                            &self,
+                            mut request: tonic::Request<#module::#input_ident>,
+                        ) -> Result<tonic::Response<#module::#output_ident>, tonic::Status> {
+                            let metadata = request.metadata().clone();
+                            self.sanitizer.sanitize(&metadata, request.get_mut());
+                            self.inner.#method_ident(request).await
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
 
-    out.push_str("    #[derive(Clone, Copy, Debug, Default)]\n    pub struct NoopSanitizer;\n\n");
-    out.push_str(&format!(
-        "    pub trait RequestSanitizer: Clone + Send + Sync + 'static {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, metadata: &tonic::metadata::MetadataMap, request: &mut T);\n    }}\n\n",
-    ));
-    out.push_str(&format!(
-        "    impl RequestSanitizer for NoopSanitizer {{\n        fn sanitize<T: {sanitizer_bounds}>(&self, _metadata: &tonic::metadata::MetadataMap, _request: &mut T) {{}}\n    }}\n\n",
-    ));
-    out.push_str(
-        "    #[derive(Clone)]\n    pub struct SanityLayer<S, Z = NoopSanitizer> {\n        pub inner: S,\n        pub sanitizer: Z,\n    }\n\n",
-    );
-    out.push_str(
-        "    impl<S, Z> SanityLayer<S, Z> {\n        pub fn new(inner: S, sanitizer: Z) -> Self {\n            Self { inner, sanitizer }\n        }\n    }\n\n",
-    );
-    out.push_str(
-        "    impl<S> SanityLayer<S, NoopSanitizer> {\n        pub fn noop(inner: S) -> Self {\n            Self { inner, sanitizer: NoopSanitizer }\n        }\n    }\n\n",
-    );
+            quote! {
+                #[tonic::async_trait]
+                impl<S, Z> #module::#service_module_ident::#service_ident for SanityLayer<S, Z>
+                where
+                    S: #module::#service_module_ident::#service_ident,
+                    Z: RequestSanitizer,
+                {
+                    #(#method_impls)*
+                }
+            }
+        })
+        .collect::<Vec<_>>();
 
-    for service in supported_services(descriptor_set) {
-        let service_name = service.name.as_deref().expect("service name was filtered");
-        let service_module = format!("{}_server", service_name.to_snake_case());
+    quote! {
+        #[derive(Clone, Copy, Debug, Default)]
+        pub struct NoopSanitizer;
 
-        out.push_str(&format!(
-            "    #[tonic::async_trait]\n    impl<S, Z> {module}::{service} for SanityLayer<S, Z>\n    where\n        S: {module}::{service},\n        Z: RequestSanitizer,\n    {{\n",
-            module = format!("{SUPPORTED_PACKAGE_MODULE}::{service_module}"),
-            service = service_name,
-        ));
-
-        for method in &service.method {
-            let Some(method_name) = method.name.as_deref() else {
-                continue;
-            };
-            let Some(input_type) = method.input_type.as_deref().and_then(type_name) else {
-                continue;
-            };
-            let Some(output_type) = method.output_type.as_deref().and_then(type_name) else {
-                continue;
-            };
-            let rust_method_name = method_name.to_snake_case();
-
-            out.push_str(&format!(
-                "        async fn {method}(\n            &self,\n            mut request: tonic::Request<{types_module}::{input_type}>,\n        ) -> Result<tonic::Response<{types_module}::{output_type}>, tonic::Status> {{\n            let metadata = request.metadata().clone();\n            self.sanitizer.sanitize(&metadata, request.get_mut());\n            self.inner.{method}(request).await\n        }}\n\n",
-                method = rust_method_name,
-                types_module = SUPPORTED_PACKAGE_MODULE,
-                input_type = rust_type_name(input_type),
-                output_type = rust_type_name(output_type),
-            ));
+        pub trait RequestSanitizer: Clone + Send + Sync + 'static {
+            fn sanitize<T: #(#sanitizer_bounds)+*>(
+                &self,
+                metadata: &tonic::metadata::MetadataMap,
+                request: &mut T,
+            );
         }
 
-        out.push_str("    }\n\n");
+        impl RequestSanitizer for NoopSanitizer {
+            fn sanitize<T: #(#sanitizer_bounds)+*>(
+                &self,
+                _metadata: &tonic::metadata::MetadataMap,
+                _request: &mut T,
+            ) {
+            }
+        }
+
+        #[derive(Clone)]
+        pub struct SanityLayer<S, Z = NoopSanitizer> {
+            pub inner: S,
+            pub sanitizer: Z,
+        }
+
+        impl<S, Z> SanityLayer<S, Z> {
+            pub fn new(inner: S, sanitizer: Z) -> Self {
+                Self { inner, sanitizer }
+            }
+        }
+
+        impl<S> SanityLayer<S, NoopSanitizer> {
+            pub fn noop(inner: S) -> Self {
+                Self { inner, sanitizer: NoopSanitizer }
+            }
+        }
+
+        #(#service_impls)*
     }
 }
 
 pub fn generate(descriptor_set: &FileDescriptorSet) -> String {
     let messages = message_index(descriptor_set);
     let message_names = populate_impl_message_names(descriptor_set);
+    let module = path_tokens(SUPPORTED_PACKAGE_MODULE);
 
-    let mut out = String::new();
-    out.push_str("// GENERATED FILE - DO NOT EDIT MANUALLY\n");
-    out.push_str(
-        "// Generated by codegen/auto_populate.rs from the compiled protobuf descriptor set.\n",
-    );
-    out.push_str("pub mod generated {\n");
-    out.push_str("    #![allow(clippy::all)]\n\n");
-
-    for spec in FIELD_SPECS {
-        out.push_str(&format!(
-            "    pub trait {trait_name} {{\n        fn {method}(&mut self, value: {value_type});\n    }}\n\n",
-            trait_name = spec.trait_name,
-            method = spec.method_name,
-            value_type = spec.value_type,
-        ));
-
-        for message_name in &message_names {
-            let Some(descriptor) = messages.get(message_name) else {
-                continue;
+    let trait_impls = AUTO_POPULATE_FIELDS
+        .iter()
+        .flat_map(|spec| {
+            let trait_ident = spec.trait_ident();
+            let method_ident = spec.method_ident();
+            let value_type = spec.value_type();
+            let trait_def = quote! {
+                pub trait #trait_ident {
+                    fn #method_ident(&mut self, value: #value_type);
+                }
             };
 
-            let body = match find_field(descriptor, spec.field_name) {
-                Some(field) => setter_body_for(spec, field, message_name),
-                None => nested_delegate_body(spec, &messages, message_name, descriptor)
-                    .unwrap_or_else(|| "let _ = value;".to_string()),
-            };
+            let impls = message_names
+                .iter()
+                .filter_map(|message_name| {
+                    let descriptor = messages.get(message_name)?;
+                    let body = match find_field(descriptor, spec.field_name()) {
+                        Some(field) => setter_body_for(*spec, field, message_name),
+                        None => nested_delegate_body(*spec, &messages, message_name, descriptor)
+                            .unwrap_or_else(|| quote! { let _ = value; }),
+                    };
+                    let message_ident = rust_type_ident(message_name);
 
-            out.push_str(&format!(
-                "    impl {trait_name} for {module}::{message} {{\n        fn {method}(&mut self, value: {value_type}) {{\n            {body}\n        }}\n    }}\n\n",
-                trait_name = spec.trait_name,
-                module = SUPPORTED_PACKAGE_MODULE,
-                message = rust_type_name(message_name),
-                method = spec.method_name,
-                value_type = spec.value_type,
-                body = body,
-            ));
+                    Some(quote! {
+                        impl #trait_ident for #module::#message_ident {
+                            fn #method_ident(&mut self, value: #value_type) {
+                                #body
+                            }
+                        }
+                    })
+                })
+                .collect::<Vec<_>>();
+
+            std::iter::once(trait_def).chain(impls)
+        })
+        .collect::<Vec<_>>();
+    let sanity_layer = generate_sanity_layer(descriptor_set);
+
+    let tokens = quote! {
+        pub mod generated {
+            #![allow(clippy::all)]
+
+            #(#trait_impls)*
+
+            #sanity_layer
         }
-    }
+    };
+    let generated = tokens.to_string();
+    let generated = syn::parse_file(&generated)
+        .map(|file| prettyplease::unparse(&file))
+        .unwrap_or(generated);
 
-    generate_sanity_layer(&mut out, descriptor_set);
-
-    out.push_str("}\n");
-    out
+    format!(
+        "// GENERATED FILE - DO NOT EDIT MANUALLY\n// Generated by codegen/auto_populate.rs from the compiled protobuf descriptor set.\n{}",
+        generated
+    )
 }
