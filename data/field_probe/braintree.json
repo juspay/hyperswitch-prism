@@ -667,7 +667,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_connector_txn_001\"}}}}"
+          "body": "{\"query\":\"query($input: TransactionSearchInput!) { search { transactions(input: $input) { edges { node { id status orderId amount { value currencyCode } initialRequestedAuthorizationAmount { value currencyCode } } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_connector_txn_001\"}}}}"
         }
       }
     },
@@ -788,7 +788,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation braintreeThreeDSecureSetup($card: TokenizeCreditCardInput!, $clientToken: CreateClientTokenInput!) { tokenizeCreditCard(input: $card) { paymentMethod { id } } createClientToken(input: $clientToken) { clientToken } }\",\"variables\":{\"card\":{\"creditCard\":{\"number\":\"4111111111111111\",\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"cvv\":\"737\",\"cardholderName\":\"\"}},\"clientToken\":{\"clientToken\":{\"merchantAccountId\":\"probe_merchant_acct\"}}}}"
+          "body": "{\"query\":\"mutation braintreeThreeDSecureSetup($card: TokenizeCreditCardInput!, $clientToken: CreateClientTokenInput!) { tokenizeCreditCard(input: $card) { paymentMethod { id } } createClientToken(input: $clientToken) { clientToken } }\",\"variables\":{\"card\":{\"creditCard\":{\"number\":\"4111111111111111\",\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"cvv\":\"737\"}},\"clientToken\":{\"clientToken\":{\"merchantAccountId\":\"probe_merchant_acct\"}}}}"
         }
       }
     },
@@ -864,7 +864,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status createdAt amount { value currencyCode } orderId } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_refund_id_001\"}}}}"
+          "body": "{\"query\":\"query($input: RefundSearchInput!) { search { refunds(input: $input, first: 1) { edges { node { id status } } } } }\",\"variables\":{\"input\":{\"id\":{\"is\":\"probe_refund_id_001\"}}}}"
         }
       }
     },
